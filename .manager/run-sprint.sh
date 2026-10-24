@@ -3,6 +3,7 @@
 # Lance (ou reprend) une session Codex gpt-6.1-sol pour un sprint, journal JSONL complet dans .manager/logs/.
 set -u
 cd /Users/diaw/Downloads/agregateur-agent
+[ -f .manager/secrets.env ] && { set -a; source .manager/secrets.env; set +a; }
 N=$1
 TS=$(date +%Y%m%d-%H%M%S)
 LOG=.manager/logs/sprint-$N-$TS.jsonl

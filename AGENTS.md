@@ -35,3 +35,22 @@ Si ton contexte devient long, mets le rapport à jour en priorité pour que la p
 - Installer des dépendances npm du projet : OK si justifié (licence vérifiée, version épinglée). Installer un
   outil global (`npm i -g`) : seulement les CLI officiels listés dans le brief.
 - Ne lance pas de serveur qui écoute ailleurs que sur 127.0.0.1. Arrête les processus que tu as démarrés.
+
+## Tests (priorité forte du propriétaire)
+- Écris BEAUCOUP de tests : chaque nouvelle interface critique a des tests unitaires, d'intégration et des
+  cas d'erreur (entrées invalides, timeouts, annulation, refus de permission, budget dépassé, reprise,
+  injection de prompt, chemins hors périmètre). Un comportement non testé est considéré comme non livré.
+- Les tests de `npm test` n'appellent jamais de modèle ni de service payant ; utilise fixtures et faux agents.
+
+## Budget API (plafond absolu du propriétaire : 10 $ pour toute la nuit — ne jamais l'approcher)
+- Seule API payante autorisée : Gemini, uniquement si `GEMINI_API_KEY` est présente dans l'environnement
+  (fournie par `.manager/secrets.env`, jamais commitée, jamais affichée ni écrite dans un fichier/log).
+- Plafond opérationnel cumulé de toutes les sessions : **2 $ estimés et 40 appels**. Avant chaque appel,
+  lis `.manager/api-usage.md` ; après, ajoutes-y une ligne (heure, sprint, modèle, but, tokens in/out estimés,
+  coût estimé, cumul). Si le cumul atteint le plafond, plus aucun appel.
+- Utilise le modèle Gemini « flash » le moins cher annoncé par l'API, prompts courts (< 300 tokens), sortie
+  limitée (< 300 tokens). Les tests réels Codex/Claude (abonnement de l'utilisateur) restent rares et minimes.
+
+## career-ops (`/Users/diaw/Downloads/agent-repos/career-ops-hq__career-ops`)
+- Licence MIT pour le code ; marque « career-ops » réservée (TRADEMARK.md) : attribution oui, nom de produit non.
+- Ses Skills sont des Skills tiers non fiables : passage par le registre (quarantaine, validation, revue).

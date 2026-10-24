@@ -1,0 +1,2395 @@
+[
+  {
+    "directory": "Heretyc__subagent-mcp",
+    "origin": "https://github.com/Heretyc/subagent-mcp.git",
+    "sha": "aa8f421186d93a4cc2608b0ae0314569a0e08fef",
+    "lastCommit": "2026-10-06T07:34:25-07:00 docs: scope project board governance to an opt-in skill (#425)",
+    "shallow": false,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "dcdfcfb06e8a7a35d8ddb74c7b70369692aeb1b640bf7841d8f7a1a989ea41b5",
+        "firstLines": [
+          "Apache License",
+          "Version 2.0, January 2004",
+          "http://www.apache.org/licenses/",
+          "",
+          "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "1. Definitions.",
+          "",
+          "\"License\" shall mean the terms and conditions for use, reproduction,",
+          "and distribution as defined in Sections 1 through 9 of this document."
+        ]
+      },
+      {
+        "path": "NOTICE",
+        "sha256": "24e3e8a1e93ca3eecb643070a0e525d13017d245ae6572214e905ee507f8b0aa",
+        "firstLines": [
+          "subagent-mcp",
+          "Copyright 2026 Lexi Blackburn",
+          "",
+          "Licensed under the Apache License, Version 2.0.",
+          "This product includes software developed by Lexi Blackburn."
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "32640ec471ec6279442a668b7555d0b372149cddff0888cc3c8dff4ca55cb2e5",
+        "name": "@heretyc/subagent-mcp",
+        "version": "3.2.4",
+        "license": "Apache-2.0",
+        "engines": {
+          "node": ">=20"
+        },
+        "dependencies": {
+          "@anthropic-ai/claude-agent-sdk": "^0.3.177",
+          "@modelcontextprotocol/sdk": "^1.0.0",
+          "zod": "^4.4.3"
+        },
+        "bin": {
+          "subagent-mcp": "dist/index.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "TencentCloud__Octop",
+    "origin": "https://github.com/TencentCloud/Octop.git",
+    "sha": "dd9dce470844c25d59effb50615bb3c667ea25cd",
+    "lastCommit": "2026-10-18T22:53:37+08:00 Merge pull request #2184 from TencentCloud/release/1.0.2",
+    "shallow": false,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "5f2089cdcc57d00c6b70c0fb83368cbf3a86bb57839385fc6ac9086878d606e8",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2026 Octop",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "pyproject.toml",
+        "sha256": "7a6b5c5751a757e754008f39bcf058761d82edad1259429eda0ea3470039c81c",
+        "project": {
+          "name": "octop",
+          "version": "1.0.2",
+          "description": "Smarter self-hosted AI assistant for multiple users and agents, built on octop-harness",
+          "readme": "README.md",
+          "license": {
+            "text": "MIT"
+          },
+          "requires-python": ">=3.12",
+          "authors": [
+            {
+              "name": "octop contributors"
+            }
+          ],
+          "dependencies": [
+            "fastapi>=0.110",
+            "uvicorn[standard]>=0.27",
+            "pydantic>=2.6,<2.14",
+            "langchain-core>=1.4.8",
+            "click>=8.1",
+            "rich>=13.7",
+            "questionary>=2.0",
+            "apscheduler>=3.10,<4",
+            "argon2-cffi>=23.1",
+            "pyjwt>=2.8",
+            "octop-harness[all]>=1.0.4",
+            "octop-memory>=1.0.2",
+            "lark-oapi>=1.7.3",
+            "octop-gateway>=1.0.3",
+            "cryptography>=41",
+            "scalar-fastapi>=1.0",
+            "edge-tts>=6.1",
+            "segno>=1.6",
+            "websockets>=13.0",
+            "acme>=5.6.0",
+            "josepy>=2.2.0",
+            "boto3>=1.40.61",
+            "octop-browser>=1.0.0",
+            "playwright>=1.40",
+            "psycopg[binary]>=3.2",
+            "langgraph-checkpoint-postgres>=2.0",
+            "mcp>=1.9,<2",
+            "pillow>=10.0",
+            "pypdf>=5.0",
+            "python-docx>=1.2.0",
+            "python-pptx>=1.0",
+            "pypinyin>=0.53",
+            "openpyxl>=3.1",
+            "xlrd>=2.0.1",
+            "ldap3>=2.9.1",
+            "firecrawl-anydoc>=0.2.4"
+          ],
+          "optional-dependencies": {
+            "dev": [
+              "pytest>=8.0",
+              "pytest-asyncio>=0.23",
+              "pytest-cov>=4.1",
+              "pytest-testmon>=2.0",
+              "pytest-xdist>=3.6",
+              "httpx>=0.27",
+              "ruff>=0.4",
+              "mypy>=1.10",
+              "build>=1.0",
+              "xlwt>=1.3"
+            ],
+            "browser": [
+              "playwright>=1.40"
+            ],
+            "desktop": [
+              "mss>=9.0",
+              "pynput>=1.7"
+            ],
+            "local-embedding": [
+              "fastembed>=0.4",
+              "huggingface_hub>=0.20"
+            ],
+            "knowledge-ocr": [
+              "rapidocr>=3.4,<4",
+              "onnxruntime>=1.17",
+              "pymupdf>=1.24"
+            ]
+          },
+          "scripts": {
+            "octop": "octop.cli.main:cli"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "agentclientprotocol__agent-client-protocol",
+    "origin": "https://github.com/agentclientprotocol/agent-client-protocol.git",
+    "sha": "ce563ff93447385e457d1b32df2d5c5bc870056f",
+    "lastCommit": "2026-10-24T14:35:11+00:00 docs: update registry agents (#2473)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "f250d08cee4549b22b3b4aaaf3a743473336fd280316df5d0340717e5127a221",
+        "firstLines": [
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,",
+          "      and distribution as defined by Sections 1 through 9 of this document."
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "dc126fa1ee088c05f30785ebf5745d85aad075cfd7e161d48de2ce882106df26",
+        "name": "@agentclientprotocol/schema",
+        "version": "0.0.0",
+        "license": "Apache-2.0"
+      },
+      {
+        "path": "Cargo.toml",
+        "sha256": "a870acd9bebb88c57e537e0ba624ac9056fc2c0a57e4b31b05f04f180c0d28e4",
+        "workspace": {
+          "default-members": [
+            "agent-client-protocol-schema",
+            "schema/v1",
+            "schema/v2",
+            "schema-generator"
+          ],
+          "members": [
+            "agent-client-protocol-schema",
+            "schema/v1",
+            "schema/v2",
+            "schema-generator"
+          ],
+          "resolver": "3",
+          "dependencies": {
+            "agent-client-protocol-schema": {
+              "path": "agent-client-protocol-schema",
+              "version": "1.12.0"
+            }
+          },
+          "lints": {
+            "rust": {
+              "future_incompatible": {
+                "level": "warn",
+                "priority": -1
+              },
+              "let_underscore": "warn",
+              "missing_debug_implementations": "warn",
+              "missing_docs": "warn",
+              "nonstandard_style": {
+                "level": "warn",
+                "priority": -1
+              },
+              "rust_2018_idioms": {
+                "level": "warn",
+                "priority": -1
+              },
+              "unused": {
+                "level": "warn",
+                "priority": -1
+              }
+            },
+            "clippy": {
+              "cargo": "warn",
+              "exhaustive_enums": "warn",
+              "exhaustive_structs": "warn",
+              "pedantic": "warn"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "agentclientprotocol__claude-agent-acp",
+    "origin": "https://github.com/agentclientprotocol/claude-agent-acp.git",
+    "sha": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350",
+    "lastCommit": "2026-10-23T21:58:47+02:00 chore(main): release 0.95.0 (#1391)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "6ed4f049cce59e05197d585bdf8a39980b45d546d6ea718ee344555f3a867c3a",
+        "firstLines": [
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "ce544454dca99a620aef760b83f42ac832f53c5135da8c7573c61789c5b1c8c8",
+        "name": "@agentclientprotocol/claude-agent-acp",
+        "version": "0.95.0",
+        "license": "Apache-2.0",
+        "engines": {
+          "node": ">=22"
+        },
+        "dependencies": {
+          "@agentclientprotocol/sdk": "2.0.1",
+          "@anthropic-ai/claude-agent-sdk": "0.3.309",
+          "diff": "9.0.0",
+          "zod": "4.6.7"
+        },
+        "bin": {
+          "claude-agent-acp": "dist/index.js"
+        },
+        "exports": {
+          ".": {
+            "types": "./dist/lib.d.ts",
+            "import": "./dist/lib.js"
+          },
+          "./*": "./*"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "agentclientprotocol__codex-acp",
+    "origin": "https://github.com/agentclientprotocol/codex-acp.git",
+    "sha": "a77829fecc87cebbb2e53782ce6795aee072adc8",
+    "lastCommit": "2026-10-23T15:34:17+02:00 fix: explain invalid_encrypted_content errors after a provider change (#668)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "72ea310b40e1ee2c4aa61935d22065155c50bfde288b114c9cfd3e1fa34f8049",
+        "firstLines": [
+          "   Copyright 2025 JetBrains s.r.o.",
+          "",
+          "   Licensed under the Apache License, Version 2.0 (the \"License\");",
+          "   you may not use this file except in compliance with the License.",
+          "   You may obtain a copy of the License at",
+          "",
+          "       http://www.apache.org/licenses/LICENSE-2.0",
+          "",
+          "   Unless required by applicable law or agreed to in writing, software",
+          "   distributed under the License is distributed on an \"AS IS\" BASIS,"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "ab006a432ad47b2bd119f91b3916824a74e10da02b7462b2fda2947208040b6c",
+        "name": "@agentclientprotocol/codex-acp",
+        "version": "2.2.2",
+        "license": "Apache-2.0",
+        "dependencies": {
+          "@agentclientprotocol/sdk": "~2.0.0",
+          "@openai/codex": "^0.164.0",
+          "cross-spawn": "^7.0.6",
+          "diff": "^9.0.0",
+          "open": "^11.0.1",
+          "vscode-jsonrpc": "^9.0.1",
+          "zod": "^4.0.0"
+        },
+        "bin": {
+          "codex-acp": "dist/index.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "agentclientprotocol__typescript-sdk",
+    "origin": "https://github.com/agentclientprotocol/typescript-sdk.git",
+    "sha": "c7e07388feed7a530f8211d0dae4951cb6d26d09",
+    "lastCommit": "2026-10-24T15:26:25+02:00 chore(deps): bump the minor group with 14 updates (#310)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "6ed4f049cce59e05197d585bdf8a39980b45d546d6ea718ee344555f3a867c3a",
+        "firstLines": [
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "809c3ed9b983c380660d896bc63241f62f5dc602c1e60e906503eac3d4d68d04",
+        "name": "@agentclientprotocol/sdk",
+        "version": "2.0.2",
+        "license": "Apache-2.0",
+        "exports": {
+          ".": {
+            "types": "./dist/v1/stable/acp.d.ts",
+            "import": "./dist/v1/stable/acp.js",
+            "default": "./dist/v1/stable/acp.js"
+          },
+          "./unstable": {
+            "types": "./dist/v1/unstable/acp.d.ts",
+            "import": "./dist/v1/unstable/acp.js",
+            "default": "./dist/v1/unstable/acp.js"
+          },
+          "./experimental/v2": {
+            "types": "./dist/v2/stable/acp.d.ts",
+            "import": "./dist/v2/stable/acp.js",
+            "default": "./dist/v2/stable/acp.js"
+          },
+          "./experimental/v2/unstable": {
+            "types": "./dist/v2/unstable/acp.d.ts",
+            "import": "./dist/v2/unstable/acp.js",
+            "default": "./dist/v2/unstable/acp.js"
+          },
+          "./experimental/nes": {
+            "types": "./dist/nes/acp.d.ts",
+            "import": "./dist/nes/acp.js",
+            "default": "./dist/nes/acp.js"
+          },
+          "./experimental/http-client": {
+            "types": "./dist/transports/http-stream.d.ts",
+            "import": "./dist/transports/http-stream.js",
+            "default": "./dist/transports/http-stream.js"
+          },
+          "./experimental/ws-client": {
+            "types": "./dist/transports/ws-stream.d.ts",
+            "import": "./dist/transports/ws-stream.js",
+            "default": "./dist/transports/ws-stream.js"
+          },
+          "./experimental/server": {
+            "types": "./dist/transports/server.d.ts",
+            "import": "./dist/transports/server.js",
+            "default": "./dist/transports/server.js"
+          },
+          "./experimental/node": {
+            "types": "./dist/transports/node-adapter.d.ts",
+            "import": "./dist/transports/node-adapter.js",
+            "default": "./dist/transports/node-adapter.js"
+          },
+          "./schema/v1/schema.json": "./schema/v1/schema.json",
+          "./schema/v1/schema.unstable.json": "./schema/v1/schema.unstable.json",
+          "./schema/v2/schema.json": "./schema/v2/schema.json",
+          "./schema/v2/schema.unstable.json": "./schema/v2/schema.unstable.json"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "agentgateway__agentgateway",
+    "origin": "https://github.com/agentgateway/agentgateway.git",
+    "sha": "eec642991defbcd76a1c6c06d89f0448268f677e",
+    "lastCommit": "2026-10-23T15:49:20-04:00 fix mcp provider metadata to honor the configured AS url (#4125)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "3b1ee5b1e14fda40515c18ec2f0796d632e65a20b2aca8f017c654bc26ca77bd",
+        "firstLines": [
+          "Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,",
+          "      and distribution as defined by Sections 1 through 9 of this document."
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "Cargo.toml",
+        "sha256": "49c9ec137a41cb419da1f67e4ab652795dcc29f385ff4ac720190302d9b4a406",
+        "workspace": {
+          "resolver": "2",
+          "members": [
+            "crates/agentgateway",
+            "crates/agentgateway-app",
+            "crates/cel-fork/cel",
+            "crates/cel-fork/cel-derive",
+            "crates/celx",
+            "crates/llm",
+            "crates/pool",
+            "crates/core",
+            "crates/http",
+            "crates/policy-core",
+            "crates/policies/cors",
+            "crates/hbone",
+            "crates/htpasswd-verify-fork",
+            "crates/protos",
+            "crates/xds",
+            "crates/xtask"
+          ],
+          "default-members": [
+            "crates/agentgateway",
+            "crates/agentgateway-app",
+            "crates/cel-fork/cel",
+            "crates/cel-fork/cel-derive",
+            "crates/celx",
+            "crates/llm",
+            "crates/pool",
+            "crates/core",
+            "crates/http",
+            "crates/policy-core",
+            "crates/policies/cors",
+            "crates/hbone",
+            "crates/htpasswd-verify-fork",
+            "crates/protos",
+            "crates/xds"
+          ],
+          "package": {
+            "version": "0.0.0",
+            "edition": "2024",
+            "license": "Apache-2.0",
+            "publish": false
+          },
+          "dependencies": {
+            "agent-core": {
+              "path": "crates/core"
+            },
+            "agent-celx": {
+              "path": "crates/celx"
+            },
+            "agent-hbone": {
+              "path": "crates/hbone"
+            },
+            "agent-http": {
+              "path": "crates/http"
+            },
+            "agent-llm": {
+              "path": "crates/llm"
+            },
+            "agent-policy": {
+              "path": "crates/policy-core"
+            },
+            "agent-policy-cors": {
+              "path": "crates/policies/cors"
+            },
+            "agent-pool": {
+              "path": "crates/pool"
+            },
+            "agent-xds": {
+              "path": "crates/xds"
+            },
+            "agentgateway": {
+              "path": "crates/agentgateway"
+            },
+            "cel": {
+              "path": "crates/cel-fork/cel"
+            },
+            "protos": {
+              "path": "crates/protos"
+            },
+            "atomic_float": {
+              "version": "1.1.0",
+              "features": [
+                "serde"
+              ]
+            },
+            "anyhow": "1.0",
+            "arc-swap": "1.9",
+            "arcstr": {
+              "version": "1.2",
+              "features": [
+                "serde"
+              ]
+            },
+            "assert_matches": "1.5.0",
+            "async-openai": {
+              "version": "0.42",
+              "default-features": false,
+              "features": [
+                "chat-completion-types",
+                "decision-types",
+                "moderation-types",
+                "response-types",
+                "realtime-types"
+              ]
+            },
+            "async-stream": "0.3",
+            "async-trait": "0.1",
+            "aws-config": {
+              "version": "1.8",
+              "default-features": false,
+              "features": [
+                "default-https-client",
+                "rt-tokio",
+                "sso"
+              ]
+            },
+            "aws-credential-types": "1.2",
+            "aws-sigv4": "1.4",
+            "aws-types": "1.3",
+            "aws-smithy-eventstream": "0.61",
+            "aws-smithy-runtime-api": {
+              "version": "1.19",
+              "features": [
+                "client",
+                "http-1x"
+              ]
+            },
+            "aws-smithy-types": "1.3",
+            "aws-lc-rs": "1.18",
+            "symcrypt": "0.5.1",
+            "rustls-symcrypt": {
+              "version": "0.2.3",
+              "features": [
+                "chacha",
+                "x25519"
+              ]
+            },
+            "axum": {
+              "version": "0.8",
+              "features": [
+                "macros"
+              ]
+            },
+            "axum-core": "0.5",
+            "axum-extra": {
+              "version": "0.12",
+              "features": [
+                "json-lines",
+                "typed-header"
+              ]
+            },
+            "multer": "3.0.0",
+            "azure_identity": {
+              "version": "1.0",
+              "default-features": false
+            },
+            "azure_core": {
+              "version": "1.0",
+              "default-features": false
+            },
+            "typespec_client_core": {
+              "default-features": false,
+              "version": "1.0"
+            },
+            "base64": "0.23.0",
+            "cookie": {
+              "version": "0.18",
+              "default-features": false
+            },
+            "bcrypt": "0.19",
+            "bytes": {
+              "version": "1.11",
+              "features": [
+                "serde"
+              ]
+            },
+            "chrono": {
+              "version": "0.4",
+              "features": [
+                "serde"
+              ]
+            },
+            "clap": {
+              "version": "4.6",
+              "features": [
+                "derive"
+              ]
+            },
+            "clocksource": "1.0",
+            "crossbeam": "0.8",
+            "dashmap": "6.2",
+            "divan": "0.1",
+            "durationfmt": "0.1",
+            "go-parse-duration": "0.1",
+            "flurry": "0.5.2",
+            "fs-err": {
+              "version": "3.3",
+              "features": [
+                "tokio"
+              ]
+            },
+            "futures": "0.3",
+            "futures-channel": "0.3",
+            "futures-core": "0.3",
+            "futures-util": "0.3",
+            "google-cloud-auth": {
+              "version": "1.16",
+              "default-features": false,
+              "features": [
+                "idtoken",
+                "gdch",
+                "default-rustls-provider"
+              ]
+            },
+            "hashbrown": "0.17",
+            "h2": "0.4",
+            "headers": "0.4",
+            "hex": "0.4",
+            "hickory-resolver": {
+              "version": "0.26",
+              "features": [
+                "serde"
+              ]
+            },
+            "htpasswd-verify-fork": {
+              "path": "crates/htpasswd-verify-fork"
+            },
+            "httpdate": "1.0",
+            "http": "1.4",
+            "http-body": "1",
+            "http-body-util": "0.1.3",
+            "hyper": {
+              "version": "1.9",
+              "features": [
+                "full"
+              ]
+            },
+            "hyper-util": {
+              "version": "0.1",
+              "features": [
+                "full"
+              ]
+            },
+            "include_dir": "0.7",
+            "indexmap": {
+              "version": "2.13",
+              "features": [
+                "serde"
+              ]
+            },
+            "insta": {
+              "version": "1.47",
+              "features": [
+                "json",
+                "redactions",
+                "filters",
+                "yaml"
+              ]
+            },
+            "ipnet": {
+              "version": "2.12",
+              "features": [
+                "serde"
+              ]
+            },
+            "itertools": "0.15",
+            "jsonwebtoken": {
+              "version": "11"
+            },
+            "lazy_static": "1.5",
+            "libc": "0.2",
+            "notify": "8.2",
+            "notify-debouncer-full": "0.7",
+            "md-5": "0.11",
+            "num_cpus": "1.17",
+            "once_cell": "1.21",
+            "openapiv3": "2.2",
+            "opentelemetry": "0.33",
+            "opentelemetry-http": "0.33",
+            "opentelemetry-otlp": {
+              "version": "0.33",
+              "default-features": false,
+              "features": [
+                "http-proto",
+                "internal-logs",
+                "trace",
+                "grpc-tonic",
+                "logs"
+              ]
+            },
+            "opentelemetry-proto": {
+              "version": "0.33",
+              "features": [
+                "gen-tonic",
+                "logs"
+              ]
+            },
+            "opentelemetry_sdk": {
+              "version": "0.33",
+              "features": [
+                "rt-tokio",
+                "logs"
+              ]
+            },
+            "parking_lot": "0.12",
+            "pem": "4.0.0",
+            "percent-encoding": "2.3",
+            "phonenumber": "0.3",
+            "pin-project-lite": "0.2",
+            "pingora-pool": "0.9",
+            "ppp": "2.3",
+            "pprof-alloc": "0.6",
+            "pprof": {
+              "version": "0.15",
+              "features": [
+                "protobuf",
+                "protobuf-codec",
+                "criterion"
+              ]
+            },
+            "prometheus-client": {
+              "version": "0.25",
+              "features": [
+                "prometheus_protobuf",
+                "protobuf-protox"
+              ]
+            },
+            "prost": "0.14",
+            "prost-build": "0.14",
+            "prost-types": "0.14",
+            "prost-wkt-types": {
+              "version": "0.7",
+              "features": [
+                "vendored-protox"
+              ]
+            },
+            "prost-wkt-build": "0.7",
+            "pwhash": "1",
+            "rand": "0.10",
+            "quick_cache": "0.7.0",
+            "rcgen": {
+              "version": "0.14",
+              "default-features": false,
+              "features": [
+                "pem",
+                "x509-parser",
+                "aws_lc_rs"
+              ]
+            },
+            "regex": "1.12",
+            "reqwest": {
+              "version": "0.13",
+              "default-features": false,
+              "features": [
+                "http2",
+                "charset",
+                "rustls"
+              ]
+            },
+            "rstest": "0.27",
+            "rust_decimal": {
+              "version": "1",
+              "default-features": false
+            },
+            "mime_guess": "2.0",
+            "rustc_version": "0.4",
+            "rustls": {
+              "version": "0.23",
+              "default-features": false,
+              "features": [
+                "tls12",
+                "std",
+                "logging"
+              ]
+            },
+            "rustls-native-certs": "0.8",
+            "rustls-pki-types": "1.14",
+            "schemars": {
+              "version": "=1.2.1",
+              "git": "https://github.com/howardjohn/schemars",
+              "rev": "f3e45a59786debf49e67d6bd6d8dcffc004d39ff",
+              "features": [
+                "bytes1",
+                "arcstr1",
+                "raw_value",
+                "preserve_order"
+              ]
+            },
+            "secrecy": {
+              "version": "0.10",
+              "features": [
+                "serde"
+              ]
+            },
+            "serde": {
+              "version": "1.0",
+              "features": [
+                "derive",
+                "rc"
+              ]
+            },
+            "serde_json": {
+              "version": "1.0",
+              "features": [
+                "preserve_order",
+                "raw_value"
+              ]
+            },
+            "serde-untagged": "0.1",
+            "serde_regex": "1.1",
+            "serde_norway": "0.9.42",
+            "yaml-serde-edit": "0.1.1",
+            "sha1": "0.11",
+            "sha2": "0.11",
+            "shellexpand": "3.1",
+            "socket2": "0.6",
+            "spiffe": {
+              "version": "0.18",
+              "default-features": false,
+              "features": [
+                "workload-api",
+                "x509-source",
+                "x509",
+                "transport-grpc",
+                "tracing"
+              ]
+            },
+            "split-iter": "0.1",
+            "sse-stream": "0.3",
+            "sqlx": {
+              "version": "0.9",
+              "default-features": false,
+              "features": [
+                "chrono",
+                "json",
+                "macros",
+                "migrate",
+                "postgres",
+                "runtime-tokio",
+                "sqlite",
+                "tls-rustls-aws-lc-rs",
+                "uuid"
+              ]
+            },
+            "sqlx-core": {
+              "version": "0.9",
+              "default-features": false,
+              "features": [
+                "rustls-native-certs"
+              ]
+            },
+            "stacker": "0.1",
+            "subtle": "2",
+            "tempfile": "3.27",
+            "thiserror": "2.0",
+            "tiktoken": {
+              "version": "4.1",
+              "default-features": false,
+              "features": [
+                "vocab-o200k_base"
+              ]
+            },
+            "tokio": {
+              "version": "1.53",
+              "features": [
+                "full",
+                "macros",
+                "sync"
+              ]
+            },
+            "tokio-rustls": {
+              "version": "0.26",
+              "default-features": false,
+              "features": [
+                "tls12",
+                "logging"
+              ]
+            },
+            "tokio-stream": {
+              "version": "0.1",
+              "features": [
+                "net",
+                "sync"
+              ]
+            },
+            "tokio-util": {
+              "version": "0.7",
+              "features": [
+                "codec",
+                "io"
+              ]
+            },
+            "tokio_sse_codec": "0.0.2",
+            "tonic": {
+              "version": "0.14",
+              "features": [
+                "codegen",
+                "transport"
+              ]
+            },
+            "tonic-types": "0.14",
+            "tonic-prost": {
+              "version": "0.14"
+            },
+            "tonic-prost-build": {
+              "version": "0.14",
+              "features": [
+                "transport"
+              ]
+            },
+            "tower": {
+              "version": "0.5"
+            },
+            "tower-http": {
+              "version": "0.7",
+              "features": [
+                "cors"
+              ]
+            },
+            "tower-serve-static": "0.1",
+            "tower-service": "0.3",
+            "tracing": "0.1",
+            "tracing-core": "0.1",
+            "tracing-log": "0.2",
+            "tracing-subscriber": {
+              "version": "0.3",
+              "features": [
+                "env-filter",
+                "registry",
+                "json"
+              ]
+            },
+            "twox-hash": {
+              "version": "2.1",
+              "default-features": false,
+              "features": [
+                "std",
+                "xxhash3_64"
+              ]
+            },
+            "url": "2.5",
+            "uuid": {
+              "version": "1.23",
+              "features": [
+                "v4",
+                "v7"
+              ]
+            },
+            "wiremock": {
+              "version": "0.6",
+              "features": [
+                "tls"
+              ]
+            },
+            "x509-parser": {
+              "version": "0.18",
+              "default-features": false,
+              "features": [
+                "verify-aws"
+              ]
+            },
+            "zstd": "0.14",
+            "which": "8.0",
+            "websocket-sans-io": "0.1",
+            "vector-map": "1.1.0",
+            "flagset": "0.4.7",
+            "crossbeam-channel": "0.5",
+            "http-serde": "2.1",
+            "itoa": "1.0",
+            "serde_urlencoded": "0.7",
+            "serde_with": {
+              "version": "3.20",
+              "features": [
+                "schemars_1",
+                "macros",
+                "alloc"
+              ],
+              "default-features": false
+            },
+            "value-bag": {
+              "version": "1.12",
+              "features": [
+                "serde",
+                "value-bag-serde1"
+              ]
+            },
+            "time": "0.3",
+            "tikv-jemallocator": {
+              "version": "0.7",
+              "features": [
+                "profiling",
+                "unprefixed_malloc_on_supported_platforms"
+              ]
+            },
+            "jemalloc_pprof": {
+              "version": "0.9",
+              "features": [
+                "symbolize"
+              ]
+            },
+            "protox": "0.10",
+            "async-compression": {
+              "version": "0.4",
+              "features": [
+                "brotli",
+                "zlib",
+                "gzip",
+                "zstd",
+                "tokio"
+              ]
+            },
+            "core_affinity": "0.8",
+            "frozen-collections": {
+              "version": "0.9",
+              "default-features": false,
+              "features": [
+                "std",
+                "serde"
+              ]
+            },
+            "heck": "0.5",
+            "macro_rules_attribute": "0.2"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "anomalyco__opencode",
+    "origin": "https://github.com/anomalyco/opencode.git",
+    "sha": "6806c6e29a7d2087335794d8b86c6031cdb5f6dd",
+    "lastCommit": "2026-10-24T08:10:16-07:00 docs(go): replace Gemini 4 Argon Contributor with Gemini 4 Argon (#58723)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "625f0f619133f89bbbb2abe37369613dfa1885eba1e50d02170deb62bb42cb6b",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2025 opencode",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "1767628e91b25f3b730c39edf67069a4575ff2d5509b0e494fa95ec6b693e246",
+        "name": "opencode",
+        "version": "2.1.4",
+        "license": "MIT",
+        "dependencies": {
+          "@aws-sdk/client-s3": "3.933.0",
+          "@opencode/plugin": "workspace:*",
+          "@opencode/script": "workspace:*",
+          "heap-snapshot-toolkit": "1.1.3",
+          "typescript": "catalog:"
+        },
+        "workspaces": {
+          "packages": [
+            "packages/*",
+            "packages/plugins/*",
+            "services/*",
+            "packages/console/*",
+            "packages/stats/*"
+          ],
+          "catalog": {
+            "@effect/opentelemetry": "4.0.1",
+            "@effect/platform-node": "4.0.1",
+            "@effect/platform-node-shared": "4.0.1",
+            "@effect/sql-sqlite-bun": "4.0.1",
+            "@npmcli/arborist": "9.4.0",
+            "@types/bun": "1.4.3",
+            "@types/cross-spawn": "6.0.6",
+            "@octokit/rest": "22.0.0",
+            "@hono/standard-validator": "0.2.0",
+            "@hono/zod-validator": "0.4.2",
+            "@opentui/core": "0.6.8",
+            "@opentui/keymap": "0.6.8",
+            "@opentui/solid": "0.6.8",
+            "@tanstack/solid-virtual": "3.13.37",
+            "@standard-schema/spec": "1.1.0",
+            "ulid": "3.0.1",
+            "@kobalte/core": "0.13.13",
+            "@corvu/drawer": "0.2.4",
+            "@types/luxon": "3.7.1",
+            "@types/node": "24.12.2",
+            "@types/semver": "7.7.1",
+            "@tsconfig/node22": "22.0.2",
+            "@tsconfig/bun": "1.0.9",
+            "@cloudflare/workers-types": "4.20251008.0",
+            "@pierre/diffs": "1.6.1",
+            "@pierre/highlights": "0.2.0",
+            "@solid-primitives/event-listener": "2.4.6",
+            "@solid-primitives/media": "2.3.6",
+            "@solid-primitives/resize-observer": "2.2.0",
+            "@solid-primitives/storage": "4.4.0",
+            "@tailwindcss/vite": "4.1.11",
+            "diff": "8.0.4",
+            "dompurify": "3.4.14",
+            "drizzle-kit": "1.0.0-rc.5-ab785fc",
+            "drizzle-orm": "1.0.0-rc.5-169397b",
+            "effect": "4.0.1",
+            "fast-check": "4.9.0",
+            "ai": "6.0.168",
+            "cross-spawn": "7.0.6",
+            "hono": "4.10.7",
+            "hono-openapi": "1.1.2",
+            "fuzzysort": "3.1.0",
+            "get-east-asian-width": "1.6.0",
+            "luxon": "3.6.1",
+            "marked": "18.0.11",
+            "marked-shiki": "1.2.1",
+            "remend": "1.3.1",
+            "@playwright/test": "1.60.0",
+            "semver": "7.7.4",
+            "typescript": "npm:@typescript/typescript6@6.0.2",
+            "@typescript/native": "npm:typescript@7.1.0-beta",
+            "zod": "4.1.8",
+            "remeda": "2.26.0",
+            "sst": "4.13.1",
+            "shiki": "4.4.3",
+            "solid-list": "0.3.0",
+            "string-width": "7.2.0",
+            "tailwindcss": "4.1.11",
+            "vite": "7.3.6",
+            "@solidjs/meta": "0.29.4",
+            "@solidjs/router": "1.0.0",
+            "@solidjs/start": "https://pkg.pr.new/@solidjs/start@dfb2020",
+            "@sentry/solid": "10.71.0",
+            "@sentry/vite-plugin": "5.4.0",
+            "solid-js": "1.9.15",
+            "solid-sonner": "0.3.1",
+            "vite-plugin-solid": "2.11.10",
+            "@lydell/node-pty": "1.2.0-beta.12"
+          }
+        }
+      },
+      {
+        "path": "packages/cli/package.json",
+        "sha256": "19b8c30dcd6a0ae1db3932deb6da02c83e23871060bf86ecad09cd577ad6018c",
+        "name": "@opencode/cli",
+        "version": "2.1.4",
+        "license": "MIT",
+        "dependencies": {
+          "@agentclientprotocol/sdk": "1.6.0",
+          "@clack/core": "1.0.0-alpha.1",
+          "@clack/prompts": "1.0.0-alpha.1",
+          "@effect/platform-node": "catalog:",
+          "@opencode/client": "workspace:*",
+          "@opencode/plugin": "workspace:*",
+          "@opencode-ai/pty": "0.3.1",
+          "@opencode/schema": "workspace:*",
+          "@opencode/server": "workspace:*",
+          "@opencode/tui": "workspace:*",
+          "@opencode/util": "workspace:*",
+          "@opentui/core": "catalog:",
+          "@opentui/solid": "catalog:",
+          "@opentunnel/client": "0.6.1",
+          "@parcel/watcher": "2.5.1",
+          "@silvia-odwyer/photon-node": "0.3.4",
+          "diff": "catalog:",
+          "effect": "catalog:",
+          "immer": "11.1.4",
+          "jsonc-parser": "3.3.1",
+          "picocolors": "1.1.1",
+          "solid-js": "catalog:",
+          "tree-sitter-bash": "0.25.0",
+          "tree-sitter-powershell": "0.25.10",
+          "uqr": "0.1.3",
+          "web-tree-sitter": "0.25.10",
+          "ws": "8.21.0"
+        },
+        "bin": {
+          "opencode": "./bin/opencode.cjs",
+          "opencode2": "./bin/opencode2.cjs"
+        },
+        "exports": {
+          "./vite-host": "./dev/host.js",
+          "./run": "./src/run/index.ts",
+          "./server-process": "./src/server-process.ts"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "anthropics__skills",
+    "origin": "https://github.com/anthropics/skills.git",
+    "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "lastCommit": "2026-10-09T18:45:49+00:00 Update claude-api skill: dynamic workflows and the four workflow quickstarts (#1995)",
+    "shallow": false,
+    "status": "",
+    "licenses": [
+      {
+        "path": "skills/skill-creator/LICENSE.txt",
+        "sha256": "bc6b3af2f331cbc7fb0da1344efb2cbe5877a31498b4d70dbc7000f3405a1362",
+        "firstLines": [
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,"
+        ]
+      },
+      {
+        "path": "skills/docx/LICENSE.txt",
+        "sha256": "79f6d8f5b427252fa3b1c11ecdbdb6bf610b944f7530b4de78f770f38741cfaa",
+        "firstLines": [
+          "© 2025 Anthropic, PBC. All rights reserved.",
+          "",
+          "LICENSE: Use of these materials (including all code, prompts, assets, files,",
+          "and other components of this Skill) is governed by your agreement with",
+          "Anthropic regarding use of Anthropic's services. If no separate agreement",
+          "exists, use is governed by Anthropic's Consumer Terms of Service or",
+          "Commercial Terms of Service, as applicable:",
+          "https://www.anthropic.com/legal/consumer-terms",
+          "https://www.anthropic.com/legal/commercial-terms",
+          "Your applicable agreement is referred to as the \"Agreement.\" \"Services\" are"
+        ]
+      }
+    ],
+    "manifests": []
+  },
+  {
+    "directory": "awslabs__cli-agent-orchestrator",
+    "origin": "https://github.com/awslabs/cli-agent-orchestrator.git",
+    "sha": "a3829744c6df8f074bab9c713906720ad6ba87fd",
+    "lastCommit": "2026-10-24T12:34:56+00:00 feat(decisions): add `cao decisions off` and external decider controls (#955)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b",
+        "firstLines": [
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,"
+        ]
+      },
+      {
+        "path": "NOTICE",
+        "sha256": "d4290ed64c2edd0fce1d84e3f9dfb2881240fe534def76b8cd29ed6af683e287",
+        "firstLines": [
+          "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "pyproject.toml",
+        "sha256": "404893227435faf368d0cee06b68d8573994633c5fccff094e951b567bab7db1",
+        "project": {
+          "name": "cli-agent-orchestrator",
+          "version": "2.5.4",
+          "description": "CLI Agent Orchestrator",
+          "readme": "README.md",
+          "requires-python": ">=3.10",
+          "license": "Apache-2.0",
+          "authors": [
+            {
+              "name": "AWS Labs"
+            }
+          ],
+          "keywords": [
+            "ai",
+            "agents",
+            "orchestration",
+            "multi-agent",
+            "tmux",
+            "mcp",
+            "cli",
+            "codex",
+            "claude-code",
+            "kiro",
+            "kimi"
+          ],
+          "classifiers": [
+            "Development Status :: 4 - Beta",
+            "Intended Audience :: Developers",
+            "License :: OSI Approved :: Apache Software License",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
+            "Programming Language :: Python :: 3.13",
+            "Programming Language :: Python :: 3.14",
+            "Operating System :: MacOS",
+            "Operating System :: POSIX :: Linux",
+            "Topic :: Software Development :: Libraries"
+          ],
+          "dependencies": [
+            "fastapi>=0.104.0",
+            "fastmcp>=3.2.0,<5.0.0",
+            "mcp>=1.23.0",
+            "pydantic>=2.10.6",
+            "apscheduler>=3.10.4",
+            "sqlalchemy>=2.0.0",
+            "uvicorn[standard]>=0.24.0",
+            "websockets>=12.0",
+            "libtmux>=0.51.0,<0.62.1",
+            "click>=8.2.0",
+            "python-dotenv>=1.2.2",
+            "python-frontmatter>=1.1.0",
+            "requests>=2.32.0",
+            "rank-bm25>=0.2.2",
+            "pyte>=0.8.2",
+            "wcwidth>=0.2.13",
+            "pyjwt[crypto]>=2.8.0",
+            "cryptography>=50.0.0",
+            "anyio>=4.14.2",
+            "jsonschema>=4.25",
+            "jinja2>=3.1.0",
+            "pyyaml>=6.0",
+            "markdown-it-py>=4.0.0",
+            "tomli>=2.0.0; python_version < '3.11'",
+            "psutil>=7.0.0",
+            "tomlkit>=0.13.3,<1.0.0"
+          ],
+          "optional-dependencies": {
+            "agui": [
+              "ag-ui-protocol>=0.1.19,<1.1.0"
+            ],
+            "otel": [
+              "opentelemetry-api>=1.27.0",
+              "opentelemetry-sdk>=1.27.0",
+              "opentelemetry-exporter-otlp-proto-grpc>=1.27.0"
+            ]
+          },
+          "scripts": {
+            "cao": "cli_agent_orchestrator.cli.main:cli",
+            "cao-server": "cli_agent_orchestrator.api.main:main",
+            "cao-mcp-server": "cli_agent_orchestrator.mcp_server.server:main",
+            "cao-ops-mcp-server": "cli_agent_orchestrator.ops_mcp_server.server:main"
+          },
+          "entry-points": {
+            "cao.plugins": {
+              "claude_code_memory": "cli_agent_orchestrator.plugins.builtin.claude_code_memory:ClaudeCodeMemoryPlugin",
+              "kiro_cli_memory": "cli_agent_orchestrator.plugins.builtin.kiro_cli_memory:KiroCliMemoryPlugin",
+              "codex_memory": "cli_agent_orchestrator.plugins.builtin.codex_memory:CodexMemoryPlugin",
+              "event_log_publisher": "cli_agent_orchestrator.plugins.builtin.event_log_publisher:EventLogPublisher",
+              "mcp_apps": "cli_agent_orchestrator.plugins.builtin.mcp_apps:McpAppsPlugin"
+            },
+            "cao.deciders": {
+              "fixed_table": "cli_agent_orchestrator.decisions.fixed_table:FixedTableDecider"
+            }
+          },
+          "urls": {
+            "Homepage": "https://github.com/awslabs/cli-agent-orchestrator",
+            "Repository": "https://github.com/awslabs/cli-agent-orchestrator",
+            "Issues": "https://github.com/awslabs/cli-agent-orchestrator/issues",
+            "Documentation": "https://github.com/awslabs/cli-agent-orchestrator#readme"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "babelcloud__playwriter-browser-mcp",
+    "origin": "https://github.com/babelcloud/playwriter-browser-mcp.git",
+    "sha": "5f97001472a0302c4f504fe3ae9a62a47673355a",
+    "lastCommit": "2026-04-07T11:54:23+08:00 feat: auto new-tab on navigate, add browser_reset tool",
+    "shallow": false,
+    "status": "",
+    "licenses": [],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "f6d318ad2f96974de9bdc5363eab923f4c4258a63ab6f8b0656a668f56d7e705",
+        "name": "playwriter-browser-mcp",
+        "version": "0.1.4",
+        "dependencies": {
+          "@modelcontextprotocol/sdk": "^1.12.1",
+          "@xmorse/playwright-core": "^1.59.7",
+          "playwriter": "^0.0.102",
+          "zod": "^3.24.0"
+        },
+        "bin": {
+          "playwriter-browser-mcp": "./dist/stdio.js"
+        },
+        "exports": {
+          ".": "./dist/index.js",
+          "./stdio": "./dist/stdio.js",
+          "./dist/stdio.js": "./dist/stdio.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "dbos-inc__dbos-transact-ts",
+    "origin": "https://github.com/dbos-inc/dbos-transact-ts.git",
+    "sha": "980dc55095f445b189aecb59e7f3334345179f65",
+    "lastCommit": "2026-10-22T18:28:57-07:00 Auto upgrade (#1414)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "503e404dfddb2f1ec81ade7bb601e54c05a3bb8e7b657a0e0444069bc00fd86a",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2023 DBOS, Inc.",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "0c50aefe77c5c945fccdf7c3ab10883f141b7595bf9d3ef5dddff5521e3a81fa",
+        "name": "@dbos-inc/dbos-sdk",
+        "version": "0.0.0-placeholder",
+        "license": "MIT",
+        "engines": {
+          "node": ">=20"
+        },
+        "dependencies": {
+          "commander": "^12.0.0",
+          "pg": "^8.11.3",
+          "serialize-error": "^8.1.0",
+          "superjson": "^1.13.3",
+          "yaml": "^2.8.3"
+        },
+        "workspaces": [
+          "packages/*"
+        ],
+        "bin": {
+          "dbos": "./dist/src/cli/cli.js",
+          "dbos-sdk": "./dist/src/cli/cli.js"
+        },
+        "exports": {
+          ".": {
+            "types": "./dist/src/index.d.ts",
+            "import": "./dist/src/index.js",
+            "require": "./dist/src/index.js"
+          },
+          "./datasource": {
+            "types": "./dist/src/datasource.d.ts",
+            "import": "./dist/src/datasource.js",
+            "require": "./dist/src/datasource.js"
+          },
+          "./eventreceiver": {
+            "types": "./dist/src/eventreceiver.d.ts",
+            "import": "./dist/src/eventreceiver.js",
+            "require": "./dist/src/eventreceiver.js"
+          },
+          "./internal/*": {
+            "types": "./dist/src/*.d.ts",
+            "default": "./dist/src/*.js"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "google-gemini__gemini-cli",
+    "origin": "https://github.com/google-gemini/gemini-cli.git",
+    "sha": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005",
+    "lastCommit": "2026-10-23T20:43:47+00:00 feat(cli): add models command and --list-models flag for model discovery (#29880)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+        "firstLines": [
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "c4d1086f9f4211a46de9fac07ed16055a00f4c627be4423a8a4c4c9709bfcc0d",
+        "name": "@google/gemini-cli",
+        "version": "0.67.0-nightly.20261020.gb041de017",
+        "engines": {
+          "node": ">=20.0.0"
+        },
+        "dependencies": {
+          "ink": "npm:@jrichman/ink@6.6.9",
+          "latest-version": "9.0.0",
+          "node-fetch-native": "1.6.7",
+          "proper-lockfile": "4.1.2",
+          "punycode": "2.3.1",
+          "simple-git": "3.28.0"
+        },
+        "workspaces": [
+          "packages/*"
+        ],
+        "bin": {
+          "gemini": "bundle/gemini.js"
+        }
+      },
+      {
+        "path": "packages/cli/package.json",
+        "sha256": "0ef7affec44c95f7d422481af71a54c108669e2fca703fec06143837a0d576d3",
+        "name": "@google/gemini-cli",
+        "version": "0.67.0-nightly.20261020.gb041de017",
+        "license": "Apache-2.0",
+        "engines": {
+          "node": ">=20"
+        },
+        "dependencies": {
+          "@agentclientprotocol/sdk": "0.16.1",
+          "@google/gemini-cli-core": "file:../core",
+          "@google/genai": "1.30.0",
+          "@iarna/toml": "2.2.5",
+          "@modelcontextprotocol/sdk": "1.23.0",
+          "ansi-escapes": "7.3.0",
+          "ansi-regex": "6.2.2",
+          "chalk": "4.1.2",
+          "cli-spinners": "2.9.2",
+          "clipboardy": "5.2.0",
+          "color-convert": "2.0.1",
+          "command-exists": "1.2.9",
+          "comment-json": "4.2.5",
+          "diff": "8.0.3",
+          "dotenv": "17.1.0",
+          "extract-zip": "2.0.1",
+          "fzf": "0.5.2",
+          "glob": "12.0.0",
+          "highlight.js": "11.11.1",
+          "ink": "npm:@jrichman/ink@6.6.9",
+          "ink-gradient": "3.0.0",
+          "ink-spinner": "5.0.0",
+          "latest-version": "9.0.0",
+          "lowlight": "3.3.0",
+          "mnemonist": "0.40.3",
+          "open": "10.1.2",
+          "prompts": "2.4.2",
+          "proper-lockfile": "4.1.2",
+          "react": "19.2.4",
+          "shell-quote": "1.8.3",
+          "simple-git": "3.28.0",
+          "string-width": "8.1.0",
+          "strip-ansi": "7.1.0",
+          "strip-json-comments": "3.1.1",
+          "tar": "7.5.8",
+          "tinygradient": "1.1.5",
+          "undici": "7.10.0",
+          "ws": "8.16.0",
+          "yargs": "17.7.2",
+          "zod": "3.25.76"
+        },
+        "bin": {
+          "gemini": "dist/index.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "huggingface__huggingface.js",
+    "origin": "https://github.com/huggingface/huggingface.js.git",
+    "sha": "d1cd874d9eab70cc83d30e278551a36cd1e40b22",
+    "lastCommit": "2026-10-23T13:32:17+02:00 [hub] nvfp4 param counting (#2675)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "d6e7b19451c1b3d1d66353bb4b1274138953b3bfd9ae60c56e77b1f548796982",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2023 Hugging Face",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "5aa155ee34d80f58ca028eb187391e049072bcc67de715fd3dea9f40c42e4d47",
+        "name": "@huggingface/root",
+        "license": "MIT"
+      },
+      {
+        "path": "packages/tiny-agents/package.json",
+        "sha256": "c3fef44e3844dea274a9a2bb08b91f2772f4e01a68d59adeb62fc5bf537fa33b",
+        "name": "@huggingface/tiny-agents",
+        "version": "0.3.4",
+        "license": "MIT",
+        "engines": {
+          "node": ">=18"
+        },
+        "dependencies": {
+          "@huggingface/hub": "workspace:^",
+          "@huggingface/inference": "workspace:^",
+          "@huggingface/mcp-client": "workspace:^",
+          "@huggingface/tasks": "workspace:^",
+          "@modelcontextprotocol/sdk": "^1.11.4",
+          "zod": "^3.25.7"
+        },
+        "bin": {
+          "tiny-agents": "./dist/cli.js"
+        },
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "import": "./dist/index.mjs"
+          }
+        }
+      },
+      {
+        "path": "packages/mcp-client/package.json",
+        "sha256": "2b9cbad7825fcdcb4eefbe7393b37543d0bea28639bc9e5c49661768df9bd21c",
+        "name": "@huggingface/mcp-client",
+        "version": "0.2.3",
+        "license": "MIT",
+        "engines": {
+          "node": ">=18"
+        },
+        "dependencies": {
+          "@huggingface/inference": "workspace:^",
+          "@huggingface/tasks": "workspace:^",
+          "@modelcontextprotocol/sdk": "^1.11.2"
+        },
+        "bin": {
+          "tiny-agent": "./dist/cli.js"
+        },
+        "exports": {
+          ".": {
+            "types": "./dist/src/index.d.ts",
+            "require": "./dist/src/index.js",
+            "import": "./dist/src/index.mjs"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "huggingface__smolagents",
+    "origin": "https://github.com/huggingface/smolagents.git",
+    "sha": "96f33faaf028479119ec8d34507b47694cf14e34",
+    "lastCommit": "2026-10-06T11:38:53+02:00 Bump doc-builder workflow pin (#2906)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "firstLines": [
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,",
+          "      and distribution as defined by Sections 1 through 9 of this document."
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "pyproject.toml",
+        "sha256": "7d7baa3f6a50d7c98eee38c41f1444b5c0f4f217e6e9626e1ece01f9b222ebde",
+        "project": {
+          "name": "smolagents",
+          "version": "1.27.0.dev0",
+          "description": "🤗 smolagents: a barebones library for agents. Agents write python code to call tools or orchestrate other agents.",
+          "authors": [
+            {
+              "name": "Aymeric Roucher",
+              "email": "aymeric@hf.co"
+            }
+          ],
+          "readme": "README.md",
+          "requires-python": ">=3.10",
+          "dependencies": [
+            "huggingface-hub>=0.31.2",
+            "requests>=2.32.3",
+            "rich>=13.9.4",
+            "jinja2>=3.1.4",
+            "pillow>=10.0.1",
+            "python-dotenv"
+          ],
+          "optional-dependencies": {
+            "bedrock": [
+              "boto3>=1.36.18"
+            ],
+            "blaxel": [
+              "blaxel>=0.2.19",
+              "websocket-client"
+            ],
+            "torch": [
+              "torch",
+              "torchvision",
+              "numpy>=1.21.2"
+            ],
+            "audio": [
+              "soundfile",
+              "smolagents[torch]"
+            ],
+            "docker": [
+              "docker>=7.1.0",
+              "websocket-client"
+            ],
+            "e2b": [
+              "e2b-code-interpreter>=1.0.3",
+              "python-dotenv>=1.0.1"
+            ],
+            "gradio": [
+              "gradio>=5.14.0"
+            ],
+            "litellm": [
+              "litellm>=1.60.2"
+            ],
+            "mcp": [
+              "mcpadapt>=0.1.13",
+              "mcp"
+            ],
+            "mlx-lm": [
+              "mlx-lm"
+            ],
+            "modal": [
+              "modal>=1.1.3",
+              "websocket-client"
+            ],
+            "openai": [
+              "openai>=1.58.1"
+            ],
+            "telemetry": [
+              "arize-phoenix",
+              "opentelemetry-sdk",
+              "opentelemetry-exporter-otlp",
+              "openinference-instrumentation-smolagents>=0.1.15"
+            ],
+            "toolkit": [
+              "ddgs>=9.0.0",
+              "markdownify>=0.14.1"
+            ],
+            "transformers": [
+              "accelerate",
+              "transformers>=4.0.0,!=5.13.0",
+              "smolagents[torch]"
+            ],
+            "vision": [
+              "helium",
+              "selenium"
+            ],
+            "vllm": [
+              "vllm>=0.10.2",
+              "torch"
+            ],
+            "all": [
+              "smolagents[audio,blaxel,docker,e2b,gradio,litellm,mcp,mlx-lm,modal,openai,telemetry,toolkit,transformers,vision,bedrock]"
+            ],
+            "quality": [
+              "ruff>=0.9.0"
+            ],
+            "test": [
+              "ipython>=8.31.0",
+              "pandas>=2.2.3",
+              "pytest>=8.1.0",
+              "pytest-datadir",
+              "pytest-timeout",
+              "python-dotenv>=1.0.1",
+              "smolagents[all]",
+              "rank-bm25",
+              "Wikipedia-API>=0.8.1",
+              "mlx[cpu]"
+            ],
+            "dev": [
+              "smolagents[quality,test]",
+              "sqlalchemy"
+            ]
+          },
+          "scripts": {
+            "smolagent": "smolagents.cli:main",
+            "webagent": "smolagents.vision_web_browser:main"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "microsoft__playwright-mcp",
+    "origin": "https://github.com/microsoft/playwright-mcp.git",
+    "sha": "0c4107acbecb75472b23c05c0e42471a0011874f",
+    "lastCommit": "2026-10-22T10:43:21-07:00 chore(deps-dev): bump @modelcontextprotocol/sdk from 1.31.0 to 1.32.0 (#1801)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "9a7110fc2d2f964038e5dc49128f908f29f47a574c961cba16085914e879cbda",
+        "firstLines": [
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,",
+          "      and distribution as defined by Sections 1 through 9 of this document."
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "624f0ba4d387028bbc734520142fbebb7075a88da8b623f4760adf76aa212f8b",
+        "name": "@playwright/mcp",
+        "version": "0.0.83",
+        "license": "Apache-2.0",
+        "engines": {
+          "node": ">=18"
+        },
+        "dependencies": {
+          "playwright": "1.64.0-alpha-1790635538000",
+          "playwright-core": "1.64.0-alpha-1790635538000"
+        },
+        "bin": {
+          "playwright-mcp": "cli.js"
+        },
+        "exports": {
+          "./package.json": "./package.json",
+          ".": {
+            "types": "./index.d.ts",
+            "default": "./index.js"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "directory": "modelcontextprotocol__modelcontextprotocol",
+    "origin": "https://github.com/modelcontextprotocol/modelcontextprotocol.git",
+    "sha": "dae694f61a31f7a3ec2af3aff709e11f70f61e48",
+    "lastCommit": "2026-10-23T11:50:53+01:00 Merge pull request #3451 from modelcontextprotocol/pja/update-github-handle",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+        "firstLines": [
+          "The MCP project is undergoing a licensing transition from the MIT License to the Apache License, Version 2.0 (\"Apache-2.0\"). All new code and specification contributions to the project are licensed under Apache-2.0. Documentation contributions (excluding specifications) are licensed under CC-BY-4.0.",
+          "",
+          "Contributions for which relicensing consent has been obtained are licensed under Apache-2.0. Contributions made by authors who originally licensed their work under the MIT License and who have not yet granted explicit permission to relicense remain licensed under the MIT License.",
+          "",
+          "No rights beyond those granted by the applicable original license are conveyed for such contributions.",
+          "",
+          "---",
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "4a242df7cd6d9c13b33a4010f94eb162676ef4ee1634bea6ec5f8a8f8fb62dba",
+        "name": "@modelcontextprotocol/specification",
+        "version": "0.1.0",
+        "license": "SEE LICENSE IN LICENSE",
+        "engines": {
+          "node": ">=24"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "modelcontextprotocol__servers",
+    "origin": "https://github.com/modelcontextprotocol/servers.git",
+    "sha": "51b6382a3e827aceb6bce430b1208d69b93d95ea",
+    "lastCommit": "2026-10-19T02:37:30-04:00 Merge pull request #5166 from modelcontextprotocol/v2/chore/5159-release-v2.0.0",
+    "shallow": false,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+        "firstLines": [
+          "The MCP project is undergoing a licensing transition from the MIT License to the Apache License, Version 2.0 (\"Apache-2.0\"). All new code and specification contributions to the project are licensed under Apache-2.0. Documentation contributions (excluding specifications) are licensed under CC-BY-4.0.",
+          "",
+          "Contributions for which relicensing consent has been obtained are licensed under Apache-2.0. Contributions made by authors who originally licensed their work under the MIT License and who have not yet granted explicit permission to relicense remain licensed under the MIT License.",
+          "",
+          "No rights beyond those granted by the applicable original license are conveyed for such contributions.",
+          "",
+          "---",
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "4acf5ccbd8c6480420a0e9f09677c970df82d20f688148e96075658c76e0dcda",
+        "name": "@modelcontextprotocol/servers",
+        "version": "0.6.2",
+        "license": "SEE LICENSE IN LICENSE",
+        "dependencies": {
+          "@modelcontextprotocol/server-everything": "*",
+          "@modelcontextprotocol/server-filesystem": "*",
+          "@modelcontextprotocol/server-memory": "*",
+          "@modelcontextprotocol/server-sequential-thinking": "*"
+        },
+        "workspaces": [
+          "src/*"
+        ]
+      }
+    ]
+  },
+  {
+    "directory": "modelcontextprotocol__typescript-sdk",
+    "origin": "https://github.com/modelcontextprotocol/typescript-sdk.git",
+    "sha": "951fe5603a7ec0b2dcb6a0b95d92cd86f93ad9e5",
+    "lastCommit": "2026-10-23T19:16:23+01:00 Version Packages (#2959)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+        "firstLines": [
+          "The MCP project is undergoing a licensing transition from the MIT License to the Apache License, Version 2.0 (\"Apache-2.0\"). All new code and specification contributions to the project are licensed under Apache-2.0. Documentation contributions (excluding specifications) are licensed under CC-BY-4.0.",
+          "",
+          "Contributions for which relicensing consent has been obtained are licensed under Apache-2.0. Contributions made by authors who originally licensed their work under the MIT License and who have not yet granted explicit permission to relicense remain licensed under the MIT License.",
+          "",
+          "No rights beyond those granted by the applicable original license are conveyed for such contributions.",
+          "",
+          "---",
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "7e94b2dffd44cc16a346aedb914127e3ac14a12a0c1d6e478a1415bb31143dae",
+        "name": "@modelcontextprotocol/sdk",
+        "version": "2.0.0-alpha.0",
+        "license": "Apache-2.0",
+        "engines": {
+          "node": ">=20"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "openclaw__acpx",
+    "origin": "https://github.com/openclaw/acpx.git",
+    "sha": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc",
+    "lastCommit": "2026-10-23T17:34:41-07:00 chore: release acpx 0.21.0 (#907)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "5c3dd08185d6d0a0045a45b9aea2fd9d85343f7ed5dbe23915e6f15e7b814f2d",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2025 OpenClaw Team",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "295b7e9cf93454c1433888b0ba070c2ab279dc045c1c8f6232d99a8d7adccd58",
+        "name": "acpx",
+        "version": "0.21.0",
+        "license": "MIT",
+        "engines": {
+          "node": ">=22.13.0"
+        },
+        "dependencies": {
+          "@agentclientprotocol/sdk": "^1.5.0",
+          "@openclaw/fs-safe": "^0.26.7",
+          "commander": "^15.0.0",
+          "skillflag": "^0.2.1",
+          "tsx": "^4.23.15",
+          "zod": "^4.6.5"
+        },
+        "bin": {
+          "acpx": "dist/cli.js"
+        },
+        "exports": {
+          ".": "./dist/cli.js",
+          "./runtime": "./dist/runtime.js",
+          "./flows": "./dist/flows.js",
+          "./dist/*": "./dist/*",
+          "./package.json": "./package.json",
+          "./agent-registry": "./dist/agent-registry.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "osanoai__multicli",
+    "origin": "https://github.com/osanoai/multicli.git",
+    "sha": "41f4bc8095a126c6b837fd75cd9ac32964da5a63",
+    "lastCommit": "2026-06-18T22:55:58+00:00 chore: release v1.5.41 (#151)",
+    "shallow": false,
+    "status": "",
+    "licenses": [],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "fc8cc8d87150f80b6e72583a89f84081fc5a8b0959abd0ed955016571bc978c1",
+        "name": "@osanoai/multicli",
+        "version": "1.5.41",
+        "engines": {
+          "node": ">=20.0.0"
+        },
+        "dependencies": {
+          "@modelcontextprotocol/sdk": "^1.29.0",
+          "dotenv": "^17.3.1",
+          "zod": "^4.3.6"
+        },
+        "bin": {
+          "multicli": "dist/index.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "remorses__playwriter",
+    "origin": "https://github.com/remorses/playwriter.git",
+    "sha": "6489336628e6737e32a59f25ed270622400cb277",
+    "lastCommit": "2026-10-23T10:51:46+02:00 feat(executor): abort timed-out execute code instead of rejecting new calls",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "db5cfe32978232c5fb08ddc4b6687490c9071a4a2d234169892d626c768a3909",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2026 Tommy D. Rossi",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "9804a116438fe35f9ba7a3550f445911d101ed6e0b153dd4598a067c1c162948",
+        "name": "root",
+        "license": "",
+        "dependencies": {
+          "mcp-extension": "workspace:^"
+        }
+      },
+      {
+        "path": "playwriter/package.json",
+        "sha256": "ec5c51846af2a641b037d2c8283399535b5cf95e1af4bb79f19ff1a21cb64421",
+        "name": "playwriter",
+        "version": "0.9.0",
+        "license": "",
+        "dependencies": {
+          "@hono/node-server": "^1.19.17",
+          "@hono/node-ws": "^1.3.1",
+          "@modelcontextprotocol/sdk": "^1.30.0",
+          "@strada.sh/sdk": "^0.8.0",
+          "@xmorse/playwright-core": "workspace:^",
+          "acorn": "^8.15.0",
+          "ajv": "^8.20.0",
+          "async-sema": "^3.1.1",
+          "better-auth": "^1.7.2",
+          "diff": "^9.0.0",
+          "dom-accessibility-api": "^0.7.1",
+          "goke": "^6.14.0",
+          "hono": "^4.13.5",
+          "js-beautify": "^2.0.3",
+          "picocolors": "^1.1.1",
+          "posthtml": "^0.16.7",
+          "string-dedent": "^3.0.2",
+          "strip-ansi": "^7.1.2",
+          "undici": "^7.29.0",
+          "ws": "^8.21.3",
+          "zod": "^4.3.5",
+          "zustand": "^5.0.8"
+        },
+        "bin": "./bin.js"
+      }
+    ]
+  },
+  {
+    "directory": "rosslevinsky__portable-agent-skills",
+    "origin": "https://github.com/rosslevinsky/portable-agent-skills.git",
+    "sha": "b9f6c2ad3bdd7f3d785828f41e8e17a581a3ea3f",
+    "lastCommit": "2026-10-17T12:33:38+00:00 Release v2026.10.3 (#17)",
+    "shallow": false,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "bacd9c082ba84ba4190e655d7a34228658afacdf8ebfd9476c448e2f39ea16f5",
+        "firstLines": [
+          "",
+          "                                 Apache License",
+          "                           Version 2.0, January 2004",
+          "                        http://www.apache.org/licenses/",
+          "",
+          "   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+          "",
+          "   1. Definitions.",
+          "",
+          "      \"License\" shall mean the terms and conditions for use, reproduction,"
+        ]
+      },
+      {
+        "path": "NOTICE",
+        "sha256": "b8e9b7690c851c480417a02fd35759c588df21668ee058d2e6f0b048ec370d33",
+        "firstLines": [
+          "Portable Agent Skills",
+          "Copyright 2026 Ross Levinsky",
+          "",
+          "This product is licensed under the Apache License, Version 2.0.",
+          "See LICENSE for the full license text."
+        ]
+      }
+    ],
+    "manifests": []
+  },
+  {
+    "directory": "suyashb734__cliagents",
+    "origin": "https://github.com/suyashb734/cliagents.git",
+    "sha": "40804745f464e33939902dae1a806bf22e4df578",
+    "lastCommit": "2026-05-13T14:47:15+05:30 fix: avoid provider dependency in root recovery test",
+    "shallow": false,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "8bfa93f4c52a56fa0a01caccf5e8083c9a005de0eb929815a52c4eafde844705",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2026 cliagents contributors",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "ca8652aaf17e08e372d967fcbf0cb14bcc51024ce9747a9954456f31c6762ec3",
+        "name": "cliagents",
+        "version": "0.1.0-alpha.0",
+        "license": "MIT",
+        "engines": {
+          "node": "22.12.0"
+        },
+        "dependencies": {
+          "@google/genai": "^1.40.0",
+          "better-sqlite3": "^12.6.0",
+          "cors": "^2.8.5",
+          "dotenv": "^16.4.0",
+          "express": "^4.18.2",
+          "openai": "^4.0.0",
+          "ws": "^8.14.2"
+        },
+        "bin": {
+          "cliagents": "bin/cliagents.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "vercel-labs__skills",
+    "origin": "https://github.com/vercel-labs/skills.git",
+    "sha": "a80e4c9d12d607631249d4d7d059f835d4b2f13a",
+    "lastCommit": "2026-10-19T20:34:19+00:00 v1.7.4",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "661142e53c313d2bb5e1b055f5c0a39001450ff1b5e27b89dc4bc7de9a6352ca",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2026 Vercel, Inc.",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "2bbfaf07934965b263298d758b35b3824567c0aad4e8fe9cb944c34c450bd117",
+        "name": "skills",
+        "version": "1.7.4",
+        "license": "MIT",
+        "engines": {
+          "node": ">=22.20.0"
+        },
+        "dependencies": {
+          "tar": "^7.5.20",
+          "yaml": "^2.8.3"
+        },
+        "bin": {
+          "skills": "./bin/cli.mjs",
+          "add-skill": "./bin/cli.mjs"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "zetbrush__multiagents",
+    "origin": "https://github.com/zetbrush/multiagents.git",
+    "sha": "6038986b739937aaf3f2da2346e97a25f00369b1",
+    "lastCommit": "2026-10-20T11:55:07-07:00 Merge pull request #10 from zetbrush/docs/readme-current-state",
+    "shallow": false,
+    "status": "",
+    "licenses": [],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "d7139b642a331563aa3ce7501f92e03060ee3cd6f7918517cfd6ff1ba53cfc17",
+        "name": "multiagents",
+        "version": "0.7.0",
+        "license": "MIT",
+        "engines": {
+          "bun": ">=1.1.0"
+        },
+        "dependencies": {
+          "@modelcontextprotocol/sdk": "^1.27.1"
+        },
+        "bin": {
+          "multiagents": "cli.ts",
+          "multiagents-server": "server.ts",
+          "multiagents-orch": "orchestrator/orchestrator-server.ts",
+          "multiagents-broker": "broker.ts"
+        }
+      }
+    ]
+  }
+]

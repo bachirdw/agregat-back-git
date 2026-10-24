@@ -27,8 +27,19 @@ const fill = (value, objective) =>
         ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fill(v, objective)]))
         : value;
 
-export function toolArguments(step, objective) {
-  return step.arguments ? fill(step.arguments, objective) : { query: objective };
+// `{ "$from": "step.path" }` takes a value from a dependency's output (data, never code).
+const pick = (inputs, path) =>
+  path.split('.').reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), inputs);
+const wire = (value, inputs) =>
+  Array.isArray(value)
+    ? value.map((v) => wire(v, inputs))
+    : value && typeof value === 'object'
+      ? typeof value.$from === 'string' && Object.keys(value).length === 1
+        ? pick(inputs, value.$from) // undefined is dropped from JSON: optional inputs stay absent
+        : Object.fromEntries(Object.entries(value).map(([k, v]) => [k, wire(v, inputs)]))
+      : value;
+export function toolArguments(step, objective, inputs = {}) {
+  return step.arguments ? wire(fill(step.arguments, objective), inputs) : { query: objective };
 }
 
 export function aggregateOutputs(inputs) {
@@ -36,9 +47,15 @@ export function aggregateOutputs(inputs) {
   const verified = values.find((v) => v.verified === true);
   const analysis = values.find((v) => typeof v.summary === 'string' && !v.verified);
   const ranked = verified ?? values.find((v) => Array.isArray(v.opportunities));
-  const simulated = values.some((v) => v.simulated === true);
+  // Provenance is reported per part: real offers analysed by the demo agent are NOT fictitious data.
+  const simulated = ranked ? ranked.simulated === true : values.some((v) => v.simulated === true);
+  const analysisAgent = analysis?.agent ?? null;
   return {
     simulated,
+    provenance: {
+      data: ranked ? (ranked.simulated === true ? 'fictives' : 'réelles') : null,
+      analysis: analysis ? (analysis.simulated === true ? 'démonstrateur' : analysisAgent) : null,
+    },
     summary:
       analysis?.summary ??
       verified?.summary ??
@@ -69,11 +86,11 @@ export async function executeWorkflow(orch, run, plan, control) {
   };
   const mcpClient = () => (mcpPromise ??= connectMcp(orch.mcpServerFor(run, plan.pack)));
   engine.executors = {
-    tool: async (step, { signal: stepSignal }) => {
+    tool: async (step, { inputs, signal: stepSignal }) => {
       const client = await mcpClient();
       orch.store.charge(run.id, 'tool_call', 1);
       const response = await client.callTool(
-        { name: step.tool, arguments: toolArguments(step, run.prompt) },
+        { name: step.tool, arguments: toolArguments(step, run.prompt, inputs) },
         undefined,
         { signal: stepSignal, timeout: step.timeoutMs ?? 30000 },
       );
@@ -166,7 +183,7 @@ export async function executeWorkflow(orch, run, plan, control) {
     },
     verify: async (step, { inputs }) => {
       const candidate = aggregateOutputs(inputs);
-      await verifyPack(plan.pack.id, candidate, run.prompt);
+      await verifyPack(plan.pack.id, candidate, run.prompt, inputs);
       const scope =
         plan.pack.id === 'core'
           ? 'Structure seulement ; faits non vérifiés'
@@ -177,9 +194,10 @@ export async function executeWorkflow(orch, run, plan, control) {
     aggregate: async (step, { inputs }) => aggregateOutputs(inputs),
   };
   try {
-    if (plan.resumeWorkflow) engine.recover(run.id, plan.pack.dag);
-    else engine.init(run.id, plan.pack.dag);
-    const outcome = await engine.drive(run.id, plan.pack.dag, {}, signal);
+    const dag = plan.dag ?? plan.pack.dag;
+    if (plan.resumeWorkflow) engine.recover(run.id, dag);
+    else engine.init(run.id, dag);
+    const outcome = await engine.drive(run.id, dag, {}, signal);
     if (outcome.state !== 'completed') {
       const detail = outcome.failed.map(
         (f) => `${f.id} (${f.state}${f.error ? ' : ' + f.error : ''})`,
@@ -192,7 +210,7 @@ export async function executeWorkflow(orch, run, plan, control) {
       error.outcome = outcome;
       throw error;
     }
-    const last = plan.pack.dag.steps.at(-1).id;
+    const last = dag.steps.at(-1).id;
     return outcome.outputs[last];
   } finally {
     control.closeAll();

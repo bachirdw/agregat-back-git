@@ -49,6 +49,9 @@ function input() {
     skills: [...selectedSkills],
     model: $('model').value,
     mode: $('mode-select').value,
+    ...($('mode-select').value === 'workflow' && $('workflow-select').value
+      ? { workflow: $('workflow-select').value }
+      : {}),
     budgetCents: 0,
   };
 }
@@ -62,6 +65,24 @@ function modeNote() {
     ? 'Consommation BYOA externe · coût inconnu'
     : 'Données de test · aucun modèle appelé';
   renderModels(real);
+  renderWorkflows();
+}
+function renderWorkflows() {
+  const packId = $('pack').value;
+  const pack =
+    catalog.packs.find((p) => p.id === packId) ??
+    catalog.packs.find((p) => p.id === 'najah' && /emploi|offre|job/i.test($('prompt').value)) ??
+    catalog.packs[0];
+  const previous = $('workflow-select').value;
+  $('workflow-select').replaceChildren();
+  for (const d of pack?.dags ?? []) {
+    const o = element('option', d.title);
+    o.value = d.id;
+    $('workflow-select').append(o);
+  }
+  if ([...$('workflow-select').options].some((o) => o.value === previous))
+    $('workflow-select').value = previous;
+  $('workflow-label').hidden = $('mode-select').value !== 'workflow' || !pack?.dags?.length;
 }
 function renderModels(real) {
   const agent = catalog.agents.find((a) => a.id === $('agent').value);
@@ -346,19 +367,48 @@ function renderResult(run) {
   $('result').replaceChildren();
   if (run.error) $('result').append(element('p', run.error));
   if (run.result) {
+    const prov = run.result.provenance;
     $('result').append(
-      element('span', run.result.simulated ? 'DONNÉES FICTIVES' : 'RÉSULTAT AGENT', 'pill'),
-      element('p', run.result.summary),
+      element(
+        'span',
+        prov?.data === 'réelles'
+          ? 'OFFRES RÉELLES · SOURCES CITÉES'
+          : run.result.simulated
+            ? 'DONNÉES FICTIVES'
+            : 'RÉSULTAT AGENT',
+        'pill',
+      ),
     );
+    if (prov?.analysis)
+      $('result').append(
+        element(
+          'small',
+          'Analyse : ' +
+            (prov.analysis === 'démonstrateur' ? 'démonstrateur sans modèle' : prov.analysis),
+        ),
+      );
+    $('result').append(element('p', run.result.summary));
     for (const job of run.result.opportunities ?? []) {
       const row = element('div', undefined, 'job');
       row.append(
         element('span', job.score + ' points', 'score'),
         element('strong', job.title),
         element('small', job.company + ' · ' + job.location),
-        element('p', job.reasons.join(' · ')),
-        element('small', 'Sponsoring : non vérifié · Source de test : ' + job.source),
+        element('p', (job.reasons ?? []).join(' · ')),
+        element(
+          'small',
+          job.attribution
+            ? `Sponsoring : ${job.sponsorship === 'uk_register_name_match' ? 'nom présent au registre UK (entité à confirmer)' : 'inconnu'} · ${job.attribution} · ${job.fetchedAt}`
+            : 'Sponsoring : non vérifié · Source de test : ' + job.source,
+        ),
       );
+      if (job.url && /^https:\/\//.test(job.url)) {
+        const link = element('a', 'Voir l’offre sur la source', 'source-link');
+        link.href = job.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        row.append(link);
+      }
       $('result').append(row);
     }
   }

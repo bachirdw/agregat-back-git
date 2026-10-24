@@ -11,7 +11,7 @@ import {
   requirementsFor,
   saveProbe,
 } from '../agent-runtime/index.js';
-import { ROOT, getPack, verifyPack } from './packs.js';
+import { ROOT, getDag, getPack, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { parseAgentResult } from './result.js';
@@ -27,6 +27,7 @@ export const inputSchema = z
     model: z.string().max(200).default(''),
     budgetCents: z.number().int().min(0).max(100000).default(0),
     mode: z.enum(['agent', 'workflow']).default('agent'),
+    workflow: z.string().max(60).optional(),
   })
   .strict();
 export { parseAgentResult } from './result.js';
@@ -48,6 +49,14 @@ export class Orchestrator {
   mcpServerFor(run, pack) {
     const browser = process.env.AGENT_PLATFORM_BROWSER ?? 'fixture';
     const env = { RELAY_BROWSER: browser };
+    const network = pack.policies?.network;
+    if (network?.allowedHosts?.length && process.env.AGENT_PLATFORM_NETWORK !== '0') {
+      env.RELAY_NETWORK = JSON.stringify({ allowedHosts: network.allowedHosts });
+      env.RELAY_CACHE_DIR = resolve(this.dataDir, 'cache', 'data');
+      // Reproducible demos/tests: JSON map of URL → recorded response file (no network).
+      if (process.env.AGENT_PLATFORM_DATA_REPLAY)
+        env.RELAY_DATA_REPLAY = process.env.AGENT_PLATFORM_DATA_REPLAY;
+    }
     if (browser !== 'fixture') {
       const declared = pack.policies?.browser ?? {};
       env.RELAY_POLICY = JSON.stringify(
@@ -135,10 +144,12 @@ export class Orchestrator {
     if (v.model && known && !known.some((m) => m.id === v.model))
       throw new Error('Modèle non annoncé par ' + agent.name + ' au dernier test');
     let workflow = null;
+    let dagChosen = null;
     const stepAgents = {};
     if (v.mode === 'workflow') {
-      if (!pack.dag) throw new Error(`Le pack ${pack.name} ne déclare pas de workflow DAG`);
-      const wf = validateWorkflow(pack.dag);
+      const dag = getDag(pack, v.workflow);
+      if (!dag) throw new Error(`Le pack ${pack.name} ne déclare pas de workflow DAG`);
+      const wf = validateWorkflow(dag);
       for (const s of wf.steps.filter((x) => x.kind === 'agent' && x.agent && x.agent !== id)) {
         const other = agents.find((a) => a.id === s.agent);
         if (!other?.installed || !other.compatible)
@@ -146,6 +157,7 @@ export class Orchestrator {
         if (!other.simulated && !this.live) throw new Error(`Étape ${s.id} : mode réel désactivé`);
         stepAgents[s.id] = other;
       }
+      dagChosen = dag;
       workflow = {
         id: wf.id,
         title: wf.title,
@@ -164,6 +176,8 @@ export class Orchestrator {
     return {
       input: { ...v, agent: id, pack: pack.id },
       workflow,
+      dag: dagChosen,
+      workflows: pack.dags.map((d) => ({ id: d.id, title: d.title })),
       stepAgents,
       agent,
       pack,

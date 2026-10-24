@@ -1,11 +1,15 @@
 id: najah
 name: Najah AI
 version: 0.1.0
-description: Recherche et classement d'opportunités sur un jeu de données fictif.
+description: Recherche d'offres réelles (sources publiques citées), vérification du registre UK des sponsors, classement explicable ; démonstrateur fictif inclus.
 keywords: [emploi, offres, job, carrière, recrutement, sponsor, najah]
 skills:
   - id: opportunity-analysis
     file: skills/opportunity-analysis/SKILL.md
+  - id: offer-evaluation
+    file: skills/offer-evaluation/SKILL.md
+  - id: visa-sponsorship-check
+    file: skills/visa-sponsorship-check/SKILL.md
 workflow:
   id: opportunity-discovery
   title: Rechercher, analyser et classer
@@ -57,3 +61,60 @@ dag:
       title: Assembler le résultat
       kind: aggregate
       dependsOn: [verify, analysis]
+policies:
+  # Hosts the data gateway may call for this pack (HTTPS only, DNS checked, cached, metered).
+  network:
+    allowedHosts:
+      - www.arbeitnow.com
+      - remotive.com
+      - www.gov.uk
+      - assets.publishing.service.gov.uk
+# Additional workflows. `opportunity-discovery-live` uses REAL public sources with citations.
+dags:
+  - id: opportunity-discovery-live
+    title: Offres réelles, registre UK des sponsors, classement vérifié
+    concurrency: 2
+    steps:
+      - id: search
+        title: Rechercher des offres réelles (Arbeitnow, Remotive)
+        kind: tool
+        tool: jobs_search_live
+        timeoutMs: 60000
+        retries: 1
+        arguments: { query: '{{objective}}', limit: 30 }
+      - id: sponsors
+        title: Vérifier les employeurs dans le registre UK (gov.uk)
+        kind: tool
+        tool: sponsor_check_uk
+        dependsOn: [search]
+        timeoutMs: 180000
+        optional: true
+        arguments: { companies: { $from: search.companies } }
+      - id: rank
+        title: Classer de façon explicable
+        kind: tool
+        tool: opportunities_rank_live
+        dependsOn: [search, sponsors]
+        arguments:
+          query: '{{objective}}'
+          offers: { $from: search.offers }
+          sponsors: { $from: sponsors.results }
+      - id: analysis
+        title: Analyser les meilleures offres
+        kind: agent
+        dependsOn: [rank]
+        optional: true
+        timeoutMs: 300000
+        prompt: >-
+          Analyse les 5 premières offres de untrustedInputs.rank.opportunities en 5 phrases maximum :
+          adéquation, inconnues (le sponsoring de visa n'est prouvé par aucune source sauf mention
+          explicite ; une correspondance au registre UK n'est qu'une correspondance de nom), prochaine
+          action. Cite les URL. Ne modifie pas le classement, n'invente rien. simulated:false.
+      - id: verify
+        title: Recalculer le classement et vérifier la provenance
+        kind: verify
+        dependsOn: [rank, search, sponsors]
+      - id: report
+        title: Assembler le résultat cité
+        kind: aggregate
+        dependsOn: [verify, analysis]

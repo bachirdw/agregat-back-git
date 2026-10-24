@@ -14,3 +14,5 @@ la contrainte principale, très en dessous de la limite absolue de 10 $.
 | 04:08 | manager sprint-03 | gemini-3.5-flash-lite | Workflow DAG Najah réel (étape analysis) — **completed** | ≈ 13 000 / ≈ 100 (1 tour) | ≈ 0,003 $ | ≈ 0,027 $ (12 appels) |
 
 Note 03:58 : les heures des lignes « manager » ci-dessus après 03:05 sont estimées (en avance) ; les montants restent exacts.
+| 04:40 | manager sprint-06 | gemini-3.5-flash-lite | DAG Najah live n°1 (vraies sources) — completed | ≈ 15 000 / ≈ 300 (1 tour) | ≈ 0,004 $ | ≈ 0,031 $ (13 appels) |
+| 04:47 | manager sprint-06 | gemini-3.5-flash-lite | DAG Najah live n°2 après correctifs — completed | ≈ 18 000 / ≈ 300 (1 tour) | ≈ 0,004 $ | ≈ 0,035 $ (14 appels) |

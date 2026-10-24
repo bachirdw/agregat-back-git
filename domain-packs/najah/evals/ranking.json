@@ -1,0 +1,25 @@
+{
+  "description": "Évaluations du classement Najah sur des offres RÉELLES enregistrées le 2026-10-25 (tests/fixtures/najah-recorded).",
+  "cases": [
+    {
+      "id": "data-engineer-berlin",
+      "query": "Data engineer Python ou SQL, idéalement à Berlin",
+      "expect": { "topTitleIncludes": "Data Engineer", "topLocationIncludes": "Berlin" }
+    },
+    {
+      "id": "python-remote",
+      "query": "Développeur Python en télétravail",
+      "expect": { "topReasonsInclude": "Compétence python" }
+    },
+    {
+      "id": "no-false-sponsor",
+      "query": "Python avec sponsor visa",
+      "expect": { "noSponsorshipBeyond": ["unknown", "uk_register_name_match"], "companyNotMatched": "Mitre Media" }
+    },
+    {
+      "id": "unrelated-query",
+      "query": "Boulanger pâtissier",
+      "expect": { "maxTopScore": 10 }
+    }
+  ]
+}

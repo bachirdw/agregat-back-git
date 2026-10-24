@@ -22,6 +22,7 @@ const input = {
   skills: [],
   budgetCents: 0,
   mode: process.env.LIVE_RUN_MODE ?? 'agent',
+  ...(process.env.LIVE_RUN_WORKFLOW ? { workflow: process.env.LIVE_RUN_WORKFLOW } : {}),
 };
 console.log('PLAN', JSON.stringify(await post('/plan', input)));
 const run = await post('/runs', input);

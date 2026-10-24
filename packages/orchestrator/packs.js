@@ -7,8 +7,10 @@ import { validateWorkflow } from '../workflow-engine/definition.js';
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const schema = z.object({
   dag: z.unknown().optional(),
+  dags: z.array(z.unknown()).max(10).optional(),
   policies: z
     .object({
+      network: z.object({ allowedHosts: z.array(z.string()).max(30).default([]) }).optional(),
       browser: z
         .object({
           allowedDomains: z.array(z.string()).max(50).default([]),
@@ -39,7 +41,9 @@ export const packs = ['core', 'najah'].map((id) => {
   const pack = schema.parse(
     parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8')),
   );
-  if (pack.dag) validateWorkflow(pack.dag); // fail fast on an invalid pack DAG
+  // `dags` lists every workflow of the pack; `dag` stays the default one.
+  pack.dags = [...(pack.dag ? [pack.dag] : []), ...(pack.dags ?? [])];
+  for (const d of pack.dags) validateWorkflow(d); // fail fast on an invalid pack DAG
   return pack;
 });
 export const skillDefinitions = packs.flatMap((p) =>
@@ -50,6 +54,12 @@ export const skillDefinitions = packs.flatMap((p) =>
     path: resolve(ROOT, 'domain-packs', p.id, s.file),
   })),
 );
+export function getDag(pack, id) {
+  if (!id) return pack.dag ?? null;
+  const dag = pack.dags.find((d) => d.id === id);
+  if (!dag) throw new Error(`Workflow inconnu pour ${pack.name} : ${id}`);
+  return dag;
+}
 export function getPack(id, objective = '') {
   const p =
     id === 'auto'
@@ -58,8 +68,8 @@ export function getPack(id, objective = '') {
   if (!p) throw new Error('Domain Pack inconnu');
   return p;
 }
-export async function verifyPack(id, result, objective) {
+export async function verifyPack(id, result, objective, inputs = {}) {
   if (id === 'core') return result;
   const plugin = await import(new URL(`../../domain-packs/${id}/index.js`, import.meta.url));
-  return plugin.verify(result, objective);
+  return plugin.verify(result, objective, inputs);
 }

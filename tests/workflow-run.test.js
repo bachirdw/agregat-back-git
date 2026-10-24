@@ -134,6 +134,7 @@ test('aggregateOutputs : priorité au résultat vérifié, résumé d’analyse,
   });
   assert.deepEqual(out, {
     simulated: true,
+    provenance: { data: 'fictives', analysis: 'démonstrateur' },
     summary: 'Analyse',
     evidence: ['e1', 'e2', { verification: 'S' }],
     opportunities: [{ id: 1 }],

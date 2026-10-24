@@ -1,0 +1,91 @@
+{
+  "recordedAt": "2026-10-25",
+  "source": "https://www.arbeitnow.com/api/job-board-api?page=1",
+  "note": "Échantillon RÉEL enregistré pour tests hors ligne ; descriptions tronquées.",
+  "data": [
+    {
+      "slug": "senior-ai-solution-engineer-berlin-366207",
+      "company_name": "Workist GmbH",
+      "title": "(Senior) AI Solution Engineer (w/m/d)",
+      "description": "<h2>Deine Rolle bei uns</h2>\n<p>Wir suchen einen (Senior) AI Solution Engineer (f/m/d), der mit Leidenschaft bei der Sache ist und bereit ist, Verantwortung zu übernehmen.<br>Bei Workist arbeiten unsere AI Solution Engineers im Onboarding- und Implementierungsprozess direkt mit unseren Kunden zusammen, um unser KI-Produkt zu konfigurieren und anzupassen, damit sie so schnell wie möglich \"live\" kommen. Unsere Kunden verlassen sich auf die KI-Software von Workist, um wichtige Kernprozesse im Dokumentengeschäft zu automatisieren. Du kannst vom ersten Tag an Teil des AI Solution Engineering Teams sein und unseren Kunden helfen, ihre Geschäftsprozesse mit Hilfe unserer KI zu automatisieren.</p>\n<h2>Deine Aufgaben</h2>\n<p>Du bist für die Implementierung und Integration der KI-basierten SaaS von ",
+      "remote": false,
+      "url": "https://www.arbeitnow.com/jobs/companies/workist-gmbh/senior-ai-solution-engineer-berlin-366207",
+      "tags": ["Software Development"],
+      "job_types": ["Unbefristeter arbeitsvertrag"],
+      "location": "Berlin",
+      "created_at": 1792854057
+    },
+    {
+      "slug": "consultant-investment-operations-data-integration-hamburg-282307",
+      "company_name": "Aietes",
+      "title": "Consultant Investment Operations & Data Integration (m/w/x)",
+      "description": "<p>aietes ist eine spezialisierte Unternehmensberatung für Asset Manager, Versicherungen und Banken. Wir unterstützen unsere Kunden bei der Einführung, Weiterentwicklung und dem Betrieb geschäftskritischer Investment-Management-Lösungen. Unser Schwerpunkt liegt auf SimCorp Dimension, Datenintegration, Accounting, Reporting und regulatorischen Anforderungen.</p><p>Zur Verstärkung unseres Teams suchen wir eine analytisch starke Persönlichkeit, die fachliches Verständnis mit technischer IT-Affinität verbindet. Du unterstützt uns bei langfristigen Wartungs- und Supportmandaten für geschäftskritische Kundenlösungen. Im Mittelpunkt stehen die Schnittstellen zwischen SimCorp Dimension und SAP, Accounting- sowie Reporting- und Datenqualitätsthemen.</p><p><strong>Requirements</strong></p><p><strong",
+      "remote": false,
+      "url": "https://www.arbeitnow.com/jobs/companies/aietes/consultant-investment-operations-data-integration-hamburg-282307",
+      "tags": ["Information Technology and Services", "Business & IT Integration"],
+      "job_types": ["Full time", "associate"],
+      "location": "Hamburg, Germany",
+      "created_at": 1792851611
+    },
+    {
+      "slug": "full-stack-engineer-ai-authoring-platform-berlin-234521",
+      "company_name": "Tracium GmbH",
+      "title": "Full-Stack Engineer — AI Authoring Platform",
+      "description": "<h3>About Tracium</h3><p>https://www.linkedin.com/company/tracium/</p><p>Tracium builds AI-assisted technical documentation software for teams working with complex manuals and engineering information. Our platform combines document intelligence with S1000D authoring, initially serving maritime use cases.</p><p>We want technical authors to spend less time managing document complexity and more time producing accurate, useful information.</p><h3>Your role</h3><p>You will turn our AI and document processing capabilities into a product that technical authors and engineers can use confidently. You will work across the authoring interface, backend services, and integrations.</p><h3>What you’ll do</h3><ul><li><p>Build an intuitive editor that lets users create structured technical documentation wi",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/companies/tracium-gmbh/full-stack-engineer-ai-authoring-platform-berlin-234521",
+      "tags": ["Remote", "Web Development"],
+      "job_types": [
+        "Freelancer / indepedent contractor",
+        "freelance",
+        "professional / experienced"
+      ],
+      "location": "Berlin",
+      "created_at": 1792850446
+    },
+    {
+      "slug": "senior-ai-engineer-document-intelligence-berlin-227489",
+      "company_name": "Tracium GmbH",
+      "title": "Senior AI Engineer — Document Intelligence",
+      "description": "<h3>About Tracium</h3><p>https://www.linkedin.com/company/tracium/</p><p>Tracium builds AI-assisted technical documentation software that turns complex manuals and engineering documents into structured, traceable information. Our initial focus is maritime, with applications across manufacturing, aerospace, and defence.</p><p>We combine document intelligence with S1000D authoring to help technical teams extract maintenance information, create documentation, and verify AI-generated suggestions against their sources.</p><h3>Your role</h3><p>You will own the AI capabilities behind our document intelligence platform—from understanding complex PDFs to extracting information that engineers can review and use.</p><h3>What you’ll do</h3><ul><li><p>Build pipelines for document parsing, OCR, layout u",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/companies/tracium-gmbh/senior-ai-engineer-document-intelligence-berlin-227489",
+      "tags": ["Remote", "Data Scientist"],
+      "job_types": [
+        "Freelancer / indepedent contractor",
+        "freelance",
+        "professional / experienced"
+      ],
+      "location": "Berlin",
+      "created_at": 1792850446
+    },
+    {
+      "slug": "senior-data-engineer-document-ai-pipelines-berlin-58783",
+      "company_name": "Tracium GmbH",
+      "title": "Senior Data Engineer — Document & AI Pipelines",
+      "description": "<h3>About Tracium</h3><p>https://www.linkedin.com/company/tracium/</p><p>Tracium builds AI-assisted technical documentation software that turns complex manuals and engineering documents into structured, traceable information. Starting with maritime, we help technical teams extract maintenance information and create documentation through document intelligence and S1000D authoring.</p><h3>Your role</h3><p>You will build the data foundation connecting source documents, AI processing, human review, and downstream systems. Your focus will be reliable processing, clear data models, and traceability throughout the document lifecycle.</p><h3>What you’ll do</h3><ul><li><p>Design document ingestion and processing pipelines for PDFs, XML, and related technical data.</p></li><li><p>Build workflows for",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/companies/tracium-gmbh/senior-data-engineer-document-ai-pipelines-berlin-58783",
+      "tags": ["Remote", "Data Processing", "Data Engineer"],
+      "job_types": [
+        "Freelancer / indepedent contractor",
+        "freelance",
+        "professional / experienced"
+      ],
+      "location": "Berlin",
+      "created_at": 1792850446
+    },
+    {
+      "slug": "working-student-ai-engineering-document-intelligence-berlin-378393",
+      "company_name": "Tracium GmbH",
+      "title": "Working Student — AI Engineering & Document Intelligence",
+      "description": "<p><strong>Location: Hamburg, Germany · Part-time alongside your studies</strong></p><h3>About Tracium</h3><p>https://www.linkedin.com/company/tracium/</p><p>Tracium builds AI-assisted software that helps technical teams turn complex manuals into structured, traceable information. We combine document intelligence with S1000D authoring, starting with maritime applications.</p><h3>Your role</h3><p>Work alongside experienced engineers on practical AI problems involving real technical documents. You will contribute to experiments, evaluation, and product improvements while developing your engineering skills with guidance from the team.</p><h3>What you’ll do</h3><ul><li><p>Explore document parsing, OCR, and structured information extraction.</p></li><li><p>Build Python scripts and small prototy",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/companies/tracium-gmbh/working-student-ai-engineering-document-intelligence-berlin-378393",
+      "tags": ["Remote", "Software Development"],
+      "job_types": ["Working student", "working student", "no experience required / student"],
+      "location": "Berlin",
+      "created_at": 1792848652
+    }
+  ]
+}

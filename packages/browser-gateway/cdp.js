@@ -41,6 +41,7 @@ export class CdpBrowser {
         executablePath: this.launch.executablePath,
         headless: this.launch.headless !== false,
         args: ['--no-first-run', '--no-default-browser-check'],
+        timeout: 30000,
       });
       this.context = await this.browser.newContext({ acceptDownloads: true });
       this.shared = false;

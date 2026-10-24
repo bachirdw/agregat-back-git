@@ -96,8 +96,21 @@ server.registerTool(
   },
   async ({ text: value }) => text({ text: value, verified: false }),
 );
-if (pack.id !== 'core')
-  (await import(new URL(`../../domain-packs/${pack.id}/index.js`, import.meta.url))).register(
-    server,
-  );
+if (pack.id !== 'core') {
+  const plugin = await import(new URL(`../../domain-packs/${pack.id}/index.js`, import.meta.url));
+  plugin.register(server);
+  // Real data sources only when the platform grants network hosts for this run (pack policy).
+  if (process.env.RELAY_NETWORK && plugin.registerLive) {
+    const { DataGateway } = await import('../data-gateway/index.js');
+    const network = JSON.parse(process.env.RELAY_NETWORK);
+    plugin.registerLive(
+      server,
+      new DataGateway({
+        allowedHosts: network.allowedHosts ?? [],
+        cacheDir: process.env.RELAY_CACHE_DIR ?? null,
+        replay: process.env.RELAY_DATA_REPLAY ? JSON.parse(process.env.RELAY_DATA_REPLAY) : null,
+      }),
+    );
+  }
+}
 await server.connect(new StdioServerTransport());

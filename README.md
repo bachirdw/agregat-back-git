@@ -85,30 +85,64 @@ AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Pla
 
 Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Voir [ADR 006](docs/adr/006-browser-gateway.md).
 
-## Fonctionnalités et limites
+## Fonctionnalités et limites (état au 25 octobre 2026)
 
-| Fonction | État |
-|---|---|
-| Interface, plan avant lancement, Auto déterministe, Skills | Opérationnels |
-| ACP SDK stable v1, new/prompt/update/cancel/load conditionnel | Implémentés ; transport testé avec agent fixture |
-| Adaptateur Codex upstream | Test réel documenté dans `docs/validation.md` |
-| Adaptateur Claude upstream | Handshake/session testés ; prompt bloqué par authentification |
-| Gemini natif / OpenCode natif | Profils existants ; probes isolées du sprint 01 : handshakes réussis, session Gemini refusée faute d’auth, session OpenCode créée ; inférence non testée |
-| MCP stdio tools/list/tools/call | Testé réellement avec serveur local embarqué |
-| Najah recherche/analyse/classement | Fonctionnel sur trois offres fictives uniquement |
-| Browser Gateway | Démonstrateur sans navigateur ni réseau ; lecture autorisée sur domaine fixture uniquement |
-| Historique et événements SSE avec replay | Persistés SQLite |
-| Ledger, budget plateforme avant débit, limites de temps | Implémentés ; opérations MVP gratuites, consommation BYOA externe inconnue |
-| Playwriter, MCP distant arbitraire, Skills distants | Étudiés, non intégrés |
-| Multi-agent parallèle, workflow durable | Prévu ; ordonnanceur local SQLite proposé, acpx flows ne fournit pas le DAG parallèle durable requis au SHA audité |
-| Cloud companion, Managed, comptes, abonnements | Non implémentés |
+| Fonction | État | Preuve |
+|---|---|---|
+| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel** | Tests E2E sur Chrome réel (`tests/e2e-ui.test.js`) |
+| Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles) | **Opérationnel** | 35 tests + sondes réelles des 4 agents |
+| Codex · Claude · Gemini CLI · OpenCode | Sessions réelles **validées** pour les 4 ; inférence réelle validée pour **Gemini** (clé API) et OpenCode (modèle gratuit) | `docs/research/live-probe.json`, `docs/validation.md` |
+| Mode Auto par exigences et capacités | **Opérationnel** | Tests routeur |
+| Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent) | **Opérationnel** | 15 + 8 + 4 tests ; DAG réel avec Gemini |
+| Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié | **Opérationnel** | Runs réels documentés ; rejeu hors ligne testé |
+| Najah — démonstrateur fictif | **Simulé** (données marquées FICTIVES) | Tests |
+| Najah — brouillon de lettre avec relecture humaine | **Opérationnel**, aucun envoi possible | Tests API + E2E |
+| Registre de Skills (quarantaine, revue, versions, export natif, import GitHub) | **Opérationnel** | 12 tests ; import réel de career-ops |
+| Browser Gateway : Chrome isolé et CDP partagé, politique, approbations | **Opérationnel** | Tests sur Chrome réel |
+| Browser Gateway via l'extension Playwriter | **Implémenté, non testé** (extension non installée) | ADR 006 |
+| MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | |
+| Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | 9 tests ; ADR 007 |
+| Companion cloud, mode Managed, comptes, abonnements, multi-utilisateurs | **Prévu** | |
 
-Les Skills se trouvent sous `domain-packs/*/skills/*/SKILL.md`. Seuls les contenus embarqués et revus sont installables ; empreinte SHA-256 vérifiée avant chaque run. L'installation ne lance aucun script. Pour ajouter un pack : déclarer manifest, Skills et plugin d'outils/validation, puis l'ajouter à la liste de packs approuvés dans `packages/orchestrator/packs.js`. Ne jamais charger du code de pack à partir d'une URL fournie par l'utilisateur.
+Les Skills se trouvent sous `domain-packs/*/skills/*/SKILL.md`. Seuls les contenus embarqués et revus sont installables directement ; les Skills tiers passent par la quarantaine et une revue humaine. L'installation ne lance aucun script. Pour ajouter un pack : déclarer manifest (Skills, `dag`/`dags`, `policies`), plugin d'outils/validation, puis l'ajouter à la liste de packs approuvés dans `packages/orchestrator/packs.js`. Ne jamais charger du code de pack à partir d'une URL fournie par l'utilisateur.
+
+## Workflows (mode « Workflow DAG »)
+
+Les DAG sont déclarés par les packs (`domain-packs/*/manifest.yaml`). La plateforme — pas le modèle — exécute
+les étapes `tool` (outils MCP déterministes), `agent` (une session ACP, éventuellement un agent différent par
+étape), `approval` (décision humaine), `verify` (vérificateur du pack) et `aggregate`. Un workflow
+interrompu, en échec ou annulé se reprend en place (« Reprendre le workflow ») : les étapes réussies ne sont
+jamais rejouées, une étape à effet externe interrompue devient « incertaine » et attend une décision.
+
+Najah fournit trois workflows : démonstrateur fictif, **offres réelles** (`opportunity-discovery-live` :
+Arbeitnow + Remotive + registre UK des sponsors, classement recalculé indépendamment, sources citées) et
+**brouillon de candidature** (relecture humaine obligatoire, aucun envoi).
+
+```sh
+AGENT_PLATFORM_LIVE=1 npm start     # puis : Domain Pack Najah, Exécution « Workflow DAG », Workflow « Offres réelles… »
+```
+
+Pour des démonstrations reproductibles sans réseau : `AGENT_PLATFORM_DATA_REPLAY='{"<url>":"<fichier>"}'`
+(réponses réelles enregistrées, voir `tests/najah-live.test.js`). `AGENT_PLATFORM_NETWORK=0` coupe les sources
+réelles.
+
+## Coûts
+
+Grille tarifaire dans `.data/pricing.json` (à 0 par défaut, aucun prix inventé) :
+
+```json
+{ "currency": "EUR", "centsPerUnit": { "tool_call": 0, "data_search": 0, "browser_action": 0 }, "monthlyCapCents": null }
+```
+
+Chaque plan affiche une estimation maximale ; un lancement au-dessus du budget est refusé ; un dépassement en
+cours d'exécution arrête le run. La consommation de votre propre CLI (BYOA) est affichée comme « inconnue,
+jamais refacturée » et ne peut pas recevoir de prix. Voir [ADR 007](docs/adr/007-usage-and-billing.md).
 
 ## Vérifier
 
 ```sh
-npm test          # tests unitaires + intégration ACP/MCP/HTTP ; écoute loopback nécessaire
+npm test          # 151 tests : unitaires, intégration ACP/MCP/HTTP, Chrome réel isolé, E2E interface
+npm run test:browser   # tests navigateur et E2E seuls, en série
 npm run check     # syntaxe de tous les fichiers JavaScript
 npm run demo      # parcours Najah complet dans un dossier temporaire
 npm audit         # nécessite le réseau
@@ -119,20 +153,25 @@ Les tests n'appellent aucun modèle et ne nécessitent pas de CLI fournisseur. `
 ## Organisation
 
 ```text
-apps/web/                 Interface sans framework ni compilation
-apps/api/                 Serveur HTTP local et SSE
-apps/companion/           Diagnostic des CLI (companion fusionné avec API au MVP)
-packages/agent-runtime/   Client ACP unique et profils de lancement
-packages/orchestrator/    Routeur, recette, états, sessions et vérification
-packages/skill-registry/  Installation/activation/version/empreinte
-packages/mcp-gateway/     Client et serveur MCP officiels
-packages/browser-gateway/ Fournisseur fixture remplaçable
-packages/policy-engine/  Restrictions et décisions de permission
-packages/storage/        SQLite et ledger transactionnel
- domain-packs/core/       Analyse générale
- domain-packs/najah/      Skills, recette, fixtures, outils et validation
- tests/                  Tests et agent ACP déterministe
- docs/                   Recherche, architecture, ADR, validation
+apps/web/                     Interface sans framework ni compilation
+apps/api/                     Serveur HTTP local, SSE, ponts internes d'approbation et d'usage
+apps/companion/               Diagnostic des CLI (companion fusionné avec l'API au MVP)
+packages/agent-runtime/       Runtime ACP, profils, découverte, env en liste blanche, routeur Auto, sondes
+packages/orchestrator/        Plan, estimation, exécution agent ou workflow, permissions, reprise
+packages/workflow-engine/     Moteur DAG durable (SQLite)
+packages/skill-registry/      Analyse, quarantaine, revue, versions, export natif des Skills
+packages/capability-registry/ Contrats stables des capacités browser.*
+packages/browser-gateway/     Gateway navigateur, fournisseurs fixture / Chrome isolé / CDP (Playwriter)
+packages/data-gateway/        HTTP sortant des sources de données (allowlist, cache, rejeu)
+packages/mcp-gateway/         Serveur et client MCP de la plateforme
+packages/policy-engine/       Politique par run (domaines, SSRF, sensibilité, fichiers), permissions
+packages/billing/             Mètres, tarifs, estimation, résumé
+packages/storage/             SQLite : runs, événements, Skills, ledger chaîné
+domain-packs/core/            Analyse générale
+domain-packs/najah/           Skills, DAG, outils live et fixtures, politiques, évaluations
+tests/                        151 tests, faux agents ACP, fixtures enregistrées
+docs/                         Recherche, architecture, ADR 001–007, validation
+.manager/                     Plan, briefs, rapports de la session de nuit (manager + Codex)
 ```
 
 Données locales : `.data/platform.sqlite` (runs, événements, Skills, ledger), `.data/workspaces/` (cwd agents). Contenu des prompts/résultats stocké en clair pour ce prototype ; ne pas y déposer de données sensibles. Pas de télémétrie applicative, mais les CLI réels ont leurs propres politiques. `PORT=4311 npm start` permet de changer le port. Le serveur refuse les Host/Origin étrangers et exige un en-tête applicatif sur les mutations.
@@ -141,7 +180,7 @@ Données locales : `.data/platform.sqlite` (runs, événements, Skills, ledger),
 
 - [Audit de 27 dépôts, licences, matrice ACP et références à SHA fixe](docs/open-source-research.md)
 - [Architecture et frontières de confiance](docs/architecture.md)
-- [Décisions](docs/adr/001-local-acp.md)
+- Décisions : [ADR 001 à 007](docs/adr/) (runtime, workflows, navigateur, Skills, conditions BYOA, facturation)
 - [Plan MVP et suites](docs/mvp-plan.md)
 - [Validation et blocages](docs/validation.md)
 - [Conditions BYOA par fournisseur et limites commerciales](docs/adr/005-byoa-provider-terms.md)

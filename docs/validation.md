@@ -80,3 +80,25 @@ dossier vide créé par la plateforme ; (2) la permission exposée par l'API ne 
 refus en texte libre produisait une erreur de parseur JSON. Lors d'un run sans MCP, Gemini a **inventé** deux
 offres : la vérification Najah a rejeté le résultat, comme prévu. Coût total Gemini des tests : ≈ 0,024 $
 (journal `.manager/api-usage.md`).
+
+## Sprints 03 à 08 — preuves (25 octobre 2026, manager)
+
+Suite : **151 tests verts** (`npm test`, ~38 s, deux exécutions consécutives), syntaxe et format verts.
+Dont : moteur DAG (15), intégration workflow (8), reprise/approbation (4), Browser Gateway (21, dont 7 sur
+Chrome réel isolé ou CDP partagé), pont d'approbation (4, Chrome réel), registre de Skills (12), Najah live
+(10) et évaluations (4), facturation (9), E2E de l'interface sur Chrome réel (4).
+
+Runs réels (journal des coûts : `.manager/api-usage.md`, ≈ 0,035 $ cumulés) :
+- DAG Najah démonstrateur avec analyse Gemini : completed.
+- DAG Najah **sources réelles** avec Gemini : completed ; 30 offres Arbeitnow, registre UK du 23/10/2026
+  (≈ 143 000 lignes), classement recalculé et vérifié, analyse citant les URL.
+- Import réel de career-ops depuis GitHub (MIT, commit épinglé) → quarantaine, alerte « non autonome ».
+
+Défauts trouvés uniquement en conditions réelles et corrigés : redirection HTTP contournant la politique du
+navigateur (Playwright ne route pas les redirections) ; course de connexion MCP laissant un processus
+orphelin ; réponse Arbeitnow > 2 Mo ; correspondance par sous-chaîne dans le classement ; étiquette
+« fictif » sur des offres réelles ; condition de course dans l'interface (saisie avant chargement).
+
+Limites connues : un test Chrome a expiré une fois sur plusieurs exécutions complètes sous forte charge
+(cause racine non établie, délai désormais borné) ; extension Playwriter non testée ; Claude non authentifié ;
+prompt Codex non retesté (limite d'usage du compte atteinte pendant la nuit).

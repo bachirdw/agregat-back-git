@@ -60,6 +60,7 @@ function invalidate() {
   $('plan-panel').hidden = true;
 }
 function modeNote() {
+  if (!catalog) return; // the user may type before the catalog has loaded
   const real = catalog.live && !['fixture'].includes($('agent').value);
   $('execution-note').textContent = real
     ? 'Consommation BYOA externe · coût inconnu'
@@ -225,6 +226,7 @@ function renderSkills() {
 }
 async function load() {
   catalog = await api('/catalog');
+  document.body.dataset.ready = '1';
   $('mode').textContent = catalog.live ? 'BYOA réel activé' : 'Démonstration locale';
   $('agent').replaceChildren();
   for (const a of [{ id: 'auto', name: 'Auto', compatible: true }, ...catalog.agents]) {
@@ -473,7 +475,10 @@ function renderResult(run) {
   }
   $('run-state').textContent = labels[run.state] ?? run.state;
   $('cancel').hidden = finalStates.has(run.state);
-  $('resume').hidden = !run.resumable || !finalStates.has(run.state);
+  const workflowResumable =
+    run.mode === 'workflow' && ['interrupted', 'failed', 'cancelled'].includes(run.state);
+  $('resume').hidden = !(workflowResumable || (run.resumable && finalStates.has(run.state)));
+  $('resume').textContent = workflowResumable ? 'Reprendre le workflow' : 'Reprendre la session';
 }
 function permission(p) {
   const old = document.getElementById('permission-' + p.id);

@@ -176,6 +176,7 @@ export function createApp({
       }
       if (match?.[2] === 'resume') {
         const old = store.get(match[1]);
+        if (old.mode === 'workflow') return json(res, 200, await engine.resumeWorkflow(old.id));
         return json(
           res,
           201,

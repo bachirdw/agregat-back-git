@@ -189,7 +189,7 @@ export async function executeWorkflow(orch, run, plan, control) {
   };
   try {
     const dag = plan.dag ?? plan.pack.dag;
-    if (plan.resumeWorkflow) engine.recover(run.id, dag);
+    if (plan.resumeWorkflow) engine.recover(run.id, dag, { retryFailed: true });
     else engine.init(run.id, dag);
     const outcome = await engine.drive(run.id, dag, {}, signal);
     if (outcome.state !== 'completed') {

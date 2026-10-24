@@ -278,6 +278,33 @@ export class Orchestrator {
     setImmediate(() => this.execute(run, plan, control, previous));
     return run;
   }
+  // Resume a workflow run in place: same run id, durable steps kept, unfinished steps retried.
+  async resumeWorkflow(runId) {
+    const run = this.store.get(runId);
+    if (!run) throw new Error('Run introuvable');
+    if (run.mode !== 'workflow') throw new Error('Reprise en place réservée aux workflows');
+    if (!['interrupted', 'failed', 'cancelled'].includes(run.state))
+      throw new Error('Seul un workflow interrompu, en échec ou annulé peut être repris');
+    if (this.active.has(runId)) throw new Error('Workflow déjà actif');
+    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
+    const plan = await this.plan({
+      prompt: run.prompt,
+      agent: run.agent,
+      pack: run.pack,
+      skills: run.skills,
+      model: run.model,
+      budgetCents: run.budgetCents,
+      mode: 'workflow',
+      ...(run.workflow ? { workflow: run.workflow } : {}),
+    });
+    plan.resumeWorkflow = true;
+    this.store.update(runId, { state: 'queued', error: null, finishedAt: null });
+    this.store.event(runId, 'workflow_resumed', { at: new Date().toISOString() });
+    const control = { abort: new AbortController(), runtime: null };
+    this.active.set(runId, control);
+    setImmediate(() => this.execute(this.store.get(runId), plan, control, null));
+    return this.store.get(runId);
+  }
   async execute(run, plan, control, previous) {
     let text = '',
       events = 0;
@@ -295,7 +322,7 @@ export class Orchestrator {
     try {
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
       this.store.update(run.id, { state: 'running' });
-      this.meter(run.id, 'workflow_run', 1);
+      if (!plan.resumeWorkflow) this.meter(run.id, 'workflow_run', 1);
       if (run.mode === 'workflow') {
         const result = await executeWorkflow(this, run, plan, control);
         this.store.update(run.id, {

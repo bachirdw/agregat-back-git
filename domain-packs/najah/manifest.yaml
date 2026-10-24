@@ -120,3 +120,30 @@ dags:
         title: Assembler le résultat cité
         kind: aggregate
         dependsOn: [verify, analysis]
+  - id: application-draft
+    title: Brouillon de lettre de candidature (relecture humaine, aucun envoi)
+    steps:
+      - id: context
+        title: Enregistrer l'offre et le profil comme données non vérifiées
+        kind: tool
+        tool: evidence_echo
+        arguments: { text: '{{objective}}' }
+      - id: draft
+        title: Rédiger un brouillon de lettre
+        kind: agent
+        dependsOn: [context]
+        timeoutMs: 300000
+        estimate: { document_generation: 1 }
+        prompt: >-
+          Rédige un BROUILLON de lettre de motivation (200 mots maximum) à partir de l'objectif, en
+          appliquant la méthode offer-evaluation. N'invente aucune expérience, aucun diplôme, aucun
+          contact : utilise [À COMPLÉTER] quand une information manque. Mets le brouillon dans summary et
+          la liste des informations manquantes dans evidence. Ce texte ne sera jamais envoyé par la plateforme.
+      - id: review
+        title: Relire et valider le brouillon (aucun envoi ne sera effectué)
+        kind: approval
+        dependsOn: [draft]
+      - id: report
+        title: Conserver le brouillon validé
+        kind: aggregate
+        dependsOn: [review, draft]

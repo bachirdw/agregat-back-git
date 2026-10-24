@@ -1,54 +1,69 @@
 # Architecture — monolithe local BYOA et évolution contrôlée
 
-Mise à jour : sprint 01, 25 octobre 2026. [Audit des 27 dépôts](open-source-research.md), [runtime/workflows](adr/003-runtime-and-durable-workflows.md), [navigateur/Skills](adr/004-browser-and-skill-boundaries.md), [conditions BYOA](adr/005-byoa-provider-terms.md).
+Mise à jour : sprint 01, puis sprints 02–08 (manager), 25 octobre 2026. [Audit des 27 dépôts](open-source-research.md), [runtime/workflows](adr/003-runtime-and-durable-workflows.md), [navigateur/Skills](adr/004-browser-and-skill-boundaries.md), [conditions BYOA](adr/005-byoa-provider-terms.md).
 
-## État effectivement implémenté
+## État effectivement implémenté (25 octobre 2026, après les sprints 02 à 08)
 
-Un processus HTTP **127.0.0.1** sert l’interface, orchestre et joue le rôle du companion local. SQLite conserve runs, événements SSE, Skills installés et ledger. Un processus ACP par run et une configuration MCP approuvée par session ; aucune dépendance Najah dans le runtime. Les adaptateurs Codex/Claude sont optionnels et épinglés ; Gemini/OpenCode ont des profils de lancement, dont les capacités ne sont pas encore complètement normalisées.
+Un processus HTTP **127.0.0.1** sert l'interface, orchestre et joue le rôle du companion local. Un seul
+SQLite conserve runs, événements SSE, étapes de workflow, Skills et ledger chaîné. Les composants de la
+mission sont des **modules** d'un même processus, pas des services.
 
 ```mermaid
 flowchart TD
-  UI[Interface web locale] --> API[API HTTP et companion fusionnés]
-  API --> REG[Profils agents et registres Skills et packs]
-  API --> ORCH[Orchestrateur local]
-  REG --> ORCH
-  ORCH --> RECIPE[Recette complète transmise dans le prompt]
-  RECIPE --> ACP[Client ACP SDK - protocole v1]
-  ACP --> AGENT[Processus agent - adaptateur ou ACP natif ou fixture]
-  AGENT --> MCP[Serveur MCP stdio approuvé]
-  MCP --> POLICY[Policy des capacités exposées]
-  POLICY --> BROWSER[Browser Gateway fixture]
-  POLICY --> PACK[Outils du Domain Pack approuvé]
-  ORCH --> VERIFY[Vérification de sortie du pack]
-  ORCH --> DB[(SQLite - runs événements Skills ledger)]
-  VERIFY --> DB
-  REG --> NAJAH[Najah - manifest Skills fixtures et validateur]
+  UI[Interface web - objectif agent modèle mode workflow Skills budget] --> API[API HTTP locale + SSE]
+  API --> ORCH[Orchestrateur - plan estimation budget]
+  ORCH --> ROUTER[Routeur Auto par exigences et dernières sondes]
+  ORCH --> ENGINE[Moteur DAG durable - parallèle borné générations approbations reprise]
+  ENGINE --> TOOLX[Étapes tool - appels MCP déterministes]
+  ENGINE --> AGENTX[Étapes agent - une session ACP par étape]
+  ENGINE --> VERIFY[Étapes verify - vérificateur du pack]
+  ENGINE --> AGG[Étapes aggregate - provenance par partie]
+  AGENTX --> ACP[Runtime ACP - délais réels env en liste blanche modes sûrs modèles]
+  ACP --> CX[Codex via codex-acp]
+  ACP --> CL[Claude via claude-agent-acp]
+  ACP --> GE[Gemini CLI ACP natif]
+  ACP --> OC[OpenCode ACP natif]
+  TOOLX --> MCP[Serveur MCP plateforme]
+  CX --> MCP
+  CL --> MCP
+  GE --> MCP
+  OC --> MCP
+  MCP --> BGW[Browser Gateway - capacités browser.* typées et politique]
+  MCP --> DGW[Data Gateway - hôtes autorisés cache rejeu]
+  MCP --> PACK[Outils du Domain Pack]
+  BGW --> FIX[Fixture]
+  BGW --> ISO[Chrome isolé - profil jetable]
+  BGW --> PWR[Relais Playwriter CDP - onglet dédié]
+  BGW -- action sensible --> APPROVE[Pont d'approbation - décision humaine dans l'UI]
+  BGW -- mesure avant action --> USAGE[Pont d'usage - budget 402]
+  DGW -- mesure avant requête --> USAGE
+  APPROVE --> API
+  USAGE --> ORCH
+  SKILLS[Registre Skills - quarantaine revue empreinte export .agents/.claude] --> AGENTX
+  PACKS[Registre de packs - manifest DAG politiques Skills évaluations] --> ORCH
+  ORCH --> DB[(SQLite - runs événements étapes Skills ledger chaîné)]
 ```
 
-Ce diagramme **ne représente pas un DAG déjà imposé par le moteur**. `packages/orchestrator/index.js` prépare des étapes affichables, mais remet la recette entière à `runtime.prompt()`. Le moteur impose l’état global, les permissions qu’il reçoit et la vérification finale, pas l’ordre réel des appels outils de l’agent. Les tests fixture exécutent la recette ; cela ne prouve pas qu’un agent fournisseur respectera le workflow.
-
-Les packs regroupent manifest, Skills, outils et validation. Auto sélectionne par mots-clés pour le pack et par ordre de disponibilité pour l’agent en mode réel. Il ne fait pas encore de routage par exigences/capacités ; son repli actuel vers la fixture doit être rendu explicite au sprint 02.
-
-## Contrats et invariants
-
-Un **Tool** effectue une opération ; un **Skill** décrit une méthode ; un **Workflow** exprime dépendances et validations ; un **Agent** conduit une session de tâche ; un **Domain Pack** distribue ces éléments sans prendre le contrôle du runtime. Le fournisseur de modèle et l’agent sont deux identités distinctes, particulièrement dans OpenCode.
-
-| Contrat | Implémenté | Écart ou règle de la cible |
+| Contrat | Implémenté et testé | Limites restantes |
 |---|---|---|
-| Runtime | detect, initialize, new/load, prompt, update, cancel ; SDK ACP officiel | Capacités live par version, aucun parsing terminal dans le chemin principal ; modèles Gemini à normaliser |
-| Session fournisseur | sessionId distinct du run, cwd stable ; load uniquement annoncé | Recharger une conversation n’est pas reprendre une étape métier ; même session ne permet pas deux tours concurrents non négociés |
-| Exécution | queued → running / waiting_permission → completed/failed/cancelled/interrupted | États par étape/tentative, admission atomique et génération à ajouter au sprint 03 |
-| Événements | Séquences SQLite et SSE avec Last-Event-ID, affichage texte | Associer source/version/étape, ignorer les sorties tardives d’une tentative révoquée |
-| Skills | Embarqués revus, empreinte SKILL.md, activation/désactivation | Hash de tous les fichiers, provenance/version immuable, quarantaine et export par agent au sprint 05 |
-| MCP | Stdio SDK réel, serveur local approuvé, paramètres validés | Allowlist de serveurs/outils et contrôles par appel ; négocier HTTP/SSE, ne pas suivre le HEAD SDK alpha automatiquement |
-| Navigateur | Provider fixture, aucun Chrome ni réseau | Gateway typé et contrôle d’effet avant provider réel ; aucun JS arbitraire pour un pack |
-| Usage | Ledger par dimension, coût plateforme EUR en centimes, budget vérifié avant inscription | Valeurs fournisseur optionnelles/cumulatives à normaliser sans les refacturer ; coûts inconnus restent null |
+| Runtime ACP | Délais par méthode, crash → `AgentExitError`, réponses tardives ignorées, env en liste blanche, secrets masqués, mode sûr parmi les modes annoncés, modèles via `configOptions` ou `session/set_model` | Reprise `session/load` réelle non prouvée ; Claude sans authentification ici |
+| Routeur Auto | Exigences (modèle, reprise, transport MCP) × détection × dernières sondes, rejets expliqués, aucun repli fixture silencieux | Pas encore de score coût/latence |
+| Workflows | DAG validé (cycles, dépendances), parallèle borné, tentatives, générations, `uncertain` pour effets interrompus, approbations, reprise en place après crash, multi-agent par étape, `$from` | Le planificateur choisit un DAG déclaré par le pack ; pas de génération de DAG par LLM |
+| Skills | Analyse statique, quarantaine, revue liée à l'empreinte, versions, intégrité, export natif, import GitHub | Pas de signature ; permissions déclarées par Skill non croisées |
+| Navigateur | 7 capacités, politique (domaines, SSRF/DNS, redirections, fichiers), sensible → humain, Chrome isolé testé réellement, CDP partagé testé | Extension Playwriter non testée ; heuristique de sensibilité |
+| Données | Data Gateway (HTTPS, hôtes du pack, DNS, redirections, taille, cache, rejeu) | Une source primaire de sponsoring (UK) seulement |
+| Usage | Mètres séparés, BYOA jamais facturé, ledger chaîné, budget run + plafond mensuel, mesure avant action, estimation par étape | Pas d'abonnements/crédits ; pas d'ancrage externe du ledger |
 
-Écart de timeout découvert pendant l’audit : le runtime passe `signal` au SDK qui attend `cancellationSignal` ; son timeout de requête individuel n’est donc pas effectif. Le timeout global de l’orchestrateur ferme le processus, mais ne remplace pas une deadline correcte par requête (priorité sprint 02). Le script d’audit a été corrigé et testé avec un pair qui ne répond jamais.
+**Vocabulaire.** Un **Tool** effectue une opération (outil MCP, capacité `browser.*`) ; un **Skill** décrit une
+méthode (SKILL.md) ; un **Workflow** exprime dépendances, approbations et vérifications (DAG du pack) ; un
+**Agent** conduit une session ACP pour une étape ; un **Domain Pack** distribue Skills, DAG, outils,
+politiques et évaluations sans jamais prendre le contrôle du runtime. Le fournisseur de modèle et l'agent
+sont deux identités distinctes.
 
-Les limites de temps et de nombre d’événements réduisent les ressources locales ; elles ne garantissent pas l’arrêt d’un débit fournisseur à un montant donné. Le ledger actuel est auditable localement, pas inviolable face au propriétaire du disque. Les dimensions navigateur/documents/données/infra ne sont pas toutes instrumentées.
+Le diagramme et le tableau de la section suivante décrivaient la cible des sprints 02–05 rédigée au
+sprint 01 ; ils sont conservés pour la traçabilité des décisions.
 
-## Cible des sprints 02–05 — prévue
+## Cible des sprints 02–05 (rédigée au sprint 01) — désormais largement réalisée
 
 ```mermaid
 flowchart TD
@@ -91,7 +106,7 @@ Le gateway de capacités doit appliquer ses propres décisions, indépendamment 
 
 Les identifiants des fournisseurs restent dans leurs mécanismes officiels. La plateforme ne doit pas réutiliser OAuth pour appeler un endpoint abonnement directement. Compatibilité technique, contrat d’utilisation et droit de redistribution sont des champs distincts ; [ADR 005](adr/005-byoa-provider-terms.md) précise les limites connues.
 
-## Navigateur et companion distant — non implémentés
+## Companion distant (cloud) — non implémenté ; navigateur local implémenté (ADR 006)
 
 ```mermaid
 sequenceDiagram

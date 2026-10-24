@@ -90,7 +90,7 @@ export class WorkflowEngine {
   }
   // After a crash: read-only steps that were running are retried; write steps become `uncertain`
   // and wait for a human decision, because their external effect may already have happened.
-  recover(runId, workflow) {
+  recover(runId, workflow, { retryFailed = false } = {}) {
     const wf = validateWorkflow(workflow);
     for (const s of wf.steps) {
       const r = this.row(runId, s.id);
@@ -100,6 +100,12 @@ export class WorkflowEngine {
           state: s.effect === 'write' ? 'uncertain' : 'pending',
           error: 'Interrompue par un arrêt du serveur',
         });
+      // Explicit user resume: unfinished work is retried, succeeded steps are never replayed.
+      else if (
+        retryFailed &&
+        ['failed', 'skipped', 'cancelled', 'waiting_approval'].includes(r.state)
+      )
+        this.set(runId, s.id, { state: 'pending', error: null });
     }
     return wf;
   }

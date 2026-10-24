@@ -183,6 +183,15 @@ export function createApp({
         }
         return json(res, 200, skills.list());
       }
+      const internal = path.match(/^\/api\/internal\/approvals\/([a-f0-9-]{36})$/);
+      if (internal) {
+        const decision = await engine.gatewayApproval(
+          internal[1],
+          String(req.headers['x-relay-token'] ?? ''),
+          body,
+        );
+        return json(res, 200, decision);
+      }
       const step = path.match(/^\/api\/runs\/([a-f0-9-]{36})\/steps\/([a-z][a-z0-9_-]{0,47})$/);
       if (step) {
         engine.stepDecision(step[1], step[2], {
@@ -202,6 +211,9 @@ export function createApp({
       if (!res.headersSent) json(res, 400, { error: publicError(e) });
       else res.end();
     }
+  });
+  server.on('listening', () => {
+    engine.approvalBase = `http://127.0.0.1:${server.address().port}`;
   });
   return {
     server,

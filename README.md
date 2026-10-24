@@ -69,6 +69,22 @@ Le champ modèle accepte uniquement un identifiant annoncé dans les `configOpti
 
 La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seulement lorsque `loadSession` est annoncé. Elle est disponible dans l'interface pour les runs terminés/interrompus compatibles. Ce n'est pas une reprise transactionnelle à la dernière étape ; les recettes sont en lecture seule pour éviter les doubles actions. Sans cette capacité, relancer une nouvelle mission.
 
+## Navigateur (Browser Gateway)
+
+Les agents n'accèdent au navigateur que par des capacités typées (`browser_navigate`, `browser_snapshot`,
+`browser_extract`, `browser_click`, `browser_type`, `browser_upload`, `browser_download`) contrôlées par la
+gateway : domaines autorisés du pack, HTTPS, anti-SSRF, redirections revérifiées, fichiers confinés au
+dossier du run. Toute action d'écriture demande une décision dans l'interface ; les actions sensibles
+(postuler, envoyer, payer, mot de passe, fichier) la demandent toujours. Aucun script arbitraire n'est exposé.
+
+```sh
+AGENT_PLATFORM_BROWSER=fixture npm start                    # défaut : sans réseau ni navigateur
+AGENT_PLATFORM_BROWSER=isolated AGENT_PLATFORM_CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" AGENT_PLATFORM_LIVE=1 npm start
+AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Playwriter local (extension requise)
+```
+
+Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Voir [ADR 006](docs/adr/006-browser-gateway.md).
+
 ## Fonctionnalités et limites
 
 | Fonction | État |

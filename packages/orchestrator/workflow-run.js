@@ -9,12 +9,12 @@ import { parseAgentResult } from './result.js';
 // Runs a pack DAG: tool steps call the capability gateway directly (deterministic, no model),
 // agent steps open an ACP session on the agent assigned to that step (multi-agent), verify steps
 // run the pack verifier, aggregate steps assemble the final result. The engine owns the order.
-export function platformMcp(packId) {
+export function platformMcp(packId, env = {}) {
   return {
     name: 'platform',
     command: process.execPath,
     args: [resolve(ROOT, 'packages/mcp-gateway/server.js'), packId],
-    env: [],
+    env: Object.entries(env).map(([name, value]) => ({ name, value: String(value) })),
   };
 }
 
@@ -67,7 +67,7 @@ export async function executeWorkflow(orch, run, plan, control) {
       r.close();
     }
   };
-  const mcpClient = () => (mcpPromise ??= connectMcp(platformMcp(plan.pack.id)));
+  const mcpClient = () => (mcpPromise ??= connectMcp(orch.mcpServerFor(run, plan.pack)));
   engine.executors = {
     tool: async (step, { signal: stepSignal }) => {
       const client = await mcpClient();
@@ -102,7 +102,7 @@ export async function executeWorkflow(orch, run, plan, control) {
       runtimes.add(runtime);
       try {
         const info = await runtime.start();
-        const session = await runtime.session([platformMcp(plan.pack.id)]);
+        const session = await runtime.session([orch.mcpServerFor(run, plan.pack)]);
         if (definition.id === plan.agent.id) await runtime.selectModel(run.model);
         const described = runtime.describe();
         orch.store.event(run.id, 'session', {

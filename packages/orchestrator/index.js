@@ -15,7 +15,8 @@ import { ROOT, getPack, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { parseAgentResult } from './result.js';
-import { executeWorkflow } from './workflow-run.js';
+import { executeWorkflow, platformMcp } from './workflow-run.js';
+import { RunPolicy } from '../policy-engine/run-policy.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
 export const inputSchema = z
   .object({
@@ -40,6 +41,66 @@ export class Orchestrator {
     this.permissions = new Map();
     // Read access to durable step state; each workflow run drives its own engine instance.
     this.workflows = new WorkflowEngine({ store, executors: {} });
+    this.approvalTokens = new Map(); // runId -> random token, memory only
+    this.approvalBase = null; // set by the HTTP server once listening
+  }
+  // MCP capability server for a run: browser provider, per-run policy and the approval bridge.
+  mcpServerFor(run, pack) {
+    const browser = process.env.AGENT_PLATFORM_BROWSER ?? 'fixture';
+    const env = { RELAY_BROWSER: browser };
+    if (browser !== 'fixture') {
+      const declared = pack.policies?.browser ?? {};
+      env.RELAY_POLICY = JSON.stringify(
+        new RunPolicy({
+          allowedDomains: declared.allowedDomains ?? [],
+          capabilities: declared.capabilities ?? undefined,
+          workspace: run.cwd,
+          // Development/tests only: explicit local origins, e.g. http://127.0.0.1:8080.
+          allowLocalOrigins: (process.env.AGENT_PLATFORM_BROWSER_LOCAL_ORIGINS ?? '')
+            .split(',')
+            .filter(Boolean),
+        }),
+      );
+      if (process.env.AGENT_PLATFORM_CHROME_PATH)
+        env.RELAY_CHROME_PATH = process.env.AGENT_PLATFORM_CHROME_PATH;
+      if (process.env.AGENT_PLATFORM_CDP_ENDPOINT)
+        env.RELAY_CDP_ENDPOINT = process.env.AGENT_PLATFORM_CDP_ENDPOINT;
+    }
+    if (this.approvalBase) {
+      if (!this.approvalTokens.has(run.id))
+        this.approvalTokens.set(run.id, randomUUID() + randomUUID());
+      env.RELAY_APPROVAL_URL = `${this.approvalBase}/api/internal/approvals/${run.id}`;
+      env.RELAY_APPROVAL_TOKEN = this.approvalTokens.get(run.id);
+    }
+    return platformMcp(pack.id, env);
+  }
+  // Called by the MCP gateway process: turns a write/sensitive capability request into a human
+  // permission prompt (same UI as ACP permissions) and waits for the decision.
+  async gatewayApproval(runId, token, request) {
+    const expected = this.approvalTokens.get(runId);
+    if (!expected || token !== expected) throw new Error('Jeton d’approbation invalide');
+    const control = this.active.get(runId);
+    if (!control) throw new Error('Run inactif');
+    const title =
+      `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`.trim();
+    const outcome = await this.permission(
+      runId,
+      {
+        toolCall: {
+          toolCallId: 'gateway-' + randomUUID(),
+          title,
+          kind: 'other',
+          rawInput: { capability: request.capability, args: request.args, page: request.page },
+        },
+        options: [
+          { optionId: 'allow', name: 'Autoriser une fois', kind: 'allow_once' },
+          { optionId: 'deny', name: 'Refuser', kind: 'reject_once' },
+        ],
+      },
+      false,
+      control.abort.signal,
+    );
+    return { approved: outcome.outcome?.optionId === 'allow' };
   }
   stepDecision(runId, stepId, { approved, action, note } = {}) {
     const engine = this.active.get(runId)?.engine;
@@ -214,14 +275,7 @@ export class Orchestrator {
       });
       control.runtime = runtime;
       const info = await runtime.start();
-      const mcpServers = [
-        {
-          name: 'platform',
-          command: process.execPath,
-          args: [resolve(ROOT, 'packages/mcp-gateway/server.js'), plan.pack.id],
-          env: [],
-        },
-      ];
+      const mcpServers = [this.mcpServerFor(run, plan.pack)];
       const session = await runtime.session(mcpServers, previous?.sessionId);
       await runtime.selectModel(run.model);
       this.store.update(run.id, {
@@ -298,6 +352,7 @@ export class Orchestrator {
       this.clearPermissions(run.id);
       control.runtime?.close();
       this.active.delete(run.id);
+      this.approvalTokens.delete(run.id);
     }
   }
   permission(runId, p, simulated, signal) {

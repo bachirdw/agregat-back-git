@@ -7,6 +7,16 @@ import { validateWorkflow } from '../workflow-engine/definition.js';
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const schema = z.object({
   dag: z.unknown().optional(),
+  policies: z
+    .object({
+      browser: z
+        .object({
+          allowedDomains: z.array(z.string()).max(50).default([]),
+          capabilities: z.array(z.string()).max(20).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   id: z.string(),
   name: z.string(),
   version: z.string(),

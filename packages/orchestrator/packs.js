@@ -3,8 +3,10 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
+import { validateWorkflow } from '../workflow-engine/definition.js';
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const schema = z.object({
+  dag: z.unknown().optional(),
   id: z.string(),
   name: z.string(),
   version: z.string(),
@@ -23,9 +25,13 @@ const schema = z.object({
     ),
   }),
 });
-export const packs = ['core', 'najah'].map((id) =>
-  schema.parse(parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8'))),
-);
+export const packs = ['core', 'najah'].map((id) => {
+  const pack = schema.parse(
+    parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8')),
+  );
+  if (pack.dag) validateWorkflow(pack.dag); // fail fast on an invalid pack DAG
+  return pack;
+});
 export const skillDefinitions = packs.flatMap((p) =>
   p.skills.map((s) => ({
     id: s.id,

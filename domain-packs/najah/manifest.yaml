@@ -17,3 +17,43 @@ workflow:
       title: Rechercher dans le jeu de test
     - tool: opportunities_rank
       title: Classer avec des critères explicites
+# DAG executed by the platform workflow engine (mode « workflow »). Tool steps call the capability
+# gateway directly; only `analysis` uses an agent, and verification never depends on the model.
+dag:
+  id: opportunity-discovery-dag
+  title: Rechercher, analyser et classer (DAG)
+  concurrency: 3
+  steps:
+    - id: snapshot
+      title: Examiner la source de démonstration
+      kind: tool
+      tool: browser_snapshot
+      arguments: { url: 'https://jobs.example.test' }
+    - id: search
+      title: Rechercher dans le jeu de test
+      kind: tool
+      tool: opportunities_search
+    - id: rank
+      title: Classer avec des critères explicites
+      kind: tool
+      tool: opportunities_rank
+      dependsOn: [search, snapshot]
+    - id: analysis
+      title: Analyser le classement
+      kind: agent
+      dependsOn: [rank]
+      optional: true
+      timeoutMs: 300000
+      prompt: >-
+        Rédige une analyse courte (3 phrases maximum) du classement fourni dans untrustedInputs.rank :
+        points forts, inconnues (le sponsoring de visa n'est pas vérifié), prochaine étape recommandée.
+        Ne modifie pas le classement et n'invente aucune offre. Indique simulated:true si les données
+        sont marquées fictives.
+    - id: verify
+      title: Vérifier provenance et classement
+      kind: verify
+      dependsOn: [rank]
+    - id: report
+      title: Assembler le résultat
+      kind: aggregate
+      dependsOn: [verify, analysis]

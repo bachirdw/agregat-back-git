@@ -14,6 +14,9 @@ import {
 import { ROOT, getPack, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
+import { parseAgentResult } from './result.js';
+import { executeWorkflow } from './workflow-run.js';
+import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
 export const inputSchema = z
   .object({
     prompt: z.string().trim().min(1).max(8000),
@@ -22,41 +25,10 @@ export const inputSchema = z
     skills: z.array(z.string()).max(8).default([]),
     model: z.string().max(200).default(''),
     budgetCents: z.number().int().min(0).max(100000).default(0),
+    mode: z.enum(['agent', 'workflow']).default('agent'),
   })
   .strict();
-const resultSchema = z
-  .object({ simulated: z.boolean(), summary: z.string().min(1), evidence: z.array(z.unknown()) })
-  .passthrough();
-// Agents answer in free text; only a JSON object matching the contract is accepted. Refusals and
-// prose are reported with a short excerpt instead of a parser error.
-export function parseAgentResult(text) {
-  const raw = String(text ?? '').trim();
-  const excerpt = raw.replace(/\s+/g, ' ').slice(0, 300) || '(réponse vide)';
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenced ? fenced[1].trim() : raw;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start < 0 || end <= start)
-    return {
-      ok: false,
-      reason: 'Réponse non structurée de l’agent (refus ou texte libre)',
-      excerpt,
-    };
-  let json;
-  try {
-    json = JSON.parse(candidate.slice(start, end + 1));
-  } catch {
-    return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
-  }
-  const parsed = resultSchema.safeParse(json);
-  if (!parsed.success)
-    return {
-      ok: false,
-      reason: 'Réponse hors contrat (simulated, summary, evidence attendus)',
-      excerpt,
-    };
-  return { ok: true, value: parsed.data };
-}
+export { parseAgentResult } from './result.js';
 export class Orchestrator {
   constructor(
     store,
@@ -66,6 +38,17 @@ export class Orchestrator {
     Object.assign(this, { store, skills, dataDir, live, timeoutMs });
     this.active = new Map();
     this.permissions = new Map();
+    // Read access to durable step state; each workflow run drives its own engine instance.
+    this.workflows = new WorkflowEngine({ store, executors: {} });
+  }
+  stepDecision(runId, stepId, { approved, action, note } = {}) {
+    const engine = this.active.get(runId)?.engine;
+    if (!engine) throw new Error('Aucun workflow actif pour ce run');
+    if (action) engine.resolveUncertain(runId, stepId, action);
+    else {
+      if (typeof approved !== 'boolean') throw new Error('approved doit être booléen');
+      engine.approve(runId, stepId, approved, note ?? '');
+    }
   }
   async plan(input, { resume = false } = {}) {
     const v = inputSchema.parse(input);
@@ -90,16 +73,50 @@ export class Orchestrator {
     const known = probes[id]?.models?.options;
     if (v.model && known && !known.some((m) => m.id === v.model))
       throw new Error('Modèle non annoncé par ' + agent.name + ' au dernier test');
+    let workflow = null;
+    const stepAgents = {};
+    if (v.mode === 'workflow') {
+      if (!pack.dag) throw new Error(`Le pack ${pack.name} ne déclare pas de workflow DAG`);
+      const wf = validateWorkflow(pack.dag);
+      for (const s of wf.steps.filter((x) => x.kind === 'agent' && x.agent && x.agent !== id)) {
+        const other = agents.find((a) => a.id === s.agent);
+        if (!other?.installed || !other.compatible)
+          throw new Error(`Étape ${s.id} : agent ${s.agent} indisponible`);
+        if (!other.simulated && !this.live) throw new Error(`Étape ${s.id} : mode réel désactivé`);
+        stepAgents[s.id] = other;
+      }
+      workflow = {
+        id: wf.id,
+        title: wf.title,
+        levels: levels(wf),
+        steps: wf.steps.map((s) => ({
+          id: s.id,
+          title: s.title,
+          kind: s.kind,
+          dependsOn: s.dependsOn,
+          agent: s.kind === 'agent' ? (stepAgents[s.id]?.name ?? agent.name) : null,
+          effect: s.effect,
+          optional: s.optional,
+        })),
+      };
+    }
     return {
       input: { ...v, agent: id, pack: pack.id },
+      workflow,
+      stepAgents,
       agent,
       pack,
       skills,
-      steps: [
-        'Préparer les Skills',
-        ...pack.workflow.steps.map((s) => s.title),
-        'Vérifier le résultat',
-      ],
+      steps: workflow
+        ? workflow.steps.map(
+            (s) =>
+              `${s.title}${s.agent ? ' · ' + s.agent : ''}${s.optional ? ' (optionnelle)' : ''}`,
+          )
+        : [
+            'Préparer les Skills',
+            ...pack.workflow.steps.map((s) => s.title),
+            'Vérifier le résultat',
+          ],
       cost: {
         platformCents: 0,
         externalCents: null,
@@ -139,7 +156,7 @@ export class Orchestrator {
       sessionId: previous?.sessionId ?? null,
       resumable: false,
       skillsSnapshot: plan.skills.map(({ content, ...s }) => s),
-      plan: { steps: plan.steps, cost: plan.cost },
+      plan: { steps: plan.steps, cost: plan.cost, workflow: plan.workflow },
       result: null,
     };
     this.store.create(run);
@@ -156,6 +173,7 @@ export class Orchestrator {
       this.timeoutMs,
     );
     const onAbort = () => {
+      control.closeAll?.();
       control.runtime?.cancel();
       control.runtime?.close();
       this.clearPermissions(run.id);
@@ -165,6 +183,15 @@ export class Orchestrator {
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
       this.store.update(run.id, { state: 'running' });
       this.store.charge(run.id, 'workflow', 1);
+      if (run.mode === 'workflow') {
+        const result = await executeWorkflow(this, run, plan, control);
+        this.store.update(run.id, {
+          state: 'completed',
+          result,
+          finishedAt: new Date().toISOString(),
+        });
+        return;
+      }
       const runtime = new AcpRuntime({
         definition: plan.agent,
         cwd: run.cwd,

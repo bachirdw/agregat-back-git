@@ -66,6 +66,14 @@ Rechercher des offres d'emploi en Python et SQL en Australie, puis les classer.<
               >
             </div>
             <label class="model-label"
+              >Exécution<select id="mode-select">
+                <option value="workflow">
+                  Workflow DAG · étapes orchestrées par la plateforme
+                </option>
+                <option value="agent">Agent unique · l’agent suit la recette</option>
+              </select></label
+            >
+            <label class="model-label"
               >Modèle
               <span class="muted" id="model-hint">optionnel · modèles annoncés par l’agent</span
               ><select id="model">
@@ -96,6 +104,7 @@ Rechercher des offres d'emploi en Python et SQL en Australie, puis les classer.<
               <h2>Exécution</h2>
               <span class="pill" id="run-state"></span>
             </div>
+            <ol id="steps" class="steps" hidden></ol>
             <div id="permissions"></div>
             <div id="result"></div>
             <details>

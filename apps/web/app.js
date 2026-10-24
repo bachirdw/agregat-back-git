@@ -48,6 +48,7 @@ function input() {
     pack: $('pack').value,
     skills: [...selectedSkills],
     model: $('model').value,
+    mode: $('mode-select').value,
     budgetCents: 0,
   };
 }
@@ -221,6 +222,63 @@ $('launch').onclick = async () => {
     $('launch').disabled = false;
   }
 };
+const stepLabels = {
+  pending: 'En attente',
+  running: 'En cours',
+  waiting_approval: 'Approbation requise',
+  succeeded: 'Réussie',
+  failed: 'Échec',
+  skipped: 'Ignorée',
+  cancelled: 'Annulée',
+  uncertain: 'Incertaine · décision requise',
+};
+let workflowSteps = [];
+function renderSteps(states = {}) {
+  $('steps').hidden = !workflowSteps.length;
+  $('steps').replaceChildren();
+  for (const s of workflowSteps) {
+    const st = states[s.id] ?? { state: 'pending' };
+    const li = element('li', undefined, 'step step-' + st.state);
+    li.append(
+      element('strong', s.title),
+      element(
+        'small',
+        [
+          s.kind,
+          s.agent,
+          s.optional ? 'optionnelle' : null,
+          s.effect === 'write' ? 'effet externe' : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      ),
+      element('span', stepLabels[st.state] ?? st.state, 'pill'),
+    );
+    if (st.error) li.append(element('small', st.error, 'muted'));
+    const decide = (label, body) => {
+      const b = element('button', label, 'secondary');
+      b.onclick = async () => {
+        try {
+          await api('/runs/' + current + '/steps/' + s.id, body);
+        } catch (e) {
+          error(e);
+        }
+      };
+      li.append(b);
+    };
+    if (st.state === 'waiting_approval') {
+      decide('Approuver', { approved: true });
+      decide('Refuser', { approved: false });
+    }
+    if (st.state === 'uncertain') {
+      decide('Relancer', { action: 'retry' });
+      decide('Marquer comme faite', { action: 'done' });
+      decide('Marquer en échec', { action: 'fail' });
+    }
+    $('steps').append(li);
+  }
+}
+let stepStates = {};
 function renderResult(run) {
   $('result').replaceChildren();
   if (run.error) $('result').append(element('p', run.error));
@@ -281,9 +339,16 @@ async function openRun(id) {
     current = id;
     sequence = 0;
     $('events').textContent = '';
+    workflowSteps = [];
+    stepStates = {};
     $('permissions').replaceChildren();
     $('run-panel').hidden = false;
     const run = await api('/runs/' + id);
+    workflowSteps = run.plan?.workflow?.steps ?? [];
+    stepStates = Object.fromEntries(
+      (run.steps ?? []).map((r) => [r.step_id, { state: r.state, error: r.error }]),
+    );
+    renderSteps(stepStates);
     renderResult(run);
     run.permissions?.forEach(permission);
     stream = new EventSource('/api/runs/' + id + '/events');
@@ -296,6 +361,14 @@ async function openRun(id) {
         $('run-state').textContent = labels[e.data.state] ?? e.data.state;
       }
       if (e.type === 'permission') permission(e.data);
+      if (e.type === 'workflow' && !workflowSteps.length) {
+        workflowSteps = e.data.steps;
+        renderSteps(stepStates);
+      }
+      if (e.type === 'step') {
+        stepStates[e.data.stepId] = { state: e.data.state, error: e.data.error };
+        renderSteps(stepStates);
+      }
       if (e.type === 'permission_resolved')
         document.getElementById('permission-' + e.data.id)?.remove();
     });
@@ -335,7 +408,7 @@ $('example').onclick = () => {
   $('pack').value = 'najah';
   invalidate();
 };
-for (const id of ['prompt', 'agent', 'pack', 'model'])
+for (const id of ['prompt', 'agent', 'pack', 'model', 'mode-select'])
   $(id).addEventListener('input', () => {
     invalidate();
     modeNote();

@@ -159,3 +159,12 @@ test('régression live : Gemini reçoit la confiance de l’espace de run, pas l
   assert.equal(envOf('codex').CODEX_PATH, '/x');
   assert.equal(envOf('claude').CLAUDE_CODE_EXECUTABLE, '/x');
 });
+
+test('erreurs de validation lisibles, pas de JSON zod brut', async () => {
+  await withApp({}, async (app) => {
+    const { status, data } = await call(app, '/plan', { prompt: 'x', pack: 'inconnu' });
+    assert.equal(status, 400);
+    assert.match(data.error, /^Requête invalide : pack — /);
+    assert.ok(!data.error.includes('"code"'));
+  });
+});

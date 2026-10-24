@@ -7,6 +7,18 @@ import { SkillRegistry } from '../../packages/skill-registry/index.js';
 import { Orchestrator } from '../../packages/orchestrator/index.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
 import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
+// Validation errors are summarised for people instead of returning raw schema dumps.
+export function publicError(e) {
+  if (Array.isArray(e?.issues))
+    return (
+      'Requête invalide : ' +
+      e.issues
+        .slice(0, 5)
+        .map((i) => `${i.path?.join('.') || 'corps'} — ${i.message}`)
+        .join(' ; ')
+    );
+  return String(e?.message ?? e).slice(0, 1000);
+}
 // Browser-facing agent view: detection + last probe summary; no command line, paths or environment.
 export function publicAgents(agents, probes) {
   return agents.map(({ command, args, cliPath, env, ...a }) => {
@@ -108,6 +120,7 @@ export function createApp({
           return json(res, 200, {
             ...run,
             usage: store.usage(id),
+            steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
             permissions: [...engine.permissions.values()]
               .filter((p) => p.runId === id)
               .map(({ finish, ...p }) => p),
@@ -170,6 +183,15 @@ export function createApp({
         }
         return json(res, 200, skills.list());
       }
+      const step = path.match(/^\/api\/runs\/([a-f0-9-]{36})\/steps\/([a-z][a-z0-9_-]{0,47})$/);
+      if (step) {
+        engine.stepDecision(step[1], step[2], {
+          approved: body.approved,
+          action: body.action,
+          note: typeof body.note === 'string' ? body.note : '',
+        });
+        return json(res, 200, { ok: true, steps: engine.workflows.steps(step[1]) });
+      }
       const permission = path.match(/^\/api\/permissions\/([a-f0-9-]+)$/);
       if (permission) {
         engine.decide(permission[1], body.optionId);
@@ -177,7 +199,7 @@ export function createApp({
       }
       json(res, 404, { error: 'Route introuvable' });
     } catch (e) {
-      if (!res.headersSent) json(res, 400, { error: e.message });
+      if (!res.headersSent) json(res, 400, { error: publicError(e) });
       else res.end();
     }
   });

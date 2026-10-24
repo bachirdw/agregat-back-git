@@ -660,3 +660,53 @@ footer span {
     font-size: 12px;
   }
 }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 8px;
+}
+.step {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #e5e2da);
+  border-radius: 10px;
+}
+.step small {
+  grid-column: 1;
+}
+.step .pill {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+.step button {
+  justify-self: start;
+  margin-top: 4px;
+}
+.step-running {
+  border-color: #7c6cf2;
+}
+.step-succeeded {
+  border-color: #3a9b6b;
+}
+.step-failed,
+.step-uncertain {
+  border-color: #c4543a;
+}
+.step-waiting_approval {
+  border-color: #c99a2e;
+}
+.step-skipped,
+.step-cancelled {
+  opacity: 0.6;
+}
+.routing {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 0.9em;
+}

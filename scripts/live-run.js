@@ -14,7 +14,15 @@ const post = async (path, body) => {
 const prompt =
   process.env.LIVE_RUN_PROMPT ??
   'Rechercher des offres Python et SQL en Australie, puis les classer.';
-const input = { prompt, agent, pack, model, skills: [], budgetCents: 0 };
+const input = {
+  prompt,
+  agent,
+  pack,
+  model,
+  skills: [],
+  budgetCents: 0,
+  mode: process.env.LIVE_RUN_MODE ?? 'agent',
+};
 console.log('PLAN', JSON.stringify(await post('/plan', input)));
 const run = await post('/runs', input);
 const seen = new Set();
@@ -37,6 +45,7 @@ while (Date.now() < until) {
 const events = await (await fetch(`${base}/runs/${run.id}/events`)).text();
 const tools = [...events.matchAll(/"title":"([^"]+)"/g)].map((m) => m[1]);
 console.log('STATE', state.state, state.error ?? '');
+console.log('STEPS', JSON.stringify((state.steps ?? []).map((s) => [s.step_id, s.state, s.error])));
 console.log('TOOLS', JSON.stringify([...new Set(tools)]));
 console.log('USAGE', JSON.stringify(state.usage));
 console.log('RESULT', JSON.stringify(state.result)?.slice(0, 3000));

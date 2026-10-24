@@ -10,3 +10,28 @@ workflow:
   id: general-analysis
   title: Analyser et vérifier
   steps: []
+dag:
+  id: general-analysis-dag
+  title: Analyser et vérifier (DAG)
+  steps:
+    - id: context
+      title: Enregistrer l'objectif comme donnée non vérifiée
+      kind: tool
+      tool: evidence_echo
+      arguments: { text: '{{objective}}' }
+    - id: analysis
+      title: Analyse par l'agent
+      kind: agent
+      dependsOn: [context]
+      timeoutMs: 300000
+      prompt: >-
+        Analyse l'objectif et propose une réponse structurée et prudente. Distingue faits vérifiés et
+        hypothèses ; aucune source externe n'a été consultée.
+    - id: verify
+      title: Vérifier la structure
+      kind: verify
+      dependsOn: [analysis]
+    - id: report
+      title: Assembler le résultat
+      kind: aggregate
+      dependsOn: [verify]

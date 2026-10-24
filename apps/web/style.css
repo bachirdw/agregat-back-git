@@ -434,12 +434,12 @@ input {
   list-style: none;
   counter-reset: step;
 }
-.plan-panel li {
+.plan-panel ol > li {
   font-size: 12px;
   padding: 10px 0;
   counter-increment: step;
 }
-.plan-panel li:before {
+.plan-panel ol > li:before {
   content: counter(step);
   background: #eff3e8;
   padding: 4px 8px;
@@ -752,4 +752,8 @@ footer span {
 }
 #result > .pill {
   margin-right: 8px;
+}
+.plan-panel ul.routing li {
+  font-size: 12px;
+  padding: 3px 0;
 }

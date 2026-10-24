@@ -140,3 +140,80 @@ test('pont d’approbation : jeton invalide ou run inactif refusés', async () =
     await app.close();
   }
 });
+
+test('pont : jeton lié au run et compteur refusé après abandon ou hors activité', async (t) => {
+  const app = createApp({ dataDir: temporary() });
+  t.after(() => app.close());
+  const a = crypto.randomUUID(),
+    b = crypto.randomUUID();
+  for (const id of [a, b]) {
+    app.store.create({ id, state: 'running', budgetCents: 10 });
+    app.engine.approvalTokens.set(id, 'fictif-' + id);
+  }
+  await assert.rejects(
+    app.engine.gatewayUsage(b, 'fictif-' + a, { dimension: 'browser_action' }),
+    /Jeton/,
+  );
+  await assert.rejects(
+    app.engine.gatewayUsage(a, 'fictif-' + a, { dimension: 'browser_action' }),
+    /inactif/,
+  );
+  const control = { abort: new AbortController() };
+  app.engine.active.set(a, control);
+  control.abort.abort();
+  await assert.rejects(
+    app.engine.gatewayUsage(a, 'fictif-' + a, { dimension: 'browser_action' }),
+    /inactif|annulé/,
+  );
+  app.engine.active.delete(a);
+  assert.equal(app.store.usage(a).entries.length, 0);
+});
+
+test('permission : annulation locale résout immédiatement, conserve les autres demandes et ignore une réponse tardive', async (t) => {
+  const app = createApp({ dataDir: temporary() });
+  t.after(() => app.close());
+  const id = crypto.randomUUID();
+  app.store.create({ id, state: 'running', budgetCents: 0 });
+  const one = new AbortController(),
+    two = new AbortController();
+  const args = {
+    toolCall: { title: 'Action FICTIVE' },
+    options: [{ optionId: 'allow', name: 'Oui', kind: 'allow_once' }],
+  };
+  const first = app.engine.permission(id, args, false, one.signal);
+  const second = app.engine.permission(id, args, false, two.signal);
+  const [firstId, secondId] = [...app.engine.permissions.keys()];
+  one.abort();
+  const outcome = await Promise.race([
+    first,
+    new Promise((r) => setTimeout(() => r('timeout'), 100)),
+  ]);
+  assert.notEqual(outcome, 'timeout');
+  assert.equal(outcome.outcome.outcome, 'cancelled');
+  assert.equal(app.engine.permissions.size, 1);
+  assert.equal(app.store.get(id).state, 'waiting_permission');
+  assert.throws(() => app.engine.decide(firstId, 'allow'), /expirée/);
+  app.engine.decide(secondId, 'allow');
+  await second;
+  assert.equal(app.store.get(id).state, 'running');
+});
+
+test('gateway réelle sans pont de mesure : action refusée avant lancement de Chrome', async () => {
+  const { platformMcp } = await import('../packages/orchestrator/workflow-run.js');
+  const client = await connectMcp(
+    platformMcp('core', {
+      RELAY_BROWSER: 'isolated',
+      RELAY_POLICY: JSON.stringify({ allowLocalOrigins: ['http://127.0.0.1:1'] }),
+    }),
+  );
+  try {
+    const response = await client.callTool({
+      name: 'browser_navigate',
+      arguments: { url: 'http://127.0.0.1:1/' },
+    });
+    assert.equal(response.isError, true);
+    assert.match(response.content[0].text, /Pont de mesure requis/);
+  } finally {
+    await client.close();
+  }
+});

@@ -197,6 +197,10 @@ test('mesure depuis la gateway : jeton, mètres autorisés, 402 si budget dépas
   const id = crypto.randomUUID();
   app.store.create({ id, state: 'running', budgetCents: 4 });
   app.engine.approvalTokens.set(id, 'tok');
+  app.engine.active.set(id, { abort: new AbortController() });
+  t.after(() => {
+    app.engine.active.delete(id);
+  });
   const call = (body, token = 'tok') =>
     fetch(`http://127.0.0.1:${app.server.address().port}/api/internal/usage/${id}`, {
       method: 'POST',
@@ -214,6 +218,7 @@ test('mesure depuis la gateway : jeton, mètres autorisés, 402 si budget dépas
   const refused = await call({ dimension: 'browser_action' });
   assert.equal(refused.status, 402);
   assert.match(refused.data.error, /Budget/);
+  app.engine.active.delete(id);
 });
 
 test('gateway de données : mesure refusée → aucune requête réseau', async () => {

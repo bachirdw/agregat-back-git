@@ -42,7 +42,8 @@ async function approve(request) {
 // (budget or monthly cap) refuses the action itself.
 async function meter(dimension, units = 1) {
   const url = process.env.RELAY_USAGE_URL;
-  if (!url || !process.env.RELAY_APPROVAL_TOKEN) return;
+  if (!url || !process.env.RELAY_APPROVAL_TOKEN)
+    throw new Error('Pont de mesure requis pour les actions réelles');
   const r = await fetch(url, {
     method: 'POST',
     headers: {

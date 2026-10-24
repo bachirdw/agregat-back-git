@@ -494,3 +494,29 @@ test at tests/e2e-ui.test.js:1:1
 - `npm test` : **163/163 réussis** (130 + 33), aucun skip ; `npm run check`, `npm run format:check` et `git diff --check` verts. Commandes complètes dans `/tmp/review-night-commit1-test.log`. État : protections testées opérationnelles dans Chrome isolé, transport CDP partagé testé uniquement sur profil jetable.
 
 - Commit initial refusé par le bac à sable : création de `.git/index.lock` impossible (Operation not permitted), aucun commit créé. Relance des mêmes opérations Git locales avec permission adaptée.
+
+## 07:37 — Priorité 1 : cycle de vie du pont
+
+- Tests rouges confirmés (sans Chrome) : un jeton valide permettait de mesurer un run inactif ; une permission de step ne réagissait pas à son signal local annulé. Deux échecs dans `/tmp/review-bridge-red.log`. Le deuxième laisse les minuteurs de permission jusqu’à expiration dans la version initiale (60 s), consigné sans masquer le délai.
+- Correctifs ciblés : `gatewayUsage` et `gatewayApproval` exigent un contrôle actif non annulé ; les permissions écoutent leur signal, se terminent une seule fois, retirent le listener et conservent waiting_permission tant qu’une autre demande reste ouverte. Gateway réelle sans pont de mesure : refus fermé, au lieu de ne rien facturer. Tests de jeton croisé, annulation, réponse tardive, concurrence et absence du pont ; 3 tests ciblés attendus. Tests de facturation adaptés pour représenter un run réellement actif.
+
+Vérification pont npm test — code 0
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (7536.919375ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (6921.735167ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (6317.294083ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (3048.212792ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33854.330583
+
+Tests navigateur après correction : code 1
+
+## 07:38 — Validation pont
+
+- `npm test` : **166/166 réussis** (130 + 36) ; check et format:check verts. Les trois régressions du pont sont opérationnelles. Le test rouge initial a aussi produit deux erreurs différées « database is not open » après fermeture de sa fixture, faute de résolution des permissions initiales (corrigé par le listener).
+- Nettoyage : deux anciennes commandes Chrome restaient vivantes malgré test-timeout (exception popup initiale, gestionnaire de route abandonné). Arrêt SIGTERM ciblé des PID 43649/43611 et 43899/43884/43883 identifiés comme nos descendants ; aucun Chrome utilisateur touché. Les exécutions corrigées terminent normalement.

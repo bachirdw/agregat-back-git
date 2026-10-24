@@ -66,6 +66,8 @@ export class Orchestrator {
   async gatewayUsage(runId, token, { dimension, units = 1 } = {}) {
     const expected = this.approvalTokens.get(runId);
     if (!expected || token !== expected) throw new Error('Jeton invalide');
+    const control = this.active.get(runId);
+    if (!control || control.abort.signal.aborted) throw new Error('Run inactif ou annulé');
     if (!['browser_action', 'data_search', 'document_generation'].includes(dimension))
       throw new Error('Mètre non autorisé depuis la gateway');
     if (!Number.isFinite(units) || units <= 0 || units > 1000) throw new Error('Unités invalides');
@@ -116,7 +118,7 @@ export class Orchestrator {
     const expected = this.approvalTokens.get(runId);
     if (!expected || token !== expected) throw new Error('Jeton d’approbation invalide');
     const control = this.active.get(runId);
-    if (!control) throw new Error('Run inactif');
+    if (!control || control.abort.signal.aborted) throw new Error('Run inactif ou annulé');
     const title =
       `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`.trim();
     const outcome = await this.permission(
@@ -497,11 +499,20 @@ export class Orchestrator {
     const id = randomUUID();
     this.store.update(runId, { state: 'waiting_permission' });
     return new Promise((resolve) => {
+      let finished = false;
+      const onAbort = () => finish();
       const finish = (optionId) => {
+        if (finished) return;
+        finished = true;
+        signal.removeEventListener('abort', onAbort);
         clearTimeout(timer);
         this.permissions.delete(id);
         if (!terminal.has(this.store.get(runId).state))
-          this.store.update(runId, { state: 'running' });
+          this.store.update(runId, {
+            state: [...this.permissions.values()].some((p) => p.runId === runId)
+              ? 'waiting_permission'
+              : 'running',
+          });
         this.store.event(runId, 'permission_resolved', { id, optionId: optionId ?? null });
         resolve({
           outcome: optionId ? { outcome: 'selected', optionId } : { outcome: 'cancelled' },
@@ -512,6 +523,7 @@ export class Orchestrator {
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
       );
       this.permissions.set(id, { id, runId, options, tool: p.toolCall ?? null, finish });
+      signal.addEventListener('abort', onAbort, { once: true });
       this.store.event(runId, 'permission', {
         id,
         tool: p.toolCall,

@@ -1,0 +1,314 @@
+const $ = (id) => document.getElementById(id);
+let catalog,
+  planned,
+  current,
+  stream,
+  selectedSkills = new Set(),
+  sequence = 0;
+const labels = {
+  queued: 'En attente',
+  running: 'En cours',
+  waiting_permission: 'Autorisation requise',
+  completed: 'Terminée',
+  failed: 'Échec',
+  cancelled: 'Annulée',
+  interrupted: 'Interrompue',
+};
+const finalStates = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
+function element(tag, text, className) {
+  const e = document.createElement(tag);
+  if (text !== undefined) e.textContent = text;
+  if (className) e.className = className;
+  return e;
+}
+function error(e) {
+  $('error').textContent = e.message ?? String(e);
+  $('error').hidden = false;
+  setTimeout(() => ($('error').hidden = true), 12000);
+}
+async function api(path, body) {
+  const r = await fetch(
+    '/api' + path,
+    body === undefined
+      ? {}
+      : {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+          body: JSON.stringify(body),
+        },
+  );
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error);
+  return data;
+}
+function input() {
+  return {
+    prompt: $('prompt').value,
+    agent: $('agent').value,
+    pack: $('pack').value,
+    skills: [...selectedSkills],
+    model: $('model').value.trim(),
+    budgetCents: 0,
+  };
+}
+function invalidate() {
+  planned = null;
+  $('plan-panel').hidden = true;
+}
+function modeNote() {
+  const real = catalog.live && !['fixture'].includes($('agent').value);
+  $('execution-note').textContent = real
+    ? 'Consommation BYOA externe · coût inconnu'
+    : 'Données de test · aucun modèle appelé';
+  $('model').disabled = !real;
+}
+function renderSkills() {
+  $('skill-list').replaceChildren();
+  for (const s of catalog.skills) {
+    const row = element('div', undefined, 'skill');
+    if (!s.installed || !s.integrity) {
+      const b = element(
+        'button',
+        (s.installed ? 'Réinstaller après revue : ' : '+ Installer ') + s.name,
+      );
+      b.type = 'button';
+      b.onclick = async () => {
+        try {
+          catalog.skills = await api('/skills/' + s.id + '/install', {});
+          selectedSkills.add(s.id);
+          renderSkills();
+          invalidate();
+        } catch (e) {
+          error(e);
+        }
+      };
+      row.append(b);
+    } else {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selectedSkills.has(s.id) && s.active;
+      checkbox.disabled = !s.active || !s.integrity;
+      checkbox.setAttribute('aria-label', 'Utiliser ' + s.name);
+      checkbox.onchange = () => {
+        checkbox.checked ? selectedSkills.add(s.id) : selectedSkills.delete(s.id);
+        invalidate();
+      };
+      const title = element('span', s.name);
+      const toggle = element('button', s.active ? 'Désactiver' : 'Activer');
+      toggle.type = 'button';
+      toggle.onclick = async () => {
+        try {
+          catalog.skills = await api('/skills/' + s.id + '/activate', { active: !s.active });
+          if (s.active) selectedSkills.delete(s.id);
+          renderSkills();
+          invalidate();
+        } catch (e) {
+          error(e);
+        }
+      };
+      row.append(checkbox, title, element('small', 'v' + s.version), toggle);
+      if (!s.integrity) row.append(element('small', 'Modifié — réinstaller après revue'));
+    }
+    $('skill-list').append(row);
+  }
+}
+async function load() {
+  catalog = await api('/catalog');
+  $('mode').textContent = catalog.live ? 'BYOA réel activé' : 'Démonstration locale';
+  $('agent').replaceChildren();
+  for (const a of [{ id: 'auto', name: 'Auto', compatible: true }, ...catalog.agents]) {
+    const option = element('option', a.name + (a.installed === false ? ' · non installé' : ''));
+    option.value = a.id;
+    option.disabled = !a.compatible || (!catalog.live && !['auto', 'fixture'].includes(a.id));
+    $('agent').append(option);
+  }
+  $('agent').value = 'fixture';
+  for (const p of catalog.packs) {
+    const o = element('option', p.name);
+    o.value = p.id;
+    $('pack').append(o);
+  }
+  $('agents-list').replaceChildren();
+  for (const a of catalog.agents.filter((a) => !a.simulated)) {
+    const row = element('div', undefined, 'connection');
+    row.append(
+      element('span', '◈  ' + a.name),
+      element('small', a.installed ? 'détecté' : 'absent', a.installed ? 'green' : ''),
+    );
+    row.title = a.version ?? a.readiness;
+    $('agents-list').append(row);
+  }
+  selectedSkills = new Set(catalog.skills.filter((s) => s.active && s.integrity).map((s) => s.id));
+  renderSkills();
+  modeNote();
+  await history();
+}
+async function history() {
+  const runs = await api('/runs');
+  $('history-list').replaceChildren();
+  if (!runs.length)
+    $('history-list').append(element('div', 'Votre première mission commence ici.', 'empty'));
+  for (const r of runs) {
+    const b = element('button', undefined, 'history-item');
+    b.append(element('span', r.prompt), element('small', labels[r.state] ?? r.state));
+    b.onclick = () => openRun(r.id);
+    $('history-list').append(b);
+  }
+}
+$('mission-form').onsubmit = async (event) => {
+  event.preventDefault();
+  $('plan-button').disabled = true;
+  try {
+    const candidate = input();
+    const p = await api('/plan', candidate);
+    planned = candidate;
+    $('plan').replaceChildren(element('p', p.agent + ' · ' + p.pack));
+    const ol = element('ol');
+    p.steps.forEach((s) => ol.append(element('li', s)));
+    $('plan').append(
+      ol,
+      element('p', p.cost.description + ' · coût plateforme : 0 €'),
+      element('p', p.permissions.join(' · ')),
+    );
+    $('plan-panel').hidden = false;
+    $('plan-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) {
+    error(e);
+  } finally {
+    $('plan-button').disabled = false;
+  }
+};
+$('launch').onclick = async () => {
+  if (!planned) return;
+  $('launch').disabled = true;
+  try {
+    const run = await api('/runs', planned);
+    invalidate();
+    await openRun(run.id);
+    await history();
+  } catch (e) {
+    error(e);
+  } finally {
+    $('launch').disabled = false;
+  }
+};
+function renderResult(run) {
+  $('result').replaceChildren();
+  if (run.error) $('result').append(element('p', run.error));
+  if (run.result) {
+    $('result').append(
+      element('span', run.result.simulated ? 'DONNÉES FICTIVES' : 'RÉSULTAT AGENT', 'pill'),
+      element('p', run.result.summary),
+    );
+    for (const job of run.result.opportunities ?? []) {
+      const row = element('div', undefined, 'job');
+      row.append(
+        element('span', job.score + ' points', 'score'),
+        element('strong', job.title),
+        element('small', job.company + ' · ' + job.location),
+        element('p', job.reasons.join(' · ')),
+        element('small', 'Sponsoring : non vérifié · Source de test : ' + job.source),
+      );
+      $('result').append(row);
+    }
+  }
+  if (run.usage)
+    $('result').append(
+      element(
+        'small',
+        `Plateforme : ${run.usage.platformCents / 100} € · Consommation fournisseur : ${run.simulated ? 'aucun appel modèle' : 'inconnue (BYOA)'}`,
+      ),
+    );
+  $('run-state').textContent = labels[run.state] ?? run.state;
+  $('cancel').hidden = finalStates.has(run.state);
+  $('resume').hidden = !run.resumable || !finalStates.has(run.state);
+}
+function permission(p) {
+  const old = document.getElementById('permission-' + p.id);
+  if (old) return;
+  const row = element('div', undefined, 'permission');
+  row.id = 'permission-' + p.id;
+  row.append(
+    element('strong', p.tool?.title ?? 'Autorisation agent'),
+    element('pre', JSON.stringify(p.tool ?? {}, null, 2)),
+  );
+  for (const o of p.options) {
+    const b = element('button', o.name, 'secondary');
+    b.onclick = async () => {
+      try {
+        await api('/permissions/' + p.id, { optionId: o.optionId });
+        row.remove();
+      } catch (e) {
+        error(e);
+      }
+    };
+    row.append(b);
+  }
+  $('permissions').append(row);
+}
+async function openRun(id) {
+  try {
+    stream?.close();
+    current = id;
+    sequence = 0;
+    $('events').textContent = '';
+    $('permissions').replaceChildren();
+    $('run-panel').hidden = false;
+    const run = await api('/runs/' + id);
+    renderResult(run);
+    run.permissions?.forEach(permission);
+    stream = new EventSource('/api/runs/' + id + '/events');
+    stream.addEventListener('update', (event) => {
+      const e = JSON.parse(event.data);
+      if (e.seq <= sequence) return;
+      sequence = e.seq;
+      $('events').textContent += JSON.stringify(e) + '\n';
+      if (e.type === 'state') {
+        $('run-state').textContent = labels[e.data.state] ?? e.data.state;
+      }
+      if (e.type === 'permission') permission(e.data);
+      if (e.type === 'permission_resolved')
+        document.getElementById('permission-' + e.data.id)?.remove();
+    });
+    stream.addEventListener('end', async () => {
+      stream?.close();
+      const latest = await api('/runs/' + id);
+      if (current === id) renderResult(latest);
+      await history();
+    });
+    stream.onerror = () => {
+      $('run-state').textContent = 'Reconnexion au flux…';
+    };
+    $('run-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    error(e);
+  }
+}
+$('cancel').onclick = async () => {
+  try {
+    await api('/runs/' + current + '/cancel', {});
+  } catch (e) {
+    error(e);
+  }
+};
+$('resume').onclick = async () => {
+  try {
+    const run = await api('/runs/' + current + '/resume', {});
+    await openRun(run.id);
+  } catch (e) {
+    error(e);
+  }
+};
+$('refresh').onclick = () => history().catch(error);
+$('example').onclick = () => {
+  $('prompt').value =
+    "Rechercher des offres d'emploi en Python et SQL en Australie, puis les classer.";
+  $('pack').value = 'najah';
+  invalidate();
+};
+for (const id of ['prompt', 'agent', 'pack', 'model'])
+  $(id).addEventListener('input', () => {
+    invalidate();
+    modeNote();
+  });
+load().catch(error);

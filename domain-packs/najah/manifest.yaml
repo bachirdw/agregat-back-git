@@ -1,0 +1,19 @@
+id: najah
+name: Najah AI
+version: 0.1.0
+description: Recherche et classement d'opportunités sur un jeu de données fictif.
+keywords: [emploi, offres, job, carrière, recrutement, sponsor, najah]
+skills:
+  - id: opportunity-analysis
+    file: skills/opportunity-analysis/SKILL.md
+workflow:
+  id: opportunity-discovery
+  title: Rechercher, analyser et classer
+  steps:
+    - tool: browser_snapshot
+      title: Examiner la source de démonstration
+      arguments: { url: 'https://jobs.example.test' }
+    - tool: opportunities_search
+      title: Rechercher dans le jeu de test
+    - tool: opportunities_rank
+      title: Classer avec des critères explicites

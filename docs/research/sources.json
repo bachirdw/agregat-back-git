@@ -1,0 +1,469 @@
+[
+  {
+    "repo": "zetbrush/multiagents",
+    "pushed_at": "2026-10-20T18:58:04Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": null,
+    "html_url": "https://github.com/zetbrush/multiagents",
+    "sha": "6038986b739937aaf3f2da2346e97a25f00369b1",
+    "files": [
+      "README.md",
+      "package.json",
+      "cli/session.ts",
+      "dashboard/server.ts",
+      "orchestrator/orchestrator-server.ts",
+      "orchestrator/session-control.ts",
+      "server.ts",
+      "adapters/codex-adapter.ts",
+      "orchestrator/guardrails.ts"
+    ]
+  },
+  {
+    "repo": "suyashb734/cliagents",
+    "pushed_at": "2026-05-25T15:24:16Z",
+    "archived": false,
+    "language": "JavaScript",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "html_url": "https://github.com/suyashb734/cliagents",
+    "sha": "40804745f464e33939902dae1a806bf22e4df578",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "src/adapters/codex-cli.js",
+      "src/orchestration/run-ledger.js"
+    ]
+  },
+  {
+    "repo": "osanoai/multicli",
+    "pushed_at": "2026-09-14T13:55:29Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": null,
+    "html_url": "https://github.com/osanoai/multicli",
+    "sha": "41f4bc8095a126c6b837fd75cd9ac32964da5a63",
+    "files": [
+      "README.md",
+      "package.json",
+      "src/clientFilter.ts",
+      "src/httpServer.ts",
+      "src/serverApp.ts",
+      "src/utils/antigravityExecutor.ts",
+      "src/utils/claudeExecutor.ts"
+    ]
+  },
+  {
+    "repo": "Heretyc/subagent-mcp",
+    "pushed_at": "2026-10-23T23:54:26Z",
+    "archived": false,
+    "language": "JavaScript",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/Heretyc/subagent-mcp",
+    "sha": "aa8f421186d93a4cc2608b0ae0314569a0e08fef",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "src/pending-permissions.ts",
+      "src/permission-engine.ts",
+      "src/providers/provider-client.ts"
+    ]
+  },
+  {
+    "repo": "awslabs/cli-agent-orchestrator",
+    "pushed_at": "2026-10-24T07:13:39Z",
+    "archived": false,
+    "language": "Python",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/awslabs/cli-agent-orchestrator",
+    "sha": "f3938c8a36ed47fe848b7352d0d37603a65514fd",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "pyproject.toml",
+      "cao_mcp_apps/vite.config.agent.ts",
+      "scripts/build_agent_plugin.py",
+      "scripts/vendor_agent_plugins_schemas.py",
+      "src/cli_agent_orchestrator/__init__.py",
+      "src/cli_agent_orchestrator/agent_plugins/__init__.py",
+      "src/cli_agent_orchestrator/backends/tmux_backend.py"
+    ]
+  },
+  {
+    "repo": "openclaw/acpx",
+    "pushed_at": "2026-10-24T00:40:09Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "html_url": "https://github.com/openclaw/acpx",
+    "sha": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "references/openclaw-acp-client.ts",
+      "src/acp/agent-command.ts",
+      "src/acp/agent-session-id.ts",
+      "src/acp/client-process.ts",
+      "src/acp/client-protocol.ts",
+      "src/acp/client.ts",
+      "src/acp/client-protocol.ts",
+      "src/permissions.ts",
+      "docs/permissions.md"
+    ]
+  },
+  {
+    "repo": "agentclientprotocol/agent-client-protocol",
+    "pushed_at": "2026-10-24T05:55:09Z",
+    "archived": false,
+    "language": "Rust",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/agentclientprotocol/agent-client-protocol",
+    "sha": "a0c3d83e5277a5b419dcd083742c0a14dc298d21",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "agent-client-protocol-schema/src/lib.rs",
+      "agent-client-protocol-schema/src/rpc.rs",
+      "agent-client-protocol-schema/src/serde_util.rs",
+      "agent-client-protocol-schema/src/v1/agent.rs",
+      "agent-client-protocol-schema/src/v1/client.rs"
+    ]
+  },
+  {
+    "repo": "agentclientprotocol/codex-acp",
+    "pushed_at": "2026-10-23T17:54:55Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "other",
+      "name": "Other",
+      "spdx_id": "NOASSERTION",
+      "url": null,
+      "node_id": "MDc6TGljZW5zZTA="
+    },
+    "html_url": "https://github.com/agentclientprotocol/codex-acp",
+    "sha": "a77829fecc87cebbb2e53782ce6795aee072adc8",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "src/ACPSessionConnection.ts",
+      "src/AcpAgentRouter.ts",
+      "src/AcpSessionExtensions.ts",
+      "src/AcpV2ClientCapabilities.ts",
+      "src/AcpV2Permissions.ts",
+      "examples/simple-client.ts",
+      "src/AcpV2Permissions.ts"
+    ]
+  },
+  {
+    "repo": "agentclientprotocol/claude-agent-acp",
+    "pushed_at": "2026-10-23T19:59:08Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/agentclientprotocol/claude-agent-acp",
+    "sha": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "src/acp-agent.ts",
+      "src/acp-subagents.ts",
+      "src/client-system-prompt.ts",
+      "src/fork-session.ts",
+      "src/native-subagents.ts",
+      "src/acp-agent.ts"
+    ]
+  },
+  {
+    "repo": "modelcontextprotocol/typescript-sdk",
+    "pushed_at": "2026-10-23T18:32:25Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "other",
+      "name": "Other",
+      "spdx_id": "NOASSERTION",
+      "url": null,
+      "node_id": "MDc6TGljZW5zZTA="
+    },
+    "html_url": "https://github.com/modelcontextprotocol/typescript-sdk",
+    "sha": "951fe5603a7ec0b2dcb6a0b95d92cd86f93ad9e5",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "packages/client/src/client/auth.ts",
+      "packages/client/src/client/authErrors.ts",
+      "packages/client/src/client/authExtensions.ts",
+      "packages/client/src/client/authSeam.ts",
+      "packages/client/src/client/client.ts"
+    ]
+  },
+  {
+    "repo": "anthropics/skills",
+    "pushed_at": "2026-10-09T18:45:52Z",
+    "archived": false,
+    "language": "Python",
+    "license": null,
+    "html_url": "https://github.com/anthropics/skills",
+    "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "files": [
+      "README.md",
+      "skills/frontend-design/SKILL.md",
+      "skills/frontend-design/LICENSE.txt"
+    ]
+  },
+  {
+    "repo": "rosslevinsky/portable-agent-skills",
+    "pushed_at": "2026-10-17T12:46:56Z",
+    "archived": false,
+    "language": "Python",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/rosslevinsky/portable-agent-skills",
+    "sha": "b9f6c2ad3bdd7f3d785828f41e8e17a581a3ea3f",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "skills/web-verify/SKILL.md"
+    ]
+  },
+  {
+    "repo": "vercel-labs/skills",
+    "pushed_at": "2026-10-19T20:34:22Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "html_url": "https://github.com/vercel-labs/skills",
+    "sha": "a80e4c9d12d607631249d4d7d059f835d4b2f13a",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "scripts/sync-agents.ts",
+      "scripts/validate-agents.ts",
+      "src/agents.ts",
+      "src/detect-agent.ts"
+    ]
+  },
+  {
+    "repo": "remorses/playwriter",
+    "pushed_at": "2026-10-23T08:51:48Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "html_url": "https://github.com/remorses/playwriter",
+    "sha": "6489336628e6737e32a59f25ed270622400cb277",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "extension/src/session-reattach.ts",
+      "playwriter/scripts/build-client-bundles.ts",
+      "playwriter/scripts/extension-server.ts",
+      "playwriter/src/a11y-client.ts",
+      "playwriter/src/audio-tap-client.ts",
+      "playwriter/src/cdp-relay.ts",
+      "playwriter/src/mcp.ts",
+      "extension/src/background.ts"
+    ]
+  },
+  {
+    "repo": "babelcloud/playwriter-browser-mcp",
+    "pushed_at": "2026-04-07T03:55:19Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": null,
+    "html_url": "https://github.com/babelcloud/playwriter-browser-mcp",
+    "sha": "5f97001472a0302c4f504fe3ae9a62a47673355a",
+    "files": [
+      "README.md",
+      "package.json",
+      "src/mcp-server.ts"
+    ]
+  },
+  {
+    "repo": "microsoft/playwright-mcp",
+    "pushed_at": "2026-10-22T17:43:26Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/microsoft/playwright-mcp",
+    "sha": "0c4107acbecb75472b23c05c0e42471a0011874f",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "index.js",
+      "cli.js"
+    ]
+  },
+  {
+    "repo": "huggingface/smolagents",
+    "pushed_at": "2026-10-22T13:55:07Z",
+    "archived": false,
+    "language": "Python",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/huggingface/smolagents",
+    "sha": "96f33faaf028479119ec8d34507b47694cf14e34",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "pyproject.toml",
+      "src/smolagents/__init__.py",
+      "src/smolagents/_function_type_hints_utils.py",
+      "src/smolagents/agent_types.py",
+      "src/smolagents/agents.py",
+      "src/smolagents/cli.py"
+    ]
+  },
+  {
+    "repo": "huggingface/transformers",
+    "pushed_at": "2026-10-24T00:49:02Z",
+    "archived": false,
+    "language": "Python",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/huggingface/transformers",
+    "sha": "50e35cc0ca18ec19b80653690de553e6decf74f5",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "pyproject.toml",
+      "src/transformers/cli/serving/server.py",
+      "src/transformers/exporters/exporter_executorch.py",
+      "src/transformers/integrations/executorch.py",
+      "src/transformers/models/pp_ocrv5_server_det/__init__.py",
+      "src/transformers/models/pp_ocrv5_server_det/configuration_pp_ocrv5_server_det.py"
+    ]
+  },
+  {
+    "repo": "google-gemini/gemini-cli",
+    "pushed_at": "2026-10-24T01:15:52Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "html_url": "https://github.com/google-gemini/gemini-cli",
+    "sha": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "evals/generalist_agent.eval.ts",
+      "evals/subagents.eval.ts",
+      "packages/a2a-server/index.ts",
+      "packages/a2a-server/src/agent/executor.ts",
+      "packages/a2a-server/src/agent/task.ts",
+      "packages/cli/src/acp/acpSession.ts",
+      "docs/cli/acp-mode.md"
+    ]
+  },
+  {
+    "repo": "anomalyco/opencode",
+    "pushed_at": "2026-10-24T06:15:30Z",
+    "archived": false,
+    "language": "TypeScript",
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "html_url": "https://github.com/anomalyco/opencode",
+    "sha": "b64cc80db3c933c7a83980b1f36eef047551c845",
+    "files": [
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "packages/ai/src/ai-client.ts",
+      "packages/ai/src/experimental/evaluation-client.ts",
+      "packages/ai/src/image-client.ts",
+      "packages/ai/src/media-client.ts",
+      "packages/ai/src/route/client.ts",
+      "packages/cli/src/acp/permission.ts",
+      "packages/cli/src/acp/sessions.ts"
+    ]
+  }
+]

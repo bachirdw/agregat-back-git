@@ -1,0 +1,93 @@
+[
+  {
+    "agent": "codex",
+    "version": "codex-cli 0.163.0",
+    "handshake": true,
+    "session": true,
+    "capabilities": {
+      "auth": {
+        "logout": {}
+      },
+      "providers": {},
+      "loadSession": true,
+      "promptCapabilities": {
+        "embeddedContext": true,
+        "image": true
+      },
+      "sessionCapabilities": {
+        "resume": {},
+        "list": {},
+        "close": {},
+        "delete": {},
+        "fork": {},
+        "additionalDirectories": {},
+        "subagents": {}
+      },
+      "mcpCapabilities": {
+        "acp": false,
+        "http": true,
+        "sse": false
+      },
+      "_meta": {
+        "authStatus": {}
+      }
+    },
+    "models": [
+      {
+        "id": "model",
+        "name": "Model",
+        "description": "Model Codex uses for the session",
+        "category": "model",
+        "type": "select",
+        "currentValue": "gpt-6-astra",
+        "options": [
+          {
+            "value": "gpt-6.1-sol",
+            "name": "6.1 Sol",
+            "description": "Latest workhorse model for coding and everyday work."
+          },
+          {
+            "value": "gpt-6-astra",
+            "name": "6 Astra",
+            "description": "Frontier intelligence for the most demanding work."
+          },
+          {
+            "value": "gpt-6-sol",
+            "name": "6 Sol",
+            "description": "Previous generation workhorse model."
+          },
+          {
+            "value": "gpt-6-luna",
+            "name": "6 Luna",
+            "description": "Fast and affordable model for easier tasks."
+          },
+          {
+            "value": "gpt-5.6-sol",
+            "name": "5.6 Sol",
+            "description": "Older generation workhorse model."
+          },
+          {
+            "value": "gpt-5.6-terra",
+            "name": "5.6 Terra",
+            "description": "Older balanced model for straightforward work."
+          },
+          {
+            "value": "gpt-5.6-luna",
+            "name": "5.6 Luna",
+            "description": "Older fast and efficient model."
+          }
+        ]
+      }
+    ],
+    "prompt": {
+      "stopReason": "end_turn",
+      "text": "OK"
+    }
+  },
+  {
+    "agent": "claude",
+    "error": "Authentication required",
+    "handshake": true,
+    "session": true
+  }
+]

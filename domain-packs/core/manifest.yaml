@@ -1,0 +1,12 @@
+id: core
+name: Général
+version: 0.1.0
+description: Analyse générale, indépendante du secteur.
+keywords: []
+skills:
+  - id: evidence-review
+    file: skills/evidence-review/SKILL.md
+workflow:
+  id: general-analysis
+  title: Analyser et vérifier
+  steps: []

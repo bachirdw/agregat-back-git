@@ -1,0 +1,32 @@
+{
+  "name": "agent-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node apps/api/server.js",
+    "test": "node --test tests/*.test.js",
+    "demo": "node scripts/demo.js",
+    "doctor": "node apps/companion/doctor.js",
+    "check": "node scripts/check.js",
+    "test:live": "node scripts/live-probe.js",
+    "format": "prettier --write apps packages domain-packs tests scripts/*.js",
+    "format:check": "prettier --check apps packages domain-packs tests scripts/*.js"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "2.0.2",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  },
+  "optionalDependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.95.0",
+    "@agentclientprotocol/codex-acp": "2.2.2"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

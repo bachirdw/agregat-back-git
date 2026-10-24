@@ -1,0 +1,32 @@
+[
+  {
+    "id": "demo-001",
+    "title": "Software Engineer — Python",
+    "company": "Example Harbour Labs (fictif)",
+    "location": "Sydney",
+    "skills": ["python", "api", "sql"],
+    "sponsorship": "unknown",
+    "source": "https://jobs.example.test/demo-001",
+    "simulated": true
+  },
+  {
+    "id": "demo-002",
+    "title": "Frontend Engineer — React",
+    "company": "Example Coast Studio (fictif)",
+    "location": "Melbourne",
+    "skills": ["react", "typescript", "design"],
+    "sponsorship": "unknown",
+    "source": "https://jobs.example.test/demo-002",
+    "simulated": true
+  },
+  {
+    "id": "demo-003",
+    "title": "Data Analyst — SQL & Python",
+    "company": "Example Southern Data (fictif)",
+    "location": "Remote Australia",
+    "skills": ["sql", "python", "analytics"],
+    "sponsorship": "unknown",
+    "source": "https://jobs.example.test/demo-003",
+    "simulated": true
+  }
+]

@@ -570,3 +570,35 @@ Vérification runtime corrigé npm test — code 0
 ## 07:42 — Validation et commit runtime
 
 - Relance complète corrigée : **171/171 tests réussis** (135 + 36), aucun skip ; check, format:check, diff --check verts. Les 44 tests runtime ciblés sont verts. État : runtime opérationnel sur pairs fictifs, pas de validation payante ni de garantie de bac à sable OS.
+
+Validation workflow ciblée — code 0
+
+## 07:43 — Priorité 3 : corrections et preuves
+
+- Quatre régressions ont échoué avant correction (`/tmp/review-workflow-red.log`) : 4 effets write au lieu de 1 ; exécuteur lancé après annulation synchrone ; deux reprises concurrentes acceptées ; ancien run hors des 200 entrées UI laissé running au redémarrage.
+- Corrections : toute erreur de write lancé reste uncertain (y compris anciens failed/cancelled lors de reprise) ; prise en compte des signaux déjà annulés avant invocation ; double vérification des limites/verrous après plan asynchrone ; récupération de TOUS les runs et non seulement la page UI. Définition DAG persistée au lancement et reprise refusée si différente/absente ; empreintes des Skills vérifiées. Réponse finale de workflow revérifie aussi le signal.
+- Les exécuteurs ACP ferment le runtime dès timeout/abandon de step, même pendant initialize/session ; un appel MCP annulé ferme la connexion partagée du run afin de ne pas conserver une action orpheline. Limite assumée : les autres appels MCP du même run peuvent alors échouer ; il est plus sûr de les reprendre explicitement que de laisser des effets courir en arrière-plan.
+- 24 tests moteur/reprise verts. Nouveau test intégration de processus : premier lancement en erreur de test (ReferenceError resolve is not defined, import oublié), corrigé immédiatement et relancé ; aucune erreur produit masquée.
+
+## 07:44 — Préparation priorités 5 et 6
+
+- Reproducteur entièrement fictif, fetch substitué (aucun réseau) : un cache créé sous une allowlist est relu avec allowedHosts=[] sans refus (`cached:true`) ; contrôle URL/limite absent sur les cache hits.
+- Facturation : priceOf(toString,1) accepte une propriété héritée comme mètre et retourne 0 ; suppression du dernier élément du ledger laisse verifyLedger()={ok:true}. Limite du chaînage de queue confirmée, à corriger par ancrage local pour les suppressions accidentelles ; cela ne prouvera pas la résistance à un propriétaire de disque malveillant.
+
+Vérification workflows npm test — code 0
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (7534.178708ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (7320.987417ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (6373.349708ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (3182.853292ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34677.969375
+
+## 07:44 — Validation et commit workflows
+
+- `npm test` : **177/177 tests réussis** (141 + 36), aucun skip ; check, format:check et diff --check verts. Moteur et reprise opérationnels sur fixtures ; reprise des anciennes exécutions sans définition persistée volontairement refusée, plutôt qu’exécution sur un DAG différent.

@@ -150,3 +150,73 @@ test('brouillon refusé à la relecture : workflow en échec, reprise possible',
   app.engine.stepDecision(run.id, 'review', { approved: true });
   assert.equal((await until(app, run.id, ['completed', 'failed'])).state, 'completed');
 });
+
+test('reprise concurrente : un seul contrôle et une seule exécution', async (t) => {
+  const app = await setup(t);
+  const { getPack } = await import('../packages/orchestrator/packs.js');
+  const dag = getPack('core').dag;
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'interrupted',
+    mode: 'workflow',
+    agent: 'fixture',
+    pack: 'core',
+    prompt: 'FICTIF',
+    skills: [],
+    model: '',
+    budgetCents: 0,
+    workflow: dag.id,
+    workflowDefinition: dag,
+  };
+  app.store.create(run);
+  app.engine.plan = async () => {
+    await new Promise((r) => setTimeout(r, 10));
+    return { dag };
+  };
+  let executions = 0;
+  app.engine.execute = async () => {
+    executions++;
+    app.engine.active.delete(run.id);
+  };
+  const outcomes = await Promise.allSettled([
+    app.engine.resumeWorkflow(run.id),
+    app.engine.resumeWorkflow(run.id),
+  ]);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(outcomes.filter((x) => x.status === 'fulfilled').length, 1);
+  assert.equal(executions, 1);
+});
+
+test('redémarrage : les runs anciens au-delà de la liste UI sont tous interrompus', () => {
+  const { store } = createApp({ dataDir: temporary() });
+  const file = store.db.location();
+  for (let i = 0; i < 205; i++)
+    store.create({ id: 'FICTIF-' + i, state: 'running', budgetCents: 0 });
+  store.close();
+  // sqlite location() is absolute on the supported Node runtime.
+  return import('../packages/storage/index.js').then(({ Store }) => {
+    const reopened = new Store(file);
+    try {
+      assert.equal(reopened.get('FICTIF-0').state, 'interrupted');
+    } finally {
+      reopened.close();
+    }
+  });
+});
+
+test('reprise : refus si la définition durable a été modifiée', async (t) => {
+  const app = await setup(t);
+  const run = await app.engine.create({
+    prompt: 'FICTIF',
+    agent: 'fixture',
+    pack: 'core',
+    mode: 'workflow',
+  });
+  await until(app, run.id, ['completed', 'failed']);
+  app.store.update(run.id, {
+    state: 'interrupted',
+    workflowDefinition: { ...run.workflowDefinition, title: 'MODIFIÉ FICTIF' },
+  });
+  await assert.rejects(app.engine.resumeWorkflow(run.id), /Définition.*modifiée/);
+  assert.equal(app.engine.active.has(run.id), false);
+});

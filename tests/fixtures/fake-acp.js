@@ -12,12 +12,14 @@ import {
 import { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 const cfg = JSON.parse(process.env.FAKE_ACP ?? '{}');
 const grandchild = cfg.grandchild
   ? spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"], {
       stdio: 'ignore',
     })
   : null;
+if (cfg.pidFile) writeFileSync(cfg.pidFile, String(process.pid));
 const calls = [];
 const state = { mode: null, model: null };
 const never = () => new Promise(() => {});

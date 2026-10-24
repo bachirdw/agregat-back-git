@@ -88,15 +88,27 @@ export async function executeWorkflow(orch, run, plan, control) {
   engine.executors = {
     tool: async (step, { inputs, signal: stepSignal }) => {
       const client = await mcpClient();
-      orch.meter(run.id, 'tool_call', 1);
-      const response = await client.callTool(
-        { name: step.tool, arguments: toolArguments(step, run.prompt, inputs) },
-        undefined,
-        { signal: stepSignal, timeout: step.timeoutMs ?? 30000 },
-      );
-      const text = response.content?.find((c) => c.type === 'text')?.text ?? 'null';
-      if (response.isError) throw new Error(`Outil ${step.tool} : ${text.slice(0, 300)}`);
-      return JSON.parse(text);
+      if (stepSignal.aborted) {
+        await client.close();
+        throw stepSignal.reason;
+      }
+      const onAbort = () => {
+        client.close().catch(() => {});
+      };
+      stepSignal.addEventListener('abort', onAbort, { once: true });
+      try {
+        orch.meter(run.id, 'tool_call', 1);
+        const response = await client.callTool(
+          { name: step.tool, arguments: toolArguments(step, run.prompt, inputs) },
+          undefined,
+          { signal: stepSignal, timeout: step.timeoutMs ?? 30000 },
+        );
+        const text = response.content?.find((c) => c.type === 'text')?.text ?? 'null';
+        if (response.isError) throw new Error(`Outil ${step.tool} : ${text.slice(0, 300)}`);
+        return JSON.parse(text);
+      } finally {
+        stepSignal.removeEventListener('abort', onAbort);
+      }
     },
     agent: async (step, { inputs, signal: stepSignal }) => {
       const definition = plan.stepAgents?.[step.id] ?? plan.agent;
@@ -127,8 +139,15 @@ export async function executeWorkflow(orch, run, plan, control) {
         onPermission: (p) => orch.permission(run.id, p, !!definition.simulated, stepSignal),
       });
       runtimes.add(runtime);
+      const onAbort = () => {
+        runtime.cancel();
+        runtime.close();
+      };
+      stepSignal.addEventListener('abort', onAbort, { once: true });
       try {
+        if (stepSignal.aborted) throw stepSignal.reason;
         const info = await runtime.start();
+        if (stepSignal.aborted) throw stepSignal.reason;
         const session = await runtime.session([orch.mcpServerFor(run, plan.pack)]);
         if (definition.id === plan.agent.id) await runtime.selectModel(run.model);
         const described = runtime.describe();
@@ -184,6 +203,7 @@ export async function executeWorkflow(orch, run, plan, control) {
         orch.meter(run.id, definition.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
         return { ...parsed.value, agent: definition.id };
       } finally {
+        stepSignal.removeEventListener('abort', onAbort);
         runtimes.delete(runtime);
         runtime.close();
       }

@@ -342,3 +342,56 @@ test('événements d’étape émis et persistés pour le streaming', async () =
     store.close();
   }
 });
+
+test('écriture : toute erreur après lancement devient incertaine, sans relance automatique', async () => {
+  let effects = 0;
+  const { engine, store } = setup({
+    tool: async () => {
+      effects++;
+      throw new Error('FICTIF : effet déjà fait, réponse perdue');
+    },
+  });
+  const def = wf([tool('send', [], { effect: 'write', retries: 3 })]);
+  engine.init('run', def);
+  const abort = new AbortController();
+  const pending = engine.drive('run', def, {}, abort.signal);
+  try {
+    await sleep(40);
+    assert.equal(effects, 1);
+    assert.equal(engine.row('run', 'send').state, 'uncertain');
+    engine.resolveUncertain('run', 'send', 'fail');
+    await pending;
+    engine.recover('run', def, { retryFailed: true });
+    assert.equal(
+      engine.row('run', 'send').state,
+      'uncertain',
+      'reprise ne rejoue pas une ancienne écriture en échec',
+    );
+  } finally {
+    abort.abort();
+    await pending;
+    store.close();
+  }
+});
+
+test('annulation pendant la notification running : exécuteur non lancé', async () => {
+  let effects = 0;
+  const { engine, store } = setup({
+    tool: async () => {
+      effects++;
+      return 'FICTIF';
+    },
+  });
+  const def = wf([tool('send')]);
+  engine.init('run', def);
+  const abort = new AbortController();
+  store.on('run', (event) => {
+    if (event.type === 'step' && event.data.state === 'running') abort.abort();
+  });
+  try {
+    await engine.drive('run', def, {}, abort.signal);
+    assert.equal(effects, 0);
+  } finally {
+    store.close();
+  }
+});

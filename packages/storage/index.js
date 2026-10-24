@@ -24,12 +24,14 @@ export class Store extends EventEmitter {
     if (!cols.includes('prev_hash')) this.db.exec('ALTER TABLE ledger ADD COLUMN prev_hash TEXT');
     if (!cols.includes('hash')) this.db.exec('ALTER TABLE ledger ADD COLUMN hash TEXT');
     this.limits = { monthlyCapCents: null };
-    for (const run of this.list())
+    for (const { data } of this.db.prepare('SELECT data FROM runs').all()) {
+      const run = JSON.parse(data);
       if (!terminal.has(run.state))
         this.update(run.id, {
           state: 'interrupted',
           error: 'Serveur arrêté pendant l’exécution ; relancer explicitement.',
         });
+    }
   }
   create(run) {
     this.db.prepare('INSERT INTO runs VALUES (?,?)').run(run.id, JSON.stringify(run));

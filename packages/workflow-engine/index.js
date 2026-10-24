@@ -100,6 +100,16 @@ export class WorkflowEngine {
           state: s.effect === 'write' ? 'uncertain' : 'pending',
           error: 'Interrompue par un arrêt du serveur',
         });
+      else if (
+        retryFailed &&
+        s.effect === 'write' &&
+        r.attempt > 0 &&
+        ['failed', 'cancelled'].includes(r.state)
+      )
+        this.set(runId, s.id, {
+          state: 'uncertain',
+          error: 'Effet de l’écriture à confirmer avant reprise',
+        });
       // Explicit user resume: unfinished work is retried, succeeded steps are never replayed.
       else if (
         retryFailed &&
@@ -238,10 +248,12 @@ export class WorkflowEngine {
     const local = new AbortController();
     const onAbort = () => local.abort(signal.reason ?? new Error('Annulée'));
     signal?.addEventListener('abort', onAbort, { once: true });
+    if (signal?.aborted) onAbort();
     const timer = step.timeoutMs
       ? setTimeout(() => local.abort(new StepTimeoutError(step.id, step.timeoutMs)), step.timeoutMs)
       : null;
     try {
+      if (local.signal.aborted) throw local.signal.reason;
       if (!executor) throw new Error(`Aucun exécuteur pour les étapes ${step.kind}`);
       const aborted = new Promise((_, reject) =>
         local.signal.addEventListener('abort', () => reject(local.signal.reason), { once: true }),
@@ -263,8 +275,7 @@ export class WorkflowEngine {
       if (!this.current(runId, step.id, generation)) return;
       if (signal?.aborted) return; // drive() marks cancellation
       const message = String(e?.message ?? e).slice(0, 1000);
-      if (step.effect === 'write' && e?.code === 'timeout')
-        this.set(runId, step.id, { state: 'uncertain', error: message });
+      if (step.effect === 'write') this.set(runId, step.id, { state: 'uncertain', error: message });
       else if (attempt <= step.retries)
         this.set(runId, step.id, { state: 'pending', error: `Tentative ${attempt} : ${message}` });
       else this.set(runId, step.id, { state: 'failed', error: message, finished_at: this.now() });

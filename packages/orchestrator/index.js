@@ -281,6 +281,7 @@ export class Orchestrator {
   async create(input, previous = null) {
     if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
     const plan = await this.plan(input, { resume: !!previous });
+    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
     if (!plan.cost.withinBudget)
       throw new Error(
         `Budget insuffisant : estimation ${plan.cost.platformCents} c > budget ${plan.cost.budgetCents} c`,
@@ -307,6 +308,7 @@ export class Orchestrator {
       resumable: false,
       skillsSnapshot: plan.skills.map(({ content, ...s }) => s),
       plan: { steps: plan.steps, cost: plan.cost, workflow: plan.workflow },
+      ...(plan.dag ? { workflowDefinition: structuredClone(plan.dag) } : {}),
       result: null,
     };
     this.store.create(run);
@@ -334,6 +336,23 @@ export class Orchestrator {
       mode: 'workflow',
       ...(run.workflow ? { workflow: run.workflow } : {}),
     });
+    // Planning awaits detection: take the lock only after rechecking shared state.
+    if (this.active.has(runId)) throw new Error('Workflow déjà actif');
+    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
+    if (!['interrupted', 'failed', 'cancelled'].includes(this.store.get(runId).state))
+      throw new Error('Workflow déjà repris');
+    if (
+      !run.workflowDefinition ||
+      JSON.stringify(run.workflowDefinition) !== JSON.stringify(plan.dag)
+    )
+      throw new Error('Définition du workflow modifiée ou absente : reprise refusée');
+    const snapshots = this.store.get(runId).skillsSnapshot ?? [];
+    if (
+      (plan.skills ?? []).some(
+        (s) => !snapshots.some((old) => old.id === s.id && old.hash === s.hash),
+      )
+    )
+      throw new Error('Skills modifiés depuis le lancement : reprise refusée');
     plan.resumeWorkflow = true;
     this.store.update(runId, { state: 'queued', error: null, finishedAt: null });
     this.store.event(runId, 'workflow_resumed', { at: new Date().toISOString() });
@@ -362,6 +381,7 @@ export class Orchestrator {
       if (!plan.resumeWorkflow) this.meter(run.id, 'workflow_run', 1);
       if (run.mode === 'workflow') {
         const result = await executeWorkflow(this, run, plan, control);
+        if (control.abort.signal.aborted) throw control.abort.signal.reason;
         this.store.update(run.id, {
           state: 'completed',
           result,

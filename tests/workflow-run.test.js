@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { createApp } from '../apps/api/server.js';
 import { terminal } from '../packages/storage/index.js';
 import { rank } from '../domain-packs/najah/index.js';
@@ -233,4 +233,59 @@ test('plan : permissions affichées calculées selon le workflow réel', async (
     ).data.permissions;
     assert.ok(draft.some((p) => /validation explicite/.test(p)));
   });
+});
+
+test('timeout d’étape pendant initialize : le processus ACP est fermé sans attendre le handshake', async () => {
+  const { executeWorkflow } = await import('../packages/orchestrator/workflow-run.js');
+  const { readFileSync, existsSync } = await import('node:fs');
+  const app = createApp({ dataDir: temporary() });
+  const cwd = temporary(),
+    pidFile = join(cwd, 'fictif.pid');
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'running',
+    cwd,
+    prompt: 'FICTIF',
+    model: '',
+    budgetCents: 0,
+  };
+  app.store.create(run);
+  const definition = {
+    id: 'fictif',
+    command: process.execPath,
+    args: [resolve('tests/fixtures/fake-acp.js')],
+    simulated: true,
+    env: [],
+    safeModes: [],
+    fixedEnv: { FAKE_ACP: JSON.stringify({ mute: 'initialize', pidFile }) },
+  };
+  const control = { abort: new AbortController() };
+  const plan = {
+    agent: definition,
+    pack: { id: 'core' },
+    skills: [],
+    dag: {
+      id: 'fictif',
+      title: 'FICTIF',
+      steps: [{ id: 'hang', title: 'FICTIF', kind: 'agent', prompt: 'FICTIF', timeoutMs: 500 }],
+    },
+  };
+  try {
+    await assert.rejects(executeWorkflow(app.engine, run, plan, control), /délai/);
+    assert.ok(existsSync(pidFile), 'le faux agent a démarré');
+    const pid = Number(readFileSync(pidFile, 'utf8'));
+    let alive = true;
+    for (let i = 0; i < 80; i++) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        alive = false;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    assert.equal(alive, false, 'processus terminé après timeout d’étape');
+  } finally {
+    await app.close();
+  }
 });

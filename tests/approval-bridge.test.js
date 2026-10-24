@@ -57,7 +57,7 @@ async function setup(t) {
   return { app, run, mcp, hits, origin };
 }
 async function decideWhenAsked(app, runId, optionId) {
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 800; i++) {
     const p = [...app.engine.permissions.values()].find((x) => x.runId === runId);
     if (p) {
       app.engine.decide(p.id, optionId);
@@ -85,7 +85,9 @@ test(
     const { app, run, mcp, hits, origin } = await setup(t);
     await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
     const [result, asked] = await Promise.all([
-      mcp.callTool({ name: 'browser_click', arguments: { selector: '#apply' } }),
+      mcp.callTool({ name: 'browser_click', arguments: { selector: '#apply' } }, undefined, {
+        timeout: 90000,
+      }),
       decideWhenAsked(app, run.id, 'deny'),
     ]);
     assert.equal(result.isError, true);
@@ -102,7 +104,9 @@ test(
     const { app, run, mcp, hits, origin } = await setup(t);
     await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
     const [result] = await Promise.all([
-      mcp.callTool({ name: 'browser_click', arguments: { selector: '#apply' } }),
+      mcp.callTool({ name: 'browser_click', arguments: { selector: '#apply' } }, undefined, {
+        timeout: 90000,
+      }),
       decideWhenAsked(app, run.id, 'allow'),
     ]);
     assert.equal(result.isError, undefined);

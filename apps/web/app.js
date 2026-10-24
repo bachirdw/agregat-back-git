@@ -89,9 +89,72 @@ function agentStatus(a) {
   if (a.probe && !a.probe.session) return ['authentification requise', ''];
   return ['détecté', 'green'];
 }
+const skillStates = {
+  quarantined: 'Quarantaine · revue requise',
+  reviewed: 'Revu · à installer',
+  rejected: 'Rejeté',
+  installed: 'Installé · inactif',
+  active: 'Actif',
+};
+function renderThirdParty(s) {
+  const row = element('div', undefined, 'skill third-party');
+  row.append(
+    element('strong', s.name),
+    element('small', skillStates[s.state] ?? s.state),
+    element(
+      'small',
+      (s.license ? 'Licence ' + s.license : 'Licence inconnue') + ' · ' + s.files + ' fichier(s)',
+    ),
+  );
+  if (s.source?.url)
+    row.append(
+      element('small', s.source.url + (s.source.sha ? ' @ ' + s.source.sha.slice(0, 10) : '')),
+    );
+  for (const f of s.findings ?? [])
+    row.append(element('small', '⚠ ' + f.message, 'finding finding-' + f.level));
+  if (!s.integrity)
+    row.append(
+      element('small', 'Contenu modifié depuis l’import : réimporter', 'finding finding-danger'),
+    );
+  const act = (label, path, body) => {
+    const b = element('button', label, 'secondary');
+    b.type = 'button';
+    b.onclick = async () => {
+      try {
+        catalog.skills = await api(path, body);
+        renderSkills();
+        invalidate();
+      } catch (e) {
+        error(e);
+      }
+    };
+    row.append(b);
+  };
+  if (s.state === 'quarantined') {
+    act('Approuver après lecture', '/skills/' + s.id + '/review', { approved: true });
+    act('Rejeter', '/skills/' + s.id + '/review', { approved: false });
+  }
+  if (s.state === 'reviewed') act('Installer', '/skills/' + s.id + '/install', {});
+  if (s.state === 'installed') act('Activer', '/skills/' + s.id + '/activate', { active: true });
+  if (s.state === 'active') {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedSkills.has(s.id);
+    checkbox.setAttribute('aria-label', 'Utiliser ' + s.name);
+    checkbox.onchange = () => {
+      checkbox.checked ? selectedSkills.add(s.id) : selectedSkills.delete(s.id);
+      invalidate();
+    };
+    row.prepend(checkbox);
+    act('Désactiver', '/skills/' + s.id + '/activate', { active: false });
+  }
+  return row;
+}
 function renderSkills() {
   $('skill-list').replaceChildren();
-  for (const s of catalog.skills) {
+  for (const s of catalog.skills.filter((x) => x.origin === 'third-party'))
+    $('skill-list').append(renderThirdParty(s));
+  for (const s of catalog.skills.filter((x) => x.origin !== 'third-party')) {
     const row = element('div', undefined, 'skill');
     if (!s.installed || !s.integrity) {
       const b = element(
@@ -402,6 +465,20 @@ $('resume').onclick = async () => {
   }
 };
 $('refresh').onclick = () => history().catch(error);
+$('skill-import').onclick = async () => {
+  try {
+    $('skill-import').disabled = true;
+    catalog.skills = await api('/skills/import', {
+      git: $('skill-git').value.trim(),
+      subdir: $('skill-subdir').value.trim() || '.',
+    });
+    renderSkills();
+  } catch (e) {
+    error(e);
+  } finally {
+    $('skill-import').disabled = false;
+  }
+};
 $('example').onclick = () => {
   $('prompt').value =
     "Rechercher des offres d'emploi en Python et SQL en Australie, puis les classer.";

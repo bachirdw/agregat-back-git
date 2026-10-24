@@ -710,3 +710,29 @@ footer span {
   padding-left: 18px;
   font-size: 0.9em;
 }
+
+.skill.third-party {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed #c99a2e;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.finding-warning {
+  color: #8a6a1c;
+}
+.finding-danger {
+  color: #b23b25;
+  font-weight: 600;
+}
+.skill-import {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+.skill-import input {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+}

@@ -1,12 +1,26 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Store, terminal } from '../../packages/storage/index.js';
 import { SkillRegistry } from '../../packages/skill-registry/index.js';
 import { Orchestrator } from '../../packages/orchestrator/index.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
 import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
+// Local skill imports are limited to configured roots (never an arbitrary path from the browser).
+export function allowedSkillPath(
+  p,
+  roots = (process.env.AGENT_PLATFORM_SKILL_ROOTS ?? '').split(':').filter(Boolean),
+) {
+  const target = resolve(p);
+  const ok = roots.some((r) => {
+    const rel = relative(resolve(r), target);
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  });
+  if (!ok)
+    throw new Error('Chemin d’import hors des racines autorisées (AGENT_PLATFORM_SKILL_ROOTS)');
+  return target;
+}
 // Validation errors are summarised for people instead of returning raw schema dumps.
 export function publicError(e) {
   if (Array.isArray(e?.issues))
@@ -45,7 +59,7 @@ export function createApp({
   timeoutMs,
 } = {}) {
   const store = new Store(resolve(dataDir, 'platform.sqlite'));
-  const skills = new SkillRegistry(store, skillDefinitions);
+  const skills = new SkillRegistry(store, skillDefinitions, { dataDir });
   const engine = new Orchestrator(store, skills, { dataDir, live, timeoutMs });
   const files = {
     '/': ['index.html', 'text/html'],
@@ -174,7 +188,25 @@ export function createApp({
           ),
         );
       }
-      const skill = path.match(/^\/api\/skills\/([a-z-]+)\/(install|activate)$/);
+      if (path === '/api/skills/import') {
+        if (body.git)
+          await skills.importGit(String(body.git), {
+            ref: body.ref ?? null,
+            subdir: body.subdir ?? '.',
+          });
+        else if (body.path) skills.importLocal(allowedSkillPath(String(body.path)));
+        else throw new Error('git ou path requis');
+        return json(res, 200, skills.list());
+      }
+      const review = path.match(/^\/api\/skills\/([a-z0-9-]+)\/review$/);
+      if (review) {
+        skills.review(review[1], {
+          approved: body.approved,
+          note: typeof body.note === 'string' ? body.note : '',
+        });
+        return json(res, 200, skills.list());
+      }
+      const skill = path.match(/^\/api\/skills\/([a-z0-9-]+)\/(install|activate)$/);
       if (skill) {
         if (skill[2] === 'install') skills.install(skill[1]);
         else {

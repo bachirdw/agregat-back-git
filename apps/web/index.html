@@ -83,6 +83,18 @@ Rechercher des offres d'emploi en Python et SQL en Australie, puis les classer.<
             <div id="skills" class="skills-section">
               <label>Méthodes à mobiliser</label>
               <div id="skill-list"></div>
+              <details class="skill-import">
+                <summary>Importer un Skill tiers (quarantaine et revue obligatoires)</summary>
+                <input id="skill-git" placeholder="https://github.com/owner/repo" maxlength="300" />
+                <input
+                  id="skill-subdir"
+                  placeholder="Sous-dossier, ex. .agents/skills/career-ops"
+                  maxlength="200"
+                />
+                <button type="button" id="skill-import" class="secondary">
+                  Importer en quarantaine
+                </button>
+              </details>
             </div>
             <div class="composer-footer">
               <span id="execution-note">Données de test · aucun modèle appelé</span

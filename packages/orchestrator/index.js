@@ -253,6 +253,14 @@ export class Orchestrator {
         });
         return;
       }
+      if (plan.skills.length)
+        this.store.event(run.id, 'skills_exported', {
+          paths: this.skills.exportTo(
+            run.cwd,
+            plan.agent.id,
+            plan.skills.map((x) => x.id),
+          ),
+        });
       const runtime = new AcpRuntime({
         definition: plan.agent,
         cwd: run.cwd,

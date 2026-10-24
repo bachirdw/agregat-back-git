@@ -85,6 +85,15 @@ export async function executeWorkflow(orch, run, plan, control) {
       const definition = plan.stepAgents?.[step.id] ?? plan.agent;
       const cwd = resolve(run.cwd, step.id);
       mkdirSync(cwd, { recursive: true, mode: 0o700 });
+      if (plan.skills.length)
+        orch.store.event(run.id, 'skills_exported', {
+          stepId: step.id,
+          paths: orch.skills.exportTo(
+            cwd,
+            definition.id,
+            plan.skills.map((x) => x.id),
+          ),
+        });
       let text = '',
         events = 0;
       const runtime = new AcpRuntime({

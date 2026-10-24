@@ -68,6 +68,12 @@ export class Store extends EventEmitter {
     const row = this.db.prepare('SELECT data FROM skills WHERE id=?').get(id);
     return row ? JSON.parse(row.data) : null;
   }
+  skills() {
+    return this.db
+      .prepare('SELECT id, data FROM skills ORDER BY id')
+      .all()
+      .map((r) => ({ id: r.id, data: JSON.parse(r.data) }));
+  }
   setSkill(id, value) {
     this.db
       .prepare('INSERT INTO skills VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data')

@@ -289,7 +289,11 @@ $('mission-form').onsubmit = async (event) => {
       ol,
       costTable(p.cost),
       element('p', p.cost.description),
-      element('p', p.permissions.join(' · ')),
+      (() => {
+        const ul = element('ul', undefined, 'routing');
+        for (const x of p.permissions) ul.append(element('li', x));
+        return ul;
+      })(),
     );
     $('plan-panel').hidden = false;
     $('plan-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });

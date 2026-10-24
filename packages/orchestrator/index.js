@@ -248,9 +248,29 @@ export class Orchestrator {
           description: e.external,
         };
       })(),
-      permissions: agent.simulated
-        ? ['MCP de test en lecture seule']
-        : ['Permissions ACP à confirmer ; outils natifs dépendants du CLI'],
+      permissions: (() => {
+        // Derived from what the run can actually do, never a generic label.
+        const list = [];
+        const hosts = pack.policies?.network?.allowedHosts ?? [];
+        const usesNetwork = (dagChosen?.requires ?? []).includes('network');
+        if (usesNetwork && hosts.length && process.env.AGENT_PLATFORM_NETWORK !== '0')
+          list.push(`Accès réseau en lecture aux sources du pack : ${hosts.join(', ')}`);
+        const browser = process.env.AGENT_PLATFORM_BROWSER ?? 'fixture';
+        list.push(
+          browser === 'fixture'
+            ? 'Navigateur simulé (aucun navigateur réel)'
+            : `Navigateur ${browser === 'playwriter' ? 'Chrome de l’utilisateur via Playwriter' : 'Chrome isolé'} : lecture ; toute action d’écriture demandera votre accord`,
+        );
+        if ((dagChosen?.steps ?? []).some((x) => x.kind === 'approval'))
+          list.push('Une étape attend votre validation explicite');
+        list.push(
+          agent.simulated
+            ? 'Agent de démonstration : aucun modèle appelé'
+            : 'Agent réel : ses demandes de permission ACP vous seront soumises ; ses outils natifs restent sous la responsabilité du CLI',
+        );
+        list.push('Aucun envoi d’e-mail ni de candidature possible');
+        return list;
+      })(),
       simulated: !!agent.simulated,
       routing: routing ?? { id, reasons: ['Agent choisi manuellement'], rejected: [] },
       models: probes[id]?.models ?? null,

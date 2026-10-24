@@ -745,3 +745,11 @@ footer span {
   border-radius: 10px;
   background: rgba(124, 108, 242, 0.06);
 }
+
+.source-link {
+  display: block;
+  margin-top: 4px;
+}
+#result > .pill {
+  margin-right: 8px;
+}

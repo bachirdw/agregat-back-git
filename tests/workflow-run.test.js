@@ -204,3 +204,33 @@ test('plan workflow « auto » : DAG proposé, raison visible, identifiant enreg
     assert.match(data.workflow.reason, /lettre/);
   });
 });
+
+test('plan : permissions affichées calculées selon le workflow réel', async () => {
+  await withApp(async (app) => {
+    const live = (
+      await post(app, '/plan', {
+        prompt: 'x',
+        agent: 'fixture',
+        pack: 'najah',
+        mode: 'workflow',
+        workflow: 'opportunity-discovery-live',
+      })
+    ).data.permissions;
+    assert.ok(live.some((p) => /Accès réseau .*www\.arbeitnow\.com/.test(p)));
+    assert.ok(live.some((p) => /Aucun envoi/.test(p)));
+    const demo = (
+      await post(app, '/plan', { prompt: 'x', agent: 'fixture', pack: 'najah', mode: 'workflow' })
+    ).data.permissions;
+    assert.ok(!demo.some((p) => /Accès réseau/.test(p)));
+    const draft = (
+      await post(app, '/plan', {
+        prompt: 'x',
+        agent: 'fixture',
+        pack: 'najah',
+        mode: 'workflow',
+        workflow: 'application-draft',
+      })
+    ).data.permissions;
+    assert.ok(draft.some((p) => /validation explicite/.test(p)));
+  });
+});

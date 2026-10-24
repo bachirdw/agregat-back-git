@@ -73,8 +73,25 @@ for (const [index, id] of ['gemini', 'opencode'].entries()) {
         }),
       );
     child.once('exit', () => connection.close(new Error('Processus agent terminé')));
-    const request = (method, params) =>
-      connection.agent.request(method, params, { signal: AbortSignal.timeout(20000) });
+    const request = async (method, params) => {
+      const controller = new AbortController();
+      let timer;
+      const deadline = new Promise((ok, no) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          no(new Error('Délai maximal ACP dépassé (20000 ms)'));
+        }, 20000);
+      });
+      try {
+        // SDK cancellation is cooperative; the deadline must also reject locally.
+        return await Promise.race([
+          connection.agent.request(method, params, { cancellationSignal: controller.signal }),
+          deadline,
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
     report.initialize = await request(methods.agent.initialize, {
       protocolVersion: PROTOCOL_VERSION,
       clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },

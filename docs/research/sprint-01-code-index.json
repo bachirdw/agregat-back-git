@@ -1,0 +1,978 @@
+[
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpRpcDispatcher.ts",
+    "start": 40,
+    "end": 126,
+    "sha256": "35a2935ed0a1593cb35a767a2379861234414b64c0b05c7d3e2d28b0ec616d83",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpRpcDispatcher.ts",
+    "start": 161,
+    "end": 236,
+    "sha256": "35a2935ed0a1593cb35a767a2379861234414b64c0b05c7d3e2d28b0ec616d83",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpSessionManager.ts",
+    "start": 92,
+    "end": 166,
+    "sha256": "7b9ddb9b222853525a6841faadcddd2d6b91a102eee0131a8f2276db00ad6794",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpSessionManager.ts",
+    "start": 204,
+    "end": 286,
+    "sha256": "7b9ddb9b222853525a6841faadcddd2d6b91a102eee0131a8f2276db00ad6794",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/config/config.ts",
+    "start": 362,
+    "end": 386,
+    "sha256": "b40f8892bdab9547723843f379f763a9eec641518da8c38b12ed619fd43a56ae",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "anomalyco__opencode",
+    "path": "packages/cli/src/commands/handlers/acp.ts",
+    "start": 1,
+    "end": 59,
+    "sha256": "f9eac6c0a4e1e1be57c1a4c0cd693ce8c2ec57a716dfa26d099e3826569f3535",
+    "commit": "6806c6e29a7d2087335794d8b86c6031cdb5f6dd"
+  },
+  {
+    "repository": "anomalyco__opencode",
+    "path": "packages/cli/src/acp/service.ts",
+    "start": 104,
+    "end": 250,
+    "sha256": "a2c9f53f9c1cd24623f33bd63c38c18387f72ff86bc9be3571dd51f98ad1de78",
+    "commit": "6806c6e29a7d2087335794d8b86c6031cdb5f6dd"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpSession.ts",
+    "start": 200,
+    "end": 248,
+    "sha256": "869b57f92825b8ecab1855939fcab10af0f7fa86e6bfac658fdbef19cf830d3c",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpSession.ts",
+    "start": 440,
+    "end": 510,
+    "sha256": "869b57f92825b8ecab1855939fcab10af0f7fa86e6bfac658fdbef19cf830d3c",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpSession.ts",
+    "start": 700,
+    "end": 792,
+    "sha256": "869b57f92825b8ecab1855939fcab10af0f7fa86e6bfac658fdbef19cf830d3c",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "google-gemini__gemini-cli",
+    "path": "packages/cli/src/acp/acpSessionManager.ts",
+    "start": 307,
+    "end": 410,
+    "sha256": "7b9ddb9b222853525a6841faadcddd2d6b91a102eee0131a8f2276db00ad6794",
+    "commit": "cd1b45c2db0a5ea7b7fc3b67c1ba5879601d6005"
+  },
+  {
+    "repository": "anomalyco__opencode",
+    "path": "packages/cli/src/acp/permission.ts",
+    "start": 1,
+    "end": 88,
+    "sha256": "33915ebdbcce890255d18ae639d93bbb9a55a7b64a2fb179d7685807417a73bf",
+    "commit": "6806c6e29a7d2087335794d8b86c6031cdb5f6dd"
+  },
+  {
+    "repository": "anomalyco__opencode",
+    "path": "packages/cli/src/acp/config-option.ts",
+    "start": 1,
+    "end": 140,
+    "sha256": "7018941474ac6423de24be884a0379ae30766ae3110cdbcbc2dc816b775b4297",
+    "commit": "6806c6e29a7d2087335794d8b86c6031cdb5f6dd"
+  },
+  {
+    "repository": "anomalyco__opencode",
+    "path": "packages/cli/src/acp/turn.ts",
+    "start": 303,
+    "end": 360,
+    "sha256": "74b72ef7c50c9d1f20a4a3f002c866ec80fb64aa287f301670afd87cf0ba0d16",
+    "commit": "6806c6e29a7d2087335794d8b86c6031cdb5f6dd"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/types.ts",
+    "start": 30,
+    "end": 145,
+    "sha256": "65f3f23c20b44815a92c4202bd8498cd0ccf15fcbc7c892c4198e72d6029ad6a",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/runtime.ts",
+    "start": 360,
+    "end": 525,
+    "sha256": "2a6ae3fe210d3b2ce14eb9ff72c7691ace85e7816768fabf74abccc8ccd50b3a",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/runtime.ts",
+    "start": 910,
+    "end": 1070,
+    "sha256": "2a6ae3fe210d3b2ce14eb9ff72c7691ace85e7816768fabf74abccc8ccd50b3a",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/store.ts",
+    "start": 1,
+    "end": 140,
+    "sha256": "07006108b2c36c64c41622801de355915e9fcac7d1831104fb751c39472e925b",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/runtime/public/contract.ts",
+    "start": 85,
+    "end": 145,
+    "sha256": "a46fd903d04cc2cade1e02675e51be851b17a271d73eba0b26e69664d82990aa",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/acp/client-process.ts",
+    "start": 210,
+    "end": 295,
+    "sha256": "3d2fd50ed5f1898d2fbf772dd9b25c8147331f164f76e6ca9b057f8403ab2acb",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/runtime.ts",
+    "start": 195,
+    "end": 310,
+    "sha256": "2a6ae3fe210d3b2ce14eb9ff72c7691ace85e7816768fabf74abccc8ccd50b3a",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/runtime.ts",
+    "start": 345,
+    "end": 406,
+    "sha256": "2a6ae3fe210d3b2ce14eb9ff72c7691ace85e7816768fabf74abccc8ccd50b3a",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/types.ts",
+    "start": 40,
+    "end": 143,
+    "sha256": "65f3f23c20b44815a92c4202bd8498cd0ccf15fcbc7c892c4198e72d6029ad6a",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "openclaw__acpx",
+    "path": "src/flows/graph.ts",
+    "start": 1,
+    "end": 103,
+    "sha256": "2c7245ea50a2942ffe9c2ac74d4d7db6cfe664e98df0d0f1e70fa304a3c0ccea",
+    "commit": "c0b9dfdfad12ed4fc000b8ef2efc4b5644f1c3dc"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/CodexAcpServer.ts",
+    "start": 628,
+    "end": 687,
+    "sha256": "4a80e66639a8d5d0cad8e6f60abc3cb6fccc3286e096deef0ec4e568cbac26fc",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/CodexJsonRpcConnection.ts",
+    "start": 24,
+    "end": 74,
+    "sha256": "0fe367753289b6adbfb237548192852cd3cadfd84ca440c4a75e84722a056d3c",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/CodexAcpClient.ts",
+    "start": 683,
+    "end": 720,
+    "sha256": "2a4d4b456106288900172afe15bbcd5edc92bf087435b525dc9c1c2c86cd41df",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/CodexAcpClient.ts",
+    "start": 745,
+    "end": 795,
+    "sha256": "2a4d4b456106288900172afe15bbcd5edc92bf087435b525dc9c1c2c86cd41df",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 2950,
+    "end": 3023,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 3149,
+    "end": 3180,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 9123,
+    "end": 9161,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "zetbrush__multiagents",
+    "path": "adapters/codex-adapter.ts",
+    "start": 1,
+    "end": 41,
+    "sha256": "2aee4f0ef47a764691cc5152b01ad69c2db2d217168e5ca8a71c3d2e1c787b01",
+    "commit": "6038986b739937aaf3f2da2346e97a25f00369b1"
+  },
+  {
+    "repository": "zetbrush__multiagents",
+    "path": "orchestrator/guardrails.ts",
+    "start": 1,
+    "end": 105,
+    "sha256": "5bc84fafdc471035fff736a588e9a5747294d79b1087f3fac53118af449d1ecd",
+    "commit": "6038986b739937aaf3f2da2346e97a25f00369b1"
+  },
+  {
+    "repository": "suyashb734__cliagents",
+    "path": "src/adapters/codex-cli.js",
+    "start": 1,
+    "end": 160,
+    "sha256": "77bf42ce22d318f8d473850d03701c0a419633e3bd47d5cb3582e86ec72d2fb9",
+    "commit": "40804745f464e33939902dae1a806bf22e4df578"
+  },
+  {
+    "repository": "suyashb734__cliagents",
+    "path": "src/orchestration/run-ledger.js",
+    "start": 1,
+    "end": 118,
+    "sha256": "c45ecd4b05f57448400c55c391c2ecd37fd3c0749a1e969e9dcee131fb8a3c22",
+    "commit": "40804745f464e33939902dae1a806bf22e4df578"
+  },
+  {
+    "repository": "osanoai__multicli",
+    "path": "src/utils/claudeExecutor.ts",
+    "start": 1,
+    "end": 33,
+    "sha256": "2db6afb2283bf99c84bd2f006a1818d3bbdf7f936602f3db3540281c651bfc84",
+    "commit": "41f4bc8095a126c6b837fd75cd9ac32964da5a63"
+  },
+  {
+    "repository": "osanoai__multicli",
+    "path": "src/httpServer.ts",
+    "start": 60,
+    "end": 145,
+    "sha256": "ba0af54e80e187d35bb0f502c7060c9df42ea0870166fd5a748f758cbfa1cc9d",
+    "commit": "41f4bc8095a126c6b837fd75cd9ac32964da5a63"
+  },
+  {
+    "repository": "Heretyc__subagent-mcp",
+    "path": "src/providers/provider-client.ts",
+    "start": 1,
+    "end": 155,
+    "sha256": "fbef768573c811dce969e0ec8db4876d4fe64acd71c966b023ff6c7a53e93ea0",
+    "commit": "aa8f421186d93a4cc2608b0ae0314569a0e08fef"
+  },
+  {
+    "repository": "Heretyc__subagent-mcp",
+    "path": "src/permission-engine.ts",
+    "start": 1,
+    "end": 130,
+    "sha256": "59aae19ecec0402aa8605ecfdb495c3fc4d1f19c780c830cee0dd4d9a5f2eaa1",
+    "commit": "aa8f421186d93a4cc2608b0ae0314569a0e08fef"
+  },
+  {
+    "repository": "awslabs__cli-agent-orchestrator",
+    "path": "src/cli_agent_orchestrator/backends/tmux_backend.py",
+    "start": 1,
+    "end": 122,
+    "sha256": "2f3d5a95b0fc9e2566bde30f395b525f5ef8a1fc2e14073cc89aaee26a42f876",
+    "commit": "a3829744c6df8f074bab9c713906720ad6ba87fd"
+  },
+  {
+    "repository": "awslabs__cli-agent-orchestrator",
+    "path": "src/cli_agent_orchestrator/services/workflow_service.py",
+    "start": 1,
+    "end": 150,
+    "sha256": "d74a7dc39d986e39757c293708e15089ce7577fcb7351b4acaaeb35d462ada58",
+    "commit": "a3829744c6df8f074bab9c713906720ad6ba87fd"
+  },
+  {
+    "repository": "awslabs__cli-agent-orchestrator",
+    "path": "src/cao_workflow/__init__.py",
+    "start": 1,
+    "end": 100,
+    "sha256": "8b387367db4b9c671d6c56bea76f7f1fcdb7cbbfd5cebe8b43a01043ed09d3d5",
+    "commit": "a3829744c6df8f074bab9c713906720ad6ba87fd"
+  },
+  {
+    "repository": "modelcontextprotocol__typescript-sdk",
+    "path": "LICENSE",
+    "start": 1,
+    "end": 50,
+    "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "commit": "951fe5603a7ec0b2dcb6a0b95d92cd86f93ad9e5"
+  },
+  {
+    "repository": "modelcontextprotocol__servers",
+    "path": "LICENSE",
+    "start": 1,
+    "end": 30,
+    "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "commit": "51b6382a3e827aceb6bce430b1208d69b93d95ea"
+  },
+  {
+    "repository": "modelcontextprotocol__modelcontextprotocol",
+    "path": "LICENSE",
+    "start": 1,
+    "end": 30,
+    "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "commit": "dae694f61a31f7a3ec2af3aff709e11f70f61e48"
+  },
+  {
+    "repository": "modelcontextprotocol__typescript-sdk",
+    "path": "packages/client/src/client/stdio.ts",
+    "start": 90,
+    "end": 190,
+    "sha256": "c5d68c960e6cc6658bb96e1b45fd0d941771a1abbc6a5c4214afb5832d0e1550",
+    "commit": "951fe5603a7ec0b2dcb6a0b95d92cd86f93ad9e5"
+  },
+  {
+    "repository": "agentclientprotocol__typescript-sdk",
+    "path": "src/transports/connection.ts",
+    "start": 1,
+    "end": 125,
+    "sha256": "25c18d22c1b432874bc1b40098bba21a5247626618620bf0023e8cd374299021",
+    "commit": "c7e07388feed7a530f8211d0dae4951cb6d26d09"
+  },
+  {
+    "repository": "vercel-labs__skills",
+    "path": "src/installer.ts",
+    "start": 1,
+    "end": 140,
+    "sha256": "4b2a109a120427221581f2dfa56003ac0f6b285cc5773b6757adec44c5d60f61",
+    "commit": "a80e4c9d12d607631249d4d7d059f835d4b2f13a"
+  },
+  {
+    "repository": "vercel-labs__skills",
+    "path": "src/skills.ts",
+    "start": 1,
+    "end": 135,
+    "sha256": "6ec366e2a4f48767b3532c3dfa09cfb31857c8bb7c94ab109d5dfff0855ab371",
+    "commit": "a80e4c9d12d607631249d4d7d059f835d4b2f13a"
+  },
+  {
+    "repository": "anthropics__skills",
+    "path": "skills/skill-creator/scripts/quick_validate.py",
+    "start": 1,
+    "end": 103,
+    "sha256": "67cf5703402013936c8fb75ad6a1afecd8841d45cc5e606b634eb05825fde365",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44"
+  },
+  {
+    "repository": "rosslevinsky__portable-agent-skills",
+    "path": "skills/web-verify/SKILL.md",
+    "start": 1,
+    "end": 95,
+    "sha256": "88d9b7e80f99b203d73a8f620b41b11653d093ad5448dec616cd5eabcce40d99",
+    "commit": "b9f6c2ad3bdd7f3d785828f41e8e17a581a3ea3f"
+  },
+  {
+    "repository": "vercel-labs__skills",
+    "path": "src/git.ts",
+    "start": 1,
+    "end": 105,
+    "sha256": "582757e8f107cb935d68dd51ce2231734c74fa04e11d1ba3e786220c34b13b43",
+    "commit": "a80e4c9d12d607631249d4d7d059f835d4b2f13a"
+  },
+  {
+    "repository": "vercel-labs__skills",
+    "path": "src/skill-lock.ts",
+    "start": 1,
+    "end": 110,
+    "sha256": "fcf628f8af6c637c4348bdaeeb2833f1705ee2ccd1772935e2ae350340cc635d",
+    "commit": "a80e4c9d12d607631249d4d7d059f835d4b2f13a"
+  },
+  {
+    "repository": "anthropics__skills",
+    "path": "skills/skill-creator/LICENSE.txt",
+    "start": 1,
+    "end": 12,
+    "sha256": "bc6b3af2f331cbc7fb0da1344efb2cbe5877a31498b4d70dbc7000f3405a1362",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44"
+  },
+  {
+    "repository": "anthropics__skills",
+    "path": "skills/docx/LICENSE.txt",
+    "start": 1,
+    "end": 30,
+    "sha256": "79f6d8f5b427252fa3b1c11ecdbdb6bf610b944f7530b4de78f770f38741cfaa",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44"
+  },
+  {
+    "repository": "modelcontextprotocol__servers",
+    "path": "src/filesystem/index.ts",
+    "start": 27,
+    "end": 84,
+    "sha256": "7918db13ba091c0f6258f05ee1f8c4d4e6753e98cba9d5448714f74b677cc663",
+    "commit": "51b6382a3e827aceb6bce430b1208d69b93d95ea"
+  },
+  {
+    "repository": "agentclientprotocol__typescript-sdk",
+    "path": "src/examples/client.ts",
+    "start": 1,
+    "end": 115,
+    "sha256": "85b458484cf140706298dbde6a8d4829b5bc753dda754b24564dcfd4582b894d",
+    "commit": "c7e07388feed7a530f8211d0dae4951cb6d26d09"
+  },
+  {
+    "repository": "remorses__playwriter",
+    "path": "playwriter/src/mcp.ts",
+    "start": 1,
+    "end": 100,
+    "sha256": "5d52ec354185c875e8c4e44984a6fe33c6b18e956e2e4157e172fd1fac1e90c4",
+    "commit": "6489336628e6737e32a59f25ed270622400cb277"
+  },
+  {
+    "repository": "remorses__playwriter",
+    "path": "extension/src/background.ts",
+    "start": 1,
+    "end": 125,
+    "sha256": "e055df7ba804930ae210776cc924864b0a54ca7e48043de9a665a8b4a23ae0b2",
+    "commit": "6489336628e6737e32a59f25ed270622400cb277"
+  },
+  {
+    "repository": "babelcloud__playwriter-browser-mcp",
+    "path": "src/mcp-server.ts",
+    "start": 1,
+    "end": 107,
+    "sha256": "90191eecdeec39ec91d033b3262175ea20da855ba8bcd8436d72c854c1b2a260",
+    "commit": "5f97001472a0302c4f504fe3ae9a62a47673355a"
+  },
+  {
+    "repository": "microsoft__playwright-mcp",
+    "path": "index.js",
+    "start": 1,
+    "end": 19,
+    "sha256": "28c639173fb79f5cae1ed44519995cea0dd2aee2f4a48a2511f06f153802b946",
+    "commit": "0c4107acbecb75472b23c05c0e42471a0011874f"
+  },
+  {
+    "repository": "microsoft__playwright-mcp",
+    "path": "package.json",
+    "start": 1,
+    "end": 51,
+    "sha256": "624f0ba4d387028bbc734520142fbebb7075a88da8b623f4760adf76aa212f8b",
+    "commit": "0c4107acbecb75472b23c05c0e42471a0011874f"
+  },
+  {
+    "repository": "huggingface__smolagents",
+    "path": "src/smolagents/agents.py",
+    "start": 218,
+    "end": 323,
+    "sha256": "da0da2e258c346e28d97b3584dfe58dcd203fc20fbde6c6533e333f9b1a06352",
+    "commit": "96f33faaf028479119ec8d34507b47694cf14e34"
+  },
+  {
+    "repository": "huggingface__smolagents",
+    "path": "src/smolagents/agents.py",
+    "start": 1715,
+    "end": 1800,
+    "sha256": "da0da2e258c346e28d97b3584dfe58dcd203fc20fbde6c6533e333f9b1a06352",
+    "commit": "96f33faaf028479119ec8d34507b47694cf14e34"
+  },
+  {
+    "repository": "huggingface__smolagents",
+    "path": "src/smolagents/mcp_client.py",
+    "start": 1,
+    "end": 130,
+    "sha256": "ec0041193c0ea16100f0d911aab12ff92ccb165eb27aebee76550855836f8603",
+    "commit": "96f33faaf028479119ec8d34507b47694cf14e34"
+  },
+  {
+    "repository": "rosslevinsky__portable-agent-skills",
+    "path": "scripts/validate_cross_runtime.py",
+    "start": 1,
+    "end": 115,
+    "sha256": "df0c77bbb2139168d8ae98e76b93e9d9ee9e22fc1430186fea089e3b106596e8",
+    "commit": "b9f6c2ad3bdd7f3d785828f41e8e17a581a3ea3f"
+  },
+  {
+    "repository": "rosslevinsky__portable-agent-skills",
+    "path": "install.py",
+    "start": 1,
+    "end": 90,
+    "sha256": "a84c892920ea8dd517d4f3ee1e3a5a14badae9151418f3944552e661d026bd85",
+    "commit": "b9f6c2ad3bdd7f3d785828f41e8e17a581a3ea3f"
+  },
+  {
+    "repository": "dbos-inc__dbos-transact-ts",
+    "path": "src/workflow.ts",
+    "start": 1,
+    "end": 108,
+    "sha256": "6945480d5dedda7617147cc0d2e48ccebeeb247a5e278c7a5ab7918d281720b0",
+    "commit": "980dc55095f445b189aecb59e7f3334345179f65"
+  },
+  {
+    "repository": "dbos-inc__dbos-transact-ts",
+    "path": "src/system_database.ts",
+    "start": 1,
+    "end": 105,
+    "sha256": "3be26532bb4669c6e266fb250823f88514c9e3ee2590934908a11f58e378b544",
+    "commit": "980dc55095f445b189aecb59e7f3334345179f65"
+  },
+  {
+    "repository": "huggingface__huggingface.js",
+    "path": "packages/mcp-client/src/Agent.ts",
+    "start": 1,
+    "end": 135,
+    "sha256": "5b3a09767f6adb33627bbd05f601f503e1e9f567335d4081e01e0b10aa0b663f",
+    "commit": "d1cd874d9eab70cc83d30e278551a36cd1e40b22"
+  },
+  {
+    "repository": "TencentCloud__Octop",
+    "path": "src/octop/cli/commands/acp.py",
+    "start": 1,
+    "end": 63,
+    "sha256": "7b4864f1e7cada6e41c5c4f65f431c4e4be406680b86f885782804a13218d3cc",
+    "commit": "dd9dce470844c25d59effb50615bb3c667ea25cd"
+  },
+  {
+    "repository": "agentgateway__agentgateway",
+    "path": "crates/agentgateway/src/mcp/rbac.rs",
+    "start": 1,
+    "end": 100,
+    "sha256": "5685b8539f186d8392fc7ec97b7a3f069ae2ba119f9d50bf47079e543a08060b",
+    "commit": "eec642991defbcd76a1c6c06d89f0448268f677e"
+  },
+  {
+    "repository": "remorses__playwriter",
+    "path": "playwriter/src/cdp-relay.ts",
+    "start": 910,
+    "end": 1002,
+    "sha256": "b11065b3fb855019710cecfeed210923cb198406086e56fab2cf88eef7d161e9",
+    "commit": "6489336628e6737e32a59f25ed270622400cb277"
+  },
+  {
+    "repository": "remorses__playwriter",
+    "path": "playwriter/src/executor.ts",
+    "start": 800,
+    "end": 865,
+    "sha256": "a4f9d4cd2a6ef7b655c7b2a92dea0b5fb0a62f3b51640d9c2ee125f2300c5033",
+    "commit": "6489336628e6737e32a59f25ed270622400cb277"
+  },
+  {
+    "repository": "dbos-inc__dbos-transact-ts",
+    "path": "src/dbos-executor.ts",
+    "start": 945,
+    "end": 1004,
+    "sha256": "8611b117f9736c3683620aa1bde7f020919899cc411db0460497b98cacdd6f81",
+    "commit": "980dc55095f445b189aecb59e7f3334345179f65"
+  },
+  {
+    "repository": "dbos-inc__dbos-transact-ts",
+    "path": "src/dbos-executor.ts",
+    "start": 1274,
+    "end": 1342,
+    "sha256": "8611b117f9736c3683620aa1bde7f020919899cc411db0460497b98cacdd6f81",
+    "commit": "980dc55095f445b189aecb59e7f3334345179f65"
+  },
+  {
+    "repository": "awslabs__cli-agent-orchestrator",
+    "path": "src/cli_agent_orchestrator/services/workflow_service.py",
+    "start": 1573,
+    "end": 1647,
+    "sha256": "d74a7dc39d986e39757c293708e15089ce7577fcb7351b4acaaeb35d462ada58",
+    "commit": "a3829744c6df8f074bab9c713906720ad6ba87fd"
+  },
+  {
+    "repository": "agentgateway__agentgateway",
+    "path": "crates/agentgateway/src/mcp/upstream/stdio.rs",
+    "start": 1,
+    "end": 106,
+    "sha256": "c7e2f157a136eb80eb39979f8b5d9efe4665e5b281036c1c48d1ec7c5943dbd5",
+    "commit": "eec642991defbcd76a1c6c06d89f0448268f677e"
+  },
+  {
+    "repository": "huggingface__huggingface.js",
+    "path": "packages/tiny-agents/src/lib/loadConfigFrom.ts",
+    "start": 1,
+    "end": 100,
+    "sha256": "88348127725ee4b52ef39d326035e777d5638b87fb14fa69803985d889f9a56a",
+    "commit": "d1cd874d9eab70cc83d30e278551a36cd1e40b22"
+  },
+  {
+    "repository": "TencentCloud__Octop",
+    "path": "src/octop/infra/agents/settings/acp.py",
+    "start": 45,
+    "end": 87,
+    "sha256": "8ed46a54e3db2240beaf581f134e103a8fb0457ed2c5885ce9c9beedf3e17409",
+    "commit": "dd9dce470844c25d59effb50615bb3c667ea25cd"
+  },
+  {
+    "repository": "remorses__playwriter",
+    "path": "playwriter/src/mcp.ts",
+    "start": 244,
+    "end": 278,
+    "sha256": "5d52ec354185c875e8c4e44984a6fe33c6b18e956e2e4157e172fd1fac1e90c4",
+    "commit": "6489336628e6737e32a59f25ed270622400cb277"
+  },
+  {
+    "repository": "remorses__playwriter",
+    "path": "playwriter/src/executor.ts",
+    "start": 1850,
+    "end": 1908,
+    "sha256": "a4f9d4cd2a6ef7b655c7b2a92dea0b5fb0a62f3b51640d9c2ee125f2300c5033",
+    "commit": "6489336628e6737e32a59f25ed270622400cb277"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/CodexAcpServer.ts",
+    "start": 2509,
+    "end": 2524,
+    "sha256": "4a80e66639a8d5d0cad8e6f60abc3cb6fccc3286e096deef0ec4e568cbac26fc",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/CodexAcpServer.ts",
+    "start": 5233,
+    "end": 5256,
+    "sha256": "4a80e66639a8d5d0cad8e6f60abc3cb6fccc3286e096deef0ec4e568cbac26fc",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 8566,
+    "end": 8578,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 7104,
+    "end": 7128,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "agentclientprotocol__codex-acp",
+    "path": "src/permissions/CodexApprovalHandler.ts",
+    "start": 42,
+    "end": 91,
+    "sha256": "9bed8c44bfe5b17a620d983a007acba1a5ec1e14e9fb22a57ae7ca6ec7548f9f",
+    "commit": "a77829fecc87cebbb2e53782ce6795aee072adc8"
+  },
+  {
+    "repository": "agentclientprotocol__agent-client-protocol",
+    "path": "schema/v1/schema.json",
+    "start": 2403,
+    "end": 2449,
+    "sha256": "9da900d14f5a6764b97be01b28940c3e90e2b2574a4bf8f3a87ec9cd0d08a547",
+    "commit": "ce563ff93447385e457d1b32df2d5c5bc870056f"
+  },
+  {
+    "repository": "agentclientprotocol__agent-client-protocol",
+    "path": "schema/v1/schema.json",
+    "start": 4988,
+    "end": 5011,
+    "sha256": "9da900d14f5a6764b97be01b28940c3e90e2b2574a4bf8f3a87ec9cd0d08a547",
+    "commit": "ce563ff93447385e457d1b32df2d5c5bc870056f"
+  },
+  {
+    "repository": "agentclientprotocol__typescript-sdk",
+    "path": "src/core/stream.ts",
+    "start": 1,
+    "end": 100,
+    "sha256": "de9ae9f2213cf12c96f17b3f8a65b5c0fc6c0be7216517d18e3465f071df8ad5",
+    "commit": "c7e07388feed7a530f8211d0dae4951cb6d26d09"
+  },
+  {
+    "repository": "modelcontextprotocol__modelcontextprotocol",
+    "path": "schema/2026-07-28/schema.ts",
+    "start": 1863,
+    "end": 1893,
+    "sha256": "742750af0bb8c716e7030c4977c992b55d1adc4407e9e66997db5846baedc2cd",
+    "commit": "dae694f61a31f7a3ec2af3aff709e11f70f61e48"
+  },
+  {
+    "repository": "modelcontextprotocol__modelcontextprotocol",
+    "path": "schema/2026-07-28/schema.ts",
+    "start": 1912,
+    "end": 1971,
+    "sha256": "742750af0bb8c716e7030c4977c992b55d1adc4407e9e66997db5846baedc2cd",
+    "commit": "dae694f61a31f7a3ec2af3aff709e11f70f61e48"
+  },
+  {
+    "repository": "modelcontextprotocol__typescript-sdk",
+    "path": "packages/server/src/server/mcp.ts",
+    "start": 120,
+    "end": 185,
+    "sha256": "83be84bbaefbf93364c72ccca8bc48269cb28cbebbdc1a826c48d364b3f15451",
+    "commit": "951fe5603a7ec0b2dcb6a0b95d92cd86f93ad9e5"
+  },
+  {
+    "repository": "zetbrush__multiagents",
+    "path": "orchestrator/launcher.ts",
+    "start": 150,
+    "end": 224,
+    "sha256": "1156b2a8adc30092da44b128e28ffe4a1b193a38e1be6c7cfcdef7a0994f7b67",
+    "commit": "6038986b739937aaf3f2da2346e97a25f00369b1"
+  },
+  {
+    "repository": "zetbrush__multiagents",
+    "path": "orchestrator/codex-driver.ts",
+    "start": 85,
+    "end": 155,
+    "sha256": "6665485787549907f9d0d6dada1455312074533f0f3d2afd70b634be0c82a3a7",
+    "commit": "6038986b739937aaf3f2da2346e97a25f00369b1"
+  },
+  {
+    "repository": "suyashb734__cliagents",
+    "path": "src/adapters/codex-cli.js",
+    "start": 250,
+    "end": 290,
+    "sha256": "77bf42ce22d318f8d473850d03701c0a419633e3bd47d5cb3582e86ec72d2fb9",
+    "commit": "40804745f464e33939902dae1a806bf22e4df578"
+  },
+  {
+    "repository": "suyashb734__cliagents",
+    "path": "src/adapters/codex-cli.js",
+    "start": 450,
+    "end": 504,
+    "sha256": "77bf42ce22d318f8d473850d03701c0a419633e3bd47d5cb3582e86ec72d2fb9",
+    "commit": "40804745f464e33939902dae1a806bf22e4df578"
+  },
+  {
+    "repository": "osanoai__multicli",
+    "path": "src/utils/commandExecutor.ts",
+    "start": 168,
+    "end": 215,
+    "sha256": "3d5a54647dcd109c51caf8212511c167fc187cd963653e950505090530df366b",
+    "commit": "41f4bc8095a126c6b837fd75cd9ac32964da5a63"
+  },
+  {
+    "repository": "Heretyc__subagent-mcp",
+    "path": "src/drivers.ts",
+    "start": 1,
+    "end": 45,
+    "sha256": "b9d49ee890bd6d8d2fbc9b245d3de3d389f245fed4d391b7beb70134b1cbdc01",
+    "commit": "aa8f421186d93a4cc2608b0ae0314569a0e08fef"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 5680,
+    "end": 5755,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 11510,
+    "end": 11539,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "agentclientprotocol__claude-agent-acp",
+    "path": "src/acp-agent.ts",
+    "start": 11690,
+    "end": 11718,
+    "sha256": "0d112d62ccb0465f1b2d305b67caa649b3ab5e3e1bfca074f4d9021ffb78695f",
+    "commit": "ebfbfbdaa9c2a6a8bd9eb0a4965b521009152350"
+  },
+  {
+    "repository": "Heretyc__subagent-mcp",
+    "path": "src/drivers.ts",
+    "start": 1265,
+    "end": 1317,
+    "sha256": "b9d49ee890bd6d8d2fbc9b245d3de3d389f245fed4d391b7beb70134b1cbdc01",
+    "commit": "aa8f421186d93a4cc2608b0ae0314569a0e08fef"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "rank-pipeline.mjs",
+    "start": 1,
+    "end": 135,
+    "sha256": "47bd7636f8cfc6e8bbdf0ee1d8b76c3c69f520a6f1789ff2f162eeb71fb13aaa",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "prepare-application.mjs",
+    "start": 1,
+    "end": 110,
+    "sha256": "9ba7c9c05240c9cbeadc6037ae66e686d2b15566e5e2f7d99ab5ce5bac6ba517",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "browser-extract.mjs",
+    "start": 1,
+    "end": 105,
+    "sha256": "861df7d2ea9a396af6695081af9d9090806fbde64ba350ed70dae57076548884",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "DATA_CONTRACT.md",
+    "start": 1,
+    "end": 95,
+    "sha256": "6d1c786477db133c665be909f066b32e4255bf3e48a23440ec3620a2a1bf8285",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "TRADEMARK.md",
+    "start": 14,
+    "end": 64,
+    "sha256": "e14e762518c7d2f6d3ce89a050038f2854cf33b6c89a4f11ec90ec54d102fe33",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "prepare-application.mjs",
+    "start": 1,
+    "end": 82,
+    "sha256": "9ba7c9c05240c9cbeadc6037ae66e686d2b15566e5e2f7d99ab5ce5bac6ba517",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "browser-extract.mjs",
+    "start": 1055,
+    "end": 1149,
+    "sha256": "861df7d2ea9a396af6695081af9d9090806fbde64ba350ed70dae57076548884",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": ".agents/skills/career-ops/SKILL.md",
+    "start": 1,
+    "end": 74,
+    "sha256": "56e5f47bf93f7a0f4e829bb94a44ee4edc9745103082f847519bf335b1c591bb",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "lib/cli-launch.mjs",
+    "start": 1,
+    "end": 63,
+    "sha256": "7f07183da9d0ddd27682042f55a355f87522e893f86eaf950fd60c7b07be8c71",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "rank-pipeline.mjs",
+    "start": 435,
+    "end": 495,
+    "sha256": "47bd7636f8cfc6e8bbdf0ee1d8b76c3c69f520a6f1789ff2f162eeb71fb13aaa",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "LICENSE",
+    "start": 1,
+    "end": 21,
+    "sha256": "51989d2589b2aa87ca6cbb253391bcb476a21cbafdc71eea4410548538510870",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "rank-pipeline.mjs",
+    "start": 363,
+    "end": 387,
+    "sha256": "47bd7636f8cfc6e8bbdf0ee1d8b76c3c69f520a6f1789ff2f162eeb71fb13aaa",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "prepare-application.mjs",
+    "start": 229,
+    "end": 254,
+    "sha256": "9ba7c9c05240c9cbeadc6037ae66e686d2b15566e5e2f7d99ab5ce5bac6ba517",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "career-ops-hq__career-ops",
+    "path": "package.json",
+    "start": 86,
+    "end": 115,
+    "sha256": "e27b6c92e0b5166ccc5c4300e734b93586f6fdfaea2b68e7dd8fd5e4e0ec7a64",
+    "commit": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af"
+  },
+  {
+    "repository": "agentclientprotocol__typescript-sdk",
+    "path": "src/core/jsonrpc.ts",
+    "start": 97,
+    "end": 105,
+    "sha256": "471a126c5fa9f4bd8caf605cf4e51dde72a5ed549f8e83bf6e1f06871ae79d17",
+    "commit": "c7e07388feed7a530f8211d0dae4951cb6d26d09"
+  },
+  {
+    "repository": "npm:playwright-core@1.64.0-alpha-1790635538000",
+    "path": "lib/coreBundle.js",
+    "start": 75018,
+    "end": 75062,
+    "commit": "e8149b8257d32dcf8f72573ecc43e72439da7080",
+    "sha256": "cd6730be1bbcff00771a0fc1390f200306d28428ce68e305420ca623cb39cdeb"
+  },
+  {
+    "repository": "npm:playwright-core@1.64.0-alpha-1790635538000",
+    "path": "lib/coreBundle.js",
+    "start": 75295,
+    "end": 75314,
+    "commit": "e8149b8257d32dcf8f72573ecc43e72439da7080",
+    "sha256": "cd6730be1bbcff00771a0fc1390f200306d28428ce68e305420ca623cb39cdeb"
+  },
+  {
+    "repository": "npm:playwright-core@1.64.0-alpha-1790635538000",
+    "path": "lib/coreBundle.js",
+    "start": 67016,
+    "end": 67028,
+    "commit": "e8149b8257d32dcf8f72573ecc43e72439da7080",
+    "sha256": "cd6730be1bbcff00771a0fc1390f200306d28428ce68e305420ca623cb39cdeb"
+  },
+  {
+    "repository": "npm:playwright-core@1.64.0-alpha-1790635538000",
+    "path": "lib/coreBundle.js",
+    "start": 69189,
+    "end": 69201,
+    "commit": "e8149b8257d32dcf8f72573ecc43e72439da7080",
+    "sha256": "cd6730be1bbcff00771a0fc1390f200306d28428ce68e305420ca623cb39cdeb"
+  }
+]

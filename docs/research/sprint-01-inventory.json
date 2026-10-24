@@ -35,6 +35,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -81,6 +82,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "pyproject.toml",
@@ -199,6 +201,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -288,6 +291,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -342,6 +346,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -389,6 +394,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -475,6 +481,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "Cargo.toml",
@@ -1132,6 +1139,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -1314,6 +1322,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": []
   },
   {
@@ -1348,6 +1357,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "pyproject.toml",
@@ -1465,6 +1475,7 @@
     "shallow": false,
     "status": "",
     "licenses": [],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -1484,6 +1495,79 @@
           ".": "./dist/index.js",
           "./stdio": "./dist/stdio.js",
           "./dist/stdio.js": "./dist/stdio.js"
+        }
+      }
+    ]
+  },
+  {
+    "directory": "career-ops-hq__career-ops",
+    "origin": "https://github.com/career-ops-hq/career-ops.git",
+    "sha": "2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af",
+    "lastCommit": "2026-10-24T15:15:16+00:00 feat(scan): let a portals.yml entry set its own skip_tiers (#5806)",
+    "shallow": true,
+    "status": "",
+    "licenses": [
+      {
+        "path": "LICENSE",
+        "sha256": "51989d2589b2aa87ca6cbb253391bcb476a21cbafdc71eea4410548538510870",
+        "firstLines": [
+          "MIT License",
+          "",
+          "Copyright (c) 2026 Santiago Fernández de Valderrama",
+          "",
+          "Permission is hereby granted, free of charge, to any person obtaining a copy",
+          "of this software and associated documentation files (the \"Software\"), to deal",
+          "in the Software without restriction, including without limitation the rights",
+          "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+          "copies of the Software, and to permit persons to whom the Software is",
+          "furnished to do so, subject to the following conditions:"
+        ]
+      }
+    ],
+    "policies": [
+      {
+        "path": "TRADEMARK.md",
+        "sha256": "e14e762518c7d2f6d3ce89a050038f2854cf33b6c89a4f11ec90ec54d102fe33",
+        "firstLines": [
+          "# career-ops Trademark Policy",
+          "",
+          "This document explains how the \"career-ops\" name and brand may be used.",
+          "It complements — not replaces — the MIT [LICENSE](LICENSE) that governs",
+          "the source code.",
+          "",
+          "## TL;DR",
+          "",
+          "- **MIT covers the code.** Use it, modify it, fork it, build on it.",
+          "- **This policy covers the name and brand.** It's intentionally",
+          "  permissive for community use and reserved for commercial product",
+          "  naming and endorsement.",
+          "- **In doubt? Ask.** hi@santifer.io, subject `Trademark request`.",
+          "",
+          "## The relationship with the MIT license",
+          "",
+          "The MIT license grants broad freedoms to use, copy, modify, and",
+          "redistribute the source code. It does not grant rights to the name",
+          "\"career-ops,\" its visual identity, or any associated brand assets.",
+          "Those are reserved by the project's maintainer, Santiago Fernández de"
+        ]
+      }
+    ],
+    "manifests": [
+      {
+        "path": "package.json",
+        "sha256": "e27b6c92e0b5166ccc5c4300e734b93586f6fdfaea2b68e7dd8fd5e4e0ec7a64",
+        "name": "career-ops",
+        "version": "1.38.0",
+        "license": "MIT",
+        "engines": {
+          "node": "^22.13.0 || >=23.4.0"
+        },
+        "dependencies": {
+          "@google/generative-ai": "^0.24.1",
+          "dotenv": "^18.0.4",
+          "js-yaml": "^5.3.0",
+          "playwright": "1.64.1",
+          "undici": "^6.28.1"
         }
       }
     ]
@@ -1513,6 +1597,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -1586,6 +1671,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -1692,6 +1778,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -1779,6 +1866,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "pyproject.toml",
@@ -1927,6 +2015,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -1979,6 +2068,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2017,6 +2107,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2061,6 +2152,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2099,6 +2191,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2139,6 +2232,7 @@
     "shallow": false,
     "status": "",
     "licenses": [],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2184,6 +2278,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2264,6 +2359,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": []
   },
   {
@@ -2291,6 +2387,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2341,6 +2438,7 @@
         ]
       }
     ],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",
@@ -2370,6 +2468,7 @@
     "shallow": false,
     "status": "",
     "licenses": [],
+    "policies": [],
     "manifests": [
       {
         "path": "package.json",

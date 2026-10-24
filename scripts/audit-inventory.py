@@ -49,6 +49,12 @@ for repo in sorted(args.root.iterdir()):
             data = tomllib.loads(content)
             value = {k: data[k] for k in ["project", "package", "dependencies", "workspace"] if k in data}
         manifests.append({"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), **value})
+    policies = []
+    trademark = repo / "TRADEMARK.md"
+    if trademark.is_file():
+        policies.append({"path": trademark.name,
+                         "sha256": hashlib.sha256(trademark.read_bytes()).hexdigest(),
+                         "firstLines": trademark.read_text().splitlines()[:20]})
     records.append({
         "directory": repo.name,
         "origin": git("remote", "get-url", "origin"),
@@ -57,6 +63,7 @@ for repo in sorted(args.root.iterdir()):
         "shallow": git("rev-parse", "--is-shallow-repository") == "true",
         "status": git("status", "--short"),
         "licenses": licenses,
+        "policies": policies,
         "manifests": manifests,
     })
 args.output.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n")

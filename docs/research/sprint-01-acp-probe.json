@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-24T15:33:40.995Z",
+  "at": "2026-10-24T15:50:20.686Z",
   "configuration": "temporaire isolée",
   "reports": [
     {
@@ -71,7 +71,7 @@
         "message": "Gemini API key is missing or not configured.",
         "code": -32000
       },
-      "diagnostic": "Skipping project agents due to untrusted folder. To enable, ensure that the project root is trusted.\nRipgrep is not available. Falling back to GrepTool.\nProject hooks disabled because the folder is not trusted.\nError handling request {\n  jsonrpc: '2.0',\n  id: 1,\n  method: 'session/new',\n  params: {\n    cwd: '/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/relay-acp-audit-dMuNO0/gemini',\n    mcpServers: []\n  }\n} {\n  code: -32000,\n  message: 'Gemini API key is missing or not configured.',\n  data: undefined\n}\n",
+      "diagnostic": "Skipping project agents due to untrusted folder. To enable, ensure that the project root is trusted.\nRipgrep is not available. Falling back to GrepTool.\nProject hooks disabled because the folder is not trusted.\nError handling request {\n  jsonrpc: '2.0',\n  id: 1,\n  method: 'session/new',\n  params: {\n    cwd: '/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/relay-acp-audit-sIX9OR/gemini',\n    mcpServers: []\n  }\n} {\n  code: -32000,\n  message: 'Gemini API key is missing or not configured.',\n  data: undefined\n}\n",
       "exit": {
         "code": 0,
         "signal": null
@@ -126,7 +126,7 @@
         }
       },
       "sessionResponse": {
-        "sessionId": "ses_e91742805ffeO6dMLv4iIFtR5v",
+        "sessionId": "ses_e9164e6fbffeh5ls1PsCXB37hk",
         "configOptions": [
           {
             "id": "model",

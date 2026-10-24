@@ -1,6 +1,11 @@
 # ADR 001 — Monolithe local et ACP stable
 Statut : accepté pour MVP, 2026-10-24.
 
+Révision sprint 01 (25 octobre 2026) : voir [ADR 003](003-runtime-and-durable-workflows.md).
+La réserve ci-dessous sur acpx concerne son runtime de sessions ; ses flows inspectés ne
+fournissent pas le DAG parallèle durable attendu. L’ancienne étude ne permettait pas de
+conclure à cette capacité. OpenCode dispose aussi d’ACP natif, vérifié par handshake isolé.
+
 Choisir Node 24 ESM, SDK ACP stable v1 et adaptateurs upstream Codex/Claude ; Gemini via ACP natif détecté. SQLite natif Node pour durabilité, SSE pour suivi. JS évite chaîne de compilation ; validation Zod aux frontières. Modules internes du monorepo sans paquets publiés artificiels.
 
 Rejetés : parsing tmux (CAO) pour le chemin principal, réécriture de wrappers CLI fournisseur, fork des projets sans besoin démontré, microservices. acpx est adapté aux sessions/flows avancés mais ajoute un second stockage de sessions et une API pré-1.0 ; différé tant que notre workflow est une recette unique séquentielle. SDK officiel réutilisé pour tout transport/protocole.

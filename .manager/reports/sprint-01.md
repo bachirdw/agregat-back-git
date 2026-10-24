@@ -1,6 +1,6 @@
 # Rapport sprint 01 — Audit approfondi et ACP natif
 
-État : **en cours**. Date locale : 25 octobre 2026 (Australia/Sydney).
+État : **brief accompli — audit et livrables opérationnels**. Date locale : 25 octobre 2026 (Australia/Sydney).
 
 ## Journal
 
@@ -14,15 +14,15 @@
 
 ## Décisions et alternatives
 
-À compléter au fil de l'audit.
+Décisions finales et alternatives détaillées dans les ADR 003–005, l’étude et la synthèse en fin de rapport.
 
 ## État et preuves
 
-Aucune modification produit ; tests initiaux à exécuter. Pas d'appel modèle prévu pour ce sprint.
+Voir l’état final et les preuves en fin de rapport. Aucun appel modèle réalisé par cette session.
 
 ## Points pour le manager
 
-Aucun blocage à cette étape.
+Brief non bloqué. Priorités et limites de validation détaillées en fin de rapport.
 
 ### 02:30 — Base et inventaire vérifiés
 
@@ -120,3 +120,62 @@ Aucun blocage à cette étape.
 
 - `npm test && npm run check && npm run format:check && git diff --check` : **code 0, 11 tests réussis, 0 échoué/ignoré**, durée 20,80 s ; syntaxe et format valides. Le nouveau test contre pair muet prend 20,76 s et ne requiert aucun modèle. Aucun test métier existant modifié/supprimé.
 - Commit atomique du correctif de script/test/rapport demandé ci-après ; documentation complète et propositions dans un commit distinct ensuite.
+
+### 02:51 — Validation fournisseur répétée après correctif
+
+- Commit **83de350** créé : deadline du probe + test pair muet, sans modification du runtime produit.
+- Probe natif répété après la correction, toujours avec configurations isolées et sans authenticate/prompt. Résultats régénérés dans `docs/research/sprint-01-acp-probe.json` : mêmes handshakes/session (Gemini auth manquante, OpenCode session créée), versions publiées inchangées. Pas de conclusion inférence/stream/cancel live déduite.
+- Index final : **122 plages source**, 27 clones avec SHA/manifest/licences, plus bundle Playwright exact avec intégrité npm.
+
+## Vérification finale des objectifs du brief
+
+| Objectif | Résultat et preuve |
+|---|---|
+| 1. Audit source des 22 dépôts | Fait, plus les compléments : 27 SHA/manifests/licences/date de commit ; 122 plages indexées, lectures sur chacun des 27 dépôts. `docs/research/sprint-01-inventory.json`, `sprint-01-code-index.json`, étude avec liens immuables et lignes. Historique shallow signalé, pas présenté comme complet. |
+| 2. Recherche complémentaire | Recherches web officielles GitHub/Hugging Face ; 4 clones `--depth 200` réussis (DBOS, agentgateway, Octop, huggingface.js), code inspecté ; career-ops fourni ensuite par le manager, vérifié et inspecté. |
+| 3. Tableau et stratégie | Étude entièrement refaite : comparaison, licences réelles, protocoles/sessions/stream/permissions/coûts/extension/limites, stratégie par composant. acpx flows, CAO, Playwriter/Playwright extension et Vercel Skills réévalués sur le code. Aucun fork imposé. |
+| 4. Matrice ACP 4 agents | Commandes exactes, versions sources/publiées/épinglées, capacités et preuves séparées. Écarts Gemini modèles, OpenCode SSE, Codex gitHead et SDK explicités. |
+| 5. Installation et handshake | Global EACCES consigné ; CLI épinglés sous `/tmp`, deux initialize réussis ; session Gemini refusée faute d’auth, session OpenCode réussie. Aucun authenticate/prompt. Probe borné et testé contre faux pair muet. |
+| 6. CGU BYOA | Pages officielles des 4 fournisseurs consultées, URL et extraits courts dans ADR 005, distinction abonnement/API/hébergé ; aucune autorisation commerciale générale inventée. Limite de langue Consumer Anthropic documentée. |
+| 7. Architecture et plan | Architecture avec 3 diagrammes Mermaid et distinction actuel/prévu ; ADR 003–005 ajoutés, ADR 001 précisé ; section « Propositions sprint-01 » sprints 02–08 dans le plan courant, changements du manager conservés. |
+
+## État final : opérationnel / simulé / incomplet / prévu
+
+| Élément | État réel |
+|---|---|
+| Recherche, inventaire, matrice, ADR, propositions | **Opérationnels**, livrables écrits et références/empreintes vérifiées. Inspection ciblée approfondie, pas audit exhaustif de sécurité. |
+| Scripts inventaire/probe et test pair muet | **Opérationnels** ; 11 tests verts au dernier contrôle, syntaxe et format verts ; test de deadline mesuré ~20,8 s. |
+| ACP natif installé temporairement | **Opérationnel pour initialize** ; session OpenCode obtenue, Gemini bloqué par auth attendue. Aucun binaire installé globalement, aucune inférence. |
+| MVP / navigateur / données Najah | **État de base conservé** : workflow fixture et trois offres fictives ; Browser Gateway simulé, aucun Chrome réel connecté. |
+| Timeout individuel runtime | **Défaut préexistant constaté, non corrigé ici** : `signal` ignoré par SDK. La correction concerne mon script d’audit ; correctif produit et tests contre pair muet proposés au sprint 02. |
+| Streaming/cancel/load/MCP avec fournisseurs réels | **Non validés live dans ce sprint** ; support source/annonces documenté, pas de résultat inventé. |
+| DAG durable parallèle, registry tiers, provider réel | **Prévus**, pas implémentés par ce sprint d’analyse. |
+| Commercialisation BYOA / Managed | **Non validée contractuellement** ; ADR prudent et conditions par mode, pas un blocage du travail technique demandé. |
+
+Les probes natifs et faux agents sont arrêtés ; contrôle `ps` final sans correspondance. Aucun e-mail, candidature, publication, compte, authentification, lecture/copie manuelle de credentials ou changement de configuration globale. **Zéro appel modèle/API payante de ma session** (le journal API du manager est son travail indépendant).
+
+Précisions d’erreurs de repérage : l’ancien chemin OpenCode `src/global/index.ts` était également absent ; une plage demandée au-delà de la fin de Playwriter `mcp.ts` (484 alors que le fichier a 392 lignes) était vide. Recherches reprises aux vrais chemins/plages ; la plage vide n’est pas incluse dans l’index. Aucun échec de test métier, aucun test supprimé. Les sorties trop volumineuses ont été reprises par extraits courts ; les erreurs/rejets de navigation et sandbox figurent dans le journal.
+
+## Points pour le manager et reste à faire
+
+- Relecture indépendante à lancer selon le cycle du manager ; elle n’a pas été présentée comme déjà effectuée.
+- Le montage commercial et les conditions exactes par méthode de connexion restent à confirmer avant distribution payante/distante. L’étude ne remplace pas cette validation.
+- Les CLI d’audit sont sous `/tmp/relay-sprint01-cli` : le sprint 02 doit choisir une installation persistante autorisée. Aucune dépendance produit ajoutée/mise à jour et aucun script tiers métier exécuté ici.
+- `.manager/api-usage.md` a été modifié par le manager pendant le travail : exclu de mes commits. Aucun secret ajouté aux fichiers du sprint.
+
+## Décisions et recommandations pour le sprint 02
+
+1. **Corriger d’abord le timeout ACP du runtime** : `cancellationSignal` selon SDK réel + deadline locale et arrêt groupe enfant, pas seulement annulation coopérative. Tests : pair muet, session/new qui ne répond pas, cancel avec demande de permission en attente et sortie tardive.
+2. Garder ACP SDK 2.0.2/v1 et les adaptateurs verrouillés ; utiliser Gemini/OpenCode natifs. Ne pas transférer les nouveautés HEAD codex-acp au paquet 2.2.2 publié.
+3. Préférer `gemini --acp`, normaliser `models`/`unstable_setSessionModel` et `configOptions`, modes et transports MCP à partir des réponses de session et de la version effectivement lancée.
+4. Séparer CLI détecté / handshake / session / inférence / usage contractuel ; Auto filtre par exigences/capacités et expose les échecs auth, sans repli fixture silencieux.
+5. Choisir les modes réellement annoncés, conserver refus par défaut/permissions ponctuelles, et traiter les outils/configs natifs comme une frontière distincte. Aucun accès fournisseur n’est accordé par le prompt.
+6. Préparer les contrats run/étape/tentative/session pour le DAG SQLite du sprint 03. Ne pas intégrer acpx flows comme s’il fournissait le fan-out/fan-in durable. DBOS attend PostgreSQL ; CAO sert de référence de reprise et plafonds.
+7. Garder browser/Skills/packs découplés. Playwriter provider revu, alternative Playwright MCP extension, Skills/career-ops en quarantaine ; notices MIT/marque respectées, aucune action d’envoi. Les tests restent sans modèle/service payant ; toute inférence ultérieure doit suivre le budget du manager.
+
+### 02:53 — Contrôle final avant commit documentaire
+
+- `npm test && npm run check && npm run format:check && git diff --check` : **code 0**, **11 réussis, 0 échec, 0 ignoré**, durée totale **20,60 s** (pair muet 20,55 s). Syntaxe JavaScript et Prettier conformes.
+- Vérification documentaire finale : **134 références**, **122 empreintes de plages**, **27 dépôts**, **zéro erreur** ; clôtures de blocs Markdown vérifiées et 3 diagrammes Mermaid relus. Pas de rendu graphique Mermaid exécuté, aucune prétention de validation visuelle.
+- Aucun processus résiduel des probes natifs/faux agents au contrôle effectué après leur arrêt. Aucun changement runtime métier ou dépendance produit ; `scripts/audit-inventory.py` étendu pour TRADEMARK.
+- Dernier commit documentaire local préparé sous le message `[sprint-01] Refondre l’audit source et les décisions d’architecture`. `.manager/api-usage.md` exclu (modification du manager). Aucun push. Tous les objectifs du brief sont accomplis ; les limites live/contrats et le défaut runtime sont explicités ci-dessus pour la relecture indépendante.

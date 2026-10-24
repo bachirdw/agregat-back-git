@@ -52,14 +52,14 @@ La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seule
 | ACP SDK stable v1, new/prompt/update/cancel/load conditionnel | Implémentés ; transport testé avec agent fixture |
 | Adaptateur Codex upstream | Test réel documenté dans `docs/validation.md` |
 | Adaptateur Claude upstream | Handshake/session testés ; prompt bloqué par authentification |
-| Gemini natif / OpenCode natif | Détection + configuration ; absents de cet environnement, non validés live |
+| Gemini natif / OpenCode natif | Profils existants ; probes isolées du sprint 01 : handshakes réussis, session Gemini refusée faute d’auth, session OpenCode créée ; inférence non testée |
 | MCP stdio tools/list/tools/call | Testé réellement avec serveur local embarqué |
 | Najah recherche/analyse/classement | Fonctionnel sur trois offres fictives uniquement |
 | Browser Gateway | Démonstrateur sans navigateur ni réseau ; lecture autorisée sur domaine fixture uniquement |
 | Historique et événements SSE avec replay | Persistés SQLite |
 | Ledger, budget plateforme avant débit, limites de temps | Implémentés ; opérations MVP gratuites, consommation BYOA externe inconnue |
 | Playwriter, MCP distant arbitraire, Skills distants | Étudiés, non intégrés |
-| Multi-agent parallèle, workflow durable distribué | Prévu ; acpx/flows à réévaluer |
+| Multi-agent parallèle, workflow durable | Prévu ; ordonnanceur local SQLite proposé, acpx flows ne fournit pas le DAG parallèle durable requis au SHA audité |
 | Cloud companion, Managed, comptes, abonnements | Non implémentés |
 
 Les Skills se trouvent sous `domain-packs/*/skills/*/SKILL.md`. Seuls les contenus embarqués et revus sont installables ; empreinte SHA-256 vérifiée avant chaque run. L'installation ne lance aucun script. Pour ajouter un pack : déclarer manifest, Skills et plugin d'outils/validation, puis l'ajouter à la liste de packs approuvés dans `packages/orchestrator/packs.js`. Ne jamais charger du code de pack à partir d'une URL fournie par l'utilisateur.
@@ -98,10 +98,11 @@ Données locales : `.data/platform.sqlite` (runs, événements, Skills, ledger),
 
 ## Documents
 
-- [Recherche des 20 dépôts, licences et références à SHA fixe](docs/open-source-research.md)
+- [Audit de 27 dépôts, licences, matrice ACP et références à SHA fixe](docs/open-source-research.md)
 - [Architecture et frontières de confiance](docs/architecture.md)
 - [Décisions](docs/adr/001-local-acp.md)
 - [Plan MVP et suites](docs/mvp-plan.md)
 - [Validation et blocages](docs/validation.md)
+- [Conditions BYOA par fournisseur et limites commerciales](docs/adr/005-byoa-provider-terms.md)
 
 Les licences des dépendances restent celles de leurs auteurs ; voir [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Le code de ce prototype n'a pas reçu de licence publique au nom du propriétaire.

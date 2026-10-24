@@ -85,6 +85,15 @@ AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Pla
 
 Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Voir [ADR 006](docs/adr/006-browser-gateway.md).
 
+## Aperçu
+
+| Plan proposé automatiquement | Offres réelles citées et vérifiées | Brouillon en attente de relecture |
+|---|---|---|
+| ![Plan](docs/screenshots/plan-workflow-auto.png) | ![Najah](docs/screenshots/najah-offres-reelles.png) | ![Brouillon](docs/screenshots/brouillon-approbation.png) |
+
+Captures générées par `node scripts/screenshots.js` (Chrome headless, données réelles enregistrées le 25/10/2026,
+analyse par le démonstrateur sans modèle).
+
 ## Fonctionnalités et limites (état au 25 octobre 2026)
 
 | Fonction | État | Preuve |
@@ -114,7 +123,8 @@ les étapes `tool` (outils MCP déterministes), `agent` (une session ACP, évent
 interrompu, en échec ou annulé se reprend en place (« Reprendre le workflow ») : les étapes réussies ne sont
 jamais rejouées, une étape à effet externe interrompue devient « incertaine » et attend une décision.
 
-Najah fournit trois workflows : démonstrateur fictif, **offres réelles** (`opportunity-discovery-live` :
+Le choix « Auto » du workflow propose le DAG dont les mots-clés correspondent à l'objectif (et dont les
+exigences, comme l'accès réseau, sont remplies), en affichant la raison. Najah fournit trois workflows : démonstrateur fictif, **offres réelles** (`opportunity-discovery-live` :
 Arbeitnow + Remotive + registre UK des sponsors, classement recalculé indépendamment, sources citées) et
 **brouillon de candidature** (relecture humaine obligatoire, aucun envoi).
 

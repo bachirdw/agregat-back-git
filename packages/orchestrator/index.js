@@ -2,14 +2,22 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { AcpRuntime, detectAgents } from '../agent-runtime/index.js';
+import {
+  AcpRuntime,
+  agentIds,
+  chooseAgent,
+  detectAgents,
+  loadProbes,
+  requirementsFor,
+  saveProbe,
+} from '../agent-runtime/index.js';
 import { ROOT, getPack, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 export const inputSchema = z
   .object({
     prompt: z.string().trim().min(1).max(8000),
-    agent: z.enum(['auto', 'fixture', 'codex', 'claude', 'gemini', 'opencode']).default('fixture'),
+    agent: z.enum(['auto', ...agentIds]).default('fixture'),
     pack: z.enum(['auto', 'core', 'najah']).default('auto'),
     skills: z.array(z.string()).max(8).default([]),
     model: z.string().max(200).default(''),
@@ -26,21 +34,29 @@ export class Orchestrator {
     this.active = new Map();
     this.permissions = new Map();
   }
-  async plan(input) {
+  async plan(input, { resume = false } = {}) {
     const v = inputSchema.parse(input);
     const pack = getPack(v.pack, v.prompt);
     const skills = this.skills.resolve([...new Set(v.skills)]);
     const agents = await detectAgents();
-    const id =
-      v.agent === 'auto'
-        ? this.live
-          ? (agents.find((a) => !a.simulated && a.compatible)?.id ?? 'fixture')
-          : 'fixture'
-        : v.agent;
+    const probes = loadProbes(this.dataDir);
+    let routing = null;
+    if (v.agent === 'auto')
+      routing = chooseAgent({
+        agents,
+        requirements: requirementsFor({ resume: !!resume, model: v.model }),
+        live: this.live,
+        probes,
+      });
+    const id = routing?.id ?? v.agent;
     const agent = agents.find((a) => a.id === id);
-    if (!agent?.compatible) throw new Error('Agent indisponible ou adaptateur absent');
+    if (!agent?.installed) throw new Error('Agent non détecté sur cette machine');
+    if (!agent.compatible) throw new Error(agent.reason ?? 'Adaptateur ACP absent');
     if (!agent.simulated && !this.live)
       throw new Error('Mode réel désactivé. Démarrer avec AGENT_PLATFORM_LIVE=1.');
+    const known = probes[id]?.models?.options;
+    if (v.model && known && !known.some((m) => m.id === v.model))
+      throw new Error('Modèle non annoncé par ' + agent.name + ' au dernier test');
     return {
       input: { ...v, agent: id, pack: pack.id },
       agent,
@@ -62,11 +78,13 @@ export class Orchestrator {
         ? ['MCP de test en lecture seule']
         : ['Permissions ACP à confirmer ; outils natifs dépendants du CLI'],
       simulated: !!agent.simulated,
+      routing: routing ?? { id, reasons: ['Agent choisi manuellement'], rejected: [] },
+      models: probes[id]?.models ?? null,
     };
   }
   async create(input, previous = null) {
     if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
-    const plan = await this.plan(input);
+    const plan = await this.plan(input, { resume: !!previous });
     if (
       previous &&
       (!previous.resumable ||
@@ -150,12 +168,23 @@ export class Orchestrator {
         sessionId: session.sessionId,
         resumable: !!info.agentCapabilities?.loadSession,
       });
+      const described = runtime.describe();
       this.store.event(run.id, 'session', {
         sessionId: session.sessionId,
         agentInfo: info.agentInfo,
         capabilities: info.agentCapabilities,
         configOptions: session.configOptions ?? [],
+        ...described,
       });
+      if (!plan.simulated)
+        saveProbe(this.dataDir, plan.agent.id, {
+          handshake: true,
+          session: true,
+          version: plan.agent.version,
+          capabilities: described.capabilities,
+          models: described.models,
+          modes: described.modes,
+        });
       const prompt = JSON.stringify({
         objective: run.prompt,
         skills: plan.skills,
@@ -195,6 +224,13 @@ export class Orchestrator {
       });
     } catch (e) {
       const reason = control.abort.signal.reason;
+      if (!plan.simulated && control.runtime && !control.runtime.sessionId && !control.cancelled)
+        saveProbe(this.dataDir, plan.agent.id, {
+          handshake: !!control.runtime.info,
+          session: false,
+          version: plan.agent.version,
+          error: String(e.message ?? e).slice(0, 200),
+        });
       this.store.update(run.id, {
         state: control.cancelled ? 'cancelled' : 'failed',
         error: String(reason?.message ?? e.message ?? e).slice(0, 1000),

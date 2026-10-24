@@ -51,3 +51,7 @@ Propositions de l’ingénieur au manager — 25 octobre 2026. Le plan ci-dessus
 | 08 | Afficher readiness technique, session/auth, provenance, effet réel/simulé, décisions/reprise et coûts inconnus ; tests E2E de ces états. | Validation contractuelle du montage commercial distincte des tests ACP ; garder le produit local tant que tenant/isolation/auth appareil ne sont pas prouvés. Source HEAD, paquet publié et exécutable réellement lancé toujours distingués. |
 
 Points transversaux : ne pas migrer MCP SDK 1.32.2 vers HEAD 2.0.0-alpha.0 pendant ces sprints sans validation dédiée ; aucun fork justifié à l’audit. La licence du code ne vaut pas autorisation de revente du service. Pour le BYOA personnel payant/hébergé, examiner les conditions fournisseur exactes (ADR 005) ; privilégier les chemins API documentés pour l’automatisation commerciale. La séparation du companion cloud et l’ajout de PostgreSQL/DBOS/agentgateway restent différés jusqu’à un besoin multi-utilisateurs/worker établi.
+- 02:56 — **Limite d'usage Codex atteinte** (tous modèles, retour annoncé 7h29). review-01 interrompue
+  (rapport partiel conservé, thread 01a1… à reprendre). Le manager réalise le sprint 02 lui-même selon le
+  même protocole ; à 7h29, Codex reprend : review-01 (reprise), review-02 (relecture du code du manager), puis
+  sprints suivants. Priorités si le temps manque : 03 workflow, 04 navigateur, 06 Najah/career-ops, final.

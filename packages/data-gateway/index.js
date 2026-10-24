@@ -1,29 +1,29 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { statSync } from 'node:fs';
+import { join, dirname, basename } from 'node:path';
 import { RunPolicy } from '../policy-engine/run-policy.js';
+import { requestPinned } from '../policy-engine/http.js';
+import { writeConfined, readConfined } from '../policy-engine/files.js';
 
-// Outbound HTTP for data sources (job APIs, public registers). Same guarantees as the browser
-// gateway: HTTPS, host allowlist from the pack policy, no private networks, redirects re-checked,
-// bounded size and time, metered, cached on disk with a TTL to respect source rate limits.
+// Public data, bounded at every entry point. Tests inject fetchImpl; production connects to the
+// DNS answer validated by policy, never a second independent resolver.
 export class DataGateway {
   constructor({
     allowedHosts = [],
     cacheDir = null,
-    fetchImpl = globalThis.fetch,
+    fetchImpl = null,
     resolveHost,
     meter = () => {},
     userAgent = 'agent-platform-prototype/0.2 (+local; contact: owner)',
-    // Replay mode: { "<url>": "<file>" } of RECORDED real responses; the network is never used.
     replay = null,
   } = {}) {
     this.replay = replay;
+    this.hosts = new Set(allowedHosts.map((h) => h.toLowerCase()));
     this.policy = new RunPolicy({
-      allowedDomains: [],
+      allowedDomains: [...this.hosts],
       capabilities: [],
       ...(resolveHost ? { resolveHost } : {}),
     });
-    this.hosts = new Set(allowedHosts.map((h) => h.toLowerCase()));
     Object.assign(this, { cacheDir, fetchImpl, meter, userAgent });
   }
   assertShape(raw) {
@@ -31,24 +31,30 @@ export class DataGateway {
     if (u.protocol !== 'https:') throw new Error(`Protocole refusé : ${u.protocol}`);
     if (!this.hosts.has(u.hostname.toLowerCase()))
       throw new Error(`Hôte non autorisé : ${u.hostname}`);
+    this.policy.checkUrlShape(raw);
     return u;
   }
   async assertAllowed(raw) {
-    const u = this.assertShape(raw);
-    this.policy.allowedDomains = [u.hostname.toLowerCase()];
-    await this.policy.assertUrl(raw); // DNS → no private network, no credentials, no odd ports
-    return u;
+    this.assertShape(raw);
+    return this.policy.assertUrl(raw);
   }
   cachePath(url) {
     return join(this.cacheDir, createHash('sha256').update(url).digest('hex') + '.json');
   }
-  replayed(url, as) {
+  replayed(url, as, maxBytes) {
     const file = this.replay[url];
     if (!file) throw new Error(`Rejeu : aucune réponse enregistrée pour ${url}`);
-    const raw = readFileSync(file, 'utf8');
+    if (statSync(file).size > maxBytes) throw new Error('Réponse trop volumineuse');
+    const raw = readConfined(dirname(file), basename(file), maxBytes).toString('utf8');
+    if (Buffer.byteLength(raw) > maxBytes) throw new Error('Réponse trop volumineuse');
     const body = as === 'json' ? JSON.parse(raw) : raw;
-    const fetchedAt = `enregistré ${body?.recordedAt ?? ''}`.trim();
-    return { url, fetchedAt, body, cached: false, replayed: true };
+    return {
+      url,
+      fetchedAt: `enregistré ${body?.recordedAt ?? ''}`.trim(),
+      body,
+      cached: false,
+      replayed: true,
+    };
   }
   async get(
     url,
@@ -58,58 +64,165 @@ export class DataGateway {
       ttlMs = 3600_000,
       as = 'json',
       meterAs = 'data_search',
+      signal,
     } = {},
   ) {
-    if (this.replay) {
-      this.assertShape(url); // same allowlist, no DNS: replay never touches the network
-      return this.replayed(url, as);
+    if (
+      !Number.isSafeInteger(maxBytes) ||
+      maxBytes < 1 ||
+      maxBytes > 32_000_000 ||
+      !Number.isFinite(timeoutMs) ||
+      timeoutMs <= 0 ||
+      !Number.isFinite(ttlMs) ||
+      ttlMs < 0 ||
+      !['json', 'text'].includes(as)
+    )
+      throw new Error('Options de requête invalides');
+    this.assertShape(url); // also before replay/cache: stale grants never authorize a read
+    const local = new AbortController();
+    const onAbort = () => local.abort(signal.reason);
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => local.abort(new Error('Délai de données dépassé')), timeoutMs);
+    const aborted = new Promise((_, reject) => {
+      if (local.signal.aborted) reject(local.signal.reason);
+      else
+        local.signal.addEventListener('abort', () => reject(local.signal.reason), { once: true });
+    });
+    try {
+      return await Promise.race([
+        this.read(url, { maxBytes, timeoutMs, ttlMs, as, meterAs, signal: local.signal }),
+        aborted,
+      ]);
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
     }
+  }
+  async read(url, { maxBytes, timeoutMs, ttlMs, as, meterAs, signal }) {
+    signal.throwIfAborted();
+    if (this.replay) return this.replayed(url, as, maxBytes);
     if (this.cacheDir) {
       const file = this.cachePath(url);
-      if (existsSync(file) && Date.now() - statSync(file).mtimeMs < ttlMs) {
-        const cached = JSON.parse(readFileSync(file, 'utf8'));
-        return { ...cached, cached: true };
+      let entry;
+      try {
+        const age = Date.now() - Math.floor(statSync(file).mtimeMs);
+        if (age >= 0 && age < ttlMs && statSync(file).size <= maxBytes * 6 + 4096)
+          entry = JSON.parse(
+            readConfined(this.cacheDir, basename(file), maxBytes * 6 + 4096).toString('utf8'),
+          );
+      } catch {
+        /* corrupt/missing cache is a miss, never a source of authority */
+      }
+      if (
+        entry?.version === 1 &&
+        entry.requestUrl === url &&
+        entry.as === as &&
+        Number.isSafeInteger(entry.bytes) &&
+        entry.bytes >= 0
+      ) {
+        const result = entry.result;
+        try {
+          this.assertShape(result.url);
+        } catch {
+          entry = null;
+        }
+        if (
+          entry &&
+          Object.hasOwn(result, 'body') &&
+          (as !== 'text' || typeof result.body === 'string') &&
+          typeof result.fetchedAt === 'string' &&
+          Number.isFinite(Date.parse(result.fetchedAt)) &&
+          entry.bodyHash === createHash('sha256').update(JSON.stringify(result.body)).digest('hex')
+        ) {
+          if (entry.bytes > maxBytes) throw new Error('Réponse trop volumineuse');
+          return { ...result, cached: true };
+        }
       }
     }
-    await this.meter(meterAs, 1, new URL(url).hostname); // charged before the request; refusal stops it
-    let current = url;
-    let response;
+    await this.meter(meterAs, 1, new URL(url).hostname);
+    signal.throwIfAborted();
+    let current = url,
+      response;
     for (let hop = 0; hop < 5; hop++) {
-      await this.assertAllowed(current);
-      response = await this.fetchImpl(current, {
-        redirect: 'manual',
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: {
-          'user-agent': this.userAgent,
-          accept: as === 'json' ? 'application/json' : '*/*',
-        },
-      });
+      this.assertShape(current);
+      const { addresses } = await this.policy.resolveUrl(current);
+      signal.throwIfAborted();
+      const headers = {
+        'user-agent': this.userAgent,
+        accept: as === 'json' ? 'application/json' : '*/*',
+      };
+      if (this.fetchImpl)
+        response = await this.fetchImpl(current, { redirect: 'manual', signal, headers });
+      else {
+        const r = await requestPinned(current, { addresses, headers, signal, maxBytes, timeoutMs });
+        response = new Response([204, 205, 304].includes(r.status) ? null : r.body, {
+          status: r.status,
+          headers: r.headers,
+        });
+      }
       if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-        current = new URL(response.headers.get('location'), current).href;
+        const next = new URL(response.headers.get('location'), current).href;
+        await response.body?.cancel();
+        current = next;
         continue;
       }
       break;
     }
-    if (response.status >= 300 && response.status < 400) throw new Error('Trop de redirections');
-    if (!response.ok)
+    if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel();
+      throw new Error('Trop de redirections');
+    }
+    if (!response.ok) {
+      await response.body?.cancel();
       throw new Error(`Source indisponible (${response.status}) : ${new URL(current).hostname}`);
-    const declared = Number(response.headers.get('content-length') ?? 0);
-    if (declared > maxBytes) throw new Error('Réponse trop volumineuse');
+    }
+    if (Number(response.headers.get('content-length')) > maxBytes) {
+      await response.body?.cancel();
+      throw new Error('Réponse trop volumineuse');
+    }
     const chunks = [];
     let size = 0;
-    for await (const chunk of response.body) {
-      size += chunk.length;
-      if (size > maxBytes) throw new Error('Réponse trop volumineuse');
-      chunks.push(chunk);
+    if (response.body) {
+      const reader = response.body.getReader();
+      const onAbort = () => {
+        reader.cancel().catch(() => {});
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+      try {
+        for (;;) {
+          signal.throwIfAborted();
+          const { done, value } = await reader.read();
+          signal.throwIfAborted();
+          if (done) break;
+          size += value.length;
+          if (size > maxBytes) throw new Error('Réponse trop volumineuse');
+          chunks.push(Buffer.from(value));
+        }
+      } finally {
+        signal.removeEventListener('abort', onAbort);
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
     }
-    const text = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8');
-    const body = as === 'json' ? JSON.parse(text) : text;
+    signal.throwIfAborted();
+    const raw = Buffer.concat(chunks).toString('utf8'),
+      body = as === 'json' ? JSON.parse(raw) : raw;
     const result = { url: current, fetchedAt: new Date().toISOString(), body, cached: false };
     if (this.cacheDir) {
-      mkdirSync(this.cacheDir, { recursive: true, mode: 0o700 });
-      const file = this.cachePath(url);
-      writeFileSync(file + '.tmp', JSON.stringify(result), { mode: 0o600 });
-      renameSync(file + '.tmp', file);
+      const entry = {
+        version: 1,
+        requestUrl: url,
+        as,
+        bytes: size,
+        result,
+        bodyHash: createHash('sha256').update(JSON.stringify(body)).digest('hex'),
+      };
+      writeConfined(
+        this.cacheDir,
+        createHash('sha256').update(url).digest('hex') + '.json',
+        JSON.stringify(entry),
+      );
     }
     return result;
   }

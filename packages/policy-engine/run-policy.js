@@ -7,18 +7,32 @@ export const SENSITIVE_WORDS =
   /\b(submit|apply|send|pay|buy|purchase|order|checkout|confirm|delete|sign ?up|register|postuler|candidater|envoyer|payer|acheter|commander|confirmer|valider|supprimer|s['’]inscrire)\b/i;
 
 export function isPrivateAddress(address) {
-  if (address === '::1' || address === '::' || /^fe80:|^fc|^fd/i.test(address)) return true;
-  const v4 = address.replace(/^::ffff:/, '');
-  if (isIP(v4) !== 4) return false;
-  const [a, b] = v4.split('.').map(Number);
+  const family = isIP(address);
+  if (!family) return true;
+  if (family === 6) {
+    const canonical = new URL(`http://[${address}]/`).hostname.slice(1, -1).toLowerCase();
+    if (canonical.startsWith('::ffff:')) {
+      const [high, low] = canonical
+        .slice(7)
+        .split(':')
+        .map((v) => parseInt(v, 16));
+      return isPrivateAddress(`${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`);
+    }
+    // Only global unicast; exclude documentation, 6to4 and transition ranges.
+    return !/^[23][0-9a-f]{3}:/.test(canonical) || /^2001:(db8|0):|^2002:/.test(canonical);
+  }
+  const [a, b, c] = address.split('.').map(Number);
   return (
+    a === 0 ||
     a === 10 ||
     a === 127 ||
-    a === 0 ||
+    a >= 224 ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 100 && b >= 64 && b <= 127)
+    (a === 192 && (b === 168 || b === 0)) ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
+    (a === 203 && b === 0 && c === 113)
   );
 }
 
@@ -34,7 +48,18 @@ export class RunPolicy {
   } = {}) {
     this.allowedDomains = allowedDomains.map((d) => d.toLowerCase());
     this.capabilities = new Set(capabilities);
-    this.allowLocalOrigins = new Set(allowLocalOrigins);
+    this.allowLocalOrigins = new Set(
+      allowLocalOrigins.map((raw) => {
+        const u = new URL(raw);
+        if (
+          u.protocol !== 'http:' ||
+          !['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname) ||
+          u.origin !== raw
+        )
+          throw new Error('Origine locale explicite invalide');
+        return raw;
+      }),
+    );
     Object.assign(this, { workspace, maxDownloadBytes, resolveHost });
   }
   static fromJSON(json) {
@@ -72,10 +97,10 @@ export class RunPolicy {
     if (!this.domainAllowed(u.hostname)) throw new Error(`Domaine non autorisé : ${u.hostname}`);
     return { url: u, local: false };
   }
-  async assertUrl(raw) {
+  async resolveUrl(raw) {
     const { url, local } = this.checkUrlShape(raw);
+    let addresses;
     if (!local) {
-      let addresses;
       try {
         addresses = await this.resolveHost(url.hostname);
       } catch {
@@ -83,8 +108,11 @@ export class RunPolicy {
       }
       if (!addresses.length || addresses.some(isPrivateAddress))
         throw new Error(`Domaine résolu vers un réseau privé : ${url.hostname}`);
-    }
-    return url;
+    } else addresses = [url.hostname === '[::1]' ? '::1' : '127.0.0.1'];
+    return { url, addresses };
+  }
+  async assertUrl(raw) {
+    return (await this.resolveUrl(raw)).url;
   }
   // Element descriptions come from the provider; anything that looks like submitting, paying,
   // sending or applying — or any secret field — needs a human decision.

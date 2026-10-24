@@ -280,3 +280,101 @@ test('recherche : sources entrelacées, une source abondante n’évince pas les
   assert.ok(sources.includes('arbeitnow') && sources.includes('remotive'), sources.join(','));
   assert.equal(out.offers.length, 4);
 });
+
+test('sécurité cache : allowlist, format, taille et corruption revérifiés sur chaque lecture', async () => {
+  const { writeFileSync } = await import('node:fs');
+  const cacheDir = temporary(),
+    url = 'https://api.fictif.test/a';
+  let calls = 0;
+  const options = {
+    allowedHosts: ['api.fictif.test'],
+    cacheDir,
+    resolveHost: async () => ['8.8.8.8'],
+    fetchImpl: async () => {
+      calls++;
+      return new Response(JSON.stringify({ fictif: 'x'.repeat(200) }));
+    },
+  };
+  const data = new DataGateway(options);
+  await data.get(url);
+  await assert.rejects(new DataGateway({ ...options, allowedHosts: [] }).get(url), /non autorisé/);
+  await assert.rejects(data.get(url, { maxBytes: 30 }), /volumineuse/);
+  const raw = await data.get(url, { as: 'text' });
+  assert.equal(typeof raw.body, 'string');
+  writeFileSync(data.cachePath(url), '{CACHE FICTIF CORROMPU');
+  assert.equal((await data.get(url)).body.fictif.length, 200);
+  assert.ok(calls >= 3);
+});
+
+test('sécurité réseau : deadline totale, annulation du corps et limite en rejeu', async () => {
+  const data = new DataGateway({
+    allowedHosts: ['api.fictif.test'],
+    resolveHost: async () => ['8.8.8.8'],
+    fetchImpl: () => new Promise(() => {}),
+  });
+  const before = Date.now();
+  await assert.rejects(data.get('https://api.fictif.test/a', { timeoutMs: 50 }), /délai|timeout/i);
+  assert.ok(Date.now() - before < 1000);
+  const replay = new DataGateway({ allowedHosts: HOSTS, replay: REPLAY });
+  await assert.rejects(replay.get(Object.keys(REPLAY)[0], { maxBytes: 30 }), /volumineuse/);
+});
+
+test('Najah : aucune source disponible ne devient pas un classement vérifié vide', async () => {
+  await assert.rejects(
+    searchJobs(
+      {
+        get: async () => {
+          throw new Error('FICTIF indisponible');
+        },
+      },
+      { query: 'python' },
+    ),
+    /source.*disponible/i,
+  );
+});
+
+test('politique réseau : IPv4 mappées en hexadécimal et réseaux réservés refusés', async () => {
+  const { isPrivateAddress, RunPolicy } = await import('../packages/policy-engine/run-policy.js');
+  for (const ip of [
+    '::ffff:7f00:1',
+    '::ffff:a00:1',
+    '::ffff:c0a8:101',
+    'ff02::1',
+    '100.64.1.1',
+    '198.18.0.1',
+    '224.0.0.1',
+  ])
+    assert.equal(isPrivateAddress(ip), true, ip);
+  const policy = new RunPolicy({
+    allowedDomains: ['fictif.test'],
+    resolveHost: async () => ['::ffff:7f00:1'],
+  });
+  await assert.rejects(policy.assertUrl('https://fictif.test'), /réseau privé/);
+});
+
+test('cache concurrent : publications atomiques et cache symbolique ignoré', async () => {
+  const { writeFileSync, symlinkSync, unlinkSync } = await import('node:fs');
+  const cacheDir = temporary(),
+    url = 'https://api.fictif.test/parallel';
+  const data = new DataGateway({
+    allowedHosts: ['api.fictif.test'],
+    cacheDir,
+    resolveHost: async () => ['8.8.8.8'],
+    fetchImpl: async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      return new Response('{"fictif":true}');
+    },
+  });
+  await Promise.all([data.get(url), data.get(url)]);
+  const file = data.cachePath(url),
+    external = join(temporary(), 'fictif-cache.json');
+  writeFileSync(external, readFileSync(file));
+  unlinkSync(file);
+  symlinkSync(external, file);
+  await assert.rejects(
+    data.get(url),
+    /symbolique/,
+    'un miss ne remplace pas une destination symbolique',
+  );
+  assert.ok(JSON.parse(readFileSync(external, 'utf8')).result.body.fictif);
+});

@@ -1,6 +1,9 @@
 import {
   existsSync,
   lstatSync,
+  constants,
+  fstatSync,
+  readSync,
   mkdirSync,
   openSync,
   closeSync,
@@ -49,5 +52,25 @@ export function writeConfined(root, path, data) {
     renameSync(temporary, target);
   } finally {
     rmSync(temporary, { force: true });
+  }
+}
+
+// Bounded descriptor read. A replaced symlink cannot turn a cache read into an arbitrary read.
+export function readConfined(root, path, maxBytes) {
+  const target = resolve(root, path);
+  safeDirectory(root, relative(root, dirname(target)));
+  const fd = openSync(target, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const before = fstatSync(fd);
+    if (!before.isFile() || before.size > maxBytes)
+      throw new Error('Fichier trop volumineux ou non régulier');
+    const bytes = Buffer.alloc(before.size + 1);
+    const count = readSync(fd, bytes, 0, bytes.length, 0);
+    const after = fstatSync(fd);
+    if (count !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs)
+      throw new Error('Fichier modifié pendant la lecture');
+    return bytes.subarray(0, count);
+  } finally {
+    closeSync(fd);
   }
 }

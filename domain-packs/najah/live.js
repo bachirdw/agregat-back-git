@@ -120,6 +120,11 @@ export async function searchJobs(data, { query, sources = ['arbeitnow', 'remotiv
       errors.push({ source, error: String(e.message).slice(0, 200) });
     }
   }
+  if (sources.length && errors.length === sources.length)
+    throw new Error(
+      'Aucune source disponible : ' +
+        errors.map((e) => e.source + ' (' + e.error + ')').join(' ; '),
+    );
   // Keep offers that mention at least one keyword as a whole word (title, tags, excerpt), newest first.
   const matching = offers
     .filter((o) => {

@@ -12,6 +12,8 @@ import {
 } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
 
+import { requestPinned } from '../policy-engine/http.js';
+
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
 // - endpoint: a CDP endpoint (Playwriter relay `http://127.0.0.1:19988`, or Chrome started with
 //   --remote-debugging-port). The user's existing tabs are never listed or touched: the provider
@@ -80,6 +82,7 @@ export class CdpBrowser {
   async guard(policy) {
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is
     // disabled: a read navigation must not submit a form or run arbitrary network code.
+    this.networkAbort = new AbortController();
     await this.context.route('**/*', async (route) => {
       const request = route.request();
       let frame = null;
@@ -89,18 +92,42 @@ export class CdpBrowser {
         if (!['GET', 'HEAD'].includes(request.method()) && !this.writeInProgress)
           throw new Error('Requête d’écriture sans approbation');
         let url = request.url();
+        let method = request.method(),
+          body = request.postDataBuffer();
+        const headers = await request.allHeaders();
         let response;
         for (let hop = 0; hop < 5; hop++) {
-          await policy.assertUrl(url);
-          response = await route.fetch({ url, maxRedirects: 0, timeout: this.navigationTimeoutMs });
-          const location = response.headers()['location'];
-          if (response.status() < 300 || response.status() >= 400 || !location)
-            return await route.fulfill({ response });
+          const { addresses } = await policy.resolveUrl(url);
+          response = await requestPinned(url, {
+            addresses,
+            method,
+            headers,
+            body,
+            signal: this.networkAbort.signal,
+            maxBytes: Math.max(2_000_000, policy.maxDownloadBytes),
+            timeoutMs: this.navigationTimeoutMs,
+          });
+          const location = response.headers.location;
+          if (response.status < 300 || response.status >= 400 || !location)
+            return await route.fulfill({
+              status: response.status,
+              headers: response.headers,
+              body: response.body,
+            });
           const next = new URL(location, url).href;
           await policy.assertUrl(next);
           // Fulfilling a fetched cross-origin redirect would keep the original origin in Chrome.
           if (new URL(next).origin !== new URL(url).origin)
             throw new Error('Redirection inter-origines refusée');
+          if (
+            response.status === 303 ||
+            ((response.status === 301 || response.status === 302) && method === 'POST')
+          ) {
+            method = 'GET';
+            body = null;
+            delete headers['content-length'];
+            delete headers['content-type'];
+          }
           url = next;
         }
         throw new Error('Trop de redirections');
@@ -256,6 +283,7 @@ export class CdpBrowser {
     }
   }
   async close() {
+    this.networkAbort?.abort(new Error('Navigateur fermé'));
     try {
       await this.page?.close();
     } catch {

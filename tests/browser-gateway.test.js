@@ -584,3 +584,44 @@ test('gateway : upload revalidé après consentement et appels sérialisés', as
   ]);
   assert.equal(peak, 1);
 });
+
+test(
+  'Chrome : redirection 303 après formulaire ne répète pas le POST approuvé',
+  { skip: !hasChrome },
+  async (t) => {
+    let posts = 0,
+      reads = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') {
+        posts++;
+        res.writeHead(303, { location: '/done' });
+        return res.end();
+      }
+      if (req.url === '/done') {
+        reads++;
+        return res.end('<title>Done</title>');
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        '<form method="post" action="/send"><button id="send">Envoyer FICTIF</button></form>',
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(async () => {
+      await provider.close();
+      server.closeAllConnections();
+      await new Promise((r) => server.close(r));
+    });
+    const gw = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({ allowLocalOrigins: [origin], capabilities: ALL }),
+      approve: async () => true,
+    });
+    await gw.call('browser.navigate', { url: origin });
+    await gw.call('browser.click', { selector: '#send' });
+    assert.equal(posts, 1);
+    assert.equal(reads, 1);
+  },
+);

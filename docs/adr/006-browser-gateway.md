@@ -43,8 +43,8 @@ section « Playwright API »). Le relais envoie par défaut une télémétrie an
 - Confirmations par consignes de prompt : contournables ; ici la décision est imposée par la gateway.
 
 ## Limites connues
-- `route.fetch` pour les documents de navigation passe par la pile réseau de Playwright ; à revalider avec
-  le relais Playwriter (cookies de session de l'utilisateur).
+- Les ressources sont satisfaites par le transport HTTP de la plateforme, avec IP DNS validée épinglée ;
+  les cookies proviennent uniquement du contexte dédié de la plateforme.
 - La détection d'élément sensible est heuristique (mots-clés FR/EN, types de champ) : en cas de doute, une
   action `write` demande déjà une décision humaine par défaut.
 - Pas encore de liste blanche par onglet existant (accès aux onglets de l'utilisateur volontairement exclu).
@@ -65,5 +65,6 @@ Cette défense vise les pages hostiles dans le fournisseur. Elle ne constitue pa
 un CLI natif exécuté sous le compte utilisateur peut lire la configuration MCP (dont le jeton de pont),
 appeler les API de décision locales ou utiliser ses outils natifs. Une isolation de processus/réseau et un
 canal de décision réservé à l’utilisateur sont requis avant tout usage avec agents non fiables ou en
-multi-utilisateurs. La résolution DNS est encore indépendante de celle du navigateur : aucune garantie
-contre le rebinding entre contrôle DNS et connexion n’est revendiquée.
+multi-utilisateurs. Le transport HTTP commun connecte désormais l’adresse validée par DNS (lookup épinglé), sans deuxième
+résolution par Chrome ou fetch. Les réponses et leur décompression sont bornées ; le transport ne suit
+aucune redirection à l’insu de la politique.

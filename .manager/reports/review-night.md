@@ -628,3 +628,33 @@ Vérification Skills npm test — code 0
 ## 07:47 — Validation et commit Skills
 
 - `npm test` : **184/184 tests réussis** (148 + 36), aucun skip ; 19 tests registre ciblés verts ; check, format:check et diff --check verts. État : import/quarantaine/revue/export opérationnels sur fichiers et agents fictifs. Aucun clone tiers ni script importé exécuté.
+
+Validation Chrome sur transport épinglé — code 0
+
+## 07:50 — Priorité 5 : réseau, cache et Najah
+
+- Trois régressions rouges confirmées (`/tmp/review-data-red.log`) : cache contourne allowlist ; tous les échecs source deviennent un live vide ; IPv4 privée mappée en IPv6 hexadécimale acceptée.
+- Transport commun `policy-engine/http.js` : IP validées injectées dans lookup de node:http(s), hostname/TLS d’origine conservés, aucun suivi implicite de redirection, corps brut et décompressé bornés, délai/annulation. Utilisé par Data Gateway ET toutes les routes Chrome ; la fenêtre DNS indépendante signalée au début est maintenant corrigée. Pas de nouvelle dépendance.
+- Cache : validation avant lecture, enveloppe liée URL/format/longueur/hash du corps, taille revérifiée, corruption traitée en miss, lecture bornée O_NOFOLLOW, écriture atomique à nom temporaire unique. Rejeu borné aussi. Deadline totale (y compris fetch fictif ignorant le signal) et annulation du reader. IP réservées/mappées et origines locales invalides refusées.
+- Najah : aucune source disponible provoque une erreur explicite, plutôt qu’un classement vide prétendument vérifié. Les statuts de sponsoring restent unknown ou correspondance de nom UK, jamais identité/sponsoring établis. Classement recalculé depuis les sorties de sources, tests d’altération conservés.
+- Tests ciblés : 32 navigateur/pont verts sur transport épinglé ; tests transport local (Host conservé, nom DNS inexistant relié seulement à notre IP de test, compression, taille, timeout, annulation, redirection non suivie), cache/format/rejeu/concurrence. Une substitution textuelle de route.fetch ne correspondait pas au format du code : constatée à la relecture avant toute affirmation de validation, patch explicite appliqué puis tests Chrome relancés.
+
+- Échec intermédiaire de validation cache : 17/18 tests réussis, cache frais parfois traité en miss. Cause reproduite par inspection du mtime fractionnaire macOS (précision supérieure à Date.now) ; calcul de fraîcheur arrondi à la milliseconde, sans augmenter le TTL. Test historique conservé et relancé.
+
+Vérification réseau/cache/Najah npm test — code 0
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (7636.58675ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (7063.164625ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (6283.148292ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (2933.289708ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 35668.238792
+
+## 07:52 — Validation et commit réseau/Najah
+
+- `npm test` : **192/192 tests réussis** (155 + 37), aucun skip ; tests ciblés données/transport 18/18 et Chrome/pont 32/32 ; check, format:check et diff --check verts. Redirection 303 de formulaire testée : un seul POST, puis un GET. Transport épinglé opérationnel sur serveurs loopback de test ; aucun appel payant ni interrogation de sources live pendant cette revue. Les enregistrements existants sont explicitement rejoués.

@@ -6,7 +6,27 @@ import { Store, terminal } from '../../packages/storage/index.js';
 import { SkillRegistry } from '../../packages/skill-registry/index.js';
 import { Orchestrator } from '../../packages/orchestrator/index.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
-import { detectAgents } from '../../packages/agent-runtime/index.js';
+import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
+// Browser-facing agent view: detection + last probe summary; no command line, paths or environment.
+export function publicAgents(agents, probes) {
+  return agents.map(({ command, args, cliPath, env, ...a }) => {
+    const p = probes[a.id];
+    return {
+      ...a,
+      probe: p
+        ? {
+            at: p.at,
+            handshake: p.handshake,
+            session: p.session,
+            error: p.error ?? null,
+            models: p.models?.options ?? [],
+            currentModel: p.models?.current ?? null,
+            mode: p.modes?.current ?? null,
+          }
+        : null,
+    };
+  });
+}
 export function createApp({
   dataDir = resolve(ROOT, '.data'),
   live = process.env.AGENT_PLATFORM_LIVE === '1',
@@ -48,7 +68,7 @@ export function createApp({
       if (req.method === 'GET' && path === '/api/catalog')
         return json(res, 200, {
           live,
-          agents: (await detectAgents()).map(({ command, args, ...a }) => a),
+          agents: publicAgents(await detectAgents(), loadProbes(dataDir)),
           packs,
           skills: skills.list(),
         });
@@ -114,6 +134,8 @@ export function createApp({
           cost: p.cost,
           permissions: p.permissions,
           simulated: p.simulated,
+          routing: p.routing,
+          models: p.models,
         });
       }
       if (path === '/api/runs') return json(res, 201, await engine.create(body));

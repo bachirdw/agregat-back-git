@@ -22,7 +22,32 @@ Aucun compte ou jeton nécessaire. La source `jobs.example.test` n'est jamais co
 
 ## Agents réels BYOA
 
-Installer et authentifier son CLI avec les outils du fournisseur, puis :
+Installer et authentifier son CLI avec les outils du fournisseur. Les CLI installés hors du PATH (par exemple
+Gemini CLI et OpenCode dans un dossier dédié) se déclarent dans `.data/agents.json` (non versionné, chemins
+absolus) :
+
+```json
+{ "cliDirs": ["/chemin/absolu/vers/node_modules/.bin"], "paths": { "gemini": "/chemin/absolu/gemini" } }
+```
+
+`AGENT_PLATFORM_CLI_DIRS=/dir1:/dir2` est équivalent. Chaque agent reçoit un **environnement en liste blanche**
+(variables système de base + variables de son profil, par exemple `GEMINI_API_KEY` pour Gemini seulement).
+Les modes sûrs sont imposés à partir des modes annoncés : Codex `read-only`, Claude `default`, Gemini `default`,
+OpenCode `plan` ; sans mode sûr annoncé, le run est refusé. Le mode **Auto** choisit l'agent disponible selon
+les exigences (reprise, modèle, transport MCP) et les derniers tests, et explique son choix dans le plan.
+
+```sh
+npm run doctor                                   # détection et compatibilité ACP
+npm run test:live                                # handshake + session de chaque agent, sans prompt
+LIVE_AGENTS=gemini LIVE_PROMPT=1 LIVE_MODEL=gemini-3.5-flash-lite npm run test:live   # un prompt minimal
+AGENT_PLATFORM_LIVE=1 npm start                  # interface avec agents réels
+PORT=4310 node scripts/live-run.js gemini gemini-3.5-flash-lite najah   # run réel piloté par l'API
+```
+
+Les modèles proposés dans l'interface sont ceux annoncés au dernier test (`.data/agent-probes.json`).
+Attention : les modèles gratuits d'OpenCode refusent d'être utilisés comme moteur d'un autre service (ADR 005).
+
+Ancienne procédure, toujours valable :
 
 ```sh
 npm run doctor

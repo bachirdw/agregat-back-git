@@ -60,3 +60,23 @@ Le contexte et les probes du 24 octobre ci-dessus restent historiques. Ce sprint
 Le rapport du sprint contient les erreurs de repérage, refus sandbox/installation et la trace des vérifications/commits : `.manager/reports/sprint-01.md`. Les CGU consultées sont analysées dans l’[ADR 005](adr/005-byoa-provider-terms.md) ; un handshake réussi ne constitue pas une autorisation commerciale.
 
 Le script de probe utilise désormais `cancellationSignal` et une deadline locale, validée face à un pair muet. Le runtime produit conserve un défaut préexistant (`signal` au lieu de `cancellationSignal`, timeout individuel inefficace) : constat documenté, correction prioritaire proposée au sprint 02. Son timeout global d’orchestrateur ferme les enfants ; ce n’est pas une preuve de deadline par requête.
+
+
+## Sprint 02 — preuves réelles du 25 octobre 2026 (manager)
+
+CLI : Codex 0.163.0 et Claude Code 2.1.207 (installations utilisateur), Gemini CLI 0.65.0 et OpenCode 1.19.4
+installés sous `~/Downloads/agent-repos/.cli/` (référencés par `.data/agents.json`, non versionné).
+
+| Agent | Handshake | Session + mode sûr | Modèles annoncés | Prompt réel | Workflow Najah complet |
+|---|---|---|---|---|---|
+| Codex | Oui | Oui, `read-only` | 7 (`configOptions`) | Non (limite d'usage du compte atteinte cette nuit) | Non testé |
+| Claude Code | Oui | Oui, `default` | 5 (`configOptions`) | Non (authentification) | Non testé |
+| Gemini CLI | Oui | Oui (clé API), `default` | 6 (`models` + `session/set_model`) | « OK », `gemini-3.5-flash-lite` | **Completed** : 3 outils MCP appelés avec permissions, classement vérifié |
+| OpenCode | Oui | Oui, `plan` (`configOptions`) | 9 modèles gratuits | « OK » (modèle gratuit) | Refusé par la politique des modèles gratuits (ADR 005) |
+
+Défauts trouvés uniquement en conditions réelles et corrigés : (1) Gemini ignore tous les serveurs MCP dans un
+dossier non approuvé → `GEMINI_CLI_TRUST_WORKSPACE=true` pour le seul profil Gemini, l'espace de run étant un
+dossier vide créé par la plateforme ; (2) la permission exposée par l'API ne décrivait pas l'outil ; (3) un
+refus en texte libre produisait une erreur de parseur JSON. Lors d'un run sans MCP, Gemini a **inventé** deux
+offres : la vérification Najah a rejeté le résultat, comme prévu. Coût total Gemini des tests : ≈ 0,024 $
+(journal `.manager/api-usage.md`).

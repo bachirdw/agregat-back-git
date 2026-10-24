@@ -27,7 +27,7 @@ SQLite, Najah sur fixtures, 10 tests. Clones complets dans ~/Downloads/agent-rep
 
 ## Budget API (plafond absolu fixé par le propriétaire : 10 $ pour toute la nuit)
 - Seule API payante autorisée : Gemini, si une clé est fournie dans `.manager/secrets.env` (jamais commitée).
-- Plafond opérationnel : **2 $ estimés** et **40 appels** au total ; journal obligatoire `.manager/api-usage.md`.
+- Plafond opérationnel : **2 $ estimés** et **200 appels (tours de modèle)** au total ; journal obligatoire `.manager/api-usage.md`.
 - Tests réels Codex/Claude via abonnement : prompts de quelques mots, rares.
 
 Le manager ajuste ce plan après chaque rapport (section « Ajustements » ci-dessous).

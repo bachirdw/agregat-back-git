@@ -54,6 +54,7 @@ export class AcpRuntime {
   childEnv() {
     const d = this.definition;
     return buildChildEnv(d, this.sourceEnv, {
+      ...(d.fixedEnv ?? {}),
       ...(d.id === 'codex' && d.cliPath ? { CODEX_PATH: d.cliPath } : {}),
       ...(d.id === 'claude' && d.cliPath ? { CLAUDE_CODE_EXECUTABLE: d.cliPath } : {}),
     });

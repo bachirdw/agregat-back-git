@@ -47,7 +47,7 @@ function input() {
     agent: $('agent').value,
     pack: $('pack').value,
     skills: [...selectedSkills],
-    model: $('model').value.trim(),
+    model: $('model').value,
     budgetCents: 0,
   };
 }
@@ -60,7 +60,33 @@ function modeNote() {
   $('execution-note').textContent = real
     ? 'Consommation BYOA externe · coût inconnu'
     : 'Données de test · aucun modèle appelé';
-  $('model').disabled = !real;
+  renderModels(real);
+}
+function renderModels(real) {
+  const agent = catalog.agents.find((a) => a.id === $('agent').value);
+  const models = real ? (agent?.probe?.models ?? []) : [];
+  const previous = $('model').value;
+  $('model').replaceChildren(element('option', 'Par défaut du runtime'));
+  $('model').firstChild.value = '';
+  for (const m of models) {
+    const o = element('option', m.name === m.id ? m.id : m.name + ' · ' + m.id);
+    o.value = m.id;
+    $('model').append(o);
+  }
+  $('model').value = models.some((m) => m.id === previous) ? previous : '';
+  $('model').disabled = !real || !models.length;
+  $('model-hint').textContent = !real
+    ? 'disponible avec un agent réel'
+    : models.length
+      ? models.length + ' modèle(s) annoncé(s) au dernier test'
+      : 'aucun modèle connu · lancer npm run test:live';
+}
+function agentStatus(a) {
+  if (!a.installed) return ['absent', ''];
+  if (!a.compatible) return ['incompatible', ''];
+  if (a.probe?.session) return ['session validée', 'green'];
+  if (a.probe && !a.probe.session) return ['authentification requise', ''];
+  return ['détecté', 'green'];
 }
 function renderSkills() {
   $('skill-list').replaceChildren();
@@ -131,11 +157,9 @@ async function load() {
   $('agents-list').replaceChildren();
   for (const a of catalog.agents.filter((a) => !a.simulated)) {
     const row = element('div', undefined, 'connection');
-    row.append(
-      element('span', '◈  ' + a.name),
-      element('small', a.installed ? 'détecté' : 'absent', a.installed ? 'green' : ''),
-    );
-    row.title = a.version ?? a.readiness;
+    const [status, tone] = agentStatus(a);
+    row.append(element('span', '◈  ' + a.name), element('small', status, tone));
+    row.title = [a.version ?? a.readiness, a.reason, a.probe?.error].filter(Boolean).join(' · ');
     $('agents-list').append(row);
   }
   selectedSkills = new Set(catalog.skills.filter((s) => s.active && s.integrity).map((s) => s.id));
@@ -165,7 +189,12 @@ $('mission-form').onsubmit = async (event) => {
     $('plan').replaceChildren(element('p', p.agent + ' · ' + p.pack));
     const ol = element('ol');
     p.steps.forEach((s) => ol.append(element('li', s)));
+    const why = element('ul', undefined, 'routing');
+    for (const r of p.routing?.reasons ?? []) why.append(element('li', r));
+    for (const r of p.routing?.rejected ?? [])
+      why.append(element('li', '✕ ' + r.id + ' : ' + r.reason, 'muted'));
     $('plan').append(
+      why,
       ol,
       element('p', p.cost.description + ' · coût plateforme : 0 €'),
       element('p', p.permissions.join(' · ')),

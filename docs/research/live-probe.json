@@ -1,93 +1,303 @@
 [
   {
-    "agent": "codex",
-    "version": "codex-cli 0.163.0",
+    "agent": "gemini",
+    "version": "0.65.0",
+    "at": "2026-10-24T16:05:19.045Z",
     "handshake": true,
     "session": true,
-    "capabilities": {
-      "auth": {
-        "logout": {}
-      },
-      "providers": {},
-      "loadSession": true,
-      "promptCapabilities": {
-        "embeddedContext": true,
-        "image": true
-      },
-      "sessionCapabilities": {
-        "resume": {},
-        "list": {},
-        "close": {},
-        "delete": {},
-        "fork": {},
-        "additionalDirectories": {},
-        "subagents": {}
-      },
-      "mcpCapabilities": {
-        "acp": false,
-        "http": true,
-        "sse": false
-      },
-      "_meta": {
-        "authStatus": {}
-      }
+    "agentInfo": {
+      "name": "gemini-cli",
+      "title": "Gemini CLI",
+      "version": "0.65.0"
     },
-    "models": [
-      {
-        "id": "model",
-        "name": "Model",
-        "description": "Model Codex uses for the session",
-        "category": "model",
-        "type": "select",
-        "currentValue": "gpt-6-astra",
-        "options": [
-          {
-            "value": "gpt-6.1-sol",
-            "name": "6.1 Sol",
-            "description": "Latest workhorse model for coding and everyday work."
-          },
-          {
-            "value": "gpt-6-astra",
-            "name": "6 Astra",
-            "description": "Frontier intelligence for the most demanding work."
-          },
-          {
-            "value": "gpt-6-sol",
-            "name": "6 Sol",
-            "description": "Previous generation workhorse model."
-          },
-          {
-            "value": "gpt-6-luna",
-            "name": "6 Luna",
-            "description": "Fast and affordable model for easier tasks."
-          },
-          {
-            "value": "gpt-5.6-sol",
-            "name": "5.6 Sol",
-            "description": "Older generation workhorse model."
-          },
-          {
-            "value": "gpt-5.6-terra",
-            "name": "5.6 Terra",
-            "description": "Older balanced model for straightforward work."
-          },
-          {
-            "value": "gpt-5.6-luna",
-            "name": "5.6 Luna",
-            "description": "Older fast and efficient model."
-          }
-        ]
-      }
-    ],
+    "capabilities": {
+      "loadSession": true,
+      "mcp": {
+        "stdio": true,
+        "http": true,
+        "sse": true
+      },
+      "image": true,
+      "sessionList": false,
+      "sessionResume": false,
+      "authMethods": [
+        "oauth-personal",
+        "gemini-api-key",
+        "vertex-ai",
+        "gateway"
+      ]
+    },
+    "models": {
+      "source": "models",
+      "current": "auto",
+      "options": [
+        {
+          "id": "auto",
+          "name": "Auto"
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "name": "gemini-3.1-pro-preview"
+        },
+        {
+          "id": "gemini-3-flash-preview",
+          "name": "gemini-3-flash-preview"
+        },
+        {
+          "id": "gemini-2.5-pro",
+          "name": "gemini-2.5-pro"
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "name": "gemini-3.8-flash"
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "name": "gemini-3.5-flash-lite"
+        }
+      ]
+    },
+    "modes": {
+      "source": "modes",
+      "current": "default",
+      "options": [
+        "default",
+        "autoEdit",
+        "yolo",
+        "plan"
+      ]
+    },
+    "mode": "default",
+    "prompt": "non exécuté"
+  },
+  {
+    "agent": "opencode",
+    "version": "1.19.4",
+    "at": "2026-10-24T16:05:58.224Z",
+    "handshake": true,
+    "session": true,
+    "agentInfo": {
+      "name": "OpenCode",
+      "version": "1.19.4"
+    },
+    "capabilities": {
+      "loadSession": true,
+      "mcp": {
+        "stdio": true,
+        "http": true,
+        "sse": true
+      },
+      "image": true,
+      "sessionList": true,
+      "sessionResume": true,
+      "authMethods": [
+        "opencode-login"
+      ]
+    },
+    "models": {
+      "source": "configOptions",
+      "configId": "model",
+      "current": "opencode/deepseek-v4.1-flash-free",
+      "options": [
+        {
+          "id": "opencode/beam-free",
+          "name": "OpenCode/Beam Free"
+        },
+        {
+          "id": "opencode/big-pickle",
+          "name": "OpenCode/Big Pickle"
+        },
+        {
+          "id": "opencode/deepseek-v4.1-flash-free",
+          "name": "OpenCode/DeepSeek V4.1 Flash Free"
+        },
+        {
+          "id": "opencode/flint-40b-free",
+          "name": "OpenCode/Flint 40B Free"
+        },
+        {
+          "id": "opencode/glm-5.3-flash-free",
+          "name": "OpenCode/GLM-5.3-Flash Free"
+        },
+        {
+          "id": "opencode/mimo-v2.6-flash-free",
+          "name": "OpenCode/MiMo-V2.6-Flash Free"
+        },
+        {
+          "id": "opencode/nemotron-3-ultra-free",
+          "name": "OpenCode/Nemotron 3 Ultra Free"
+        },
+        {
+          "id": "opencode/nemotron-3.5-lightning-free",
+          "name": "OpenCode/Nemotron 3.5 Lightning Free"
+        },
+        {
+          "id": "opencode/nemotron-3.5-super-vl-free",
+          "name": "OpenCode/Nemotron 3.5 Super VL Free"
+        }
+      ]
+    },
+    "modes": {
+      "source": "configOptions",
+      "configId": "mode",
+      "current": "plan",
+      "options": [
+        "build",
+        "plan"
+      ]
+    },
+    "mode": "plan",
     "prompt": {
+      "model": "opencode/deepseek-v4.1-flash-free",
       "stopReason": "end_turn",
-      "text": "OK"
+      "usage": {
+        "inputTokens": 9607,
+        "outputTokens": 2,
+        "totalTokens": 9865,
+        "cachedReadTokens": 256
+      },
+      "text": "OK",
+      "ms": 3010
     }
   },
   {
-    "agent": "claude",
-    "error": "Authentication required",
+    "agent": "codex",
+    "version": "codex-cli 0.163.0",
+    "at": "2026-10-24T16:06:18.287Z",
     "handshake": true,
-    "session": true
+    "session": true,
+    "agentInfo": {
+      "name": "@agentclientprotocol/codex-acp",
+      "title": "Codex",
+      "version": "2.2.2"
+    },
+    "capabilities": {
+      "loadSession": true,
+      "mcp": {
+        "stdio": true,
+        "http": true,
+        "sse": false
+      },
+      "image": true,
+      "sessionList": true,
+      "sessionResume": true,
+      "authMethods": [
+        "api-key",
+        "chat-gpt"
+      ]
+    },
+    "models": {
+      "source": "configOptions",
+      "configId": "model",
+      "current": "gpt-6-astra",
+      "options": [
+        {
+          "id": "gpt-6.1-sol",
+          "name": "6.1 Sol"
+        },
+        {
+          "id": "gpt-6-astra",
+          "name": "6 Astra"
+        },
+        {
+          "id": "gpt-6-sol",
+          "name": "6 Sol"
+        },
+        {
+          "id": "gpt-6-luna",
+          "name": "6 Luna"
+        },
+        {
+          "id": "gpt-5.6-sol",
+          "name": "5.6 Sol"
+        },
+        {
+          "id": "gpt-5.6-terra",
+          "name": "5.6 Terra"
+        },
+        {
+          "id": "gpt-5.6-luna",
+          "name": "5.6 Luna"
+        }
+      ]
+    },
+    "modes": {
+      "source": "configOptions",
+      "configId": "mode",
+      "current": "read-only",
+      "options": [
+        "read-only",
+        "workspace-write",
+        "agent",
+        "agent-full-access"
+      ]
+    },
+    "mode": "read-only",
+    "prompt": "non exécuté"
+  },
+  {
+    "agent": "claude",
+    "version": "2.1.207 (Claude Code)",
+    "at": "2026-10-24T16:06:19.153Z",
+    "handshake": true,
+    "session": true,
+    "agentInfo": {
+      "name": "@agentclientprotocol/claude-agent-acp",
+      "title": "Claude Agent",
+      "version": "0.95.0"
+    },
+    "capabilities": {
+      "loadSession": true,
+      "mcp": {
+        "stdio": true,
+        "http": true,
+        "sse": true
+      },
+      "image": true,
+      "sessionList": true,
+      "sessionResume": true,
+      "authMethods": []
+    },
+    "models": {
+      "source": "configOptions",
+      "configId": "model",
+      "current": "default",
+      "options": [
+        {
+          "id": "default",
+          "name": "Default (recommended)"
+        },
+        {
+          "id": "opus[1m]",
+          "name": "Opus 4.8"
+        },
+        {
+          "id": "claude-fable-5-1[1m]",
+          "name": "Fable 5.1"
+        },
+        {
+          "id": "sonnet",
+          "name": "Sonnet 5"
+        },
+        {
+          "id": "haiku",
+          "name": "Haiku 4.5"
+        }
+      ]
+    },
+    "modes": {
+      "source": "configOptions",
+      "configId": "mode",
+      "current": "default",
+      "options": [
+        "default",
+        "acceptEdits",
+        "plan",
+        "auto",
+        "bypassPermissions"
+      ]
+    },
+    "mode": "default",
+    "prompt": "non exécuté"
   }
 ]

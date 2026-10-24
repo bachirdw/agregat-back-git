@@ -33,3 +33,16 @@ La séparation publicitaire/commerciale doit être explicite : frais éventuels 
 Le registre d’agents devrait distinguer compatibilité technique et mode d’usage documenté (local utilisateur / API / hébergé à valider), avec source/date de revue ; ces champs sont **prévus**, pas implémentés dans ce sprint. Pas d’ajout d’un processus de connexion Relay, de collecte d’identifiants ou de modification des configurations globales dans ce sprint.
 
 Rejetés : présenter la licence Apache/MIT d’un adaptateur comme l’autorisation de revendre le modèle ; appeler les endpoints abonnements avec un jeton extrait ; qualifier tout automatisme d’interdit malgré les interfaces officielles ; déclarer tout BYOA commercial autorisé sur la seule présence d’ACP. La validation contractuelle du propriétaire reste un prérequis de distribution commerciale, pas un résultat du handshake.
+
+## Constat live du 25 octobre 2026 (sprint 02) — modèles gratuits OpenCode
+
+Un run réel via ACP avec `opencode/deepseek-v4.1-flash-free` a été **refusé par le modèle lui-même** en
+application de la politique des modèles gratuits OpenCode : réponse « Free OpenCode models can't be used for
+bulk dataset labeling or as a backend for other services. Sign in to OpenCode Console for that. » (le
+raisonnement exposé cite explicitement l'usage « backend » relayé par une autre application).
+
+Décision : la plateforme **ne doit pas** utiliser les modèles gratuits OpenCode comme moteur, ni tenter de
+contourner ce refus (reformulation, masquage de l'orchestrateur). En BYOA, OpenCode n'est utilisable qu'avec
+le compte/fournisseur propre de l'utilisateur et sous ses conditions. Le refus est désormais présenté comme
+« Réponse non structurée de l'agent » avec extrait, au lieu d'une erreur de parseur. Un simple « OK » de
+handshake n'avait pas déclenché ce refus : un test de prompt minimal ne prouve pas l'autorisation d'usage.

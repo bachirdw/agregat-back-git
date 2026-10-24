@@ -66,9 +66,12 @@ Rechercher des offres d'emploi en Python et SQL en Australie, puis les classer.<
               >
             </div>
             <label class="model-label"
-              >Modèle <span class="muted">optionnel · identifiant annoncé par l’agent</span
-              ><input id="model" placeholder="Par défaut du runtime" maxlength="200"
-            /></label>
+              >Modèle
+              <span class="muted" id="model-hint">optionnel · modèles annoncés par l’agent</span
+              ><select id="model">
+                <option value="">Par défaut du runtime</option>
+              </select></label
+            >
             <div id="skills" class="skills-section">
               <label>Méthodes à mobiliser</label>
               <div id="skill-list"></div>

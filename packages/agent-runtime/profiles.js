@@ -40,13 +40,17 @@ export const profiles = [
     acpFlags: ['--acp', '--experimental-acp'],
     env: ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_CLOUD_PROJECT', 'GEMINI_CLI_HOME'],
     safeModes: ['default', 'plan'],
+    // Gemini CLI silently skips every MCP server in an untrusted folder
+    // (core/src/tools/mcp-client-manager.ts:461). Runs execute in an empty workspace created by the
+    // platform, so trusting it loads no foreign hooks/settings. Revisit before mounting user repos.
+    fixedEnv: { GEMINI_CLI_TRUST_WORKSPACE: 'true' },
     preference: 3,
   },
   {
     id: 'opencode',
     name: 'OpenCode',
     cli: 'opencode',
-    args: ['acp', '--hostname', '127.0.0.1'],
+    args: ['acp', '--hostname', '127.0.0.1', '--pure'],
     env: ['OPENCODE_CONFIG', 'OPENCODE_CONFIG_DIR'],
     // OpenCode exposes its agent mode as a config option; `plan` refuses file edits.
     safeModes: ['plan'],

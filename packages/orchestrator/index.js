@@ -24,6 +24,39 @@ export const inputSchema = z
     budgetCents: z.number().int().min(0).max(100000).default(0),
   })
   .strict();
+const resultSchema = z
+  .object({ simulated: z.boolean(), summary: z.string().min(1), evidence: z.array(z.unknown()) })
+  .passthrough();
+// Agents answer in free text; only a JSON object matching the contract is accepted. Refusals and
+// prose are reported with a short excerpt instead of a parser error.
+export function parseAgentResult(text) {
+  const raw = String(text ?? '').trim();
+  const excerpt = raw.replace(/\s+/g, ' ').slice(0, 300) || '(réponse vide)';
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenced ? fenced[1].trim() : raw;
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start < 0 || end <= start)
+    return {
+      ok: false,
+      reason: 'Réponse non structurée de l’agent (refus ou texte libre)',
+      excerpt,
+    };
+  let json;
+  try {
+    json = JSON.parse(candidate.slice(start, end + 1));
+  } catch {
+    return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
+  }
+  const parsed = resultSchema.safeParse(json);
+  if (!parsed.success)
+    return {
+      ok: false,
+      reason: 'Réponse hors contrat (simulated, summary, evidence attendus)',
+      excerpt,
+    };
+  return { ok: true, value: parsed.data };
+}
 export class Orchestrator {
   constructor(
     store,
@@ -196,19 +229,15 @@ export class Orchestrator {
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
       if (response.stopReason !== 'end_turn')
         throw new Error(`Agent arrêté : ${response.stopReason}`);
-      const clean = text
-        .trim()
-        .replace(/^```(?:json)?\s*/, '')
-        .replace(/\s*```$/, '');
-      const result = z
-        .object({
-          simulated: z.boolean(),
-          summary: z.string().min(1),
-          evidence: z.array(z.unknown()),
-        })
-        .passthrough()
-        .parse(JSON.parse(clean));
-      await verifyPack(plan.pack.id, result, run.prompt);
+      const result = parseAgentResult(text);
+      if (!result.ok) {
+        this.store.event(run.id, 'agent_output_rejected', {
+          reason: result.reason,
+          excerpt: result.excerpt,
+        });
+        throw new Error(`${result.reason} : « ${result.excerpt} »`);
+      }
+      await verifyPack(plan.pack.id, result.value, run.prompt);
       this.store.charge(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1, 0, null);
       this.store.event(run.id, 'verification', {
         valid: true,
@@ -219,7 +248,7 @@ export class Orchestrator {
       });
       this.store.update(run.id, {
         state: 'completed',
-        result,
+        result: result.value,
         finishedAt: new Date().toISOString(),
       });
     } catch (e) {
@@ -263,7 +292,7 @@ export class Orchestrator {
       const options = p.options.filter((o) =>
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
       );
-      this.permissions.set(id, { id, runId, options, finish });
+      this.permissions.set(id, { id, runId, options, tool: p.toolCall ?? null, finish });
       this.store.event(runId, 'permission', {
         id,
         tool: p.toolCall,

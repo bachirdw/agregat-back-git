@@ -45,7 +45,7 @@ Si ton contexte devient long, mets le rapport à jour en priorité pour que la p
 ## Budget API (plafond absolu du propriétaire : 10 $ pour toute la nuit — ne jamais l'approcher)
 - Seule API payante autorisée : Gemini, uniquement si `GEMINI_API_KEY` est présente dans l'environnement
   (fournie par `.manager/secrets.env`, jamais commitée, jamais affichée ni écrite dans un fichier/log).
-- Plafond opérationnel cumulé de toutes les sessions : **2 $ estimés et 40 appels**. Avant chaque appel,
+- Plafond opérationnel cumulé de toutes les sessions : **2 $ estimés et 200 appels (tours de modèle)**. Avant chaque appel,
   lis `.manager/api-usage.md` ; après, ajoutes-y une ligne (heure, sprint, modèle, but, tokens in/out estimés,
   coût estimé, cumul). Si le cumul atteint le plafond, plus aucun appel.
 - Utilise le modèle Gemini « flash » le moins cher annoncé par l'API, prompts courts (< 300 tokens), sortie

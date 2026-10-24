@@ -10,7 +10,7 @@
   pont `/api/internal/usage/:runId` (402) ; gateways navigateur et données mesurent avant d'agir.
 - UI : champ budget, estimation détaillée et avertissement, consommation par catégorie, BYOA « non
   refacturé », intégrité du registre.
-- Tests : `tests/billing.test.js` (10) ; suite **144 tests verts**.
+- Tests : `tests/billing.test.js` (9) ; suite **143 tests verts**.
 
 ## Erreurs et corrections pendant le sprint
 - Première estimation fondée sur le nom de l'étape → comptait des requêtes réseau pour le DAG fictif.

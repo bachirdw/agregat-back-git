@@ -19,6 +19,8 @@ export const stepSchema = z
     retries: z.number().int().min(0).max(3).default(0),
     timeoutMs: z.number().int().min(100).max(1800000).optional(),
     optional: z.boolean().default(false),
+    // Upper-bound usage the pack expects for this step, per meter (used for cost estimates only).
+    estimate: z.record(z.string(), z.number().int().min(0).max(1000)).optional(),
   })
   .strict()
   .superRefine((s, ctx) => {

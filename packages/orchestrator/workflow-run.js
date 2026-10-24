@@ -88,7 +88,7 @@ export async function executeWorkflow(orch, run, plan, control) {
   engine.executors = {
     tool: async (step, { inputs, signal: stepSignal }) => {
       const client = await mcpClient();
-      orch.store.charge(run.id, 'tool_call', 1);
+      orch.meter(run.id, 'tool_call', 1);
       const response = await client.callTool(
         { name: step.tool, arguments: toolArguments(step, run.prompt, inputs) },
         undefined,
@@ -121,7 +121,7 @@ export async function executeWorkflow(orch, run, plan, control) {
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text')
             text += update.content.text;
           orch.store.event(run.id, 'agent', { stepId: step.id, ...update });
-          if (update.sessionUpdate === 'tool_call') orch.store.charge(run.id, 'tool_observed', 1);
+          if (update.sessionUpdate === 'tool_call') orch.meter(run.id, 'tool_observed', 1);
         },
         onPermission: (p) => orch.permission(run.id, p, !!definition.simulated, stepSignal),
       });
@@ -168,13 +168,7 @@ export async function executeWorkflow(orch, run, plan, control) {
           });
           throw new Error(`${parsed.reason} : « ${parsed.excerpt} »`);
         }
-        orch.store.charge(
-          run.id,
-          definition.simulated ? 'fixture_turn' : 'byoa_model_turn',
-          1,
-          0,
-          null,
-        );
+        orch.meter(run.id, definition.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
         return { ...parsed.value, agent: definition.id };
       } finally {
         runtimes.delete(runtime);

@@ -71,6 +71,7 @@ export class DataGateway {
         return { ...cached, cached: true };
       }
     }
+    await this.meter(meterAs, 1, new URL(url).hostname); // charged before the request; refusal stops it
     let current = url;
     let response;
     for (let hop = 0; hop < 5; hop++) {
@@ -103,7 +104,6 @@ export class DataGateway {
     }
     const text = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8');
     const body = as === 'json' ? JSON.parse(text) : text;
-    this.meter(meterAs, 1, new URL(current).hostname);
     const result = { url: current, fetchedAt: new Date().toISOString(), body, cached: false };
     if (this.cacheDir) {
       mkdirSync(this.cacheDir, { recursive: true, mode: 0o700 });

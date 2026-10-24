@@ -7,6 +7,7 @@ import { SkillRegistry } from '../../packages/skill-registry/index.js';
 import { Orchestrator } from '../../packages/orchestrator/index.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
 import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
+import { summarize, meters } from '../../packages/billing/index.js';
 // Local skill imports are limited to configured roots (never an arbitrary path from the browser).
 export function allowedSkillPath(
   p,
@@ -97,6 +98,8 @@ export function createApp({
           agents: publicAgents(await detectAgents(), loadProbes(dataDir)),
           packs,
           skills: skills.list(),
+          meters,
+          pricing: engine.pricing,
         });
       if (req.method === 'GET' && path === '/api/runs') return json(res, 200, store.list());
       const match = path.match(/^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume))?$/);
@@ -133,7 +136,8 @@ export function createApp({
         if (req.method === 'GET' && !action)
           return json(res, 200, {
             ...run,
-            usage: store.usage(id),
+            usage: { ...store.usage(id), byDimension: summarize(store.usage(id).entries) },
+            ledger: store.verifyLedger(),
             steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
             permissions: [...engine.permissions.values()]
               .filter((p) => p.runId === id)
@@ -223,6 +227,18 @@ export function createApp({
           body,
         );
         return json(res, 200, decision);
+      }
+      const usage = path.match(/^\/api\/internal\/usage\/([a-f0-9-]{36})$/);
+      if (usage) {
+        try {
+          return json(
+            res,
+            200,
+            await engine.gatewayUsage(usage[1], String(req.headers['x-relay-token'] ?? ''), body),
+          );
+        } catch (e) {
+          return json(res, /Budget|Plafond/.test(e.message) ? 402 : 400, { error: e.message });
+        }
       }
       const step = path.match(/^\/api\/runs\/([a-f0-9-]{36})\/steps\/([a-z][a-z0-9_-]{0,47})$/);
       if (step) {

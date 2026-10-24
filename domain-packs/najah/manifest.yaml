@@ -79,6 +79,7 @@ dags:
         title: Rechercher des offres réelles (Arbeitnow, Remotive)
         kind: tool
         tool: jobs_search_live
+        estimate: { data_search: 2 } # one request per source
         timeoutMs: 60000
         retries: 1
         arguments: { query: '{{objective}}', limit: 30 }
@@ -86,6 +87,7 @@ dags:
         title: Vérifier les employeurs dans le registre UK (gov.uk)
         kind: tool
         tool: sponsor_check_uk
+        estimate: { data_search: 2 } # gov.uk page + register CSV (cached 24 h)
         dependsOn: [search]
         timeoutMs: 180000
         optional: true

@@ -87,7 +87,7 @@ export class BrowserGateway {
           throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
       }
     }
-    this.meter(cap.meter, 1, capabilityId);
+    await this.meter(cap.meter, 1, capabilityId);
     const output = await this.provider.perform(capabilityId, args, this.policy);
     return {
       untrusted: true,

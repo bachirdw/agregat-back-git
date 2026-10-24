@@ -38,6 +38,24 @@ async function approve(request) {
   return (await r.json()).approved === true;
 }
 
+// Usage of gateway capabilities is charged by the platform BEFORE the action; a refused charge
+// (budget or monthly cap) refuses the action itself.
+async function meter(dimension, units = 1) {
+  const url = process.env.RELAY_USAGE_URL;
+  if (!url || !process.env.RELAY_APPROVAL_TOKEN) return;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-platform-request': '1',
+      'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+    },
+    body: JSON.stringify({ dimension, units }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'Mesure refusée');
+}
+
 if (mode === 'fixture') {
   server.registerTool(
     'browser_snapshot',
@@ -53,7 +71,7 @@ if (mode === 'fixture') {
     mode === 'playwriter'
       ? new CdpBrowser({ endpoint: process.env.RELAY_CDP_ENDPOINT ?? 'http://127.0.0.1:19988' })
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
-  const gateway = new BrowserGateway({ provider, policy, approve });
+  const gateway = new BrowserGateway({ provider, policy, approve, meter });
   const shapes = {
     'browser.navigate': { url: z.string().max(2048) },
     'browser.snapshot': { url: z.string().max(2048).optional() },
@@ -109,6 +127,7 @@ if (pack.id !== 'core') {
         allowedHosts: network.allowedHosts ?? [],
         cacheDir: process.env.RELAY_CACHE_DIR ?? null,
         replay: process.env.RELAY_DATA_REPLAY ? JSON.parse(process.env.RELAY_DATA_REPLAY) : null,
+        meter,
       }),
     );
   }

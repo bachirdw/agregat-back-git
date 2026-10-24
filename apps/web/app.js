@@ -52,7 +52,7 @@ function input() {
     ...($('mode-select').value === 'workflow' && $('workflow-select').value
       ? { workflow: $('workflow-select').value }
       : {}),
-    budgetCents: 0,
+    budgetCents: Math.max(0, Math.round(Number($('budget').value || 0) * 100)),
   };
 }
 function invalidate() {
@@ -281,7 +281,8 @@ $('mission-form').onsubmit = async (event) => {
     $('plan').append(
       why,
       ol,
-      element('p', p.cost.description + ' · coût plateforme : 0 €'),
+      costTable(p.cost),
+      element('p', p.cost.description),
       element('p', p.permissions.join(' · ')),
     );
     $('plan-panel').hidden = false;
@@ -363,6 +364,55 @@ function renderSteps(states = {}) {
   }
 }
 let stepStates = {};
+const euros = (cents) =>
+  (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+function costTable(cost) {
+  const box = element('div', undefined, 'cost');
+  box.append(
+    element(
+      'strong',
+      `Coût plateforme estimé (maximum) : ${euros(cost.platformCents)} · budget ${euros(cost.budgetCents ?? 0)}`,
+    ),
+  );
+  if (cost.withinBudget === false)
+    box.append(
+      element(
+        'p',
+        'Estimation supérieure au budget : le lancement sera refusé.',
+        'finding finding-danger',
+      ),
+    );
+  for (const l of cost.lines ?? [])
+    box.append(
+      element(
+        'small',
+        `${catalog.meters?.[l.dimension]?.category ?? l.dimension} · ${l.units} ${catalog.meters?.[l.dimension]?.unit ?? ''} · ${euros(l.cents)}`,
+      ),
+    );
+  return box;
+}
+function usageTable(usage, ledger) {
+  const box = element('div', undefined, 'cost');
+  box.append(element('strong', `Consommation mesurée · plateforme ${euros(usage.platformCents)}`));
+  for (const r of usage.byDimension ?? [])
+    box.append(
+      element(
+        'small',
+        `${r.category} · ${r.units} · ${r.billable ? euros(r.platformCents) : 'non facturé (observé)'}`,
+      ),
+    );
+  if (ledger)
+    box.append(
+      element(
+        'small',
+        ledger.ok
+          ? 'Registre de consommation : intègre (chaîne SHA-256 vérifiée)'
+          : `Registre altéré à l’entrée ${ledger.brokenAt}`,
+        ledger.ok ? 'green' : 'finding finding-danger',
+      ),
+    );
+  return box;
+}
 function renderResult(run) {
   $('result').replaceChildren();
   if (run.error) $('result').append(element('p', run.error));
@@ -412,13 +462,15 @@ function renderResult(run) {
       $('result').append(row);
     }
   }
-  if (run.usage)
+  if (run.usage) {
+    $('result').append(usageTable(run.usage, run.ledger));
     $('result').append(
       element(
         'small',
-        `Plateforme : ${run.usage.platformCents / 100} € · Consommation fournisseur : ${run.simulated ? 'aucun appel modèle' : 'inconnue (BYOA)'}`,
+        `Consommation fournisseur : ${run.simulated ? 'aucun appel modèle' : 'inconnue, sur votre propre compte (BYOA), jamais refacturée'}`,
       ),
     );
+  }
   $('run-state').textContent = labels[run.state] ?? run.state;
   $('cancel').hidden = finalStates.has(run.state);
   $('resume').hidden = !run.resumable || !finalStates.has(run.state);
@@ -474,6 +526,7 @@ async function openRun(id) {
         $('run-state').textContent = labels[e.data.state] ?? e.data.state;
       }
       if (e.type === 'permission') permission(e.data);
+      if (e.type === 'budget_exceeded') error(new Error(e.data.reason + ' : exécution arrêtée'));
       if (e.type === 'workflow' && !workflowSteps.length) {
         workflowSteps = e.data.steps;
         renderSteps(stepStates);
@@ -535,7 +588,7 @@ $('example').onclick = () => {
   $('pack').value = 'najah';
   invalidate();
 };
-for (const id of ['prompt', 'agent', 'pack', 'model', 'mode-select'])
+for (const id of ['prompt', 'agent', 'pack', 'model', 'mode-select', 'workflow-select', 'budget'])
   $(id).addEventListener('input', () => {
     invalidate();
     modeNote();

@@ -17,6 +17,7 @@ import { terminal } from '../storage/index.js';
 import { parseAgentResult } from './result.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
+import { estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
 export const inputSchema = z
   .object({
@@ -43,7 +44,32 @@ export class Orchestrator {
     // Read access to durable step state; each workflow run drives its own engine instance.
     this.workflows = new WorkflowEngine({ store, executors: {} });
     this.approvalTokens = new Map(); // runId -> random token, memory only
+    this.pricing = loadPricing(dataDir);
+    store.limits.monthlyCapCents = this.pricing.monthlyCapCents;
     this.approvalBase = null; // set by the HTTP server once listening
+  }
+  // Single metering point: prices the usage, writes the chained ledger and stops the run when a
+  // budget or the monthly cap would be exceeded (the action that triggered it is refused).
+  meter(runId, dimension, units = 1) {
+    const cents = priceOf(dimension, units, this.pricing);
+    try {
+      this.store.charge(runId, dimension, units, cents, null);
+    } catch (e) {
+      if (/Budget|Plafond/.test(e.message)) {
+        this.store.event(runId, 'budget_exceeded', { dimension, units, cents, reason: e.message });
+        this.active.get(runId)?.abort.abort(new Error(`${e.message} : exécution arrêtée`));
+      }
+      throw e;
+    }
+    return cents;
+  }
+  async gatewayUsage(runId, token, { dimension, units = 1 } = {}) {
+    const expected = this.approvalTokens.get(runId);
+    if (!expected || token !== expected) throw new Error('Jeton invalide');
+    if (!['browser_action', 'data_search', 'document_generation'].includes(dimension))
+      throw new Error('Mètre non autorisé depuis la gateway');
+    if (!Number.isFinite(units) || units <= 0 || units > 1000) throw new Error('Unités invalides');
+    return { cents: this.meter(runId, dimension, units) };
   }
   // MCP capability server for a run: browser provider, per-run policy and the approval bridge.
   mcpServerFor(run, pack) {
@@ -80,6 +106,7 @@ export class Orchestrator {
         this.approvalTokens.set(run.id, randomUUID() + randomUUID());
       env.RELAY_APPROVAL_URL = `${this.approvalBase}/api/internal/approvals/${run.id}`;
       env.RELAY_APPROVAL_TOKEN = this.approvalTokens.get(run.id);
+      env.RELAY_USAGE_URL = `${this.approvalBase}/api/internal/usage/${run.id}`;
     }
     return platformMcp(pack.id, env);
   }
@@ -166,6 +193,8 @@ export class Orchestrator {
           id: s.id,
           title: s.title,
           kind: s.kind,
+          tool: s.tool ?? null,
+          estimate: s.estimate ?? null,
           dependsOn: s.dependsOn,
           agent: s.kind === 'agent' ? (stepAgents[s.id]?.name ?? agent.name) : null,
           effect: s.effect,
@@ -192,13 +221,18 @@ export class Orchestrator {
             ...pack.workflow.steps.map((s) => s.title),
             'Vérifier le résultat',
           ],
-      cost: {
-        platformCents: 0,
-        externalCents: null,
-        description: agent.simulated
-          ? 'Aucun modèle appelé'
-          : 'Consommation fournisseur externe inconnue ; non refacturée',
-      },
+      cost: (() => {
+        const e = estimatePlan({ workflow, simulated: !!agent.simulated }, this.pricing);
+        return {
+          platformCents: e.platformCentsMax,
+          externalCents: null,
+          currency: e.currency,
+          lines: e.lines,
+          budgetCents: v.budgetCents,
+          withinBudget: e.platformCentsMax <= v.budgetCents,
+          description: e.external,
+        };
+      })(),
       permissions: agent.simulated
         ? ['MCP de test en lecture seule']
         : ['Permissions ACP à confirmer ; outils natifs dépendants du CLI'],
@@ -210,6 +244,10 @@ export class Orchestrator {
   async create(input, previous = null) {
     if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
     const plan = await this.plan(input, { resume: !!previous });
+    if (!plan.cost.withinBudget)
+      throw new Error(
+        `Budget insuffisant : estimation ${plan.cost.platformCents} c > budget ${plan.cost.budgetCents} c`,
+      );
     if (
       previous &&
       (!previous.resumable ||
@@ -257,7 +295,7 @@ export class Orchestrator {
     try {
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
       this.store.update(run.id, { state: 'running' });
-      this.store.charge(run.id, 'workflow', 1);
+      this.meter(run.id, 'workflow_run', 1);
       if (run.mode === 'workflow') {
         const result = await executeWorkflow(this, run, plan, control);
         this.store.update(run.id, {
@@ -291,7 +329,7 @@ export class Orchestrator {
             }
           }
           this.store.event(run.id, 'agent', update);
-          if (update.sessionUpdate === 'tool_call') this.store.charge(run.id, 'tool_observed', 1);
+          if (update.sessionUpdate === 'tool_call') this.meter(run.id, 'tool_observed', 1);
         },
         onPermission: (p) => this.permission(run.id, p, plan.simulated, control.abort.signal),
       });
@@ -341,7 +379,7 @@ export class Orchestrator {
         throw new Error(`${result.reason} : « ${result.excerpt} »`);
       }
       await verifyPack(plan.pack.id, result.value, run.prompt);
-      this.store.charge(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1, 0, null);
+      this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
         valid: true,
         scope:

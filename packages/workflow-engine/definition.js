@@ -37,6 +37,13 @@ export const workflowSchema = z
     title: z.string().min(1).max(200),
     version: z.string().max(20).default('1'),
     concurrency: z.number().int().min(1).max(8).default(3),
+    // Words that make the planner propose this workflow automatically (pack-declared, data only).
+    keywords: z.array(z.string().min(2).max(40)).max(30).default([]),
+    // Requirements checked by the planner before proposing it (e.g. network access).
+    requires: z
+      .array(z.enum(['network']))
+      .max(5)
+      .default([]),
     steps: z.array(stepSchema).min(1).max(50),
   })
   .strict();

@@ -54,6 +54,26 @@ export const skillDefinitions = packs.flatMap((p) =>
     path: resolve(ROOT, 'domain-packs', p.id, s.file),
   })),
 );
+// Deterministic workflow proposal: the declared DAG whose keywords best match the objective, among
+// those whose requirements are met; ties keep the pack's declaration order. Explains its choice.
+export function proposeDag(pack, objective, { network = true } = {}) {
+  const words = new Set(objective.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+  const candidates = pack.dags.filter((d) => !(d.requires ?? []).includes('network') || network);
+  if (!candidates.length) return null;
+  const scored = candidates.map((d, i) => ({
+    dag: d,
+    i,
+    hits: (d.keywords ?? []).filter((k) => words.has(k.toLowerCase())),
+  }));
+  scored.sort((a, b) => b.hits.length - a.hits.length || a.i - b.i);
+  const best = scored[0];
+  return {
+    dag: best.dag,
+    reason: best.hits.length
+      ? `Workflow proposé (mots-clés : ${best.hits.join(', ')})`
+      : 'Workflow par défaut du pack (aucun mot-clé spécifique)',
+  };
+}
 export function getDag(pack, id) {
   if (!id) return pack.dag ?? null;
   const dag = pack.dags.find((d) => d.id === id);

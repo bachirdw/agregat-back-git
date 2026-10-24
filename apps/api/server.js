@@ -167,6 +167,9 @@ export function createApp({
           simulated: p.simulated,
           routing: p.routing,
           models: p.models,
+          workflow: p.workflow
+            ? { id: p.workflow.id, title: p.workflow.title, reason: p.workflow.reason }
+            : null,
         });
       }
       if (path === '/api/runs') return json(res, 201, await engine.create(body));

@@ -26,6 +26,7 @@ workflow:
 dag:
   id: opportunity-discovery-dag
   title: Rechercher, analyser et classer (DAG)
+  keywords: [démonstration, démo, fictif, fictives, test, exemple]
   concurrency: 3
   steps:
     - id: snapshot
@@ -73,6 +74,26 @@ policies:
 dags:
   - id: opportunity-discovery-live
     title: Offres réelles, registre UK des sponsors, classement vérifié
+    keywords:
+      [
+        réelles,
+        réel,
+        réels,
+        live,
+        sponsor,
+        sponsors,
+        visa,
+        visas,
+        vérifier,
+        actuelles,
+        offres,
+        emploi,
+        emplois,
+        poste,
+        postes,
+        jobs,
+      ]
+    requires: [network]
     concurrency: 2
     steps:
       - id: search
@@ -122,6 +143,7 @@ dags:
         dependsOn: [verify, analysis]
   - id: application-draft
     title: Brouillon de lettre de candidature (relecture humaine, aucun envoi)
+    keywords: [lettre, motivation, candidature, cover, letter, brouillon, rédiger, candidater]
     steps:
       - id: context
         title: Enregistrer l'offre et le profil comme données non vérifiées

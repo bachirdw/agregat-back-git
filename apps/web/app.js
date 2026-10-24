@@ -76,6 +76,9 @@ function renderWorkflows() {
     catalog.packs[0];
   const previous = $('workflow-select').value;
   $('workflow-select').replaceChildren();
+  const auto = element('option', 'Auto · proposé selon l’objectif');
+  auto.value = 'auto';
+  $('workflow-select').append(auto);
   for (const d of pack?.dags ?? []) {
     const o = element('option', d.title);
     o.value = d.id;
@@ -277,6 +280,7 @@ $('mission-form').onsubmit = async (event) => {
     const ol = element('ol');
     p.steps.forEach((s) => ol.append(element('li', s)));
     const why = element('ul', undefined, 'routing');
+    if (p.workflow) why.append(element('li', `${p.workflow.title} — ${p.workflow.reason}`));
     for (const r of p.routing?.reasons ?? []) why.append(element('li', r));
     for (const r of p.routing?.rejected ?? [])
       why.append(element('li', '✕ ' + r.id + ' : ' + r.reason, 'muted'));

@@ -172,3 +172,35 @@ test('injection : une analyse qui modifie le classement ne passe pas la vérific
     'le résultat vérifié prime sur l’agent',
   );
 });
+
+test('proposition automatique de workflow : mots-clés, exigence réseau, défaut expliqué', async () => {
+  const { proposeDag, getPack } = await import('../packages/orchestrator/packs.js');
+  const najah = getPack('najah');
+  assert.equal(
+    proposeDag(najah, 'Rédiger une lettre de motivation pour cette offre').dag.id,
+    'application-draft',
+  );
+  const live = proposeDag(najah, 'Trouver des offres réelles avec sponsor visa');
+  assert.equal(live.dag.id, 'opportunity-discovery-live');
+  assert.match(live.reason, /sponsor/);
+  assert.equal(
+    proposeDag(najah, 'Trouver des offres réelles avec sponsor visa', { network: false }).dag.id,
+    'opportunity-discovery-dag',
+  );
+  assert.equal(proposeDag(najah, 'Démonstration fictive').dag.id, 'opportunity-discovery-dag');
+  assert.match(proposeDag(getPack('core'), 'Synthèse').reason, /défaut/);
+});
+
+test('plan workflow « auto » : DAG proposé, raison visible, identifiant enregistré dans le run', async () => {
+  await withApp(async (app) => {
+    const { data } = await post(app, '/plan', {
+      prompt: 'Rédiger une lettre de motivation',
+      agent: 'fixture',
+      pack: 'najah',
+      mode: 'workflow',
+      workflow: 'auto',
+    });
+    assert.equal(data.workflow.id, 'application-draft');
+    assert.match(data.workflow.reason, /lettre/);
+  });
+});

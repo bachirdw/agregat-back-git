@@ -11,7 +11,7 @@ import {
   requirementsFor,
   saveProbe,
 } from '../agent-runtime/index.js';
-import { ROOT, getDag, getPack, verifyPack } from './packs.js';
+import { ROOT, getDag, getPack, proposeDag, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { parseAgentResult } from './result.js';
@@ -172,9 +172,23 @@ export class Orchestrator {
       throw new Error('Modèle non annoncé par ' + agent.name + ' au dernier test');
     let workflow = null;
     let dagChosen = null;
+    let workflowReason = null;
     const stepAgents = {};
     if (v.mode === 'workflow') {
-      const dag = getDag(pack, v.workflow);
+      let dag;
+      if (!v.workflow) {
+        dag = pack.dag ?? null; // API default stays predictable: the pack's default DAG
+        workflowReason = 'Workflow par défaut du pack';
+      } else if (v.workflow === 'auto') {
+        const proposal = proposeDag(pack, v.prompt, {
+          network: process.env.AGENT_PLATFORM_NETWORK !== '0',
+        });
+        dag = proposal?.dag ?? null;
+        workflowReason = proposal?.reason ?? null;
+      } else {
+        dag = getDag(pack, v.workflow);
+        workflowReason = 'Workflow choisi manuellement';
+      }
       if (!dag) throw new Error(`Le pack ${pack.name} ne déclare pas de workflow DAG`);
       const wf = validateWorkflow(dag);
       for (const s of wf.steps.filter((x) => x.kind === 'agent' && x.agent && x.agent !== id)) {
@@ -188,6 +202,7 @@ export class Orchestrator {
       workflow = {
         id: wf.id,
         title: wf.title,
+        reason: workflowReason,
         levels: levels(wf),
         steps: wf.steps.map((s) => ({
           id: s.id,
@@ -203,7 +218,7 @@ export class Orchestrator {
       };
     }
     return {
-      input: { ...v, agent: id, pack: pack.id },
+      input: { ...v, agent: id, pack: pack.id, ...(dagChosen ? { workflow: dagChosen.id } : {}) },
       workflow,
       dag: dagChosen,
       workflows: pack.dags.map((d) => ({ id: d.id, title: d.title })),

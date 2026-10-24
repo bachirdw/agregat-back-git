@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node apps/api/server.js",
-    "test": "node --test --test-concurrency=4 --test-timeout=120000 tests/*.test.js",
+    "test": "node scripts/run-tests.js",
     "demo": "node scripts/demo.js",
     "doctor": "node apps/companion/doctor.js",
     "check": "node scripts/check.js",

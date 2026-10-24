@@ -14,7 +14,10 @@
     {
       "id": "no-false-sponsor",
       "query": "Python avec sponsor visa",
-      "expect": { "noSponsorshipBeyond": ["unknown", "uk_register_name_match"], "companyNotMatched": "Mitre Media" }
+      "expect": {
+        "noSponsorshipBeyond": ["unknown", "uk_register_name_match"],
+        "companyNotMatched": "Mitre Media"
+      }
     },
     {
       "id": "unrelated-query",

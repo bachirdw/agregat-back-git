@@ -48,3 +48,22 @@ section « Playwright API »). Le relais envoie par défaut une télémétrie an
 - La détection d'élément sensible est heuristique (mots-clés FR/EN, types de champ) : en cas de doute, une
   action `write` demande déjà une décision humaine par défaut.
 - Pas encore de liste blanche par onglet existant (accès aux onglets de l'utilisateur volontairement exclu).
+
+## Durcissement de la relecture review-night
+
+Le contexte CDP est désormais propre à la plateforme, y compris en connexion à Chrome partagé : aucun
+cookie ni worker du contexte utilisateur n’est réutilisé. JavaScript et service workers sont désactivés ;
+les sites qui en dépendent ne sont pas pris en charge par ce fournisseur sûr. Toutes les ressources et
+iframes passent par le filtre du contexte installé avant la page ; nouveaux onglets et WebSockets refusés.
+Les redirections sont suivies manuellement avec contrôle à chaque saut et limite de cinq ; les changements
+d’origine sont refusés (le document satisfait par route.fetch garderait sinon l’origine initiale).
+Les appels de la gateway sont sérialisés et les éléments/pages revérifiés après consentement. La saisie
+n’expose plus les valeurs de champs dans la description envoyée à l’approbation. Les téléchargements
+n’écrasent jamais un fichier existant et refusent un dossier downloads symbolique.
+
+Cette défense vise les pages hostiles dans le fournisseur. Elle ne constitue pas un bac à sable système :
+un CLI natif exécuté sous le compte utilisateur peut lire la configuration MCP (dont le jeton de pont),
+appeler les API de décision locales ou utiliser ses outils natifs. Une isolation de processus/réseau et un
+canal de décision réservé à l’utilisateur sont requis avant tout usage avec agents non fiables ou en
+multi-utilisateurs. La résolution DNS est encore indépendante de celle du navigateur : aucune garantie
+contre le rebinding entre contrôle DNS et connexion n’est revendiquée.

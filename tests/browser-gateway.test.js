@@ -408,6 +408,7 @@ test(
     await gw.call('browser.navigate', { url: origin + '/' });
     const out = await gw.call('browser.download', { selector: '#dl' });
     assert.equal(out.file, 'offre.txt');
+    await assert.rejects(gw.call('browser.download', { selector: '#dl' }), /EEXIST/);
     assert.deepEqual(readdirSync(join(ws, 'downloads')), ['offre.txt']);
     await assert.rejects(gw.call('browser.download', { selector: '#big' }), /trop volumineux/);
     assert.deepEqual(readdirSync(join(ws, 'downloads')), ['offre.txt']);
@@ -468,3 +469,118 @@ test(
     assert.equal(chrome.exitCode, null, 'Chrome de l’utilisateur toujours ouvert');
   },
 );
+
+// Hostile local pages are fictitious; neither server is an external service.
+test(
+  'Chrome : sous-ressources, iframe, popup et redirections en chaîne restent confinés',
+  { skip: !hasChrome },
+  async (t) => {
+    let forbiddenHits = 0;
+    const forbidden = http.createServer((req, res) => {
+      forbiddenHits++;
+      res.end('<p>secret fictif</p>');
+    });
+    await new Promise((r) => forbidden.listen(0, '127.0.0.1', r));
+    const bad = `http://127.0.0.1:${forbidden.address().port}`;
+    const allowed = http.createServer((req, res) => {
+      if (req.url === '/one') {
+        res.writeHead(302, { location: '/two' });
+        return res.end();
+      }
+      if (req.url === '/two') {
+        res.writeHead(302, { location: bad });
+        return res.end();
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        `<iframe src="${bad}/frame"></iframe><img src="${bad}/image"><a id="popup" target="_blank" href="${bad}/popup">Open</a><form target="newtab" action="${bad}/form"><button id="form">Go</button></form><script>window.open('${bad}/script');fetch('${bad}/post', {method:'POST',mode:'no-cors'});</script>`,
+      );
+    });
+    await new Promise((r) => allowed.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${allowed.address().port}`;
+    const provider = new CdpBrowser({
+      launch: { executablePath: CHROME },
+      navigationTimeoutMs: 3000,
+    });
+    t.after(async () => {
+      await provider.close();
+      allowed.closeAllConnections();
+      allowed.close();
+      forbidden.closeAllConnections();
+      forbidden.close();
+    });
+    const gw = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({ allowLocalOrigins: [origin], capabilities: ALL }),
+      approve: async () => true,
+    });
+    await gw.call('browser.navigate', { url: origin });
+    await new Promise((r) => setTimeout(r, 150));
+    assert.equal(forbiddenHits, 0, 'aucune sous-ressource ni requête de script hors périmètre');
+    await gw.call('browser.click', { selector: '#popup' }).catch(() => {});
+    await gw.call('browser.click', { selector: '#form' }).catch(() => {});
+    await new Promise((r) => setTimeout(r, 150));
+    assert.equal(forbiddenHits, 0, 'aucun nouvel onglet hors périmètre');
+    await assert.rejects(gw.call('browser.navigate', { url: origin + '/one' }));
+    assert.equal(forbiddenHits, 0, 'chaque saut est contrôlé avant connexion');
+  },
+);
+
+test('gateway : un élément modifié pendant l’approbation ne reçoit pas le consentement précédent', async () => {
+  const { gw } = fixtureGateway({ decision: true });
+  await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
+  gw.approve = async () => {
+    gw.provider.pages[gw.provider.url].elements['#filter'] = { tag: 'button', text: 'Payer' };
+    return true;
+  };
+  const count = gw.provider.actions.length;
+  await assert.rejects(gw.call('browser.click', { selector: '#filter' }), /modifi/);
+  assert.equal(gw.provider.actions.length, count);
+});
+
+test('Chrome : téléchargement refuse un dossier symlink', { skip: !hasChrome }, async (t) => {
+  const { gw, origin, ws } = await realGateway(t, { decision: true });
+  await gw.call('browser.navigate', { url: origin });
+  const outside = temporary();
+  symlinkSync(outside, join(ws, 'downloads'));
+  await assert.rejects(gw.call('browser.download', { selector: '#dl' }), /non sûr/);
+  assert.deepEqual(readdirSync(outside), []);
+});
+
+test('gateway : upload revalidé après consentement et appels sérialisés', async () => {
+  const { gw, ws } = fixtureGateway({ decision: true });
+  await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
+  writeFileSync(join(ws, 'cv.txt'), 'CV FICTIF');
+  gw.approve = async () => {
+    symlinkSync('/etc/hosts', join(ws, 'other'));
+    return true;
+  };
+  const out = await gw.call('browser.upload', { selector: '#file', path: 'cv.txt' });
+  assert.equal(out.done, 'browser.upload');
+  const { gw: other, ws: otherWs } = fixtureGateway({ decision: true });
+  await other.call('browser.navigate', { url: 'https://jobs.example.com/' });
+  writeFileSync(join(otherWs, 'cv.txt'), 'CV FICTIF');
+  other.approve = async () => {
+    (await import('node:fs')).unlinkSync(join(otherWs, 'cv.txt'));
+    symlinkSync('/etc/hosts', join(otherWs, 'cv.txt'));
+    return true;
+  };
+  await assert.rejects(
+    other.call('browser.upload', { selector: '#file', path: 'cv.txt' }),
+    /modifié/,
+  );
+  let active = 0,
+    peak = 0;
+  gw.approve = async () => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, 10));
+    active--;
+    return true;
+  };
+  await Promise.all([
+    gw.call('browser.click', { selector: '#filter' }),
+    gw.call('browser.click', { selector: '#filter' }),
+  ]);
+  assert.equal(peak, 1);
+});

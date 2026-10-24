@@ -1,5 +1,6 @@
-import { realpathSync, statSync, mkdirSync } from 'node:fs';
+import { realpathSync, statSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
 import { getCapability } from '../capability-registry/index.js';
 export { CdpBrowser } from './cdp.js';
@@ -44,12 +45,21 @@ export class BrowserGateway {
     Object.assign(this, { provider, policy, approve, meter });
     this.autoApprove = new Set(autoApprove); // write (never sensitive) capabilities pre-approved by the user
   }
-  async call(capabilityId, rawArgs = {}) {
+  call(capabilityId, rawArgs = {}) {
+    const task = (this.pending ?? Promise.resolve()).then(() =>
+      this.execute(capabilityId, rawArgs),
+    );
+    this.pending = task.catch(() => {});
+    return task;
+  }
+  async execute(capabilityId, rawArgs) {
     const cap = getCapability(capabilityId);
     if (cap.domain !== 'browser') throw new Error('Capacité non navigateur');
     const args = cap.schema.parse(rawArgs);
     this.policy.assertCapability(capabilityId);
     if (args.url) await this.policy.assertUrl(args.url);
+    const pageBefore = await this.provider.currentUrl?.();
+    if (pageBefore && pageBefore !== 'about:blank') await this.policy.assertUrl(pageBefore);
     let element = null;
     let sensitive = cap.effect === 'sensitive';
     if (
@@ -67,6 +77,8 @@ export class BrowserGateway {
       if (rel.startsWith('..') || isAbsolute(rel))
         throw new Error('Lien symbolique hors du dossier du run');
       if (!statSync(real).isFile()) throw new Error('Fichier introuvable');
+      if (statSync(real).size > this.policy.maxDownloadBytes)
+        throw new Error('Fichier trop volumineux');
       args.path = real;
     }
     if (cap.effect !== 'read') {
@@ -86,6 +98,23 @@ export class BrowserGateway {
         if (approved !== true)
           throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
       }
+    }
+    if (
+      element &&
+      (!isDeepStrictEqual(element, await this.provider.describe(args.selector)) ||
+        pageBefore !== (await this.provider.currentUrl?.()))
+    )
+      throw new Error('Élément ou page modifié pendant l’approbation');
+    if (capabilityId === 'browser.upload') {
+      // Freeze the approved bytes; Playwright must not reopen a path that may have changed.
+      const real = realpathSync(this.policy.workspacePath(rawArgs.path));
+      const root = realpathSync(this.policy.workspace);
+      const rel = relative(root, real);
+      if (rel.startsWith('..') || isAbsolute(rel) || real !== args.path)
+        throw new Error('Fichier modifié pendant l’approbation');
+      const buffer = readFileSync(real);
+      if (buffer.length > this.policy.maxDownloadBytes) throw new Error('Fichier trop volumineux');
+      args.filePayload = { name: basename(real), mimeType: 'application/octet-stream', buffer };
     }
     await this.meter(cap.meter, 1, capabilityId);
     const output = await this.provider.perform(capabilityId, args, this.policy);

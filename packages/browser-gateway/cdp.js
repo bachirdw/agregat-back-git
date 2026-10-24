@@ -1,5 +1,16 @@
-import { mkdirSync, statSync, unlinkSync } from 'node:fs';
-import { resolve, basename } from 'node:path';
+import {
+  mkdirSync,
+  statSync,
+  existsSync,
+  lstatSync,
+  realpathSync,
+  openSync,
+  closeSync,
+  readFileSync,
+  writeFileSync,
+  constants,
+} from 'node:fs';
+import { resolve, basename, relative, isAbsolute } from 'node:path';
 
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
 // - endpoint: a CDP endpoint (Playwriter relay `http://127.0.0.1:19988`, or Chrome started with
@@ -28,13 +39,17 @@ export class CdpBrowser {
     if (this.page) return this.page;
     if (this.context) {
       this.page = await this.context.newPage();
-      await this.guard(policy);
       return this.page;
     }
     const chromium = this.injected ?? (await import('playwright-core')).chromium;
     if (this.endpoint) {
       this.browser = await chromium.connectOverCDP(this.endpoint, { timeout: 15000 });
-      this.context = this.browser.contexts()[0] ?? (await this.browser.newContext());
+      // Never attach to the user's default context: cookies, workers and routing are shared there.
+      this.context = await this.browser.newContext({
+        acceptDownloads: true,
+        javaScriptEnabled: false,
+        serviceWorkers: 'block',
+      });
       this.shared = true;
     } else {
       this.browser = await chromium.launch({
@@ -43,34 +58,59 @@ export class CdpBrowser {
         args: ['--no-first-run', '--no-default-browser-check'],
         timeout: 30000,
       });
-      this.context = await this.browser.newContext({ acceptDownloads: true });
+      this.context = await this.browser.newContext({
+        acceptDownloads: true,
+        javaScriptEnabled: false,
+        serviceWorkers: 'block',
+      });
       this.shared = false;
     }
+    await this.guard(policy); // install before any page (including popup first requests) exists
     this.page = await this.context.newPage();
-    await this.guard(policy);
+    this.context.on('page', (page) => {
+      page
+        .opener()
+        .then((opener) => {
+          if (opener) return page.close();
+        })
+        .catch(() => {});
+    });
     return this.page;
   }
   async guard(policy) {
-    // Every main-frame navigation is re-checked by policy. Playwright does not route the follow-up
-    // requests of an HTTP redirect, so navigation documents are fetched without following redirects
-    // and each Location is checked before the browser may follow it (found by a real-Chrome test).
-    const page = this.page;
-    await page.route('**/*', async (route) => {
+    // Fail closed on every resource, frame and new target. JavaScript/worker execution is
+    // disabled: a read navigation must not submit a form or run arbitrary network code.
+    await this.context.route('**/*', async (route) => {
       const request = route.request();
-      if (!request.isNavigationRequest() || request.frame() !== page.mainFrame())
-        return route.continue();
+      let frame = null;
       try {
-        await policy.assertUrl(request.url());
-        const response = await route.fetch({ maxRedirects: 0 });
-        const location = response.headers()['location'];
-        if (response.status() >= 300 && response.status() < 400 && location)
-          await policy.assertUrl(new URL(location, request.url()).href);
-        return route.fulfill({ response });
+        frame = request.frame(); // popup navigation may have no frame yet: abort it
+        if (frame.page() !== this.page) throw new Error('Nouvel onglet refusé');
+        if (!['GET', 'HEAD'].includes(request.method()) && !this.writeInProgress)
+          throw new Error('Requête d’écriture sans approbation');
+        let url = request.url();
+        let response;
+        for (let hop = 0; hop < 5; hop++) {
+          await policy.assertUrl(url);
+          response = await route.fetch({ url, maxRedirects: 0, timeout: this.navigationTimeoutMs });
+          const location = response.headers()['location'];
+          if (response.status() < 300 || response.status() >= 400 || !location)
+            return await route.fulfill({ response });
+          const next = new URL(location, url).href;
+          await policy.assertUrl(next);
+          // Fulfilling a fetched cross-origin redirect would keep the original origin in Chrome.
+          if (new URL(next).origin !== new URL(url).origin)
+            throw new Error('Redirection inter-origines refusée');
+          url = next;
+        }
+        throw new Error('Trop de redirections');
       } catch (e) {
-        this.blocked = `${request.url()} — ${e.message}`;
-        return route.abort('blockedbyclient');
+        if (request.isNavigationRequest() && frame === this.page?.mainFrame())
+          this.blocked = `${request.url()} — ${e.message}`;
+        await route.abort('blockedbyclient').catch(() => {});
       }
     });
+    await this.context.routeWebSocket('**/*', (socket) => socket.close());
     return this.page;
   }
   // A blocked navigation leaves the tab on an error page whose pending navigations interrupt the
@@ -106,13 +146,17 @@ export class CdpBrowser {
       formAction: el.closest('form')?.getAttribute('action') ?? null,
       text: (el.innerText ?? '').slice(0, 200),
       ariaLabel: el.getAttribute('aria-label'),
-      value:
-        el.tagName === 'INPUT' && el.type !== 'password' ? (el.value ?? '').slice(0, 100) : null,
+      // Values may contain passwords, card numbers or private data even on text inputs.
+      value: null,
+      href: el.getAttribute('href'),
+      target: el.getAttribute('target'),
       autocomplete: el.getAttribute('autocomplete'),
     }));
   }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
+    page.setDefaultTimeout(this.navigationTimeoutMs);
+    await this.assertLanded(policy);
     this.blocked = null;
     const goto = async (url) => {
       try {
@@ -145,8 +189,13 @@ export class CdpBrowser {
           ),
         };
       case 'browser.click':
-        await page.locator(args.selector).first().click({ timeout: 10000 });
-        await page.waitForLoadState('domcontentloaded').catch(() => {});
+        this.writeInProgress = true;
+        try {
+          await page.locator(args.selector).first().click({ timeout: this.navigationTimeoutMs });
+          await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
+        } finally {
+          this.writeInProgress = false;
+        }
         if (this.blocked) {
           await this.reset();
           throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
@@ -157,11 +206,20 @@ export class CdpBrowser {
         await page.locator(args.selector).first().fill(args.text, { timeout: 10000 });
         return { url: page.url(), typed: args.text.length };
       case 'browser.upload':
-        await page.locator(args.selector).first().setInputFiles(args.path, { timeout: 10000 });
+        await page
+          .locator(args.selector)
+          .first()
+          .setInputFiles(args.filePayload ?? args.path, { timeout: 10000 });
         return { url: page.url(), uploaded: basename(args.path) };
       case 'browser.download': {
-        const dir = resolve(policy.workspace, 'downloads');
-        mkdirSync(dir, { recursive: true, mode: 0o700 });
+        const root = realpathSync(policy.workspace);
+        const dir = resolve(root, 'downloads');
+        if (!existsSync(dir)) mkdirSync(dir, { mode: 0o700 });
+        if (lstatSync(dir).isSymbolicLink() || !lstatSync(dir).isDirectory())
+          throw new Error('Dossier de téléchargement non sûr');
+        const rel = relative(root, realpathSync(dir));
+        if (rel.startsWith('..') || isAbsolute(rel))
+          throw new Error('Téléchargement hors du dossier du run');
         const [download] = await Promise.all([
           page.waitForEvent('download', { timeout: 15000 }),
           page.locator(args.selector).first().click({ timeout: 10000 }),
@@ -174,12 +232,24 @@ export class CdpBrowser {
             .replace(/[^\w.\- ]/g, '_')
             .slice(0, 120) || 'fichier';
         const target = resolve(dir, name);
-        await download.saveAs(target);
-        if (statSync(target).size > policy.maxDownloadBytes) {
-          unlinkSync(target);
-          throw new Error('Téléchargement trop volumineux');
+        try {
+          const source = await download.path();
+          if (statSync(source).size > policy.maxDownloadBytes)
+            throw new Error('Téléchargement trop volumineux');
+          const fd = openSync(
+            target,
+            constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+            0o600,
+          );
+          try {
+            writeFileSync(fd, readFileSync(source));
+          } finally {
+            closeSync(fd);
+          }
+          return { url: page.url(), file: name, bytes: statSync(target).size };
+        } finally {
+          await download.delete().catch(() => {});
         }
-        return { url: page.url(), file: name, bytes: statSync(target).size };
       }
       default:
         throw new Error(`Capacité non prise en charge : ${id}`);
@@ -191,6 +261,8 @@ export class CdpBrowser {
     } catch {
       /* already closed */
     }
+    await this.context?.close().catch(() => {});
+    this.context = null;
     // A shared Chrome (Playwriter relay / user browser) is never closed by the platform.
     if (this.browser && !this.shared) await this.browser.close().catch(() => {});
     this.page = null;

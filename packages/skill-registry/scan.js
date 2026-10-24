@@ -1,10 +1,25 @@
-import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import {
+  lstatSync,
+  readdirSync,
+  openSync,
+  readSync,
+  fstatSync,
+  closeSync,
+  constants,
+} from 'node:fs';
 import { join, relative, extname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parse } from 'yaml';
 
 // Static analysis of a skill folder before anything else happens. Nothing is ever executed.
-export const LIMITS = { files: 200, fileBytes: 262144, totalBytes: 2097152, skillBytes: 65536 };
+export const LIMITS = {
+  files: 200,
+  fileBytes: 262144,
+  totalBytes: 2097152,
+  skillBytes: 65536,
+  entries: 400,
+  depth: 16,
+};
 const TEXT = new Set(['.md', '.txt', '.yaml', '.yml', '.json', '.csv', '.html', '.tex', '']);
 const SCRIPT = new Set([
   '.sh',
@@ -58,16 +73,24 @@ export function parseFrontMatter(content) {
 export function scanSkillDir(dir) {
   const files = [];
   const findings = [];
-  let total = 0;
-  const walk = (current) => {
+  let total = 0,
+    entries = 0;
+  const snapshot = new Map();
+  const walk = (current, depth = 0) => {
+    if (depth > LIMITS.depth) throw new Error('Skill trop profond');
+    const directory = lstatSync(current);
+    if (directory.isSymbolicLink())
+      throw new Error('Lien symbolique refusé à la racine ou dans un dossier');
+    if (!directory.isDirectory()) throw new Error('Dossier attendu');
     for (const name of readdirSync(current).sort()) {
       if (name === '.git') continue;
+      if (++entries > LIMITS.entries) throw new Error('Trop d’entrées dans le Skill');
       const full = join(current, name);
       const rel = relative(dir, full);
       const st = lstatSync(full);
       if (st.isSymbolicLink()) throw new Error(`Lien symbolique refusé : ${rel}`);
       if (st.isDirectory()) {
-        walk(full);
+        walk(full, depth + 1);
         continue;
       }
       if (!st.isFile()) throw new Error(`Type de fichier refusé : ${rel}`);
@@ -75,7 +98,27 @@ export function scanSkillDir(dir) {
       if (st.size > LIMITS.fileBytes) throw new Error(`Fichier trop volumineux : ${rel}`);
       total += st.size;
       if (total > LIMITS.totalBytes) throw new Error('Skill trop volumineux');
-      const data = readFileSync(full);
+      const fd = openSync(full, constants.O_RDONLY | constants.O_NOFOLLOW);
+      let data;
+      try {
+        const opened = fstatSync(fd);
+        if (
+          !opened.isFile() ||
+          opened.ino !== st.ino ||
+          opened.dev !== st.dev ||
+          opened.size !== st.size
+        )
+          throw new Error('Fichier modifié pendant l’analyse');
+        const bounded = Buffer.alloc(LIMITS.fileBytes + 1);
+        const bytes = readSync(fd, bounded, 0, bounded.length, 0);
+        const after = fstatSync(fd);
+        if (bytes !== st.size || after.size !== st.size || after.mtimeMs !== opened.mtimeMs)
+          throw new Error('Fichier modifié pendant l’analyse');
+        data = Buffer.from(bounded.subarray(0, bytes));
+      } finally {
+        closeSync(fd);
+      }
+      snapshot.set(rel, data);
       const ext = extname(name).toLowerCase();
       const kind = SCRIPT.has(ext) ? 'script' : TEXT.has(ext) ? 'text' : 'binary';
       files.push({
@@ -105,12 +148,15 @@ export function scanSkillDir(dir) {
             findings.push({ level: 'danger', file: rel, rule, message: `Motif détecté : ${rule}` });
       }
     }
+    const after = lstatSync(current);
+    if (after.isSymbolicLink() || after.ino !== directory.ino || after.dev !== directory.dev)
+      throw new Error('Dossier modifié pendant l’analyse');
   };
   walk(dir);
   const skill = files.find((f) => f.path === 'SKILL.md');
   if (!skill) throw new Error('SKILL.md absent à la racine du Skill');
   if (skill.bytes > LIMITS.skillBytes) throw new Error('SKILL.md trop volumineux');
-  const content = readFileSync(join(dir, 'SKILL.md'), 'utf8');
+  const content = snapshot.get('SKILL.md').toString('utf8');
   const meta = parseFrontMatter(content);
   // Paths the method relies on but the skill does not ship (e.g. a router bound to a whole repo).
   const referenced = new Set(
@@ -145,5 +191,5 @@ export function scanSkillDir(dir) {
   const hash = createHash('sha256')
     .update(files.map((f) => `${f.path}\0${f.sha256}`).join('\n'))
     .digest('hex');
-  return { meta, files, findings, license, hash, bytes: total };
+  return { meta, files, findings, license, hash, bytes: total, snapshot };
 }

@@ -156,8 +156,8 @@ function renderThirdParty(s) {
     row.append(b);
   };
   if (s.state === 'quarantined') {
-    act('Approuver après lecture', '/skills/' + s.id + '/review', { approved: true });
-    act('Rejeter', '/skills/' + s.id + '/review', { approved: false });
+    act('Approuver après lecture', '/skills/' + s.id + '/review', { approved: true, hash: s.hash });
+    act('Rejeter', '/skills/' + s.id + '/review', { approved: false, hash: s.hash });
   }
   if (s.state === 'reviewed') act('Installer', '/skills/' + s.id + '/install', {});
   if (s.state === 'installed') act('Activer', '/skills/' + s.id + '/activate', { active: true });

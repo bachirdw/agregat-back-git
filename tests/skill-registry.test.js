@@ -8,6 +8,7 @@ import {
   symlinkSync,
   writeFileSync,
   appendFileSync,
+  realpathSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -104,7 +105,11 @@ test('cycle tiers : import en quarantaine → installation refusée → revue �
     assert.equal(rec.state, 'quarantined');
     assert.throws(() => reg.install('offer-review'), /Revue humaine/);
     assert.throws(() => reg.resolve(['offer-review']), /non revu/);
-    reg.review('offer-review', { approved: true, note: 'lu' });
+    reg.review('offer-review', {
+      hash: reg.store.skill('offer-review')?.hash,
+      approved: true,
+      note: 'lu',
+    });
     reg.install('offer-review');
     const [resolved] = reg.resolve(['offer-review']);
     assert.equal(resolved.origin, 'third-party');
@@ -123,15 +128,29 @@ test('revue refusée, nom réservé, revue des intégrés impossible', () => {
   const { reg, store } = registry();
   try {
     reg.importLocal(skillDir({ 'SKILL.md': SKILL('bad-skill') }));
-    reg.review('bad-skill', { approved: false, note: 'non' });
+    reg.review('bad-skill', {
+      hash: reg.store.skill('bad-skill')?.hash,
+      approved: false,
+      note: 'non',
+    });
     assert.equal(reg.list().find((s) => s.id === 'bad-skill').state, 'rejected');
     assert.throws(() => reg.install('bad-skill'), /Revue humaine/);
     assert.throws(
       () => reg.importLocal(skillDir({ 'SKILL.md': SKILL('opportunity-analysis') })),
       /réservé/,
     );
-    assert.throws(() => reg.review('opportunity-analysis', { approved: true }), /tiers/);
-    assert.throws(() => reg.review('bad-skill', { approved: 'oui' }), /booléen/);
+    assert.throws(
+      () =>
+        reg.review('opportunity-analysis', {
+          hash: reg.store.skill('opportunity-analysis')?.hash,
+          approved: true,
+        }),
+      /tiers/,
+    );
+    assert.throws(
+      () => reg.review('bad-skill', { hash: reg.store.skill('bad-skill')?.hash, approved: 'oui' }),
+      /booléen/,
+    );
   } finally {
     store.close();
   }
@@ -141,7 +160,7 @@ test('intégrité : modification après revue → résolution refusée et intég
   const { reg, store, dataDir } = registry();
   try {
     const rec = reg.importLocal(skillDir({ 'SKILL.md': SKILL() }));
-    reg.review('offer-review', { approved: true });
+    reg.review('offer-review', { hash: reg.store.skill('offer-review')?.hash, approved: true });
     reg.install('offer-review');
     appendFileSync(
       join(dataDir, 'skills', 'offer-review', rec.hash, 'SKILL.md'),
@@ -149,7 +168,11 @@ test('intégrité : modification après revue → résolution refusée et intég
     );
     assert.throws(() => reg.resolve(['offer-review']), /non revu|modifié/);
     assert.equal(reg.list().find((s) => s.id === 'offer-review').integrity, false);
-    assert.throws(() => reg.review('offer-review', { approved: true }), /modifié/);
+    assert.throws(
+      () =>
+        reg.review('offer-review', { hash: reg.store.skill('offer-review')?.hash, approved: true }),
+      /modifié/,
+    );
   } finally {
     store.close();
   }
@@ -159,7 +182,7 @@ test('versions : une nouvelle version repasse en quarantaine, historique conserv
   const { reg, store } = registry();
   try {
     const v1 = reg.importLocal(skillDir({ 'SKILL.md': SKILL() }));
-    reg.review('offer-review', { approved: true });
+    reg.review('offer-review', { hash: reg.store.skill('offer-review')?.hash, approved: true });
     reg.install('offer-review');
     const v2 = reg.importLocal(skillDir({ 'SKILL.md': SKILL() + '2. Nouveau.\n' }));
     assert.notEqual(v1.hash, v2.hash);
@@ -177,7 +200,7 @@ test('export natif : .agents/skills pour Codex/Gemini/OpenCode, .claude/skills p
     reg.importLocal(
       skillDir({ 'SKILL.md': SKILL(), 'references/r.md': 'ref', 'scripts/x.sh': 'echo' }),
     );
-    reg.review('offer-review', { approved: true });
+    reg.review('offer-review', { hash: reg.store.skill('offer-review')?.hash, approved: true });
     reg.install('offer-review');
     reg.install('opportunity-analysis');
     const ws = temporary();
@@ -225,7 +248,8 @@ test('import Git : seules les URL GitHub HTTPS sont acceptées', async () => {
 
 test('import local depuis l’API : limité aux racines autorisées', () => {
   const root = temporary();
-  assert.equal(allowedSkillPath(join(root, 'x'), [root]), join(root, 'x'));
+  mkdirSync(join(root, 'x'));
+  assert.equal(allowedSkillPath(join(root, 'x'), [root]), realpathSync(join(root, 'x')));
   assert.throws(() => allowedSkillPath('/etc', [root]), /racines autorisées/);
   assert.throws(() => allowedSkillPath(join(root, '..', 'y'), [root]), /racines autorisées/);
   assert.throws(() => allowedSkillPath(root, []), /racines autorisées/);
@@ -240,5 +264,126 @@ test('Skills intégrés : comportement historique conservé', () => {
     assert.ok(reg.list().every((s) => s.origin === 'bundled'));
   } finally {
     store.close();
+  }
+});
+
+test('sécurité : racine symbolique et import API via parent symbolique refusés', () => {
+  const root = temporary(),
+    outside = skillDir({ 'SKILL.md': SKILL() });
+  symlinkSync(outside, join(root, 'link'));
+  assert.throws(() => scanSkillDir(join(root, 'link')), /symbolique/);
+  assert.throws(() => allowedSkillPath(join(root, 'link'), [root]), /racines|symbolique/);
+});
+
+test('sécurité Git : sous-dossier absolu, options, credentials, ports et URL décorées refusés avant clone', async () => {
+  const { reg, store } = registry();
+  try {
+    for (const [url, options] of [
+      ['https://github.com/FICTIF/FICTIF', { subdir: temporary() }],
+      ['https://github.com/FICTIF/FICTIF', { subdir: 'C:\\outside' }],
+      ['https://github.com/FICTIF/FICTIF', { ref: '--upload-pack=fictif' }],
+      ['https://FICTIF:FICTIF@github.com/FICTIF/FICTIF', {}],
+      ['https://github.com:8443/FICTIF/FICTIF', {}],
+      ['https://github.com/FICTIF/FICTIF?fictif=1', {}],
+    ])
+      await assert.rejects(
+        reg.importGit(url, { git: '/usr/bin/true', ...options }),
+        /refus|invalide/i,
+      );
+  } finally {
+    store.close();
+  }
+});
+
+test('sécurité export : octets revérifiés après resolve et destinations sans liens symboliques', () => {
+  const { reg, store } = registry();
+  try {
+    const record = reg.importLocal(skillDir({ 'SKILL.md': SKILL() }));
+    reg.review('offer-review', {
+      approved: true,
+      hash: record.hash,
+    });
+    reg.install('offer-review');
+    const workspace = temporary(),
+      outside = temporary();
+    symlinkSync(outside, join(workspace, '.agents'));
+    assert.throws(() => reg.exportTo(workspace, 'codex', ['offer-review']), /symbolique/);
+    const originalResolve = reg.resolve.bind(reg);
+    reg.resolve = (ids) => {
+      const resolved = originalResolve(ids);
+      appendFileSync(
+        join(reg.versionDir('offer-review', record.hash), 'SKILL.md'),
+        '\nFICTIF NON REVU',
+      );
+      return resolved;
+    };
+    assert.throws(() => reg.exportTo(temporary(), 'codex', ['offer-review']), /modifi|intégrité/);
+  } finally {
+    store.close();
+  }
+});
+
+test('sécurité revue : consentement lié à l’empreinte effectivement présentée', () => {
+  const { reg, store } = registry();
+  try {
+    const source = skillDir({ 'SKILL.md': SKILL() });
+    const old = reg.importLocal(source);
+    appendFileSync(join(source, 'SKILL.md'), '\nVERSION FICTIVE 2');
+    const next = reg.importLocal(source);
+    assert.notEqual(next.hash, old.hash);
+    assert.throws(
+      () =>
+        reg.review('offer-review', {
+          approved: true,
+          hash: old.hash,
+        }),
+      /empreinte|version/i,
+    );
+    assert.equal(store.skill('offer-review').state, 'quarantined');
+  } finally {
+    store.close();
+  }
+});
+
+test('analyse bornée : snapshot stable et arborescence trop profonde refusée', () => {
+  const source = skillDir({ 'SKILL.md': SKILL(), 'references/a.md': 'FICTIF REVU' });
+  const scan = scanSkillDir(source);
+  writeFileSync(join(source, 'references/a.md'), 'FICTIF MODIFIÉ');
+  assert.equal(scan.snapshot.get('references/a.md').toString(), 'FICTIF REVU');
+  mkdirSync(join(source, ...Array(18).fill('nested')), { recursive: true });
+  assert.throws(() => scanSkillDir(source), /profond/);
+});
+
+test('écriture confinée : remplacement d’un hardlink ne modifie pas sa cible extérieure', async () => {
+  const { writeConfined } = await import('../packages/policy-engine/files.js');
+  const { linkSync } = await import('node:fs');
+  const workspace = temporary(),
+    outside = join(temporary(), 'fictif.txt');
+  writeFileSync(outside, 'FICTIF EXTÉRIEUR');
+  linkSync(outside, join(workspace, 'same.txt'));
+  writeConfined(workspace, 'same.txt', Buffer.from('FICTIF EXPORT'));
+  assert.equal(readFileSync(outside, 'utf8'), 'FICTIF EXTÉRIEUR');
+  assert.equal(readFileSync(join(workspace, 'same.txt'), 'utf8'), 'FICTIF EXPORT');
+  assert.throws(() => writeConfined(workspace, '../outside.txt', Buffer.from('FICTIF')), /hors/);
+});
+
+test('API de revue : empreinte obligatoire et version courante uniquement', async () => {
+  const { createApp } = await import('../apps/api/server.js');
+  const app = createApp({ dataDir: temporary() });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const record = app.skills.importLocal(skillDir({ 'SKILL.md': SKILL() }));
+  const review = (body) =>
+    fetch(`http://127.0.0.1:${app.server.address().port}/api/skills/offer-review/review`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+      body: JSON.stringify(body),
+    });
+  try {
+    assert.equal((await review({ approved: true })).status, 400);
+    assert.equal((await review({ approved: true, hash: 'fictif-périmé' })).status, 400);
+    assert.equal((await review({ approved: true, hash: record.hash })).status, 200);
+    assert.equal(app.store.skill('offer-review').reviewedHash, record.hash);
+  } finally {
+    await app.close();
   }
 });

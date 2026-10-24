@@ -1,19 +1,12 @@
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, renameSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, isAbsolute, win32 } from 'node:path';
 import { parseFrontMatter, scanSkillDir } from './scan.js';
 export { scanSkillDir, parseFrontMatter, LIMITS } from './scan.js';
+import { safeDirectory, writeConfined } from '../policy-engine/files.js';
 const exec = promisify(execFile);
 
 // Skill lifecycle: bundled (reviewed with their pack) or third-party (imported → quarantined →
@@ -63,7 +56,7 @@ export class SkillRegistry {
       version: record.version,
       name: scan.meta.name,
       description: scan.meta.description,
-      content: readFileSync(join(dir, 'SKILL.md'), 'utf8'),
+      content: scan.snapshot.get('SKILL.md').toString('utf8'),
       hash: scan.hash,
       reviewed: record.reviewedHash === scan.hash,
       dir,
@@ -72,6 +65,8 @@ export class SkillRegistry {
   }
   versionDir(id, hash) {
     if (!this.dataDir) throw new Error('Registre sans dossier de données');
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id) || !/^[a-f0-9]{64}$/.test(hash))
+      throw new Error('Identifiant ou empreinte de Skill invalide');
     return join(this.dataDir, 'skills', id, hash);
   }
   list() {
@@ -129,9 +124,18 @@ export class SkillRegistry {
     const id = scan.meta.name;
     if (this.bundled(id)) throw new Error(`Nom réservé par un Skill intégré : ${id}`);
     const target = this.versionDir(id, scan.hash);
+    const parent = safeDirectory(this.dataDir, join('skills', id));
     if (!existsSync(target)) {
-      mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
-      cpSync(dir, target, { recursive: true, filter: (p) => !p.split('/').includes('.git') });
+      const staging = mkdtempSync(join(parent, '.import-'));
+      try {
+        // Copy only the bounded bytes analysed above. Never reopen the untrusted source tree.
+        for (const [path, bytes] of scan.snapshot) writeConfined(staging, path, bytes);
+        if (scanSkillDir(staging).hash !== scan.hash)
+          throw new Error('Copie altérée pendant l’import');
+        renameSync(staging, target);
+      } finally {
+        rmSync(staging, { recursive: true, force: true });
+      }
     }
     const copied = scanSkillDir(target);
     if (copied.hash !== scan.hash) throw new Error('Copie altérée pendant l’import');
@@ -162,11 +166,24 @@ export class SkillRegistry {
     if (
       u.protocol !== 'https:' ||
       u.hostname !== 'github.com' ||
+      u.username ||
+      u.password ||
+      u.port ||
+      u.search ||
+      u.hash ||
       !/^\/[\w.-]+\/[\w.-]+(\.git)?\/?$/.test(u.pathname)
     )
       throw new Error('Source Git refusée : https://github.com/<owner>/<repo> uniquement');
-    if (ref && !/^[\w./-]{1,100}$/.test(ref)) throw new Error('Référence Git invalide');
-    if (subdir.split(/[\\/]/).includes('..')) throw new Error('Sous-dossier invalide');
+    if (ref && (!/^[\w./-]{1,100}$/.test(ref) || ref.startsWith('-')))
+      throw new Error('Référence Git invalide');
+    if (
+      typeof subdir !== 'string' ||
+      isAbsolute(subdir) ||
+      win32.isAbsolute(subdir) ||
+      subdir.includes('\\') ||
+      subdir.split('/').includes('..')
+    )
+      throw new Error('Sous-dossier invalide');
     const tmp = mkdtempSync(join(tmpdir(), 'relay-skill-'));
     try {
       const env = {
@@ -185,6 +202,7 @@ export class SkillRegistry {
           '1',
           '--no-recurse-submodules',
           ...(ref ? ['--branch', ref] : []),
+          '--',
           u.href,
           join(tmp, 'repo'),
         ],
@@ -200,10 +218,11 @@ export class SkillRegistry {
       rmSync(tmp, { recursive: true, force: true });
     }
   }
-  review(id, { approved, reviewer = 'utilisateur local', note = '' }) {
+  review(id, { approved, hash, reviewer = 'utilisateur local', note = '' }) {
     const r = this.store.skill(id);
     if (r?.origin !== 'third-party') throw new Error('Seuls les Skills tiers passent en revue');
     if (typeof approved !== 'boolean') throw new Error('approved doit être booléen');
+    if (hash !== r.hash) throw new Error('Empreinte de la version présentée requise pour la revue');
     const current = scanSkillDir(this.versionDir(id, r.hash)).hash;
     if (current !== r.hash) throw new Error('Contenu modifié depuis l’import : réimporter');
     const next = approved
@@ -280,12 +299,14 @@ export class SkillRegistry {
     const written = [];
     for (const s of this.resolve(ids)) {
       const source = s.origin === 'bundled' ? dirname(this.bundled(s.id).path) : s.dir;
-      const files = scanSkillDir(source).files.filter((f) => f.kind === 'text');
+      const scan = scanSkillDir(source);
+      // Bundled hashes cover SKILL.md only; third-party hashes cover the whole tree.
+      if (s.origin === 'third-party' && scan.hash !== s.hash)
+        throw new Error('Contenu modifié après résolution');
+      const files = scan.files.filter((f) => f.kind === 'text');
       for (const base of dirs) {
         for (const f of files) {
-          const target = join(workspace, base, s.id, f.path);
-          mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
-          writeFileSync(target, readFileSync(join(source, f.path)));
+          writeConfined(workspace, join(base, s.id, f.path), scan.snapshot.get(f.path));
         }
         written.push(join(base, s.id));
       }

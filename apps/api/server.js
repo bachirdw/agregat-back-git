@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Store, terminal } from '../../packages/storage/index.js';
@@ -13,13 +13,17 @@ export function allowedSkillPath(
   p,
   roots = (process.env.AGENT_PLATFORM_SKILL_ROOTS ?? '').split(':').filter(Boolean),
 ) {
-  const target = resolve(p);
-  const ok = roots.some((r) => {
-    const rel = relative(resolve(r), target);
+  const candidate = resolve(p);
+  const within = (base, target) => {
+    const rel = relative(base, target);
     return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-  });
-  if (!ok)
+  };
+  const lexical = roots.filter((root) => within(resolve(root), candidate));
+  if (!lexical.length)
     throw new Error('Chemin d’import hors des racines autorisées (AGENT_PLATFORM_SKILL_ROOTS)');
+  const target = realpathSync(candidate);
+  if (!lexical.some((root) => within(realpathSync(resolve(root)), target)))
+    throw new Error('Chemin d’import hors des racines autorisées (lien symbolique)');
   return target;
 }
 // Validation errors are summarised for people instead of returning raw schema dumps.
@@ -210,6 +214,7 @@ export function createApp({
       if (review) {
         skills.review(review[1], {
           approved: body.approved,
+          hash: body.hash,
           note: typeof body.note === 'string' ? body.note : '',
         });
         return json(res, 200, skills.list());

@@ -602,3 +602,29 @@ Vérification workflows npm test — code 0
 ## 07:44 — Validation et commit workflows
 
 - `npm test` : **177/177 tests réussis** (141 + 36), aucun skip ; check, format:check et diff --check verts. Moteur et reprise opérationnels sur fixtures ; reprise des anciennes exécutions sans définition persistée volontairement refusée, plutôt qu’exécution sur un DAG différent.
+
+## 07:45 — Priorité 4 : registre de Skills
+
+- Quatre tests de sécurité rouges avant correction (`/tmp/review-skills-red.log`) : racine symlink, subdir Git hors clone, écriture export via parent symbolique, revue périmée approuvant une autre version. Gravité élevée, fichiers scan.js, index.js, API allowedSkillPath/review et bouton UI.
+- Correctifs : scans bornés par entrées et profondeur, lecture O_NOFOLLOW par descripteur et taille bornée, snapshot des octets analysés ; copie en staging depuis le snapshot puis renommage ; plus de relecture de source entre scan/copie. Export revérifie le hash et écrit uniquement les octets scannés, refuse les parents symboliques, remplace un inode au lieu de tronquer un hardlink. Imports API comparés aux chemins réels des racines. Git : HTTPS GitHub nu, sans credentials/port/query/fragment ; subdir relatif sans traversée ni chemin Windows ; ref sans tiret initial ; séparateur -- avant dépôt.
+- Revue maintenant liée au hash explicitement envoyé par le client UI ; version modifiée entre affichage et clic refusée. API et tests adaptés. Les scripts restent exclus de l’export et jamais exécutés à l’import.
+- Erreurs de validation rencontrées : le test historique utilisait un chemin enfant inexistant (ENOENT après realpath), puis comparait /var à /private/var sur macOS ; fixture créée et comparaison canonique corrigées. Aucun contournement ajouté au code pour rendre ces assertions vertes.
+- Sept tests supplémentaires : sécurité, snapshot stable, profondeur, hardlink et API de revue. Limite résiduelle : les appels fs de Node ne constituent pas une isolation kernel contre un processus du même UID modifiant des parents de façon concurrente ; cette menace rejoint le blocage OS déjà identifié.
+
+Vérification Skills npm test — code 0
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (7607.422291ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (7122.9985ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (6329.15175ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (3037.560209ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34702.245708
+
+## 07:47 — Validation et commit Skills
+
+- `npm test` : **184/184 tests réussis** (148 + 36), aucun skip ; 19 tests registre ciblés verts ; check, format:check et diff --check verts. État : import/quarantaine/revue/export opérationnels sur fichiers et agents fictifs. Aucun clone tiers ni script importé exécuté.

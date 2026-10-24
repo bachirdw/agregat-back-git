@@ -343,6 +343,7 @@ export class Orchestrator {
       const runtime = new AcpRuntime({
         definition: plan.agent,
         cwd: run.cwd,
+        agentHome: resolve(this.dataDir, 'agent-homes', plan.agent.id),
         onEvent: (update) => {
           if (++events > 4000) {
             control.abort.abort(new Error('Trop d’événements'));
@@ -364,6 +365,8 @@ export class Orchestrator {
       const info = await runtime.start();
       const mcpServers = [this.mcpServerFor(run, plan.pack)];
       const session = await runtime.session(mcpServers, previous?.sessionId);
+      // session/load replays the previous conversation as updates: only this turn's answer counts.
+      text = '';
       await runtime.selectModel(run.model);
       this.store.update(run.id, {
         sessionId: session.sessionId,

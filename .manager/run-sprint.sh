@@ -7,7 +7,7 @@ cd /Users/diaw/Downloads/agregateur-agent
 N=$1
 TS=$(date +%Y%m%d-%H%M%S)
 LOG=.manager/logs/$N-$TS.jsonl
-COMMON=(-m gpt-6.1-sol -c model_reasoning_effort=\"xhigh\" -c sandbox_workspace_write.network_access=true)
+COMMON=(-m gpt-6.1-sol -c model_reasoning_effort=\"${EFFORT:-xhigh}\" -c sandbox_workspace_write.network_access=true)
 if [ $# -ge 3 ]; then
   codex exec resume "${COMMON[@]}" --json -o .manager/logs/$N-$TS.last.md "$2" "$3" < /dev/null > "$LOG" 2>&1
 else

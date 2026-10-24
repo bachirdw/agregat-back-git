@@ -509,3 +509,77 @@ test('sondes : persistance atomique, fichier corrompu ignoré', () => {
   writeFileSync(join(dir, 'agent-probes.json'), '{corrompu');
   assert.deepEqual(loadProbes(dir), {});
 });
+
+test('reprise avec clé API : authenticate avant session/load, dossier isolé, clé jamais transmise', async () => {
+  const home = temporary();
+  let text = '';
+  const r = new AcpRuntime({
+    definition: {
+      id: 'fake',
+      name: 'Fake',
+      command: process.execPath,
+      args: [FAKE],
+      env: ['FAKE_ACP', 'FAKE_KEY'],
+      safeModes: [],
+      apiKeyAuth: { envKey: 'FAKE_KEY', methodId: 'fake-key', homeEnv: 'FAKE_HOME' },
+    },
+    cwd: temporary(),
+    timeouts: fast,
+    agentHome: join(home, 'agent'),
+    env: {
+      ...process.env,
+      FAKE_ACP: JSON.stringify({ loadSession: true, authMethods: true }),
+      FAKE_KEY: 'k-secret-123456',
+    },
+    onEvent: (u) => {
+      if (u.sessionUpdate === 'agent_message_chunk') text += u.content.text;
+    },
+  });
+  try {
+    await r.start();
+    await r.session([], 'previous-session');
+    await r.prompt('x');
+    const report = JSON.parse(text);
+    assert.deepEqual(report.calls.slice(0, 3), ['initialize', 'authenticate', 'session/load']);
+    assert.ok(report.envKeys.includes('FAKE_HOME'));
+    assert.ok(!JSON.stringify(report.calls).includes('k-secret'));
+  } finally {
+    r.close();
+  }
+});
+
+test('reprise sans clé API : pas d’authenticate, pas de dossier isolé', async () => {
+  let text = '';
+  const r = new AcpRuntime({
+    definition: {
+      id: 'fake',
+      name: 'Fake',
+      command: process.execPath,
+      args: [FAKE],
+      env: ['FAKE_ACP'],
+      safeModes: [],
+      apiKeyAuth: { envKey: 'FAKE_KEY', methodId: 'fake-key', homeEnv: 'FAKE_HOME' },
+    },
+    cwd: temporary(),
+    timeouts: fast,
+    agentHome: temporary(),
+    env: {
+      ...process.env,
+      FAKE_ACP: JSON.stringify({ loadSession: true, authMethods: true }),
+      FAKE_KEY: '',
+    },
+    onEvent: (u) => {
+      if (u.sessionUpdate === 'agent_message_chunk') text += u.content.text;
+    },
+  });
+  try {
+    await r.start();
+    await r.session([], 'previous-session');
+    await r.prompt('x');
+    const report = JSON.parse(text);
+    assert.ok(!report.calls.includes('authenticate'));
+    assert.ok(!report.envKeys.includes('FAKE_HOME'));
+  } finally {
+    r.close();
+  }
+});

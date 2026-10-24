@@ -72,7 +72,8 @@ const app = agent({ name: 'fake-acp' })
         promptCapabilities: {},
         mcpCapabilities: { http: !!cfg.http, sse: false },
       },
-      authMethods: cfg.authRequired ? [{ id: 'fake-key', name: 'Fake key' }] : [],
+      authMethods:
+        cfg.authRequired || cfg.authMethods ? [{ id: 'fake-key', name: 'Fake key' }] : [],
     };
   })
   .onRequest(methods.agent.session.new, async () => {
@@ -80,8 +81,20 @@ const app = agent({ name: 'fake-acp' })
     if (cfg.authRequired) throw new RequestError(-32000, 'Fake API key is missing');
     return sessionPayload('fake-session-1');
   })
+  .onRequest(methods.agent.authenticate, async () => {
+    await guard('authenticate');
+    return {};
+  })
   .onRequest(methods.agent.session.load, async (ctx) => {
     await guard('session/load');
+    if (cfg.replayOnLoad)
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'ANCIENNE RÉPONSE' },
+        },
+      });
     return sessionPayload(ctx.params.sessionId);
   })
   .onRequest(methods.agent.session.setMode, async (ctx) => {

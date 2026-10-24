@@ -116,6 +116,7 @@ export async function executeWorkflow(orch, run, plan, control) {
       const runtime = new AcpRuntime({
         definition,
         cwd,
+        agentHome: resolve(orch.dataDir, 'agent-homes', definition.id),
         onEvent: (update) => {
           if (++events > 4000) return; // bounded: excess updates are dropped, not stored
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text')

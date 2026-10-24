@@ -44,6 +44,14 @@ export const profiles = [
     // (core/src/tools/mcp-client-manager.ts:461). Runs execute in an empty workspace created by the
     // platform, so trusting it loads no foreign hooks/settings. Revisit before mounting user repos.
     fixedEnv: { GEMINI_CLI_TRUST_WORKSPACE: 'true' },
+    // session/load requires an explicit `authenticate` (acpSessionManager.ts:315–330), which persists
+    // the auth type in the CLI's user settings. With an API key, the CLI therefore gets an isolated home
+    // owned by the platform so the user's ~/.gemini is never modified. The key itself stays in env.
+    apiKeyAuth: {
+      envKey: 'GEMINI_API_KEY',
+      methodId: 'gemini-api-key',
+      homeEnv: 'GEMINI_CLI_HOME',
+    },
     preference: 3,
   },
   {

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
 import { client, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
 import { buildChildEnv, redact, secretValues } from './env.js';
@@ -43,18 +44,25 @@ export class AcpRuntime {
     onPermission = async () => ({ outcome: { outcome: 'cancelled' } }),
     timeouts = {},
     env = process.env,
+    agentHome = null, // platform-owned directory for CLIs that persist settings (isolated home)
   }) {
-    Object.assign(this, { definition, cwd, onEvent, onPermission, sourceEnv: env });
+    Object.assign(this, { definition, cwd, onEvent, onPermission, sourceEnv: env, agentHome });
     this.timeouts = { ...defaultTimeouts, ...timeouts };
     this.sessionId = null;
     this.stopped = false;
     this.diagnostic = '';
     this.secrets = secretValues(env);
   }
+  usesApiKeyAuth() {
+    const a = this.definition.apiKeyAuth;
+    return !!(a && this.sourceEnv[a.envKey] && this.agentHome);
+  }
   childEnv() {
     const d = this.definition;
+    if (this.usesApiKeyAuth()) mkdirSync(this.agentHome, { recursive: true, mode: 0o700 });
     return buildChildEnv(d, this.sourceEnv, {
       ...(d.fixedEnv ?? {}),
+      ...(this.usesApiKeyAuth() ? { [d.apiKeyAuth.homeEnv]: this.agentHome } : {}),
       ...(d.id === 'codex' && d.cliPath ? { CODEX_PATH: d.cliPath } : {}),
       ...(d.id === 'claude' && d.cliPath ? { CLAUDE_CODE_EXECUTABLE: d.cliPath } : {}),
     });
@@ -146,6 +154,13 @@ export class AcpRuntime {
   async session(mcpServers, previousId) {
     if (previousId && !this.info.agentCapabilities?.loadSession)
       throw new Error('Reprise non supportée par cet agent');
+    // Explicit authentication before a load when the profile needs it; the key is never sent over ACP.
+    if (previousId && this.usesApiKeyAuth()) {
+      const methodId = this.definition.apiKeyAuth.methodId;
+      if (!(this.info.authMethods ?? []).some((m) => m.id === methodId))
+        throw new Error(`Méthode d’authentification ${methodId} non annoncée`);
+      await this.request(methods.agent.authenticate, { methodId });
+    }
     const s = await this.request(
       previousId ? methods.agent.session.load : methods.agent.session.new,
       { cwd: this.cwd, mcpServers, ...(previousId ? { sessionId: previousId } : {}) },

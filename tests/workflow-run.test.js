@@ -78,7 +78,11 @@ test('workflow Najah complet : outils MCP réels, agent, vérification indépend
     assert.ok(events.some((e) => e.type === 'workflow' && e.data.levels.length >= 3));
     assert.ok(events.some((e) => e.type === 'verification' && e.data.stepId === 'verify'));
     const usage = app.store.usage(run.id).entries.map((e) => e.dimension);
-    assert.equal(usage.filter((d) => d === 'tool_call').length, 3);
+    assert.equal(
+      usage.filter((d) => d === 'tool_call').length,
+      4,
+      '3 appels du DAG et 1 appel MCP de l’agent, chacun mesuré une fois',
+    );
     assert.ok(usage.includes('fixture_turn'));
   });
 });

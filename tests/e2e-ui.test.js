@@ -47,7 +47,7 @@ test(
     await page.waitForSelector('#plan-panel:not([hidden])');
     const plan = await page.locator('#plan').innerText();
     assert.match(plan, /Analyser le classement · Démonstrateur ACP \(optionnelle\)/);
-    assert.match(plan, /Coût plateforme estimé \(maximum\) : 0,00/);
+    assert.match(plan, /Coût plateforme estimé : 0,00/);
     await page.click('#launch');
     await page.waitForFunction(
       () => document.getElementById('run-state').textContent === 'Terminée',

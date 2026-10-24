@@ -234,3 +234,110 @@ test('gateway de données : mesure refusée → aucune requête réseau', async 
   await assert.rejects(data.get('https://api.example.com/x'), /Budget/);
   assert.equal(fetched, 0);
 });
+
+test('sécurité facturation : mètres propres, unités finies, BYOA gratuit même à la couche stockage', () => {
+  const store = new Store(join(temporary(), 'db'));
+  store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  try {
+    for (const meter of ['toString', '__proto__', 'constructor'])
+      assert.throws(() => priceOf(meter, 1, defaultPricing()), /inconnu/);
+    for (const units of [NaN, Infinity, -1, '1']) {
+      assert.throws(() => priceOf('tool_call', units, defaultPricing()), /Unités/);
+      assert.throws(() => store.charge('FICTIF', 'tool_call', units, 0), /Unités/);
+    }
+    assert.throws(() => store.charge('FICTIF', 'tool_call', 0, 0), /Unités/);
+    assert.equal(priceOf('tool_call', 0, defaultPricing()), 0);
+    assert.throws(() => store.charge('FICTIF', 'byoa_model_turn', 1, 1), /facturable/);
+    assert.throws(() => store.charge('FICTIF', 'inconnu', 1, 0), /inconnu/);
+    assert.equal(store.usage('FICTIF').entries.length, 0);
+  } finally {
+    store.close();
+  }
+});
+
+test('ledger : suppression de queue détectée après réouverture et écriture suivante refusée', () => {
+  const file = join(temporary(), 'db');
+  let store = new Store(file);
+  store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  store.charge('FICTIF', 'tool_call', 1, 1);
+  store.charge('FICTIF', 'tool_call', 1, 1);
+  store.db.exec('DELETE FROM ledger WHERE id=2');
+  store.close();
+  store = new Store(file);
+  try {
+    assert.equal(store.verifyLedger().ok, false);
+    assert.throws(() => store.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
+    assert.equal(store.usage('FICTIF').entries.length, 1);
+  } finally {
+    store.close();
+  }
+});
+
+test('agent : appels MCP facturés avant action et arrêt au budget, aucun double comptage du workflow', async (t) => {
+  const app = createApp({ dataDir: temporary() });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  t.after(() => app.close());
+  app.engine.pricing = validatePricing({ centsPerUnit: { tool_call: 3 } });
+  const run = await app.engine.create({
+    prompt: 'Python FICTIF',
+    agent: 'fixture',
+    pack: 'najah',
+    budgetCents: 3,
+  });
+  const until = Date.now() + 15000;
+  while (app.engine.active.has(run.id)) {
+    assert.ok(Date.now() < until);
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  assert.equal(app.store.get(run.id).state, 'failed');
+  assert.match(app.store.get(run.id).error, /Budget/);
+  assert.equal(app.store.usage(run.id).platformCents, 3);
+  assert.equal(
+    app.store.usage(run.id).entries.filter((x) => x.dimension === 'tool_call').length,
+    1,
+  );
+});
+
+test('estimation : les retries de lecture sont inclus, aucune relance automatique de write', () => {
+  const pricing = validatePricing({ centsPerUnit: { tool_call: 2, data_search: 1 } });
+  const e = estimatePlan(
+    {
+      workflow: {
+        steps: [
+          { kind: 'tool', effect: 'read', retries: 2, estimate: { data_search: 1 } },
+          { kind: 'tool', effect: 'write', retries: 3 },
+        ],
+      },
+      simulated: true,
+    },
+    pricing,
+  );
+  assert.equal(e.platformCentsMax, 11);
+});
+
+test('ledger : compteur et identifiant v2 liés à l’empreinte ; suppression totale détectée', () => {
+  const store = new Store(join(temporary(), 'db'));
+  store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  try {
+    store.charge('FICTIF', 'tool_call', 1, 1);
+    store.db.exec('UPDATE ledger SET id=7 WHERE id=1');
+    assert.equal(store.verifyLedger().ok, false);
+    store.db.exec('DELETE FROM ledger');
+    assert.equal(store.verifyLedger().ok, false);
+  } finally {
+    store.close();
+  }
+});
+
+test('monnaie : un ledger non vide ne change pas de devise implicitement', () => {
+  const store = new Store(join(temporary(), 'db'));
+  store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  try {
+    store.bindCurrency('USD');
+    store.charge('FICTIF', 'tool_call', 1, 1);
+    assert.throws(() => store.bindCurrency('EUR'), /Devise.*incompatible/);
+    assert.doesNotThrow(() => store.bindCurrency('USD'));
+  } finally {
+    store.close();
+  }
+});

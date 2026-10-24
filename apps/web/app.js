@@ -374,16 +374,17 @@ function renderSteps(states = {}) {
   }
 }
 let stepStates = {};
-const euros = (cents) =>
-  (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+const euros = (cents, currency = 'EUR') =>
+  (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency });
 function costTable(cost) {
   const box = element('div', undefined, 'cost');
   box.append(
     element(
       'strong',
-      `Coût plateforme estimé (maximum) : ${euros(cost.platformCents)} · budget ${euros(cost.budgetCents ?? 0)}`,
+      `Coût plateforme estimé : ${euros(cost.platformCents, cost.currency)} · budget ${euros(cost.budgetCents ?? 0, cost.currency)}`,
     ),
   );
+  box.append(element('small', 'Les appels supplémentaires des agents restent soumis au budget.'));
   if (cost.withinBudget === false)
     box.append(
       element(
@@ -396,19 +397,24 @@ function costTable(cost) {
     box.append(
       element(
         'small',
-        `${catalog.meters?.[l.dimension]?.category ?? l.dimension} · ${l.units} ${catalog.meters?.[l.dimension]?.unit ?? ''} · ${euros(l.cents)}`,
+        `${catalog.meters?.[l.dimension]?.category ?? l.dimension} · ${l.units} ${catalog.meters?.[l.dimension]?.unit ?? ''} · ${euros(l.cents, cost.currency)}`,
       ),
     );
   return box;
 }
 function usageTable(usage, ledger) {
   const box = element('div', undefined, 'cost');
-  box.append(element('strong', `Consommation mesurée · plateforme ${euros(usage.platformCents)}`));
+  box.append(
+    element(
+      'strong',
+      `Consommation mesurée · plateforme ${euros(usage.platformCents, usage.currency)}`,
+    ),
+  );
   for (const r of usage.byDimension ?? [])
     box.append(
       element(
         'small',
-        `${r.category} · ${r.units} · ${r.billable ? euros(r.platformCents) : 'non facturé (observé)'}`,
+        `${r.category} · ${r.units} · ${r.billable ? euros(r.platformCents, usage.currency) : 'non facturé (observé)'}`,
       ),
     );
   if (ledger)

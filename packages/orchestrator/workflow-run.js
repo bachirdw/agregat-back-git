@@ -84,7 +84,8 @@ export async function executeWorkflow(orch, run, plan, control) {
       r.close();
     }
   };
-  const mcpClient = () => (mcpPromise ??= connectMcp(orch.mcpServerFor(run, plan.pack)));
+  const mcpClient = () =>
+    (mcpPromise ??= connectMcp(orch.mcpServerFor(run, plan.pack, { preMeteredTools: true })));
   engine.executors = {
     tool: async (step, { inputs, signal: stepSignal }) => {
       const client = await mcpClient();

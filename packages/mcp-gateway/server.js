@@ -57,6 +57,20 @@ async function meter(dimension, units = 1) {
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'Mesure refusée');
 }
 
+// The workflow executor premeters its own calls. Agent-initiated calls are metered here,
+// including tools registered by a domain pack, before their handlers run.
+const register = server.registerTool.bind(server);
+server.registerTool = (name, definition, handler) =>
+  register(name, definition, async (args, extra) => {
+    try {
+      if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
+        await meter('tool_call', 1);
+      return await handler(args, extra);
+    } catch (e) {
+      return failure(e);
+    }
+  });
+
 if (mode === 'fixture') {
   server.registerTool(
     'browser_snapshot',

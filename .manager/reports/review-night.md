@@ -658,3 +658,10 @@ Vérification réseau/cache/Najah npm test — code 0
 ## 07:52 — Validation et commit réseau/Najah
 
 - `npm test` : **192/192 tests réussis** (155 + 37), aucun skip ; tests ciblés données/transport 18/18 et Chrome/pont 32/32 ; check, format:check et diff --check verts. Redirection 303 de formulaire testée : un seul POST, puis un GET. Transport épinglé opérationnel sur serveurs loopback de test ; aucun appel payant ni interrogation de sources live pendant cette revue. Les enregistrements existants sont explicitement rejoués.
+
+## 07:54 — Priorité 6 : facturation et ledger
+
+- Trois tests rouges avant correction (`/tmp/review-billing-red.log`) : mètres hérités acceptés, queue supprimée indétectable après réouverture, agent fictif exécutant des outils MCP sans débit malgré tarif configuré. Gravités moyenne/élevée (budget outils).
+- Correctifs : validation propre des mètres et unités/coûts au prix et au stockage, BYOA jamais débitable ; ancrage local count/tête transactionnel, nouvelles empreintes v2 en JSON liées à id, refus d’ajout sur ledger altéré, anciennes chaînes v1 conservées. Suppression totale/queue et modification id testées. Migration ne peut prouver des suppressions antérieures à l’ancrage, ni résister au propriétaire du disque.
+- Tous les outils MCP initiés par l’agent sont maintenant mesurés avant leur handler. Le scheduler garde sa mesure unique (serveur dédié déclaré pré-mesuré) ; test de workflow mis à jour : 3 appels DAG + 1 véritable appel MCP de l’agent = 4, pas de double débit. Les outils facturables sans pont sont refusés ; les démonstrateurs gratuits hors serveur restent possibles.
+- Estimation inclut les retries de lecture ; suppression de la fausse promesse « maximum » pour les appels dynamiques des agents. Plafond effectif : budget revérifié à chaque action. Devise affichée issue de la tarification ; le ledger refuse un changement implicite de devise après sa première écriture.

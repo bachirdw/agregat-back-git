@@ -42,7 +42,7 @@ export function validatePricing(raw) {
     p.currency = raw.currency;
   }
   for (const [m, cents] of Object.entries(raw.centsPerUnit ?? {})) {
-    if (!meters[m]) throw new Error(`Mètre inconnu : ${m}`);
+    if (!Object.hasOwn(meters, m)) throw new Error(`Mètre inconnu : ${m}`);
     if (!Number.isFinite(cents) || cents < 0) throw new Error(`Prix invalide pour ${m}`);
     if (!meters[m].billable && cents !== 0)
       throw new Error(`${m} n’est pas facturable (BYOA ou observation) : prix interdit`);
@@ -62,21 +62,26 @@ export function loadPricing(dataDir) {
 }
 export function priceOf(dimension, units, pricing) {
   const meter = meters[dimension];
-  if (!meter) throw new Error(`Mètre inconnu : ${dimension}`);
+  if (!Object.hasOwn(meters, dimension)) throw new Error(`Mètre inconnu : ${dimension}`);
+  if (!Number.isFinite(units) || units < 0 || units > Number.MAX_SAFE_INTEGER)
+    throw new Error('Unités invalides');
   if (!meter.billable) return 0;
-  return Math.ceil(units * (pricing.centsPerUnit[dimension] ?? 0));
+  const cents = Math.ceil(units * (pricing.centsPerUnit[dimension] ?? 0));
+  if (!Number.isSafeInteger(cents) || cents < 0) throw new Error('Coût invalide');
+  return cents;
 }
 
-// Upper-bound estimate of platform charges for a plan; external BYOA usage stays « inconnu ».
+// Estimate of declared plan operations and retries; dynamic agent calls remain budget-limited; external BYOA usage stays « inconnu ».
 export function estimatePlan({ workflow, simulated }, pricing, { browserActionsMax = 0 } = {}) {
   // Each tool step counts as one platform tool call; anything else (network data requests, browser
   // actions…) comes from the step's own declared `estimate` — billing knows no pack-specific tool.
   const counts = { workflow_run: 1 };
   for (const s of workflow?.steps ?? []) {
-    if (s.kind === 'tool') counts.tool_call = (counts.tool_call ?? 0) + 1;
+    const attempts = s.effect === 'write' ? 1 : 1 + (s.retries ?? 0);
+    if (s.kind === 'tool') counts.tool_call = (counts.tool_call ?? 0) + attempts;
     for (const [meter, units] of Object.entries(s.estimate ?? {})) {
-      if (!meters[meter]) throw new Error(`Estimation : mètre inconnu ${meter}`);
-      counts[meter] = (counts[meter] ?? 0) + units;
+      if (!Object.hasOwn(meters, meter)) throw new Error(`Estimation : mètre inconnu ${meter}`);
+      counts[meter] = (counts[meter] ?? 0) + units * attempts;
     }
   }
   if (browserActionsMax) counts.browser_action = browserActionsMax;
@@ -95,9 +100,11 @@ export function estimatePlan({ workflow, simulated }, pricing, { browserActionsM
 }
 
 export function summarize(entries) {
-  const by = {};
+  const by = Object.create(null);
   for (const e of entries) {
-    const m = meters[e.dimension] ?? { category: e.dimension, billable: true };
+    const m = Object.hasOwn(meters, e.dimension)
+      ? meters[e.dimension]
+      : { category: e.dimension, billable: true };
     const k = e.dimension;
     by[k] ??= {
       dimension: k,

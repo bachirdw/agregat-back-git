@@ -45,6 +45,7 @@ export class Orchestrator {
     this.workflows = new WorkflowEngine({ store, executors: {} });
     this.approvalTokens = new Map(); // runId -> random token, memory only
     this.pricing = loadPricing(dataDir);
+    store.bindCurrency(this.pricing.currency);
     store.limits.monthlyCapCents = this.pricing.monthlyCapCents;
     this.approvalBase = null; // set by the HTTP server once listening
   }
@@ -53,7 +54,7 @@ export class Orchestrator {
   meter(runId, dimension, units = 1) {
     const cents = priceOf(dimension, units, this.pricing);
     try {
-      this.store.charge(runId, dimension, units, cents, null);
+      this.store.charge(runId, dimension, units, cents, null, this.pricing.currency);
     } catch (e) {
       if (/Budget|Plafond/.test(e.message)) {
         this.store.event(runId, 'budget_exceeded', { dimension, units, cents, reason: e.message });
@@ -67,16 +68,19 @@ export class Orchestrator {
     const expected = this.approvalTokens.get(runId);
     if (!expected || token !== expected) throw new Error('Jeton invalide');
     const control = this.active.get(runId);
-    if (!control || control.abort.signal.aborted) throw new Error('Run inactif ou annulé');
-    if (!['browser_action', 'data_search', 'document_generation'].includes(dimension))
+    if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
+      throw new Error('Run inactif ou annulé');
+    if (!['browser_action', 'data_search', 'document_generation', 'tool_call'].includes(dimension))
       throw new Error('Mètre non autorisé depuis la gateway');
     if (!Number.isFinite(units) || units <= 0 || units > 1000) throw new Error('Unités invalides');
     return { cents: this.meter(runId, dimension, units) };
   }
   // MCP capability server for a run: browser provider, per-run policy and the approval bridge.
-  mcpServerFor(run, pack) {
+  mcpServerFor(run, pack, { preMeteredTools = false } = {}) {
+    if (!this.approvalBase && priceOf('tool_call', 1, this.pricing) > 0)
+      throw new Error('Pont de mesure requis pour les outils facturables');
     const browser = process.env.AGENT_PLATFORM_BROWSER ?? 'fixture';
-    const env = { RELAY_BROWSER: browser };
+    const env = { RELAY_BROWSER: browser, RELAY_TOOL_CALL_PREMETERED: preMeteredTools ? '1' : '0' };
     const network = pack.policies?.network;
     if (network?.allowedHosts?.length && process.env.AGENT_PLATFORM_NETWORK !== '0') {
       env.RELAY_NETWORK = JSON.stringify({ allowedHosts: network.allowedHosts });
@@ -118,7 +122,8 @@ export class Orchestrator {
     const expected = this.approvalTokens.get(runId);
     if (!expected || token !== expected) throw new Error('Jeton d’approbation invalide');
     const control = this.active.get(runId);
-    if (!control || control.abort.signal.aborted) throw new Error('Run inactif ou annulé');
+    if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
+      throw new Error('Run inactif ou annulé');
     const title =
       `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`.trim();
     const outcome = await this.permission(
@@ -215,6 +220,7 @@ export class Orchestrator {
           dependsOn: s.dependsOn,
           agent: s.kind === 'agent' ? (stepAgents[s.id]?.name ?? agent.name) : null,
           effect: s.effect,
+          retries: s.retries,
           optional: s.optional,
         })),
       };

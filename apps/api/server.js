@@ -140,7 +140,11 @@ export function createApp({
         if (req.method === 'GET' && !action)
           return json(res, 200, {
             ...run,
-            usage: { ...store.usage(id), byDimension: summarize(store.usage(id).entries) },
+            usage: {
+              currency: engine.pricing.currency,
+              ...store.usage(id),
+              byDimension: summarize(store.usage(id).entries),
+            },
             ledger: store.verifyLedger(),
             steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
             permissions: [...engine.permissions.values()]

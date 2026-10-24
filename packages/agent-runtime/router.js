@@ -28,6 +28,11 @@ export function chooseAgent({ agents, requirements, live, probes = {}, order = n
         id: a.id,
         reason: `Dernier test : session refusée (${probe.error ?? 'auth'})`,
       });
+    else if (probe && probe.inference === false)
+      rejected.push({
+        id: a.id,
+        reason: `Dernier prompt refusé (${probe.inferenceError ?? 'authentification'})`,
+      });
     else if (requirements.loadSession && probe && !probe.capabilities?.loadSession)
       rejected.push({ id: a.id, reason: 'Reprise de session non annoncée' });
     else if (
@@ -57,9 +62,11 @@ export function chooseAgent({ agents, requirements, live, probes = {}, order = n
     id: chosen.id,
     reasons: [
       `${chosen.name} ${chosen.version ?? ''} détecté et compatible ACP`.replace(/\s+/g, ' '),
-      probe
-        ? `Session validée au dernier test (${probe.at ?? 'date inconnue'})`
-        : 'Jamais testé : handshake et authentification vérifiés au lancement',
+      probe?.inference
+        ? `Inférence validée au dernier test (${probe.at ?? 'date inconnue'})`
+        : probe
+          ? `Session validée au dernier test (${probe.at ?? 'date inconnue'}) ; inférence non encore prouvée`
+          : 'Jamais testé : handshake et authentification vérifiés au lancement',
       ...(requirements.model ? [`Modèle ${requirements.model} demandé`] : []),
       ...(requirements.loadSession ? ['Reprise de session requise'] : []),
     ],

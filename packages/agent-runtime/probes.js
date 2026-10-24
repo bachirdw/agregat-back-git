@@ -19,7 +19,8 @@ export function saveProbe(dataDir, id, probe) {
   const file = probesFile(dataDir);
   mkdirSync(dirname(file), { recursive: true });
   const all = loadProbes(dataDir);
-  all[id] = { ...probe, at: new Date().toISOString() };
+  // Merge: a session probe must not erase the last known inference result, and vice versa.
+  all[id] = { ...(all[id] ?? {}), ...probe, at: new Date().toISOString() };
   writeFileSync(file + '.tmp', JSON.stringify(all, null, 2), { mode: 0o600 });
   renameSync(file + '.tmp', file);
   return all[id];

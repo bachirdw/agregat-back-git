@@ -73,6 +73,11 @@ for (const definition of agents) {
     models: report.models ?? null,
     modes: report.modes ?? null,
     ...(report.error ? { error: report.error } : {}),
+    ...(typeof report.prompt === 'object'
+      ? { inference: report.prompt.stopReason === 'end_turn', inferenceError: null }
+      : report.error && report.session && /auth/i.test(report.error)
+        ? { inference: false, inferenceError: report.error.slice(0, 120) }
+        : {}),
   });
   reports.push(report);
 }

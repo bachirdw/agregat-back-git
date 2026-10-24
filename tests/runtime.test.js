@@ -583,3 +583,23 @@ test('reprise sans clé API : pas d’authenticate, pas de dossier isolé', asyn
     r.close();
   }
 });
+
+test('routeur Auto : dernier prompt refusé pour authentification → agent écarté, avec raison', () => {
+  const probes = {
+    codex: { session: true, inference: false, inferenceError: 'Authentication required' },
+    claude: { session: true, inference: true },
+  };
+  const r = chooseAgent({ agents, requirements: requirementsFor(), live: true, probes });
+  assert.equal(r.id, 'claude');
+  assert.ok(r.rejected.some((x) => x.id === 'codex' && /Authentication required/.test(x.reason)));
+  assert.match(r.reasons[1], /Inférence validée/);
+});
+
+test('sondes : fusion — une sonde de session n’efface pas le résultat d’inférence', () => {
+  const dir = temporary();
+  saveProbe(dir, 'gemini', { inference: true });
+  saveProbe(dir, 'gemini', { session: true, models: { options: [] } });
+  const p = loadProbes(dir).gemini;
+  assert.equal(p.inference, true);
+  assert.equal(p.session, true);
+});

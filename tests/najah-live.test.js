@@ -272,3 +272,11 @@ test('DAG Najah réel complet via l’API, en rejeu hors ligne : recherche → r
   });
   assert.ok(readdirSync(join(app.engine.dataDir)).length);
 });
+
+test('recherche : sources entrelacées, une source abondante n’évince pas les autres', async () => {
+  const data = new DataGateway({ allowedHosts: HOSTS, replay: REPLAY });
+  const out = await searchJobs(data, { query: 'Python data engineer', limit: 4 });
+  const sources = out.offers.map((o) => o.source);
+  assert.ok(sources.includes('arbeitnow') && sources.includes('remotive'), sources.join(','));
+  assert.equal(out.offers.length, 4);
+});

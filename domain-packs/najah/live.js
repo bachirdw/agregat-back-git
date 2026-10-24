@@ -121,7 +121,7 @@ export async function searchJobs(data, { query, sources = ['arbeitnow', 'remotiv
     }
   }
   // Keep offers that mention at least one keyword as a whole word (title, tags, excerpt), newest first.
-  const relevant = offers
+  const matching = offers
     .filter((o) => {
       const hay = tokens(o.title + ' ' + o.tags.join(' ') + ' ' + o.excerpt);
       return !words.length || words.some((w) => hay.has(w));
@@ -129,8 +129,15 @@ export async function searchJobs(data, { query, sources = ['arbeitnow', 'remotiv
     .sort(
       (a, b) =>
         String(b.publishedAt).localeCompare(String(a.publishedAt)) || a.id.localeCompare(b.id),
-    )
-    .slice(0, limit);
+    );
+  // Interleave sources (newest first within each) so one large source cannot evict the others.
+  const bySource = [...new Set(matching.map((o) => o.source))].map((src) =>
+    matching.filter((o) => o.source === src),
+  );
+  const relevant = [];
+  for (let i = 0; relevant.length < limit && bySource.some((list) => i < list.length); i++)
+    for (const list of bySource)
+      if (i < list.length && relevant.length < limit) relevant.push(list[i]);
   return {
     live: true,
     simulated: false,

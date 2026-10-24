@@ -42,3 +42,7 @@
   `recover`, mais la route de reprise relance encore un nouveau run en mode agent) ; pas encore d'étape
   `approval` dans les DAG fournis ; le planificateur ne génère pas encore de DAG à partir du prompt (il
   sélectionne celui du pack) ; duplication partielle entre le mode agent et l'exécuteur `agent`.
+
+> **Correction d’horodatage (manager, 03:58)** : les heures « HH:MM » du journal ci-dessus ont été estimées
+> par le manager et sont en avance d’environ 15 à 60 min. Heures réelles (commits) : sprint-02 03:04 et 03:13,
+> sprint-03 03:35, sprint-04 03:50, sprint-05 03:56.

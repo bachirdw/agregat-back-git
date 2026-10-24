@@ -12,3 +12,5 @@ Note manager 03:13 : un « appel » = un tour de modèle. Les runs agents coûte
 de prompt système Gemini CLI par tour). Plafond des appels relevé à **200** ; le plafond en dollars (2 $) reste
 la contrainte principale, très en dessous de la limite absolue de 10 $.
 | 04:08 | manager sprint-03 | gemini-3.5-flash-lite | Workflow DAG Najah réel (étape analysis) — **completed** | ≈ 13 000 / ≈ 100 (1 tour) | ≈ 0,003 $ | ≈ 0,027 $ (12 appels) |
+
+Note 03:58 : les heures des lignes « manager » ci-dessus après 03:05 sont estimées (en avance) ; les montants restent exacts.

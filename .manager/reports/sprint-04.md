@@ -31,3 +31,7 @@
 - **Implémenté, non testé avec l'extension** : mode `playwriter` (même code que le CDP partagé testé).
 - **Non fait** : UI de choix du mode navigateur, politique de domaines réels pour Najah (sprint 06),
   consentement explicite d'accès au Chrome de l'utilisateur dans l'interface.
+
+> **Correction d’horodatage (manager, 03:58)** : les heures « HH:MM » du journal ci-dessus ont été estimées
+> par le manager et sont en avance d’environ 15 à 60 min. Heures réelles (commits) : sprint-02 03:04 et 03:13,
+> sprint-03 03:35, sprint-04 03:50, sprint-05 03:56.

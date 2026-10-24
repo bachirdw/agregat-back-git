@@ -77,3 +77,7 @@ relecture indépendante `review-02` sera faite par Codex à son retour.
   `GEMINI_CLI_TRUST_WORKSPACE` devra être revu quand un dépôt utilisateur sera monté comme espace de travail.
 - **Pour la relecture (Codex)** : vérifier `request()` (courses entre abort/exit/réponse), `applySafeMode`,
   le routeur, la liste blanche d'environnement, `parseAgentResult` (extraction du premier `{` au dernier `}`).
+
+> **Correction d’horodatage (manager, 03:58)** : les heures « HH:MM » du journal ci-dessus ont été estimées
+> par le manager et sont en avance d’environ 15 à 60 min. Heures réelles (commits) : sprint-02 03:04 et 03:13,
+> sprint-03 03:35, sprint-04 03:50, sprint-05 03:56.

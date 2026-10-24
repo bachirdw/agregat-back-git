@@ -32,3 +32,7 @@
 ## Limites
 - Le registre ne vérifie pas la signature des dépôts ; la revue humaine reste la barrière principale.
 - Pas encore de « permissions déclarées » par Skill croisées avec la politique de capacités.
+
+> **Correction d’horodatage (manager, 03:58)** : les heures « HH:MM » du journal ci-dessus ont été estimées
+> par le manager et sont en avance d’environ 15 à 60 min. Heures réelles (commits) : sprint-02 03:04 et 03:13,
+> sprint-03 03:35, sprint-04 03:50, sprint-05 03:56.

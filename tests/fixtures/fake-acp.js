@@ -11,7 +11,13 @@ import {
 } from '@agentclientprotocol/sdk';
 import { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
+import { spawn } from 'node:child_process';
 const cfg = JSON.parse(process.env.FAKE_ACP ?? '{}');
+const grandchild = cfg.grandchild
+  ? spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"], {
+      stdio: 'ignore',
+    })
+  : null;
 const calls = [];
 const state = { mode: null, model: null };
 const never = () => new Promise(() => {});
@@ -122,6 +128,31 @@ const app = agent({ name: 'fake-acp' })
   })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
     await guard('session/prompt');
+    if (cfg.unsafeUpdate)
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: { sessionUpdate: 'current_mode_update', currentModeId: 'yolo' },
+      });
+    if (cfg.eventText)
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: cfg.eventText },
+        },
+      });
+    if (cfg.permissionSecret)
+      await connection.client.request(methods.client.session.requestPermission, {
+        sessionId: ctx.params.sessionId,
+        toolCall: {
+          toolCallId: 'secret',
+          title: cfg.permissionSecret,
+          kind: 'other',
+          rawInput: { secret: cfg.permissionSecret },
+        },
+        options: [{ optionId: 'no', name: 'Non', kind: 'reject_once' }],
+      });
+    if (cfg.errorText) throw new RequestError(-32000, cfg.errorText);
     if (cfg.permissionHang) {
       await connection.client.request(methods.client.session.requestPermission, {
         sessionId: ctx.params.sessionId,
@@ -134,6 +165,7 @@ const app = agent({ name: 'fake-acp' })
     const report = {
       calls,
       state,
+      grandchild: grandchild?.pid,
       envKeys: Object.keys(process.env).sort(),
       hasGeminiKey: !!process.env.GEMINI_API_KEY,
     };

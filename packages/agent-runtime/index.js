@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
 import { client, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
-import { buildChildEnv, redact, secretValues } from './env.js';
+import { buildChildEnv, redact, redactValue, secretValues } from './env.js';
 import { agentCapabilities, sessionModels, sessionModes } from './capabilities.js';
 export { detectAgents, loadAgentConfig, findCli } from './discovery.js';
 export { profiles, getProfile, agentIds } from './profiles.js';
@@ -49,6 +49,8 @@ export class AcpRuntime {
     Object.assign(this, { definition, cwd, onEvent, onPermission, sourceEnv: env, agentHome });
     this.timeouts = { ...defaultTimeouts, ...timeouts };
     this.sessionId = null;
+    this.ready = false;
+    this.lifecycle = new AbortController();
     this.stopped = false;
     this.diagnostic = '';
     this.secrets = secretValues(env);
@@ -68,6 +70,39 @@ export class AcpRuntime {
     });
   }
   async start() {
+    if (this.stopped) throw new Error('Runtime fermé');
+    if (this.child) throw new Error('Runtime déjà démarré');
+    try {
+      return await this.startProcess();
+    } catch (e) {
+      this.close();
+      throw this.safeError(e);
+    }
+  }
+  safeError(error) {
+    const e = error instanceof Error ? error : new Error(String(error));
+    e.message = redact(e.message, this.secrets);
+    if (e.stack) e.stack = redact(e.stack, this.secrets);
+    if (e.data) e.data = redactValue(e.data, this.secrets);
+    if (e.diagnostic) e.diagnostic = redact(e.diagnostic, this.secrets);
+    return e;
+  }
+  handleUpdate(update) {
+    if (this.stopped) return;
+    const mode =
+      update.sessionUpdate === 'current_mode_update'
+        ? update.currentModeId
+        : update.sessionUpdate === 'config_option_update'
+          ? sessionModes(update).current
+          : null;
+    if (mode && this.definition.safeModes?.length && !this.definition.safeModes.includes(mode)) {
+      this.ready = false;
+      this.close();
+      return;
+    }
+    this.onEvent(redactValue(update, this.secrets));
+  }
+  async startProcess() {
     const d = this.definition;
     this.child = spawn(d.command, d.args ?? [], {
       cwd: this.cwd,
@@ -95,8 +130,12 @@ export class AcpRuntime {
       this.child.once('error', no);
     });
     this.connection = client({ name: 'agent-platform' })
-      .onNotification(methods.client.session.update, (ctx) => this.onEvent(ctx.params.update))
-      .onRequest(methods.client.session.requestPermission, (ctx) => this.onPermission(ctx.params))
+      .onNotification(methods.client.session.update, (ctx) => this.handleUpdate(ctx.params.update))
+      .onRequest(methods.client.session.requestPermission, (ctx) =>
+        this.stopped
+          ? { outcome: { outcome: 'cancelled' } }
+          : this.onPermission(redactValue(ctx.params, this.secrets)),
+      )
       .connect(
         ndJsonStream(Writable.toWeb(this.child.stdin), Readable.toWeb(this.child.stdout), {
           maxMessageBytes: 1048576,
@@ -125,11 +164,14 @@ export class AcpRuntime {
     const onAbort = () => local.abort(signal.reason ?? new Error('Annulé'));
     if (signal?.aborted) onAbort();
     else signal?.addEventListener('abort', onAbort, { once: true });
+    const onClose = () => local.abort(new Error('Runtime fermé'));
+    this.lifecycle.signal.addEventListener('abort', onClose, { once: true });
     const aborted = new Promise((_, reject) => {
       if (local.signal.aborted) reject(local.signal.reason);
       else
         local.signal.addEventListener('abort', () => reject(local.signal.reason), { once: true });
     });
+    local.signal.addEventListener('abort', () => this.close(), { once: true });
     const pending = local.signal.aborted
       ? aborted
       : this.connection.agent.request(method, params, { cancellationSignal: local.signal });
@@ -146,12 +188,25 @@ export class AcpRuntime {
     });
     settled.catch(() => {});
     aborted.catch(() => {});
-    return Promise.race([settled, aborted, this.exited]).finally(() => {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', onAbort);
-    });
+    return Promise.race([settled, aborted, this.exited])
+      .then((value) => redactValue(value, this.secrets))
+      .catch((e) => {
+        throw this.safeError(e);
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        this.lifecycle.signal.removeEventListener('abort', onClose);
+      });
   }
   async session(mcpServers, previousId) {
+    this.ready = false;
+    for (const server of mcpServers)
+      this.secrets.push(
+        ...secretValues(
+          Object.fromEntries((server.env ?? []).map(({ name, value }) => [name, value])),
+        ),
+      );
     if (previousId && !this.info.agentCapabilities?.loadSession)
       throw new Error('Reprise non supportée par cet agent');
     // Explicit authentication before a load when the profile needs it; the key is never sent over ACP.
@@ -171,6 +226,7 @@ export class AcpRuntime {
     this.models = sessionModels(s);
     this.modes = sessionModes(s);
     this.mode = await this.applySafeMode();
+    this.ready = true;
     return { ...s, sessionId: this.sessionId };
   }
   // Pick the first safe mode the session actually announces; refuse to run otherwise.
@@ -208,6 +264,8 @@ export class AcpRuntime {
     return value;
   }
   prompt(text, signal) {
+    if (this.stopped) return Promise.reject(new Error('Runtime fermé'));
+    if (!this.ready) return Promise.reject(new Error('Session non prête : mode sûr requis'));
     return this.request(
       methods.agent.session.prompt,
       { sessionId: this.sessionId, prompt: [{ type: 'text', text }] },
@@ -233,8 +291,10 @@ export class AcpRuntime {
   close() {
     if (this.stopped) return;
     this.stopped = true;
+    this.ready = false;
+    this.lifecycle.abort();
     this.connection?.close();
-    if (!this.child?.pid || this.exitInfo) return;
+    if (!this.child?.pid) return;
     const kill = (signal) => {
       try {
         if (process.platform === 'win32') this.child.kill(signal);
@@ -245,7 +305,7 @@ export class AcpRuntime {
     };
     kill('SIGTERM');
     const t = setTimeout(() => {
-      if (!this.exitInfo) kill('SIGKILL');
+      kill('SIGKILL');
     }, 1500);
     t.unref();
   }

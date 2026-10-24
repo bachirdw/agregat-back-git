@@ -37,3 +37,14 @@ export function redact(text, secrets = secretValues()) {
   for (const s of secrets) out = out.split(s).join('[secret masqué]');
   return out.replace(/AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9_-]{16,}/g, '[secret masqué]');
 }
+
+// Preserve protocol structure while scrubbing every string before it can reach logs or SQLite.
+export function redactValue(value, secrets) {
+  if (typeof value === 'string') return redact(value, secrets);
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, secrets));
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, redactValue(item, secrets)]),
+    );
+  return value;
+}

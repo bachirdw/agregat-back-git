@@ -520,3 +520,53 @@ Tests navigateur après correction : code 1
 
 - `npm test` : **166/166 réussis** (130 + 36) ; check et format:check verts. Les trois régressions du pont sont opérationnelles. Le test rouge initial a aussi produit deux erreurs différées « database is not open » après fermeture de sa fixture, faute de résolution des permissions initiales (corrigé par le listener).
 - Nettoyage : deux anciennes commandes Chrome restaient vivantes malgré test-timeout (exception popup initiale, gestionnaire de route abandonné). Arrêt SIGTERM ciblé des PID 43649/43611 et 43899/43884/43883 identifiés comme nos descendants ; aucun Chrome utilisateur touché. Les exécutions corrigées terminent normalement.
+
+## 07:40 — Priorité 2 : runtime ACP
+
+- Trois tests rouges reproduits avant correctif (`/tmp/review-runtime-red.log`) : prompt accepté malgré refus du mode sûr (élevé, index.js session/prompt) ; secret fictif présent dans RequestError et événements/permissions (élevé, handlers ACP et request) ; jeton MCP absent du masque (élevé, session).
+- Corrections : état ready imposé avant prompt, démarrage unique et interdit après close, erreurs/retours/événements/permissions nettoyés récursivement avant callbacks ou stockage, secrets MCP ajoutés à la liste, fermeture et timeout rejettent les requêtes et arrêtent le runtime, changement annoncé vers un mode dangereux révoque ready. Le groupe de processus est aussi tué après sortie du leader (sinon les descendants ignorant SIGTERM pouvaient rester).
+- Cinq tests de sécurité avec faux agents ajoutés, dont SQLite inspecté, notification de mode dangereux et petit-enfant résistant. Aucun appel réel de modèle. Limite : un CLI peut mentir sur son mode ; ACP ne remplace pas une isolation système.
+
+Validation runtime ciblée — code 1
+
+- Échec de validation runtime : 44 tests ciblés, 1 échec du contrat historique après close (« Runtime fermé » attendu, nouvel état ready retournait « Session non prête »). Les protections réussissent ; ordre des gardes prompt corrigé pour préserver le message existant. La suite complète lancée trop tôt a chargé cette version et doit être relancée avant commit ; aucune suppression de test.
+
+Vérification runtime npm test — code 1
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (7536.446709ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (7213.980083ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (9510.5205ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (4222.175542ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39456.490292
+
+## 07:41 — Préparation priorité 3
+
+- Reproducteur sans modèle (`node --input-type=module`, SQLite temporaire, exécuteur FICTIF incrémentant un compteur puis lançant une erreur) : une étape write retries=2 produit **3 effets** avant failed ; recover(retryFailed=true) la remet ensuite pending. Défaut élevé de double effet confirmé dans `WorkflowEngine.launch/recover`. Les tests automatisés et le correctif suivront le commit runtime.
+
+## 07:42 — Préparation priorité 4
+
+- Reproducteur sans réseau : scanSkillDir accepte une racine symbolique ; importGit accepte un subdir absolu hors clone (programme /usr/bin/true substitué à Git, source et SKILL entièrement fictifs en dossier temporaire). Sorties : « Racine symbolique acceptée : fictif » et « Sous-dossier Git absolu importé hors clone : fictif ». Défauts confirmés, pas de clone ni lecture d’identifiants. Le scan/copie puis relecture séparés exposent aussi une TOCTOU ; un snapshot immuable des octets analysés est prévu.
+
+Vérification runtime corrigé npm test — code 0
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (7313.979834ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (6829.472ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (6285.620792ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (2995.116334ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32975.450833
+
+## 07:42 — Validation et commit runtime
+
+- Relance complète corrigée : **171/171 tests réussis** (135 + 36), aucun skip ; check, format:check, diff --check verts. Les 44 tests runtime ciblés sont verts. État : runtime opérationnel sur pairs fictifs, pas de validation payante ni de garantie de bac à sable OS.

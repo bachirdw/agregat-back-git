@@ -603,3 +603,108 @@ test('sondes : fusion — une sonde de session n’efface pas le résultat d’i
   assert.equal(p.inference, true);
   assert.equal(p.session, true);
 });
+
+test('sécurité : échec du mode sûr interdit ensuite le prompt et start après close', async () => {
+  await withRuntime(
+    fake({ modes: 'modes', modeIds: ['yolo'] }, { safeModes: ['default'] }),
+    async (r) => {
+      await r.start();
+      await assert.rejects(r.session([]), /Mode de permission sûr/);
+      await assert.rejects(r.prompt('FICTIF'), /session|mode sûr/i);
+    },
+  );
+  const r = fake({});
+  r.close();
+  await assert.rejects(r.start(), /fermé/);
+  assert.equal(r.child, undefined);
+});
+
+test('sécurité : secrets masqués dans événements, permissions, erreurs et SQLite', async () => {
+  const secret = 'FICTIF-SECRET-ACP-abcdef123456';
+  const r = fake(
+    { eventText: secret, permissionSecret: secret, errorText: secret },
+    { extraEnv: { SECRET_REVIEW: secret } },
+  );
+  const { Store } = await import('../packages/storage/index.js');
+  const store = new Store(join(temporary(), 'db'));
+  store.create({ id: 'fictif', state: 'running', budgetCents: 0 });
+  let permission;
+  r.onEvent = (u) => store.event('fictif', 'agent', u);
+  r.onPermission = (p) => {
+    permission = p;
+    return { outcome: { outcome: 'cancelled' } };
+  };
+  try {
+    await r.start();
+    await r.session([]);
+    await assert.rejects(
+      r.prompt('FICTIF'),
+      (e) => !e.message.includes(secret) && /masqué/.test(e.message),
+    );
+    assert.ok(permission);
+    assert.ok(!JSON.stringify(permission).includes(secret));
+    assert.ok(!JSON.stringify(store.events('fictif')).includes(secret));
+  } finally {
+    r.close();
+    store.close();
+  }
+});
+
+test('sécurité : secret du pont MCP ajouté à la liste de masquage, fermeture rejette un pair muet', async () => {
+  const secret = 'FICTIF-RELAY-TOKEN-1234567890';
+  await withRuntime(fake({ eventText: secret }), async (r) => {
+    await r.start();
+    await r.session([
+      {
+        name: 'fictif',
+        command: 'fictif',
+        args: [],
+        env: [{ name: 'RELAY_APPROVAL_TOKEN', value: secret }],
+      },
+    ]);
+    await r.prompt('FICTIF');
+    assert.ok(!r.text().includes(secret));
+  });
+  const r = fake({ mute: 'session/prompt' });
+  await r.start();
+  await r.session([]);
+  const pending = r.prompt('FICTIF');
+  r.close();
+  await assert.rejects(pending, /fermé|terminé|closed/);
+});
+
+test('sécurité : changement asynchrone vers un mode dangereux ferme le runtime', async () => {
+  await withRuntime(
+    fake(
+      { modes: 'modes', modeIds: ['default', 'yolo'], unsafeUpdate: true },
+      { safeModes: ['default'] },
+    ),
+    async (r) => {
+      await r.start();
+      await r.session([]);
+      await assert.rejects(r.prompt('FICTIF'), /fermé|closed|terminé/);
+      assert.equal(r.ready, false);
+    },
+  );
+});
+
+test('sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du parent', async () => {
+  const r = fake({ grandchild: true });
+  let child;
+  try {
+    await r.start();
+    await r.session([]);
+    await r.prompt('FICTIF');
+    child = JSON.parse(r.text()).grandchild;
+    assert.ok(alive(child));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    r.close();
+    assert.ok(
+      await waitDead(child),
+      'SIGKILL doit viser le groupe même si le leader est déjà sorti',
+    );
+  } finally {
+    r.close();
+    if (child && alive(child)) process.kill(child, 'SIGKILL');
+  }
+});

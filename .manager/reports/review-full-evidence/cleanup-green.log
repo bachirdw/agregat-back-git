@@ -1,0 +1,10 @@
+✔ E2E : échec de lancement ne laisse aucun serveur local empêchant la sortie (361.157083ms)
+✔ captures : échec de lancement ferme aussi l’API locale (289.90725ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 687.183708

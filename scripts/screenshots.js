@@ -15,15 +15,16 @@ process.env.AGENT_PLATFORM_DATA_REPLAY = JSON.stringify({
 });
 const { createApp } = await import('../apps/api/server.js');
 const app = createApp({ dataDir: mkdtempSync(join(tmpdir(), 'relay-shots-')) });
-await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
-const out = resolve(ROOT, 'docs/screenshots');
-mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({
-  executablePath:
-    process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  headless: true,
-});
+let browser;
 try {
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const out = resolve(ROOT, 'docs/screenshots');
+  mkdirSync(out, { recursive: true });
+  browser = await chromium.launch({
+    executablePath:
+      process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    headless: true,
+  });
   const page = await browser.newPage({ viewport: { width: 1360, height: 1000 } });
   await page.goto(`http://127.0.0.1:${app.server.address().port}/`);
   await page.waitForSelector('body[data-ready="1"]', { state: 'attached' });
@@ -58,6 +59,9 @@ try {
   await page.locator('#run-panel').screenshot({ path: join(out, 'brouillon-approbation.png') });
   console.log('captures écrites dans docs/screenshots/');
 } finally {
-  await browser.close();
-  await app.close();
+  try {
+    await browser?.close();
+  } finally {
+    await app.close();
+  }
 }

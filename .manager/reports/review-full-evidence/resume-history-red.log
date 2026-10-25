@@ -1,0 +1,22 @@
+Fonction turn exacte du script, faux ACP sans modèle : {"sessionId":"session-fictive","stopReason":"end_turn","usage":null,"text":"ANCIENNE RÉPONSE{\"fictif\":true}"}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'ANCIENNE RÉPONSE{"fictif":true}'
+- '{"fictif":true}'
+
+    at file:///Users/diaw/Downloads/agregat-back/[eval1]:16:10
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'ANCIENNE RÉPONSE{"fictif":true}',
+  expected: '{"fictif":true}',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.14.1

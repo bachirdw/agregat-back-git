@@ -13,15 +13,19 @@ const temporary = () => mkdtempSync(join(tmpdir(), 'relay-e2e-'));
 async function open(t) {
   const { chromium } = await import('playwright-core');
   const app = createApp({ dataDir: temporary() });
+  let browser;
+  t.after(async () => {
+    try {
+      await browser?.close();
+    } finally {
+      await app.close();
+    }
+  });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
-  const browser = await chromium.launch({ executablePath: CHROME, headless: true, timeout: 30000 });
+  browser = await chromium.launch({ executablePath: CHROME, headless: true, timeout: 30000 });
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  t.after(async () => {
-    await browser.close();
-    await app.close();
-  });
   await page.goto(`http://127.0.0.1:${app.server.address().port}/`);
   await page.waitForSelector('body[data-ready="1"]', { state: 'attached' });
   return { app, page, errors };
@@ -115,15 +119,19 @@ test(
   async (t) => {
     const { chromium } = await import('playwright-core');
     const app = createApp({ dataDir: temporary() });
+    let browser;
+    t.after(async () => {
+      try {
+        await browser?.close();
+      } finally {
+        await app.close();
+      }
+    });
     await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
       executablePath: CHROME,
       headless: true,
       timeout: 30000,
-    });
-    t.after(async () => {
-      await browser.close();
-      await app.close();
     });
     const page = await browser.newPage();
     const errors = [];

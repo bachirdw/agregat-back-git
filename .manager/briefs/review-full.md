@@ -22,6 +22,15 @@ Prompt « va sur youtube cherche cyril hanouna », agent Codex réel (codex-acp 
 `provenance.analysis = "démonstrateur"`. Statut mensonger : une analyse d'un vrai agent est étiquetée
 démonstrateur. Trouver la cause (orchestrator/result/verify core), test rouge puis vert.
 
+## Défaut de redirection de chemin (reste ouvert) — tentative du manager 26/10 ~08:20, REVERTÉE
+Repro : `node --test .manager/reports/review-full-evidence/redirect-path-repro.mjs`. Approche essayée :
+rendre le 3xx même origine à Chrome (`route.fulfill({status, location})`) pour qu'il suive lui-même. La repro
+passe, MAIS régression de sécurité prouvée : la requête suivie par Chrome après un 3xx « fulfilled » n'est
+**pas** ré-interceptée par `context.route` ; la chaîne `/one` → `/two` → origine interdite atteint le serveur
+interdit (`tests/browser-gateway.test.js` « redirections en chaîne restent confinés » : forbiddenHits 1 ≠ 0).
+Ne pas réutiliser cette approche. Piste : garder le suivi côté gateway, et pour une navigation du cadre
+principal redirigée, annuler puis relancer `page.goto(cibleFinale)` déjà vérifiée par la politique.
+
 ## Méthode
 `npm test`, `npm run check`, `npm run format:check` au début et à la fin (sorties brutes). Pour chaque défaut :
 gravité (critique/majeur/mineur), fichier:ligne, scénario concret, **test qui le démontre (rouge puis vert)**,

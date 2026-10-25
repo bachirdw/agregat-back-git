@@ -4,7 +4,9 @@ let catalog,
   current,
   stream,
   selectedSkills = new Set(),
-  sequence = 0;
+  sequence = 0,
+  planRevision = 0,
+  runView = 0;
 const labels = {
   queued: 'En attente',
   running: 'En cours',
@@ -56,6 +58,7 @@ function input() {
   };
 }
 function invalidate() {
+  planRevision++;
   planned = null;
   $('plan-panel').hidden = true;
 }
@@ -176,6 +179,8 @@ function renderThirdParty(s) {
   return row;
 }
 function renderSkills() {
+  const usable = new Set(catalog.skills.filter((s) => s.active && s.integrity).map((s) => s.id));
+  for (const id of selectedSkills) if (!usable.has(id)) selectedSkills.delete(id);
   $('skill-list').replaceChildren();
   for (const s of catalog.skills.filter((x) => x.origin === 'third-party'))
     $('skill-list').append(renderThirdParty(s));
@@ -271,10 +276,13 @@ async function history() {
 }
 $('mission-form').onsubmit = async (event) => {
   event.preventDefault();
+  invalidate();
+  const revision = planRevision;
   $('plan-button').disabled = true;
   try {
     const candidate = input();
     const p = await api('/plan', candidate);
+    if (revision !== planRevision) return;
     planned = candidate;
     $('plan').replaceChildren(element('p', p.agent + ' · ' + p.pack));
     const ol = element('ol');
@@ -518,6 +526,8 @@ function permission(p) {
   $('permissions').append(row);
 }
 async function openRun(id) {
+  const view = ++runView;
+  const isCurrent = () => current === id && view === runView;
   try {
     stream?.close();
     current = id;
@@ -527,7 +537,13 @@ async function openRun(id) {
     stepStates = {};
     $('permissions').replaceChildren();
     $('run-panel').hidden = false;
+    $('result').replaceChildren();
+    renderSteps();
+    $('run-state').textContent = 'Chargement…';
+    $('cancel').hidden = true;
+    $('resume').hidden = true;
     const run = await api('/runs/' + id);
+    if (!isCurrent()) return;
     workflowSteps = run.plan?.workflow?.steps ?? [];
     stepStates = Object.fromEntries(
       (run.steps ?? []).map((r) => [r.step_id, { state: r.state, error: r.error }]),
@@ -535,8 +551,10 @@ async function openRun(id) {
     renderSteps(stepStates);
     renderResult(run);
     run.permissions?.forEach(permission);
-    stream = new EventSource('/api/runs/' + id + '/events');
-    stream.addEventListener('update', (event) => {
+    const source = new EventSource('/api/runs/' + id + '/events');
+    stream = source;
+    source.addEventListener('update', (event) => {
+      if (!isCurrent()) return;
       const e = JSON.parse(event.data);
       if (e.seq <= sequence) return;
       sequence = e.seq;
@@ -557,18 +575,24 @@ async function openRun(id) {
       if (e.type === 'permission_resolved')
         document.getElementById('permission-' + e.data.id)?.remove();
     });
-    stream.addEventListener('end', async () => {
-      stream?.close();
-      const latest = await api('/runs/' + id);
-      if (current === id) renderResult(latest);
-      await history();
+    source.addEventListener('end', async () => {
+      if (!isCurrent()) return;
+      source.close();
+      try {
+        const latest = await api('/runs/' + id);
+        if (!isCurrent()) return;
+        renderResult(latest);
+        await history();
+      } catch (e) {
+        if (isCurrent()) error(e);
+      }
     });
-    stream.onerror = () => {
-      $('run-state').textContent = 'Reconnexion au flux…';
+    source.onerror = () => {
+      if (isCurrent()) $('run-state').textContent = 'Reconnexion au flux…';
     };
     $('run-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
-    error(e);
+    if (isCurrent()) error(e);
   }
 }
 $('cancel').onclick = async () => {

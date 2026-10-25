@@ -1,0 +1,15 @@
+✔ UI : une réponse de plan après édition ne réactive pas un objectif périmé (3.525709ms)
+✔ UI : ouvrir B pendant le chargement de A garde seulement le flux et le résultat B (2.158042ms)
+✔ UI : un événement déjà en file de A ne peut pas fermer le flux B (0.963917ms)
+✔ UI : un Skill désactivé est retiré de la sélection envoyée au plan (0.925292ms)
+✔ UI : le plan courant peut toujours être lancé avec les champs affichés (11.644708ms)
+✔ UI : événements périmés ignorés, flux courant met encore à jour son état (0.916459ms)
+✔ UI : réponse terminale en retard ne remplace pas un autre run (0.833542ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.839167

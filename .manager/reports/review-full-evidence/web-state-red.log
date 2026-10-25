@@ -1,0 +1,88 @@
+✖ UI : une réponse de plan après édition ne réactive pas un objectif périmé (14.535042ms)
+✖ UI : ouvrir B pendant le chargement de A garde seulement le flux et le résultat B (2.194792ms)
+✖ UI : un événement déjà en file de A ne peut pas fermer le flux B (1.200375ms)
+✖ UI : un Skill désactivé est retiré de la sélection envoyée au plan (1.44825ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60.432042
+
+✖ failing tests:
+
+test at tests/web-state.test.js:145:1
+✖ UI : une réponse de plan après édition ne réactive pas un objectif périmé (14.535042ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/web-state.test.js:153:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/web-state.test.js:156:1
+✖ UI : ouvrir B pendant le chargement de A garde seulement le flux et le résultat B (2.194792ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /FICTIF B/. Input:
+  
+  'DONNÉES FICTIVESFICTIF A'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/web-state.test.js:165:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'DONNÉES FICTIVESFICTIF A',
+    expected: /FICTIF B/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/web-state.test.js:173:1
+✖ UI : un événement déjà en file de A ne peut pas fermer le flux B (1.200375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + true
+  - undefined
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/web-state.test.js:179:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/web-state.test.js:182:1
+✖ UI : un Skill désactivé est retiré de la sélection envoyée au plan (1.44825ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'fictif'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/web-state.test.js:196:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'fictif' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

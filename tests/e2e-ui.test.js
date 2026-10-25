@@ -138,3 +138,36 @@ test(
     assert.deepEqual(errors, []);
   },
 );
+
+test(
+  'E2E interface : édition pendant le calcul du plan conserve le plan invalidé',
+  { skip: !existsSync(CHROME) && 'Chrome absent' },
+  async (t) => {
+    const { app, page, errors } = await open(t);
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    t.after(() => release());
+    let requested;
+    const seen = new Promise((r) => {
+      requested = r;
+    });
+    await page.route('**/api/plan', async (route) => {
+      const response = await route.fetch();
+      requested();
+      await gate;
+      await route.fulfill({ response });
+    });
+    await page.click('#plan-button');
+    await seen;
+    await page.fill('#prompt', 'Objectif FICTIF modifié pendant le calcul');
+    const response = page.waitForResponse((r) => r.url().endsWith('/api/plan'));
+    release();
+    await response;
+    await page.waitForFunction(() => !document.getElementById('plan-button').disabled);
+    assert.equal(await page.locator('#plan-panel').isHidden(), true);
+    assert.equal(app.store.list().length, 0);
+    assert.deepEqual(errors, []);
+  },
+);

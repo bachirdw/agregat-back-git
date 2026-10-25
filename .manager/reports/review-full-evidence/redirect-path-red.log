@@ -1,0 +1,34 @@
+FICTIF {"url":"http://127.0.0.1:55494/redirect","href":"http://127.0.0.1:55494/child"}
+✖ redirection de chemin FICTIVE : URL et lien relatif doivent refléter la cible (1675.643541ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1824.957167
+
+✖ failing tests:
+
+test at ../../../../private/tmp/review-redirect.test.js:6:1
+✖ redirection de chemin FICTIVE : URL et lien relatif doivent refléter la cible (1675.643541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'http://127.0.0.1:55494/redirect'
+  - 'http://127.0.0.1:55494/nested/page'
+                            ^
+  
+      at TestContext.<anonymous> (file:///private/tmp/review-redirect.test.js:19:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'http://127.0.0.1:55494/redirect',
+    expected: 'http://127.0.0.1:55494/nested/page',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -62,11 +62,12 @@ export function createApp({
   dataDir = resolve(ROOT, '.data'),
   live = process.env.AGENT_PLATFORM_LIVE === '1',
   timeoutMs,
+  ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
   webDir = process.env.AGENT_PLATFORM_WEB_DIR || null,
 } = {}) {
   const store = new Store(resolve(dataDir, 'platform.sqlite'));
   const skills = new SkillRegistry(store, skillDefinitions, { dataDir });
-  const engine = new Orchestrator(store, skills, { dataDir, live, timeoutMs });
+  const engine = new Orchestrator(store, skills, { dataDir, live, timeoutMs, ownerMode });
   const files = {
     '/': ['index.html', 'text/html'],
     '/app.js': ['app.js', 'text/javascript'],
@@ -123,16 +124,34 @@ export function createApp({
         const extension = target.slice(target.lastIndexOf('.'));
         if (!Object.hasOwn(types, extension)) return json(res, 404, { error: 'Type refusé' });
         res.writeHead(200, { 'content-type': types[extension] + '; charset=utf-8' });
-        return res.end(readFileSync(target));
+        return res.end(
+          ownerMode && extension === '.html'
+            ? readFileSync(target, 'utf8').replace(
+                '<body>',
+                '<body><aside role="alert" class="owner-warning"><mark><strong>Mode propriétaire local : protections désactivées</strong></mark></aside>',
+              )
+            : readFileSync(target),
+        );
       }
       if (!webDir && req.method === 'GET' && files[path]) {
         const [name, type] = files[path];
         res.writeHead(200, { 'content-type': type + '; charset=utf-8' });
-        return res.end(readFileSync(resolve(ROOT, 'apps/web', name)));
+        const content = readFileSync(resolve(ROOT, 'apps/web', name));
+        return res.end(
+          ownerMode && name === 'index.html'
+            ? content
+                .toString()
+                .replace(
+                  '<body>',
+                  '<body><aside role="alert" class="owner-warning"><mark><strong>Mode propriétaire local : protections désactivées</strong></mark></aside>',
+                )
+            : content,
+        );
       }
       if (req.method === 'GET' && path === '/api/catalog')
         return json(res, 200, {
-          live,
+          live: engine.live,
+          ownerMode,
           agents: publicAgents(await detectAgents(), loadProbes(dataDir)),
           packs,
           skills: skills.list(),
@@ -195,7 +214,11 @@ export function createApp({
       let raw = '';
       for await (const chunk of req) {
         raw += chunk;
-        if (Buffer.byteLength(raw) > 32768) throw new Error('Requête trop volumineuse');
+        if (
+          Buffer.byteLength(raw) >
+          (ownerMode && path.startsWith('/api/internal/evidence/') ? 300000 : 32768)
+        )
+          throw new Error('Requête trop volumineuse');
       }
       const body = JSON.parse(raw || '{}');
       if (path === '/api/plan') {
@@ -275,6 +298,19 @@ export function createApp({
         );
         return json(res, 200, decision);
       }
+      const evidence = path.match(/^\/api\/internal\/evidence\/([a-f0-9-]{36})$/);
+      if (evidence) {
+        const id = evidence[1];
+        if (
+          !ownerMode ||
+          engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
+          !engine.active.has(id) ||
+          engine.active.get(id).abort.signal.aborted
+        )
+          throw new Error('Journal navigateur non autorisé');
+        store.event(id, 'browser_evidence', body);
+        return json(res, 200, { ok: true });
+      }
       const usage = path.match(/^\/api\/internal\/usage\/([a-f0-9-]{36})$/);
       if (usage) {
         try {
@@ -307,6 +343,18 @@ export function createApp({
       else res.end();
     }
   });
+  if (ownerMode) {
+    const listen = server.listen.bind(server);
+    server.listen = (...args) => {
+      const host = typeof args[0] === 'object' ? args[0]?.host : args[1];
+      if (
+        host !== '127.0.0.1' ||
+        (typeof args[0] === 'object' && (args[0].path || args[0].fd !== undefined))
+      )
+        throw new Error('Mode propriétaire refusé : écoute uniquement sur 127.0.0.1');
+      return listen(...args);
+    };
+  }
   server.on('listening', () => {
     engine.approvalBase = `http://127.0.0.1:${server.address().port}`;
   });
@@ -328,7 +376,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT ?? 4310);
   app.server.listen(port, '127.0.0.1', () =>
     console.log(
-      `Agent Platform : http://127.0.0.1:${app.server.address().port} — ${process.env.AGENT_PLATFORM_LIVE === '1' ? 'BYOA réel disponible' : 'mode démonstration'}`,
+      `Agent Platform : http://127.0.0.1:${app.server.address().port} — ${app.engine.ownerMode ? 'Mode propriétaire local : protections désactivées' : app.engine.live ? 'BYOA réel disponible' : 'mode démonstration'}`,
     ),
   );
   for (const signal of ['SIGINT', 'SIGTERM'])

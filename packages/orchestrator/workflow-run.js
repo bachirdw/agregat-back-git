@@ -135,6 +135,7 @@ export async function executeWorkflow(orch, run, plan, control) {
         events = 0;
       const runtime = new AcpRuntime({
         definition,
+        ownerMode: orch.ownerMode,
         cwd,
         agentHome: resolve(orch.dataDir, 'agent-homes', definition.id),
         onEvent: (update) => {

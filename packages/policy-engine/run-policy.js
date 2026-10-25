@@ -45,15 +45,25 @@ export class RunPolicy {
     workspace = null,
     maxDownloadBytes = 10 * 1024 * 1024,
     runId = null,
+    ownerMode = false,
     allowJavaScript = false,
     allowSharedContext = false,
     resolveHost = async (host) => (await lookup(host, { all: true })).map((r) => r.address),
   } = {}) {
-    if (typeof allowJavaScript !== 'boolean' || typeof allowSharedContext !== 'boolean')
+    if (
+      typeof ownerMode !== 'boolean' ||
+      typeof allowJavaScript !== 'boolean' ||
+      typeof allowSharedContext !== 'boolean'
+    )
       throw new Error('Options navigateur booléennes requises');
     if (runId !== null && (typeof runId !== 'string' || !runId.trim()))
       throw new Error('Identifiant de run invalide');
-    Object.assign(this, { runId, allowJavaScript, allowSharedContext });
+    Object.assign(this, {
+      runId,
+      ownerMode: ownerMode === true,
+      allowJavaScript: ownerMode || allowJavaScript,
+      allowSharedContext,
+    });
     this.allowedDomains = allowedDomains.map((d) => d.toLowerCase());
     this.capabilities = new Set(capabilities);
     this.allowLocalOrigins = new Set(
@@ -81,6 +91,7 @@ export class RunPolicy {
       workspace: this.workspace,
       maxDownloadBytes: this.maxDownloadBytes,
       runId: this.runId,
+      ownerMode: this.ownerMode,
       allowJavaScript: this.allowJavaScript,
       allowSharedContext: this.allowSharedContext,
     };
@@ -90,7 +101,7 @@ export class RunPolicy {
   }
   domainAllowed(hostname) {
     const h = hostname.toLowerCase();
-    return this.allowedDomains.some((d) => h === d || h.endsWith('.' + d));
+    return this.ownerMode || this.allowedDomains.some((d) => h === d || h.endsWith('.' + d));
   }
   // Synchronous checks; `assertUrl` adds DNS resolution against private networks (SSRF/rebinding).
   checkUrlShape(raw) {
@@ -102,9 +113,11 @@ export class RunPolicy {
     }
     if (u.username || u.password) throw new Error('Identifiants dans l’URL refusés');
     if (this.allowLocalOrigins.has(u.origin)) return { url: u, local: true };
-    if (u.protocol !== 'https:') throw new Error(`Protocole refusé : ${u.protocol}`);
-    if (u.port && u.port !== '443') throw new Error('Port non standard refusé');
-    if (isIP(u.hostname.replace(/^\[|\]$/g, ''))) throw new Error('Adresse IP directe refusée');
+    if (!(this.ownerMode ? ['http:', 'https:'] : ['https:']).includes(u.protocol))
+      throw new Error(`Protocole refusé : ${u.protocol}`);
+    if (!this.ownerMode && u.port && u.port !== '443') throw new Error('Port non standard refusé');
+    if (!this.ownerMode && isIP(u.hostname.replace(/^\[|\]$/g, '')))
+      throw new Error('Adresse IP directe refusée');
     if (!this.domainAllowed(u.hostname)) throw new Error(`Domaine non autorisé : ${u.hostname}`);
     return { url: u, local: false };
   }

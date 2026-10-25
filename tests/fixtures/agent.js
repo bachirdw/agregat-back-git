@@ -36,15 +36,28 @@ const app = agent({ name: 'fixture-agent' })
       const tools = await mcp.listTools();
       let opportunities;
       const evidence = [];
-      const steps = request.workflow.steps.length
-        ? request.workflow.steps
-        : [
+      const steps = request.browserWorkflow
+        ? [
             {
-              tool: 'evidence_echo',
-              arguments: { text: request.objective },
-              title: 'Vérifier la provenance',
+              tool: 'browser_navigate',
+              arguments: { url: request.objective.match(/https?:\/\/[^\s]+/)[0] },
+              title: 'Navigation FICTIVE par faux ACP',
             },
-          ];
+            {
+              tool: 'browser_extract',
+              arguments: { selector: 'body', maxChars: 1000 },
+              title: 'Extraction de la page FICTIVE',
+            },
+          ]
+        : request.workflow.steps.length
+          ? request.workflow.steps
+          : [
+              {
+                tool: 'evidence_echo',
+                arguments: { text: request.objective },
+                title: 'Vérifier la provenance',
+              },
+            ];
       for (const step of steps) {
         if (cancelled) return { stopReason: 'cancelled' };
         if (!tools.tools.some((t) => t.name === step.tool)) throw new Error('Capacité absente');

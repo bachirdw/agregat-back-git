@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
 
+import { ownerTransport } from './owner-transport.js';
 import { requestPinned } from '../policy-engine/http.js';
 
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
@@ -46,6 +47,10 @@ export class CdpBrowser {
     this.assertBinding(policy);
     if (this.#authorization) return;
     const json = JSON.stringify(policy.toJSON());
+    if (policy.ownerMode) {
+      this.#authorization = { policy, json };
+      return;
+    }
     if ((policy.allowJavaScript || policy.allowSharedContext) && !policy.runId)
       throw new Error('Identifiant de run requis pour le consentement navigateur');
     if (policy.allowSharedContext && !this.endpoint)
@@ -87,6 +92,7 @@ export class CdpBrowser {
     navigationTimeoutMs = 20000,
     startupTimeoutMs = 30000,
     chromium = null,
+    fallbackLaunch = null,
   } = {}) {
     if (!endpoint && !launch) throw new Error('endpoint CDP ou lancement isolé requis');
     if (!Number.isInteger(startupTimeoutMs) || startupTimeoutMs <= 0)
@@ -102,6 +108,7 @@ export class CdpBrowser {
       navigationTimeoutMs,
       startupTimeoutMs,
       injected: chromium,
+      fallbackLaunch,
     });
     this.name = endpoint ? 'cdp-shared' : 'cdp-isolated';
     this.page = null;
@@ -171,9 +178,23 @@ export class CdpBrowser {
       }
     };
     if (this.context) return step(() => this.newPage(policy));
+    if (policy.ownerMode && this.endpoint && !this.injected) {
+      try {
+        this.ownerConnection = await step(
+          () => ownerTransport(this.endpoint, Math.min(this.startupTimeoutMs, 10000)),
+          (connection) => connection.close(),
+        );
+      } catch (error) {
+        if (!this.fallbackLaunch || this.#closed) throw error;
+        this.fallbackReason = `Extension Playwriter indisponible : ${error.message}. Bascule sur Chrome isolé.`;
+        this.endpoint = null;
+        this.launch = this.fallbackLaunch;
+        this.name = 'cdp-isolated-fallback';
+      }
+    }
     // Inspect only public relay metadata before Playwright auto-attaches to existing targets.
     // That attachment initializes existing pages, which is outside the scope of our own tab.
-    if (this.endpoint && !this.injected && /^https?:/.test(this.endpoint)) {
+    if (!policy.ownerMode && this.endpoint && !this.injected && /^https?:/.test(this.endpoint)) {
       const metadata = await step(async () => {
         const response = await fetch(new URL('/json/version', this.endpoint), {
           redirect: 'error',
@@ -200,7 +221,11 @@ export class CdpBrowser {
     if (this.endpoint) {
       this.shared = true; // set before any await: cleanup never closes the remote browser
       this.browser = await step(
-        () => chromium.connectOverCDP(this.endpoint, { timeout: this.startupTimeoutMs }),
+        () =>
+          chromium.connectOverCDP(this.ownerConnection?.endpoint ?? this.endpoint, {
+            timeout: this.startupTimeoutMs,
+            ...(policy.ownerMode ? { noDefaults: true, isLocal: true } : {}),
+          }),
         (browser) => browser.close(),
       );
       this.ownsContext = !policy.allowSharedContext;
@@ -212,7 +237,7 @@ export class CdpBrowser {
                 .newContext({
                   acceptDownloads: true,
                   javaScriptEnabled: policy.allowJavaScript,
-                  serviceWorkers: 'block',
+                  serviceWorkers: policy.ownerMode ? 'allow' : 'block',
                 })
                 .catch((error) => {
                   // The Playwriter relay (chrome.debugger) cannot create browser contexts.
@@ -240,7 +265,7 @@ export class CdpBrowser {
             timeout: this.startupTimeoutMs,
             acceptDownloads: true,
             javaScriptEnabled: policy.allowJavaScript,
-            serviceWorkers: 'block',
+            serviceWorkers: policy.ownerMode ? 'allow' : 'block',
           }),
         (context) => context.close(),
       );
@@ -266,6 +291,14 @@ export class CdpBrowser {
       this.#pages.add(initial);
       return initial;
     }
+    if (this.ownerConnection) {
+      this.page = this.context.pages()[0];
+      if (!this.page) throw new Error('Onglet propriétaire absent');
+      this.#pages.add(this.page);
+      await step(() => this.page.goto('about:blank'));
+      this.name = 'playwriter-owner';
+      return this.page;
+    }
     return step(() => this.newPage(policy));
   }
   async newPage(policy) {
@@ -280,7 +313,7 @@ export class CdpBrowser {
       check();
       this.page = page;
       this.#pages.add(page);
-      if (!this.ownsContext) {
+      if (!this.ownsContext && !policy.ownerMode) {
         // Settings must be established on our tab before its first navigation. Routing/CSP alone
         // cannot protect documents synthesized by an existing service worker in a shared profile.
         // Playwriter 0.7.0 rejects Playwright's Target.attachToBrowserTarget: fail closed rather
@@ -316,6 +349,7 @@ export class CdpBrowser {
     }
   }
   async guard(policy) {
+    if (policy.ownerMode) return;
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is
     // disabled: a read navigation must not submit a form or run arbitrary network code.
     this.networkAbort = new AbortController();
@@ -455,7 +489,16 @@ export class CdpBrowser {
           title: await page.title(),
           snapshot: await page.locator('body').ariaSnapshot({ timeout: 10000 }),
         };
-      case 'browser.extract':
+      case 'browser.extract': {
+        if ((args.limit ?? 1) > 1) {
+          const matches = page.locator(args.selector);
+          await matches.first().waitFor({ state: 'visible', timeout: 10000 });
+          const count = Math.min(await matches.count(), args.limit);
+          const texts = [];
+          for (let i = 0; i < count; i++)
+            texts.push(await matches.nth(i).innerText({ timeout: 10000 }));
+          return { url: page.url(), text: texts.join('\n').slice(0, args.maxChars), count };
+        }
         return {
           url: page.url(),
           text: (await page.locator(args.selector).first().innerText({ timeout: 10000 })).slice(
@@ -463,6 +506,7 @@ export class CdpBrowser {
             args.maxChars,
           ),
         };
+      }
       case 'browser.click':
         this.writeInProgress = true;
         try {
@@ -495,6 +539,54 @@ export class CdpBrowser {
         const rel = relative(root, realpathSync(dir));
         if (rel.startsWith('..') || isAbsolute(rel))
           throw new Error('Téléchargement hors du dossier du run');
+        // chrome.debugger forbids download-directory settings. Fetch ordinary download links
+        // with the context's HTTP client instead, preserving its session without global settings.
+        if (this.ownerConnection) {
+          const href = await page.locator(args.selector).first().getAttribute('href');
+          if (!href)
+            throw new Error('Playwriter : un lien HTTP/HTTPS est requis pour le téléchargement');
+          let url = new URL(href, page.url()).href;
+          for (let hop = 0; hop < 5; hop++) {
+            await policy.assertUrl(url);
+            const response = await this.context.request.get(url, {
+              maxRedirects: 0,
+              timeout: this.navigationTimeoutMs,
+            });
+            try {
+              const location = response.headers().location;
+              if (response.status() >= 300 && response.status() < 400 && location) {
+                url = new URL(location, url).href;
+                continue;
+              }
+              if (!response.ok()) throw new Error(`Téléchargement HTTP ${response.status()}`);
+              const buffer = await response.body();
+              if (buffer.length > policy.maxDownloadBytes)
+                throw new Error('Téléchargement trop volumineux');
+              const disposition = response.headers()['content-disposition'] ?? '';
+              const suggested =
+                disposition.match(/filename="?([^";]+)/i)?.[1] ??
+                new URL(url).pathname.split('/').at(-1);
+              const name =
+                basename(suggested || 'fichier')
+                  .replace(/[^\w.\- ]/g, '_')
+                  .slice(0, 120) || 'fichier';
+              const fd = openSync(
+                resolve(dir, name),
+                constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+                0o600,
+              );
+              try {
+                writeFileSync(fd, buffer);
+              } finally {
+                closeSync(fd);
+              }
+              return { url, file: name, bytes: buffer.length, method: 'session-http-link' };
+            } finally {
+              await response.dispose();
+            }
+          }
+          throw new Error('Trop de redirections de téléchargement');
+        }
         const [download] = await Promise.all([
           page.waitForEvent('download', { timeout: 15000 }),
           page.locator(args.selector).first().click({ timeout: 10000 }),
@@ -559,6 +651,8 @@ export class CdpBrowser {
     // It sends no Browser.close command to the remote Chrome (coreBundle.js, _connectOverCDPImpl).
     await this.browser?.close().catch(() => {});
     this.browser = null;
+    await this.ownerConnection?.close().catch(() => {});
+    this.ownerConnection = null;
     this.page = null;
     this.#authorization = null;
     this.#boundPolicy = null;

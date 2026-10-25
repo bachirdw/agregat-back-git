@@ -44,9 +44,22 @@ export class AcpRuntime {
     onPermission = async () => ({ outcome: { outcome: 'cancelled' } }),
     timeouts = {},
     env = process.env,
+    ownerMode = false,
     agentHome = null, // platform-owned directory for CLIs that persist settings (isolated home)
   }) {
     Object.assign(this, { definition, cwd, onEvent, onPermission, sourceEnv: env, agentHome });
+    this.ownerMode = ownerMode;
+    if (ownerMode && !definition.simulated)
+      this.definition = {
+        ...definition,
+        safeModes:
+          {
+            codex: ['workspace-write'],
+            claude: ['bypassPermissions', 'acceptEdits', 'default'],
+            gemini: ['yolo', 'autoEdit', 'default'],
+            opencode: ['build'],
+          }[definition.id] ?? definition.safeModes,
+      };
     this.timeouts = { ...defaultTimeouts, ...timeouts };
     this.sessionId = null;
     this.ready = false;

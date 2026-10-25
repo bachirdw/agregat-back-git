@@ -757,3 +757,15 @@ footer span {
   font-size: 12px;
   padding: 3px 0;
 }
+
+.owner-warning {
+  padding: 16px;
+  background: #9b2700;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+}
+.owner-warning mark {
+  background: inherit;
+  color: inherit;
+}

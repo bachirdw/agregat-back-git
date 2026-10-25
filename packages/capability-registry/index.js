@@ -28,10 +28,12 @@ export const capabilities = [
     domain: 'browser',
     effect: 'read',
     meter: 'browser_action',
-    description: 'Texte visible d’un élément de la page courante.',
+    description:
+      'Texte visible des éléments correspondant au sélecteur CSS. limit=3 extrait les trois premiers éléments (défaut : 1).',
     schema: z
       .object({
         selector: selector.default('body'),
+        limit: z.number().int().min(1).max(20).default(1),
         maxChars: z.number().int().min(1).max(50000).default(20000),
       })
       .strict(),

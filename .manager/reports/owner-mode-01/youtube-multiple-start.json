@@ -1,0 +1,50 @@
+{
+  "status": 201,
+  "body": {
+    "id": "6b52d105-5d42-4669-81ae-9d2a92dd630b",
+    "createdAt": "2026-10-25T12:02:02.489Z",
+    "state": "queued",
+    "prompt": "va sur youtube.com et cherche Cyril Hanouna, donne les 3 premiers titres",
+    "agent": "codex",
+    "pack": "core",
+    "skills": [],
+    "model": "gpt-6.1-sol",
+    "budgetCents": 0,
+    "mode": "agent",
+    "workflow": "browser-agent",
+    "cwd": "/Users/diaw/Downloads/agregat-back/.data/workspaces/6b52d105-5d42-4669-81ae-9d2a92dd630b",
+    "simulated": false,
+    "sessionId": null,
+    "resumable": false,
+    "skillsSnapshot": [],
+    "plan": {
+      "steps": [
+        "Préparer les Skills",
+        "Naviguer, observer et agir avec les outils browser.*",
+        "Vérifier le résultat"
+      ],
+      "cost": {
+        "platformCents": 0,
+        "externalCents": null,
+        "currency": "EUR",
+        "lines": [
+          {
+            "dimension": "workflow_run",
+            "units": 1,
+            "cents": 0
+          }
+        ],
+        "budgetCents": 0,
+        "withinBudget": true,
+        "description": "1 tour(s) d’agent BYOA : consommation de votre fournisseur, inconnue et non refacturée"
+      },
+      "workflow": {
+        "id": "browser-agent",
+        "title": "Navigation générale par l’agent",
+        "reason": "Mode propriétaire : outils navigateur confiés à l’agent",
+        "steps": []
+      }
+    },
+    "result": null
+  }
+}

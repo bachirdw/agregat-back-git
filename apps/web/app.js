@@ -238,7 +238,7 @@ async function load() {
     option.disabled = !a.compatible || (!catalog.live && !['auto', 'fixture'].includes(a.id));
     $('agent').append(option);
   }
-  $('agent').value = 'fixture';
+  $('agent').value = catalog.ownerMode ? 'auto' : 'fixture';
   for (const p of catalog.packs) {
     const o = element('option', p.name);
     o.value = p.id;

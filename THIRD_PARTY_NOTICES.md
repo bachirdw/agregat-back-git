@@ -10,6 +10,7 @@ Dépendances directes verrouillées dans package-lock.json :
 - @modelcontextprotocol/sdk 1.32.2 : consulter LICENSE du paquet ; le dépôt upstream traverse une transition MIT / Apache-2.0. Conserver les notices présentes dans le tarball distribué.
 - zod 4.6.7 : MIT.
 - yaml 2.9.1 : ISC.
+- ws 8.22.0 : MIT ; proxy CDP local limité aux onglets Relay (owner-mode-01).
 - prettier 3.6.2 : MIT ; outil de développement uniquement.
 
 `npm ls --all` donne l'arbre installé ; les licences complètes sont incluses dans node_modules de chaque paquet. Toute distribution doit conserver ces licences et examiner les transitives, dont les CLI/SDK propriétaires éventuels. Les licences de bibliothèques ne confèrent pas de droit de revendre les services des fournisseurs.

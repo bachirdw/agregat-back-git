@@ -2,7 +2,12 @@
 // Several headless Chrome instances competing with ACP agents made browser tests time out under load.
 import { readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-const BROWSER = new Set(['browser-gateway.test.js', 'approval-bridge.test.js', 'e2e-ui.test.js']);
+const BROWSER = new Set([
+  'browser-gateway.test.js',
+  'approval-bridge.test.js',
+  'e2e-ui.test.js',
+  'owner-browser.test.js',
+]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))
   .sort();

@@ -3,6 +3,18 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
+## 0bis. Mise à jour du 25/10, 23:30 — nuit
+- **Poussé sur GitHub** (demande de l'utilisateur) : back `4373716`, front `9dbbf46`. Depuis : commits locaux
+  seulement. Lien `agregat-backend` supprimé.
+- **Mode propriétaire local** (`51d111f`, README) : prouvé en réel (Gemini, YouTube dans le Chrome de
+  l'utilisateur via Playwriter, 3 titres, `simulated:false`). Jamais relu indépendamment → `review-10`.
+- **Suite** au dernier contrôle manager : 257/258 (1 test live ignoré), check et format verts.
+- **Codex** : limite d'usage jusqu'au 26/10 ~03:30. File de nuit via `.manager/run-until-done.sh` (reprise
+  auto de la même session après limite) : `review-full` (03:35) → `sprint-10` → `review-10` → `docs-01`,
+  lancés un par un par le manager, contrôle (diff, suite, rapport) entre chaque.
+- Si la session manager redémarre, la file s'arrête : relancer le sprint en cours avec
+  `.manager/run-until-done.sh <id>` après avoir lu son rapport.
+
 ## 0. Mise à jour du 25/10, 22:35 (session manager du soir) — À LIRE EN PREMIER
 - **Renommages** : dossiers `agregat-back` (lien temporaire `agregat-backend` → à supprimer) et `agregat-front` ;
   remotes `github.com/bachirdw/agregat-back-git` et `agregat-front-git` (vérifiés par `git ls-remote`).

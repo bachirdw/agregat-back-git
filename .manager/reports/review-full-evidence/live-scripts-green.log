@@ -1,0 +1,13 @@
+✔ live-run : délai atteint → annulation, aucun SSE infini, sortie en échec (82.487125ms)
+✔ live-run : titre ACP forgé ne vaut pas autorisation et failed ne vaut pas succès (1068.084625ms)
+✔ live-run : résultat completed FICTIF conserve un code de succès (88.026667ms)
+✔ live-run : délai invalide refusé avant de créer un run (25.7345ms)
+✔ live-run : même un journal terminal qui ne ferme pas est borné (104.421291ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1418.268125

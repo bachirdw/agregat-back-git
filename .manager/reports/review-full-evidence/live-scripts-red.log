@@ -1,0 +1,68 @@
+✖ live-run : délai atteint → annulation, aucun SSE infini, sortie en échec (3013.033833ms)
+✖ live-run : titre ACP forgé ne vaut pas autorisation et failed ne vaut pas succès (1082.096667ms)
+✔ live-run : résultat completed FICTIF conserve un code de succès (91.714917ms)
+✖ live-run : délai invalide refusé avant de créer un run (80.58775ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4319.788917
+
+✖ failing tests:
+
+test at tests/live-scripts.test.js:64:1
+✖ live-run : délai atteint → annulation, aucun SSE infini, sortie en échec (3013.033833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/live-scripts.test.js:70:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/live-scripts.test.js:76:1
+✖ live-run : titre ACP forgé ne vaut pas autorisation et failed ne vaut pas succès (1082.096667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'yes' !== 'no'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/live-scripts.test.js:91:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'yes',
+    expected: 'no',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/live-scripts.test.js:102:1
+✖ live-run : délai invalide refusé avant de créer un run (80.58775ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/live-scripts.test.js:105:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -21,6 +21,16 @@ L'utilisateur autorise l'usage de SON Chrome via l'extension pour ce sprint, dan
   liste est inchangée (preuve dans le rapport).
 - `PLAYWRITER_TELEMETRY=0` toujours. Ne jamais utiliser l'outil `execute` de Playwriter.
 
+## Correctif déjà fait par le manager (commit 64374e9) — À RELIRE, pas à refaire
+`cdp.js` : si le relais refuse la session CDP d'onglet, JS reste bloqué par le gestionnaire de route
+(requêtes `script` refusées + en-tête CSP `script-src 'none'; worker-src 'none'` ajouté). Sans contexte
+isolé possible : erreur explicite. Preuve réelle 21:35 via l'extension : example.com navigate/snapshot/
+extract OK, page locale à scripts → titre « FICTIF sans script », domaine interdit refusé.
+Vérifie en priorité : contournements du blocage JS (iframes srcdoc, `data:`/`blob:` non routés, scripts en
+`javascript:` URL, réponses servies depuis le cache, service workers existants dans le profil utilisateur,
+CSP meta qui assouplirait — impossible mais à prouver). Le clic avec `selector` non trouvé n'a pas pu
+tester l'approbation : couvre-le avec une page locale.
+
 ## Travail
 1. Identifier les méthodes CDP réellement supportées par le relais (lis le code publié du paquet `playwriter`
    installé : `$(npm root -g)/playwriter`, et le dépôt `agent-repos/remorses__playwriter`). Documenter.

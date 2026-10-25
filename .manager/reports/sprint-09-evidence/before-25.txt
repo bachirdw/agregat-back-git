@@ -1,0 +1,13 @@
+[password-stage 2026-10-25T06:37:33.469Z] navigate:start
+2026-10-25T06:37:33.682Z pw:api => browserType.launch started
+2026-10-25T06:37:33.685Z pw:browser <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-ptfAXR --remote-debugging-pipe --no-startup-window
+2026-10-25T06:37:33.689Z pw:browser <launched> pid=80484
+2026-10-25T06:37:34.182Z pw:api <= browserType.launch succeeded
+2026-10-25T06:37:34.183Z pw:api => browser.newContext started
+[password-stage 2026-10-25T06:37:48.486Z] cleanup:browser:start
+2026-10-25T06:37:48.497Z pw:api => browser.close started
+2026-10-25T06:37:48.502Z pw:browser [pid=80484] <gracefully close start>
+✖ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (30024.513167ms)
+
+SUPERVISEUR : délai 35 s dépassé
+NETTOYAGE Chrome temporaire identifié : 80484

@@ -107,3 +107,19 @@ Preuves : `tests/browser-gateway.test.js` (défauts, refus sans consentement, ac
 non-transfert inter-run, mutation, fermeture, scripts réels et contexte partagé temporaire avec onglet
 utilisateur préservé) ; `tests/approval-bridge.test.js` (MCP → décision → événements persistés, jeton lié
 au run, annulation pendant le consentement). L'extension Playwriter reste non validée dans cette session.
+
+## Fiabilité du démarrage isolé (sprint 09)
+
+Sous charge (huit Chrome jetables simultanés), `launch()` puis `browser.newContext()` a bloqué avant
+navigation dans deux essais tracés sur 64 ; sa fermeture gracieuse attendait également. Le démarrage
+isolé utilise désormais `launchPersistentContext('', options)` : malgré son nom, le chemin vide demande
+un profil temporaire géré/nettoyé par Playwright, jamais le profil utilisateur. Le contexte et la page
+initiale about:blank sont créés dans la deadline `startupTimeoutMs` (30 s par défaut). Les gardes sont
+installées avant la première navigation, puis la page initiale est réutilisée. Les ports du site de test
+restent aléatoires. Le reset crée ensuite une page dans ce même contexte.
+
+Après correction : 64/64 essais du même scénario mot de passe avec concurrence 8, sans skip. Traces,
+synthèses et banc reproductible : `.manager/reports/sprint-09-evidence/`. Ce résultat établit la disparition
+du blocage observé dans ce banc, pas une garantie universelle sur tous les binaires Chrome/charges.
+Un exécutable totalement muet qui ignore même Browser.close provoque bien le rejet à la deadline, mais
+sa destruction gracieuse peut être retardée par Playwright ; la fixture de test est arrêtée explicitement.

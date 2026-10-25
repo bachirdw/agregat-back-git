@@ -71,15 +71,24 @@ export class CdpBrowser {
     endpoint = null,
     launch = null,
     navigationTimeoutMs = 20000,
+    startupTimeoutMs = 30000,
     chromium = null,
   } = {}) {
     if (!endpoint && !launch) throw new Error('endpoint CDP ou lancement isolé requis');
+    if (!Number.isInteger(startupTimeoutMs) || startupTimeoutMs <= 0)
+      throw new Error('Délai de démarrage invalide');
     if (endpoint) {
       const u = new URL(endpoint);
       if (!['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname))
         throw new Error('Endpoint CDP distant refusé : connexion locale uniquement');
     }
-    Object.assign(this, { endpoint, launch, navigationTimeoutMs, injected: chromium });
+    Object.assign(this, {
+      endpoint,
+      launch,
+      navigationTimeoutMs,
+      startupTimeoutMs,
+      injected: chromium,
+    });
     this.name = endpoint ? 'cdp-shared' : 'cdp-isolated';
     this.page = null;
   }
@@ -107,17 +116,19 @@ export class CdpBrowser {
       if (!this.context) throw new Error('Contexte CDP partagé indisponible');
       this.shared = true;
     } else {
-      this.browser = await chromium.launch({
+      // Include context initialization and the initial blank page in Playwright's launch deadline.
+      // launch() followed by newContext() can hang indefinitely under Chrome startup contention.
+      // Empty userDataDir asks Playwright to create AND remove a throwaway profile, not persist one.
+      this.context = await chromium.launchPersistentContext('', {
         executablePath: this.launch.executablePath,
         headless: this.launch.headless !== false,
         args: ['--no-first-run', '--no-default-browser-check'],
-        timeout: 30000,
-      });
-      this.context = await this.browser.newContext({
+        timeout: this.startupTimeoutMs,
         acceptDownloads: true,
         javaScriptEnabled: policy.allowJavaScript,
         serviceWorkers: 'block',
       });
+      this.browser = this.context.browser();
       this.ownsContext = true;
       this.shared = false;
     }
@@ -131,6 +142,14 @@ export class CdpBrowser {
         .catch(() => {});
     };
     this.context.on('page', this.onPage);
+    if (!this.endpoint) {
+      const initial = this.context.pages()[0];
+      if (!initial || initial.url() !== 'about:blank')
+        throw new Error('Page initiale isolée non sûre');
+      this.page = initial;
+      this.#pages.add(initial);
+      return initial;
+    }
     return this.newPage(policy);
   }
   async newPage(policy) {

@@ -486,3 +486,224 @@ Checking formatting...
 All matched files use Prettier code style!
 
 ```
+
+## Point 3 — Journal reconstitué après erreur de manipulation du rapport
+
+- 17:35 — Confirmation : première suite sous bac à sable arrêtée en code 143 (SIGTERM de ses seuls descendants identifiés). Relance hors bac à sable du point 2 terminée code 0 et commitée. Lancement de `/tmp/sprint09-stress.py` : 64 processus `node --test --test-name-pattern='champ mot de passe' --test-timeout=15000 tests/browser-gateway.test.js`, concurrence 8, superviseur 25 s. Ports 0, profils Chrome jetables, sites fictifs, aucun modèle.
+- 17:36 — Premier banc : 63 essais réussis, essai 34 en timeout superviseur à 25 s. Le harness initial ne gérait pas TimeoutExpired et n’a pas sauvegardé sa sortie : traceback brut conservé dans `sprint-09-evidence/first-harness-timeout.txt`. Aucune déclaration de 64/64. Chrome temporaire orphelin 79624 identifié par `ps` (PPID 1, profil playwright_chromiumdev_profile-4Mvjmy), `kill -TERM 79624` réussi.
+- 17:37 — Instrumentation du test par `BROWSER_STRESS_TRACE=1`, traces `DEBUG=pw:api,pw:browser`. Banc corrigé : logs écrits immédiatement, délai superviseur 35 s, arrêt des seuls processus/groupe Chrome identifiés depuis chaque log. Sortie consolidée avant correction : 62/64, échecs 18 et 25 (code 124). Dans les DEUX traces : `browserType.launch succeeded`, puis `browser.newContext started` sans retour ; aucune navigation/saisie. À 15 s, cleanup lance browser.close qui attend aussi. Le superviseur nettoie les Chrome 80378 et 80484 ; `ps` confirme leur absence.
+- Cause reproductible du chemin : création séparée d’un contexte incognito (`launch` + `newContext`, dernier appel non borné) sous contention de démarrage Chrome ; fermeture gracieuse bloquée également. Pas un conflit de port, ni le champ mot de passe. La cause interne au binaire Chromium reste inconnue ; les traces localisent précisément le blocage contourné.
+- 17:38 — Source Playwright installée inspectée : `node_modules/playwright-core/lib/coreBundle.js` (`_innerLaunch`, `launchPersistentContext`, `defaultArgs`, profil vide = mkdtemp nettoyé, page initiale about:blank). Deux premières recherches de fichiers internes présumaient une structure non bundlée : `rg` code 2, fichiers absents ; correction vers coreBundle.js, aucune dépendance modifiée.
+- Correction `CdpBrowser` isolé : `launchPersistentContext('', options)`, deadline de démarrage 30 s configurable strictement positive, options JS/workers intégrées ; réutilisation de la page initiale vérifiée about:blank après installation des gardes. Profil toujours JETABLE, jamais utilisateur. Plus de newContext/newPage non borné au démarrage isolé. Le chemin CDP est inchangé par ce correctif.
+- Test de contrat ajouté avant correction : rouge `TypeError: chromium.launch is not a function` sur faux Chromium qui propose le lancement atomique ; vert après correction. Cleanup du serveur local de test désormais attendu avec closeAllConnections. Augmenter le timeout ou baisser la concurrence a été rejeté : cela aurait caché la contention.
+- 17:38–17:39 — Même banc tracé après correction : **64/64 essais consécutifs verts**, concurrence 8, 33,62 s, aucun skip. Traces rouges, résumés avant/après et banc reproductible conservés dans `sprint-09-evidence/`. Commande reproductible : `python3 .manager/reports/sprint-09-evidence/stress.py` (Chrome et permissions de processus nécessaires). Le banc temporaire écrit dans /tmp ; les preuves avant ont été sauvegardées avant leur réutilisation.
+- 17:39 — Test supplémentaire du faux exécutable muet : deadline rejetée à 1 s, mais assertion erronée d’ESRCH immédiat rouge. Premier diagnostic « bac à sable » insuffisant : même échec hors bac à sable. TAP brut dans `sprint-09-evidence/deadline-wrong-assumption.txt`. `DEBUG=pw:browser` montre Browser.close gracieuse en attente : ce faux binaire ne parle pas CDP, même pour fermer. Le test a été corrigé pour prouver la deadline et tuer explicitement SA fixture en cleanup, sans prétendre que le produit détruit immédiatement n’importe quel exécutable récalcitrant. `ps` ultérieur ne trouve plus ces fixtures/testeurs ; aucune terminaison supplémentaire nécessaire.
+- 17:40 — `npm run check` et `npm run format:check` verts ; suite complète hors bac à sable lancée. ADR 006 complété : profil jetable, cause, preuve de charge et limite du binaire complètement muet.
+- 17:41 — ERREUR de manipulation du rapport : un script de suppression d’espaces finaux a ouvert ce fichier en écriture avant de le lire, le tronquant à une ligne. Détecté immédiatement par `wc -l`. Restauration des points 0–2 depuis `git show HEAD:.manager/reports/sprint-09.md` (aucune réécriture Git), puis reconstitution de ce journal du point 3 depuis les appels outils et preuves /tmp conservées. Code, tests, preuves et commits intacts. Cette erreur est consignée explicitement, pas effacée du bilan.
+
+### Sorties brutes du point 3
+
+Avant correction (banc tracé) :
+```text
+Essai 08/64 : code 0
+Essai 02/64 : code 0
+Essai 03/64 : code 0
+Essai 05/64 : code 0
+Essai 01/64 : code 0
+Essai 06/64 : code 0
+Essai 07/64 : code 0
+Essai 04/64 : code 0
+Essai 13/64 : code 0
+Essai 16/64 : code 0
+Essai 14/64 : code 0
+Essai 11/64 : code 0
+Essai 15/64 : code 0
+Essai 10/64 : code 0
+Essai 12/64 : code 0
+Essai 09/64 : code 0
+Essai 23/64 : code 0
+Essai 19/64 : code 0
+Essai 17/64 : code 0
+Essai 20/64 : code 0
+Essai 22/64 : code 0
+Essai 21/64 : code 0
+Essai 24/64 : code 0
+Essai 26/64 : code 0
+Essai 29/64 : code 0
+Essai 27/64 : code 0
+Essai 28/64 : code 0
+Essai 30/64 : code 0
+Essai 31/64 : code 0
+Essai 34/64 : code 0
+Essai 33/64 : code 0
+Essai 36/64 : code 0
+Essai 32/64 : code 0
+Essai 35/64 : code 0
+Essai 37/64 : code 0
+Essai 39/64 : code 0
+Essai 38/64 : code 0
+Essai 42/64 : code 0
+Essai 41/64 : code 0
+Essai 40/64 : code 0
+Essai 43/64 : code 0
+Essai 48/64 : code 0
+Essai 47/64 : code 0
+Essai 49/64 : code 0
+Essai 46/64 : code 0
+Essai 44/64 : code 0
+Essai 45/64 : code 0
+Essai 50/64 : code 0
+Essai 51/64 : code 0
+Essai 52/64 : code 0
+Essai 53/64 : code 0
+Essai 54/64 : code 0
+Essai 55/64 : code 0
+Essai 57/64 : code 0
+Essai 56/64 : code 0
+Essai 58/64 : code 0
+Essai 59/64 : code 0
+Essai 60/64 : code 0
+Essai 61/64 : code 0
+Essai 63/64 : code 0
+Essai 62/64 : code 0
+Essai 64/64 : code 0
+Essai 18/64 : code 124
+Essai 25/64 : code 124
+TOTAL: 62/64 ; concurrence 8 ; durée 47.30s ; échecs [18, 25]
+
+```
+Après correction :
+```text
+Essai 08/64 : code 0
+Essai 02/64 : code 0
+Essai 05/64 : code 0
+Essai 03/64 : code 0
+Essai 07/64 : code 0
+Essai 04/64 : code 0
+Essai 01/64 : code 0
+Essai 06/64 : code 0
+Essai 15/64 : code 0
+Essai 12/64 : code 0
+Essai 14/64 : code 0
+Essai 09/64 : code 0
+Essai 10/64 : code 0
+Essai 16/64 : code 0
+Essai 13/64 : code 0
+Essai 11/64 : code 0
+Essai 23/64 : code 0
+Essai 21/64 : code 0
+Essai 22/64 : code 0
+Essai 18/64 : code 0
+Essai 17/64 : code 0
+Essai 19/64 : code 0
+Essai 20/64 : code 0
+Essai 31/64 : code 0
+Essai 26/64 : code 0
+Essai 24/64 : code 0
+Essai 27/64 : code 0
+Essai 29/64 : code 0
+Essai 25/64 : code 0
+Essai 28/64 : code 0
+Essai 30/64 : code 0
+Essai 32/64 : code 0
+Essai 33/64 : code 0
+Essai 34/64 : code 0
+Essai 36/64 : code 0
+Essai 38/64 : code 0
+Essai 37/64 : code 0
+Essai 35/64 : code 0
+Essai 39/64 : code 0
+Essai 41/64 : code 0
+Essai 40/64 : code 0
+Essai 42/64 : code 0
+Essai 43/64 : code 0
+Essai 44/64 : code 0
+Essai 45/64 : code 0
+Essai 47/64 : code 0
+Essai 46/64 : code 0
+Essai 50/64 : code 0
+Essai 48/64 : code 0
+Essai 49/64 : code 0
+Essai 53/64 : code 0
+Essai 54/64 : code 0
+Essai 52/64 : code 0
+Essai 55/64 : code 0
+Essai 51/64 : code 0
+Essai 56/64 : code 0
+Essai 57/64 : code 0
+Essai 58/64 : code 0
+Essai 59/64 : code 0
+Essai 60/64 : code 0
+Essai 61/64 : code 0
+Essai 63/64 : code 0
+Essai 64/64 : code 0
+Essai 62/64 : code 0
+TOTAL: 64/64 ; concurrence 8 ; durée 33.62s ; échecs []
+
+```
+Test de contrat avant correction :
+```text
+✖ Chrome isolé : contexte et page initiale font partie du lancement borné, sans newContext (1.993791ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 76.301375
+
+✖ failing tests:
+
+test at tests/browser-gateway.test.js:854:1
+✖ Chrome isolé : contexte et page initiale font partie du lancement borné, sans newContext (1.993791ms)
+  TypeError: chromium.launch is not a function
+      at CdpBrowser.ensure (file:///Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:110:37)
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:890:33)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+
+```
+
+## 17:41 — Point 3 OPÉRATIONNEL
+
+Correction du chemin de démarrage isolé prouvée par 64/64 essais consécutifs sous charge et suite complète **210/210** (162 + 48), aucun skip. `check`, `format:check`, `git diff --check` verts. Limites : cause interne Chromium non déterminée, pas de garantie universelle pour tout binaire récalcitrant ; mode CDP non modifié par ce correctif de contention du mode isolé. Aucun modèle appelé.
+
+Sorties brutes de validation :
+```text
+▶ unitaires et intégration (parallèle) : 14 fichier(s)
+ℹ tests 162
+ℹ suites 0
+ℹ pass 162
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31405.255417
+▶ Chrome réel (série) : 3 fichier(s)
+✔ Chrome isolé : contexte et page initiale font partie du lancement borné, sans newContext (0.20325ms)
+✔ Chrome isolé : délai du faux exécutable muet et nettoyage explicite de la fixture (1007.913417ms)
+✔ Chrome isolé : délai de démarrage strictement positif et entier (0.7175ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37525.498583
+
+> agent-platform@0.1.0 check
+> node scripts/check.js
+
+Syntaxe JavaScript valide.
+
+> agent-platform@0.1.0 format:check
+> prettier --check apps packages domain-packs tests scripts/*.js
+
+Checking formatting...
+All matched files use Prettier code style!
+
+```

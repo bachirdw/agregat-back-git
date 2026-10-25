@@ -23,6 +23,10 @@ const CHROME =
 const hasChrome = existsSync(CHROME);
 const temporary = () => mkdtempSync(join(tmpdir(), 'relay-browser-'));
 const ALL = capabilityIds;
+const trace = (stage) => {
+  if (process.env.BROWSER_STRESS_TRACE === '1')
+    process.stderr.write(`[password-stage ${new Date().toISOString()}] ${stage}\n`);
+};
 
 // ---------- Pure policy / registry tests (no browser) ----------
 test('registre : contrats stables, schémas stricts, effets déclarés', () => {
@@ -328,8 +332,12 @@ async function realGateway(t, { decision = false, maxDownloadBytes } = {}) {
     approve: async (req) => (approvals.push(req), decision),
   });
   t.after(async () => {
+    trace('cleanup:browser:start');
     await provider.close();
-    server.close();
+    trace('cleanup:browser:done');
+    server.closeAllConnections();
+    await new Promise((r) => server.close(r));
+    trace('cleanup:server:done');
   });
   return { gw, hits, origin, approvals, ws };
 }
@@ -381,8 +389,11 @@ test(
   { skip: !hasChrome && 'Chrome absent' },
   async (t) => {
     const { gw, origin, approvals } = await realGateway(t, { decision: true });
+    trace('navigate:start');
     await gw.call('browser.navigate', { url: origin + '/' });
+    trace('navigate:done;type:start');
     const out = await gw.call('browser.type', { selector: '#pw', text: 'secret-123' });
+    trace('type:done');
     assert.equal(out.typed, 10);
     assert.equal(approvals[0].sensitive, true);
     assert.ok(!JSON.stringify(approvals).includes('secret-123'));
@@ -838,4 +849,86 @@ test('options navigateur : refus partiel, mutation et fermeture pendant le conse
     /fermé/,
   );
   await assert.rejects(provider.ensure(policy), /fermé/);
+});
+
+test('Chrome isolé : contexte et page initiale font partie du lancement borné, sans newContext', async () => {
+  const policy = new RunPolicy();
+  const calls = [];
+  const page = { url: () => 'about:blank', close: async () => {} };
+  const browser = {
+    close: async () => {
+      calls.push('close-browser');
+    },
+  };
+  const context = {
+    pages: () => [page],
+    browser: () => browser,
+    route: async () => {},
+    routeWebSocket: async () => {},
+    unroute: async () => {},
+    on: () => {},
+    off: () => {},
+    close: async () => {
+      calls.push('close-context');
+    },
+  };
+  const provider = new CdpBrowser({
+    launch: { executablePath: 'FICTIF' },
+    startupTimeoutMs: 1234,
+    chromium: {
+      launchPersistentContext: async (dir, options) => {
+        calls.push('launch');
+        assert.equal(dir, '', 'profil temporaire géré par Playwright');
+        assert.equal(options.timeout, 1234);
+        assert.equal(options.javaScriptEnabled, false);
+        assert.equal(options.serviceWorkers, 'block');
+        return context;
+      },
+    },
+  });
+  try {
+    assert.equal(await provider.ensure(policy), page);
+  } finally {
+    await provider.close();
+  }
+  assert.deepEqual(calls, ['launch', 'close-context', 'close-browser']);
+});
+
+test('Chrome isolé : délai du faux exécutable muet et nettoyage explicite de la fixture', async (t) => {
+  const dir = temporary();
+  const executablePath = join(dir, 'FICTIF-chrome');
+  const pidFile = join(dir, 'pid');
+  const { readFileSync, rmSync } = await import('node:fs');
+  writeFileSync(
+    executablePath,
+    `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));setInterval(() => {}, 1000);\n`,
+    { mode: 0o755 },
+  );
+  const provider = new CdpBrowser({ launch: { executablePath }, startupTimeoutMs: 1000 });
+  t.after(async () => {
+    // This fixture ignores even Browser.close. Playwright rejects on deadline, but its graceful
+    // shutdown cannot stop a binary that speaks no CDP at all. Kill only our known fixture PID.
+    if (existsSync(pidFile)) {
+      try {
+        process.kill(Number(readFileSync(pidFile, 'utf8')), 'SIGKILL');
+      } catch (e) {
+        if (e.code !== 'ESRCH') throw e;
+      }
+    }
+    await provider.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const started = Date.now();
+  await assert.rejects(provider.ensure(new RunPolicy()), /Timeout 1000ms exceeded/);
+  assert.ok(Date.now() - started < 5000, 'la deadline rejette sans attendre un pair muet');
+  assert.ok(existsSync(pidFile), 'le faux Chrome a réellement démarré');
+});
+
+test('Chrome isolé : délai de démarrage strictement positif et entier', () => {
+  for (const startupTimeoutMs of [0, -1, 0.5, Infinity, '1000']) {
+    assert.throws(
+      () => new CdpBrowser({ launch: {}, startupTimeoutMs }),
+      /Délai de démarrage invalide/,
+    );
+  }
 });

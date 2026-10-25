@@ -32,7 +32,8 @@ validations d'inférence renouvelées : ce sprint n'a appelé aucun modèle ni s
 
 Dernière suite complète du sprint 09 : **210 tests réussis / 210, aucun ignoré**,
 soit 162 tests sans navigateur et 48 tests Chrome/pont/E2E. Commande : `npm test`, code 0.
-`npm run check` et `npm run format:check` : codes 0. Sorties brutes :
+`npm test && npm run check && npm run format:check` final : code 0 après réinstallation npm.
+`npm audit` : code 0, aucune vulnérabilité déclarée. Sorties brutes :
 [rapport sprint 09](sprint-09.md). Les tests n'utilisent que des agents fictifs, données de test marquées
 ou réponses publiques préenregistrées ; aucun modèle ni service payant.
 
@@ -85,6 +86,15 @@ Si un serveur tourne déjà sur ce port, le conserver et choisir `PORT=4311 npm 
 Pour les agents réels déjà configurés : `AGENT_PLATFORM_LIVE=1 PORT=4311 npm start` ; ce démarrage seul
 n'appelle aucun modèle. Les tests d'inférence sont des opérations distinctes et ne font pas partie de
 la vérification sans dépense de ce sprint. Voir le README pour les modes navigateur et leurs limites.
+
+Vérification sprint 09 : `npm ci --ignore-scripts`, `npm run doctor` et `npm run demo` ont réussi.
+Les démarrages démonstration, live, fixture, isolated et playwriter ont répondu HTTP 200 sur `/`,
+`/api/catalog`, `/api/runs` avec historique vide, sur ports libres et copie du dépôt/base isolée.
+Le port 4310 était occupé : le premier `npm start` a échoué avec EADDRINUSE, puis `PORT=4311 npm start`
+a réussi. Les groupes de test ont été arrêtés ; le serveur du manager est conservé. Démarrer en mode
+Playwriter ne valide pas sa connexion différée au relais/extension ; cette intégration reste incomplète.
+Sorties brutes dans le rapport du sprint 09.
+
 
 ## 6. Travaux restants prioritaires
 

@@ -713,3 +713,625 @@ All matched files use Prettier code style!
 - `.manager/reports/FINAL.md` réécrit avec §7 review-night + sprint 09, 10 critères MVP et preuves par fichier de test/commande, statuts OPÉRATIONNEL / SIMULÉ / INCOMPLET / PRÉVU explicites. Dernier décompte réel 210/210 (162 + 48), zéro skip ; aucune inférence fournisseur de ce sprint revendiquée.
 - Lecture ciblée de `docs/research/live-probe.json` (statuts seulement) et noms de tests réels ; aucune nouvelle sonde fournisseur. Les commandes de démarrage seront effectivement contrôlées au point 5 ; renvoi vers son journal, pas de sortie inventée.
 - Dernière suite et contrôles verts du point 3 toujours applicables : seules les documentations changent. `git diff --check` relancé avant commit.
+
+## 17:42 — Point 5 : vérification du README
+
+- Début par `npm ci --ignore-scripts`, après fin de tous les tests pour ne pas modifier node_modules pendant leur exécution. Versions déjà épinglées dans le lock, aucune nouvelle dépendance ; aucun script de paquet exécuté.
+- Port 4310 signalé occupé dans HANDOFF : le serveur du manager doit rester intact. Les démarrages seront testés avec un port libre explicite, puis vérification HTTP et arrêt de NOS processus uniquement. Aucun run réel, authentification, clé ou prompt fournisseur ne sera lancé. Les exemples d’inférence et le relais Playwriter seront distingués des commandes de démarrage sans modèle.
+
+## 17:44 — Point 5 : résultats des commandes
+
+- `npm ci --ignore-scripts` : code 0, 129 paquets ajoutés, 130 audités, 0 vulnérabilité déclarée par npm. Aucun changement de lock/dépendance. `npm run doctor` : code 0, détection des CLI seulement. `npm run demo` : code 0, état completed et simulated:true pour les offres fictives.
+- Pour préserver la base `.data` et les processus du manager, les commandes npm start ont été réellement exécutées depuis une copie `git archive HEAD` dans `/tmp/sprint09-readme.0VqKUz`, avec node_modules du projet en lien et nouvelle base isolée. Aucun fichier d’authentification copié. Les variables sensibles ne sont pas journalisées et la clé Gemini est retirée des environnements de ces serveurs.
+- `npm start` sans port : code 1, EADDRINUSE 127.0.0.1:4310 (serveur du manager laissé intact). `PORT=0 npm start`, live, fixture, isolated avec chemin Chrome, playwriter, et `PORT=4311 npm start` : tous démarrent ; pour chacun GET /, /api/catalog, /api/runs = HTTP 200, historique isolé []. Arrêt explicite des seuls groupes créés : code -15 attendu (SIGTERM de test). Aucun run réel créé, aucune connexion navigateur utilisateur.
+- Démarrage playwriter validé = API disponible seulement (connexion différée). Relais/extension toujours INCOMPLETS, pas installés ni contactés. Chrome isolé/CDP temporaires sont validés par les tests du sprint.
+- README : ajout de la résolution du port occupé dès le démarrage, port 0, options/consentements et paresse du fournisseur navigateur ; suppression des blocs d’inférence redondants non validables sans consommation ; diagnostics/session et prompts réels distingués ; décompte 210, modèle configOptions OU models et estimation indicative corrigés d’après le code. Les scripts live restent documentés comme opérations réelles séparées, non exécutées ici (interdiction d’appels modèle du brief et accès utilisateur requis).
+
+Sorties brutes installation et démarrages :
+```text
+
+added 129 packages, and audited 130 packages in 5s
+
+49 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+COMMANDE : npm start (port par défaut)
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83379) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use 127.0.0.1:4310
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 4310
+}
+
+Node.js v24.14.1
+
+Pas de démarrage ; exit=1
+Arrêt de notre groupe de test : code 1
+
+COMMANDE : PORT=0 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83396) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:63504 — mode démonstration
+
+GET / : HTTP 200, 7877 octets
+GET /api/catalog : HTTP 200, 12210 octets
+GET /api/runs : HTTP 200, 2 octets
+Historique isolé : []
+DÉMARRAGE ET HTTP VALIDÉS ; aucun run créé
+Arrêt de notre groupe de test : code -15
+
+COMMANDE : AGENT_PLATFORM_LIVE=1 PORT=0 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83416) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:63508 — BYOA réel disponible
+
+GET / : HTTP 200, 7877 octets
+GET /api/catalog : HTTP 200, 12209 octets
+GET /api/runs : HTTP 200, 2 octets
+Historique isolé : []
+DÉMARRAGE ET HTTP VALIDÉS ; aucun run créé
+Arrêt de notre groupe de test : code -15
+
+COMMANDE : AGENT_PLATFORM_BROWSER=fixture PORT=0 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83461) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:63513 — mode démonstration
+
+GET / : HTTP 200, 7877 octets
+GET /api/catalog : HTTP 200, 12210 octets
+GET /api/runs : HTTP 200, 2 octets
+Historique isolé : []
+DÉMARRAGE ET HTTP VALIDÉS ; aucun run créé
+Arrêt de notre groupe de test : code -15
+
+COMMANDE : AGENT_PLATFORM_BROWSER=isolated AGENT_PLATFORM_CHROME_PATH=Chrome AGENT_PLATFORM_LIVE=1 PORT=0 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83482) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:63517 — BYOA réel disponible
+
+GET / : HTTP 200, 7877 octets
+GET /api/catalog : HTTP 200, 12209 octets
+GET /api/runs : HTTP 200, 2 octets
+Historique isolé : []
+DÉMARRAGE ET HTTP VALIDÉS ; aucun run créé
+Arrêt de notre groupe de test : code -15
+
+COMMANDE : AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 PORT=0 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83505) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:63522 — BYOA réel disponible
+
+GET / : HTTP 200, 7877 octets
+GET /api/catalog : HTTP 200, 12209 octets
+GET /api/runs : HTTP 200, 2 octets
+Historique isolé : []
+DÉMARRAGE ET HTTP VALIDÉS ; aucun run créé
+Arrêt de notre groupe de test : code -15
+
+COMMANDE : PORT=4311 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:83528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:4311 — mode démonstration
+
+GET / : HTTP 200, 7877 octets
+GET /api/catalog : HTTP 200, 12210 octets
+GET /api/runs : HTTP 200, 2 octets
+Historique isolé : []
+DÉMARRAGE ET HTTP VALIDÉS ; aucun run créé
+Arrêt de notre groupe de test : code -15
+
+```
+Diagnostic CLI :
+```text
+
+> agent-platform@0.1.0 doctor
+> node apps/companion/doctor.js
+
+{
+  "node": "v24.14.1",
+  "agents": [
+    {
+      "id": "fixture",
+      "name": "Démonstrateur ACP",
+      "command": "/usr/local/bin/node",
+      "args": [
+        "/Users/diaw/Downloads/agregateur-agent/tests/fixtures/agent.js"
+      ],
+      "simulated": true,
+      "env": [],
+      "safeModes": [],
+      "preference": 99,
+      "installed": true,
+      "compatible": true,
+      "version": "fixture-0.1.0",
+      "readiness": "test-reproductible"
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "cli": "codex",
+      "package": "codex-acp",
+      "env": [
+        "CODEX_HOME",
+        "OPENAI_API_KEY",
+        "CODEX_API_KEY"
+      ],
+      "safeModes": [
+        "read-only"
+      ],
+      "preference": 1,
+      "command": "/Users/diaw/Downloads/agregateur-agent/node_modules/.bin/codex-acp",
+      "args": [],
+      "cliPath": "/Users/diaw/.local/bin/codex",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "codex-cli 0.163.0",
+      "readiness": "handshake-requis"
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "cli": "claude",
+      "package": "claude-agent-acp",
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "CLAUDE_CONFIG_DIR"
+      ],
+      "safeModes": [
+        "default"
+      ],
+      "preference": 2,
+      "command": "/Users/diaw/Downloads/agregateur-agent/node_modules/.bin/claude-agent-acp",
+      "args": [],
+      "cliPath": "/usr/local/bin/claude",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "2.1.114 (Claude Code)",
+      "readiness": "handshake-requis"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "cli": "gemini",
+      "acpFlags": [
+        "--acp",
+        "--experimental-acp"
+      ],
+      "env": [
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_CLOUD_PROJECT",
+        "GEMINI_CLI_HOME"
+      ],
+      "safeModes": [
+        "default",
+        "plan"
+      ],
+      "fixedEnv": {
+        "GEMINI_CLI_TRUST_WORKSPACE": "true"
+      },
+      "apiKeyAuth": {
+        "envKey": "GEMINI_API_KEY",
+        "methodId": "gemini-api-key",
+        "homeEnv": "GEMINI_CLI_HOME"
+      },
+      "preference": 3,
+      "command": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/gemini",
+      "args": [
+        "--acp"
+      ],
+      "cliPath": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/gemini",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "0.65.0",
+      "readiness": "handshake-requis"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "cli": "opencode",
+      "args": [
+        "acp",
+        "--hostname",
+        "127.0.0.1",
+        "--pure"
+      ],
+      "env": [
+        "OPENCODE_CONFIG",
+        "OPENCODE_CONFIG_DIR"
+      ],
+      "safeModes": [
+        "plan"
+      ],
+      "preference": 4,
+      "command": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/opencode",
+      "cliPath": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/opencode",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "1.19.4",
+      "readiness": "handshake-requis"
+    }
+  ],
+  "note": "Présence/version ne prouvent ni authentification ni capacité de prompt. npm run test:live teste le handshake."
+}
+
+```
+Démonstration :
+```text
+
+> agent-platform@0.1.0 demo
+> node scripts/demo.js
+
+(node:83432) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "id": "e348771a-97f2-401a-a923-7c13025ece5f",
+  "createdAt": "2026-10-25T06:43:16.798Z",
+  "state": "completed",
+  "prompt": "Rechercher des offres d'emploi Python SQL",
+  "agent": "fixture",
+  "pack": "najah",
+  "skills": [
+    "opportunity-analysis",
+    "evidence-review"
+  ],
+  "model": "",
+  "budgetCents": 0,
+  "mode": "agent",
+  "cwd": "/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/relay-demo-lFkDUb/workspaces/e348771a-97f2-401a-a923-7c13025ece5f",
+  "simulated": true,
+  "sessionId": "8a1cfa79-b571-4a3e-8723-6bf0d2c6dde9",
+  "resumable": false,
+  "skillsSnapshot": [
+    {
+      "id": "opportunity-analysis",
+      "version": "0.1.0",
+      "hash": "3ef980c06fbef6e608e96ebef62bcc083aa81cd48e2a885f8353b32351d301e5",
+      "origin": "bundled"
+    },
+    {
+      "id": "evidence-review",
+      "version": "0.1.0",
+      "hash": "fa4a0249bd829fc0354f73a4f6caee8f4ef4862d26a95e6a0ce28e8dc75397d0",
+      "origin": "bundled"
+    }
+  ],
+  "plan": {
+    "steps": [
+      "Préparer les Skills",
+      "Examiner la source de démonstration",
+      "Rechercher dans le jeu de test",
+      "Classer avec des critères explicites",
+      "Vérifier le résultat"
+    ],
+    "cost": {
+      "platformCents": 0,
+      "externalCents": null,
+      "currency": "EUR",
+      "lines": [
+        {
+          "dimension": "workflow_run",
+          "units": 1,
+          "cents": 0
+        }
+      ],
+      "budgetCents": 0,
+      "withinBudget": true,
+      "description": "Aucun modèle appelé"
+    },
+    "workflow": null
+  },
+  "result": {
+    "simulated": true,
+    "summary": "Classement de trois offres fictives selon les compétences mentionnées. Sponsoring non vérifié.",
+    "evidence": [
+      {
+        "tool": "browser_snapshot",
+        "data": {
+          "simulated": true,
+          "provider": "fixture",
+          "url": "https://jobs.example.test",
+          "text": "Page de test locale : trois offres fictives. Aucun accès à Chrome ou au réseau."
+        }
+      },
+      {
+        "tool": "opportunities_search",
+        "data": {
+          "simulated": true,
+          "opportunities": [
+            {
+              "id": "demo-001",
+              "title": "Software Engineer — Python",
+              "company": "Example Harbour Labs (fictif)",
+              "location": "Sydney",
+              "skills": [
+                "python",
+                "api",
+                "sql"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-001",
+              "simulated": true
+            },
+            {
+              "id": "demo-002",
+              "title": "Frontend Engineer — React",
+              "company": "Example Coast Studio (fictif)",
+              "location": "Melbourne",
+              "skills": [
+                "react",
+                "typescript",
+                "design"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-002",
+              "simulated": true
+            },
+            {
+              "id": "demo-003",
+              "title": "Data Analyst — SQL & Python",
+              "company": "Example Southern Data (fictif)",
+              "location": "Remote Australia",
+              "skills": [
+                "sql",
+                "python",
+                "analytics"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-003",
+              "simulated": true
+            }
+          ]
+        }
+      },
+      {
+        "tool": "opportunities_rank",
+        "data": {
+          "simulated": true,
+          "opportunities": [
+            {
+              "id": "demo-001",
+              "title": "Software Engineer — Python",
+              "company": "Example Harbour Labs (fictif)",
+              "location": "Sydney",
+              "skills": [
+                "python",
+                "api",
+                "sql"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-001",
+              "simulated": true,
+              "score": 60,
+              "reasons": [
+                "Compétence mentionnée : python",
+                "Compétence mentionnée : sql"
+              ]
+            },
+            {
+              "id": "demo-003",
+              "title": "Data Analyst — SQL & Python",
+              "company": "Example Southern Data (fictif)",
+              "location": "Remote Australia",
+              "skills": [
+                "sql",
+                "python",
+                "analytics"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-003",
+              "simulated": true,
+              "score": 60,
+              "reasons": [
+                "Compétence mentionnée : sql",
+                "Compétence mentionnée : python"
+              ]
+            },
+            {
+              "id": "demo-002",
+              "title": "Frontend Engineer — React",
+              "company": "Example Coast Studio (fictif)",
+              "location": "Melbourne",
+              "skills": [
+                "react",
+                "typescript",
+                "design"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-002",
+              "simulated": true,
+              "score": 0,
+              "reasons": [
+                "Aucune compétence correspondante ; score nul"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "opportunities": [
+      {
+        "id": "demo-001",
+        "title": "Software Engineer — Python",
+        "company": "Example Harbour Labs (fictif)",
+        "location": "Sydney",
+        "skills": [
+          "python",
+          "api",
+          "sql"
+        ],
+        "sponsorship": "unknown",
+        "source": "https://jobs.example.test/demo-001",
+        "simulated": true,
+        "score": 60,
+        "reasons": [
+          "Compétence mentionnée : python",
+          "Compétence mentionnée : sql"
+        ]
+      },
+      {
+        "id": "demo-003",
+        "title": "Data Analyst — SQL & Python",
+        "company": "Example Southern Data (fictif)",
+        "location": "Remote Australia",
+        "skills": [
+          "sql",
+          "python",
+          "analytics"
+        ],
+        "sponsorship": "unknown",
+        "source": "https://jobs.example.test/demo-003",
+        "simulated": true,
+        "score": 60,
+        "reasons": [
+          "Compétence mentionnée : sql",
+          "Compétence mentionnée : python"
+        ]
+      },
+      {
+        "id": "demo-002",
+        "title": "Frontend Engineer — React",
+        "company": "Example Coast Studio (fictif)",
+        "location": "Melbourne",
+        "skills": [
+          "react",
+          "typescript",
+          "design"
+        ],
+        "sponsorship": "unknown",
+        "source": "https://jobs.example.test/demo-002",
+        "simulated": true,
+        "score": 0,
+        "reasons": [
+          "Aucune compétence correspondante ; score nul"
+        ]
+      }
+    ]
+  },
+  "finishedAt": "2026-10-25T06:43:17.084Z"
+}
+
+```
+
+## 17:45 — Point 5 : préparation de la clôture
+
+- FINAL §5 complété par les démarrages réellement vérifiés et l’échec EADDRINUSE explicite ; intégration extension toujours distinguée du simple démarrage d’API.
+- Validation finale lancée sous la forme `npm test && npm run check && npm run format:check` après npm ci. Erreur mineure de redirection : seul le dernier contrôle est envoyé au fichier initialement prévu ; sorties npm test/check capturées via la session outil pour être archivées, sans relancer inutilement la suite. Les preuves brutes finales seront ajoutées après terminaison.
+
+## 17:46 — Point 5 OPÉRATIONNEL et validation finale
+
+- Commande finale `npm test && npm run check && npm run format:check` : **code 0** après réinstallation npm, **210/210** tests (162 + 48), zéro échec/annulation/skip. `npm audit` séparé : code 0, `found 0 vulnerabilities`. `git diff --check` vert.
+- Sortie finale npm test/check capturée après le premier bloc d’amorçage et format:check archivé : `sprint-09-evidence/final-validation.txt`. Le premier bloc initial apparaissait dans la sortie outil ; les résumés ci-dessous sont les sorties réelles, pas une extrapolation.
+- Vérification finale des processus par `ps ... | rg 'sprint09-readme|FICTIF-chrome|playwright_chromiumdev_profile-|node --test.*browser-gateway.test.js'` : uniquement les deux processus de la recherche elle-même, aucun résidu de nos serveurs/Chrome/fixtures. Le serveur préexistant du manager est intact.
+
+```text
+ℹ tests 162
+ℹ suites 0
+ℹ pass 162
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33486.828041
+▶ Chrome réel (série) : 3 fichier(s)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39514.37175
+Syntaxe JavaScript valide.
+Checking formatting...
+All matched files use Prettier code style!
+found 0 vulnerabilities
+```
+
+## État final et passation au manager
+
+| Point | Statut final | Preuve |
+|---|---|---|
+| 0 — contrôles et formatage | OPÉRATIONNEL | 199 tests initiaux verts hors sandbox ; 210 finaux ; check/format:check verts |
+| 1 — exports ignorés | OPÉRATIONNEL | git check-ignore exports/claude-design/ = code 0 |
+| 2 — options navigateur et consentements | OPÉRATIONNEL | RunPolicy par run, tests unitaires, Chrome réel, pont MCP et décisions SQLite ; 8 nouveaux tests au point 2 |
+| 3 — instabilité mot de passe | OPÉRATIONNEL sur le cas reproduit | 62/64 avant, traces newContext bloqué, 64/64 après sous concurrence 8 ; 3 régressions ajoutées, suite 210/210 |
+| 4 — FINAL | OPÉRATIONNEL | Dix critères MVP et preuves, §7 review-night/sprint 09, décompte réel |
+| 5 — démarrage README | OPÉRATIONNEL sur API/démo | npm ci/doctor/demo verts ; six démarrages sur ports libres, HTTP 200 ; EADDRINUSE du port 4310 documenté et contourné par 4311 |
+
+Aucun point du brief laissé bloqué. Port 4310 préexistant conservé ; commandes vérifiées dans une copie
+isolée pour ne pas récupérer les runs/base du manager. Démarrage API Playwriter validé, connexion à
+l’extension toujours INCOMPLÈTE (déjà hors validation sans extension) ; prompts fournisseurs non exécutés.
+Les tests restent sans modèles ; zéro appel payant, aucun secret lu/affiché, aucun push/publication/envoi.
+La cause interne de Chromium et la destruction immédiate de tout binaire muet ne sont pas garanties.
+Les protections du contexte partagé, leurs risques et limites restent celles de l’ADR 006.
+
+### Commits locaux
+
+- `def9132` — [sprint-09] Corriger le formatage initial et consigner les validations.
+- `8716201` — [sprint-09] Ignorer les exports générés.
+- `8619221` — [sprint-09] Exiger un consentement par run pour JavaScript et les contextes partagés.
+- `485b981` — [sprint-09] Éviter le blocage Chrome à la création du contexte sous charge.
+- `1710ebe` — [sprint-09] Actualiser le bilan final et les preuves des dix critères MVP.
+- Clôture point 5 : commit contenant cette version du rapport, intitulé
+  `[sprint-09] Vérifier les démarrages et clôturer les validations` ; identifiant via `git log -1 --oneline`.
+
+### Suites / questions pour le manager
+
+- Extension Playwriter et fournisseurs : validation utilisateur séparée, sans confondre session, accès
+  inférence et conformité d’usage ; aucun appel réel ajouté ici.
+- Isolation OS et canal de décision, contexte partagé simultané entre plusieurs runs, authentification
+  multi-utilisateurs : suites d’architecture connues, pas de promesse SaaS dans le bilan.
+- Conserver les traces avant/après du banc ; reproduire la contention avec le script d’évidence pour toute
+  modification future du démarrage Chrome. Un binaire entièrement muet nécessite encore une supervision
+  de processus plus forte ; le test se contente d’une deadline et nettoie sa fixture explicitement.
+
+- 17:46 — Premier essai de commit de clôture interrompu par `git diff --cached --check` (code 2) : ligne vide supplémentaire en fin de final-validation.txt. Ligne vide finale retirée du fichier de sortie uniquement ; aucun contenu de test modifié, aucun commit créé lors de cet essai. Relance du contrôle puis commit.

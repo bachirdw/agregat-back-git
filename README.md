@@ -11,7 +11,7 @@ npm ci --ignore-scripts
 npm start
 ```
 
-Ouvrir **http://127.0.0.1:4310**. Les adaptateurs optionnels sont installés par npm, sans scripts d'installation. Si un paquet optionnel manque, le démonstrateur reste utilisable ; `npm run doctor` précise la présence des CLI/adaptateurs.
+Ouvrir **http://127.0.0.1:4310**. Si ce port est déjà occupé (`EADDRINUSE`), conserver le serveur existant ou démarrer avec `PORT=4311 npm start`, puis ouvrir http://127.0.0.1:4311. `PORT=0 npm start` choisit un port libre et affiche son URL. Les adaptateurs optionnels sont installés par npm, sans scripts d'installation. Si un paquet optionnel manque, le démonstrateur reste utilisable ; `npm run doctor` précise la présence des CLI/adaptateurs.
 
 1. Installer les deux Skills proposés dans l'interface ; ils sont activés puis sélectionnables.
 2. Conserver **Démonstrateur ACP**, saisir par exemple « Rechercher des offres d'emploi Python et SQL en Australie ».
@@ -37,37 +37,26 @@ OpenCode `plan` ; sans mode sûr annoncé, le run est refusé. Le mode **Auto** 
 les exigences (reprise, modèle, transport MCP) et les derniers tests, et explique son choix dans le plan.
 
 ```sh
-npm run doctor                                   # détection et compatibilité ACP
-npm run test:live                                # handshake + session de chaque agent, sans prompt
-LIVE_AGENTS=gemini LIVE_PROMPT=1 LIVE_MODEL=gemini-3.5-flash-lite npm run test:live   # un prompt minimal
-AGENT_PLATFORM_LIVE=1 npm start                  # interface avec agents réels
-PORT=4310 node scripts/live-run.js gemini gemini-3.5-flash-lite najah   # run réel piloté par l'API
+npm run doctor                   # détection et compatibilité ACP, sans session ni prompt
+AGENT_PLATFORM_LIVE=1 npm start   # interface avec agents réels, aucun appel modèle au démarrage
 ```
 
 Les modèles proposés dans l'interface sont ceux annoncés au dernier test (`.data/agent-probes.json`).
-Attention : les modèles gratuits d'OpenCode refusent d'être utilisés comme moteur d'un autre service (ADR 005).
+Les modèles gratuits d'OpenCode refusent d'être utilisés comme moteur d'un autre service (ADR 005).
 
-Ancienne procédure, toujours valable :
-
-```sh
-npm run doctor
-npm run test:live                 # handshake et session, sans prompt modèle
-AGENT_PLATFORM_LIVE=1 npm start  # arrêter le serveur existant auparavant
-```
-
-Pour le test minimal d'inférence (consommation du compte utilisateur) :
-
-```sh
-LIVE_PROMPT=1 npm run test:live
-```
+Le diagnostic avancé `npm run test:live` effectue un handshake et une session fournisseur, sans prompt par
+défaut. Il est séparé des tests courants et n'a pas été relancé au sprint 09. Activer `LIVE_PROMPT=1`
+déclenche une inférence et consomme le compte utilisateur ; choisir volontairement l'agent (`LIVE_AGENTS`)
+et un modèle réellement annoncé (`LIVE_MODEL`). Les scripts `scripts/live-run.js` et `scripts/live-resume.js`
+sont également des opérations réelles, à exécuter séparément avec le budget et les accès nécessaires.
 
 Le serveur sélectionne les **CLI utilisateur hors node_modules**. Le chemin est fixé via `CODEX_PATH` / `CLAUDE_CODE_EXECUTABLE` pour les adaptateurs upstream. Aucun changement d'authentification n'est effectué. La détection n'est pas une garantie d'authentification : le handshake réel et le prompt restent décisifs.
 
 Codex est placé en mode ACP `read-only`, Claude en `default`, si ces modes sont annoncés ; sinon le run échoue. Les demandes de permission ACP sont affichées pour décision ponctuelle, expirent après 60 s et sont annulées avec le run. Les capacités fs/terminal du client sont désactivées. **Cela ne constitue pas une isolation OS** des outils natifs/hooks/configurations du CLI : n'exposer ce serveur ni à Internet ni à des utilisateurs/tâches non fiables. Aucun outil d'e-mail ou de candidature n'est fourni.
 
-Le champ modèle accepte uniquement un identifiant annoncé dans les `configOptions` de la session. Laisser vide pour le défaut fournisseur ; les options annoncées apparaissent dans les événements de session et le rapport `docs/research/live-probe.json`. Pas de modèle ou de prix inventé.
+Le champ modèle accepte uniquement un identifiant annoncé par la session (`configOptions` ou `models`, selon le runtime). Laisser vide pour le défaut fournisseur ; les options annoncées apparaissent dans les événements de session et le rapport `docs/research/live-probe.json`. Pas de modèle ou de prix inventé.
 
-La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seulement lorsque `loadSession` est annoncé. Elle est disponible dans l'interface pour les runs terminés/interrompus compatibles. Ce n'est pas une reprise transactionnelle à la dernière étape ; les recettes sont en lecture seule pour éviter les doubles actions. Sans cette capacité, relancer une nouvelle mission.
+La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seulement lorsque `loadSession` est annoncé. Elle est disponible dans l'interface pour les runs terminés/interrompus compatibles. La reprise de session agent ne garantit pas une reprise transactionnelle des effets natifs du CLI. La reprise durable des étapes concerne le mode Workflow DAG décrit plus bas. Sans cette capacité, relancer une nouvelle mission.
 
 ## Navigateur (Browser Gateway)
 
@@ -82,6 +71,19 @@ AGENT_PLATFORM_BROWSER=fixture npm start                    # défaut : sans ré
 AGENT_PLATFORM_BROWSER=isolated AGENT_PLATFORM_CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" AGENT_PLATFORM_LIVE=1 npm start
 AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Playwriter local (extension requise)
 ```
+
+Le démarrage `isolated` ou `playwriter` est paresseux : il ne lance/connecte le navigateur qu'au premier
+outil navigateur. Les trois commandes ci-dessus démarrent l'API ; la commande Playwriter ne prouve pas la
+présence du relais ou de l'extension. Le sprint 09 a vérifié le démarrage et les réponses HTTP des trois
+modes sur des ports libres ; Chrome isolé et CDP temporaire sont aussi testés réellement, l'extension
+Playwriter reste non validée. Preuves et commandes exactes : [.manager/reports/sprint-09.md](.manager/reports/sprint-09.md).
+
+Par défaut, JavaScript est désactivé et le contexte utilisateur n'est pas partagé, même via CDP.
+`AGENT_PLATFORM_BROWSER_JAVASCRIPT=1` demande JavaScript ;
+`AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1` demande le contexte utilisateur (mode `playwriter` seulement).
+Chaque option nécessite ensuite son propre consentement humain enregistré pour le run, avant toute
+ouverture. Un refus, une annulation ou l'absence de pont empêche l'activation. Le consentement n'est pas
+transférable à un autre run. Les risques scripts/cookies et limites du contexte partagé sont dans l'ADR 006.
 
 Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Voir [ADR 006](docs/adr/006-browser-gateway.md).
 
@@ -99,15 +101,15 @@ analyse par le démonstrateur sans modèle).
 | Fonction | État | Preuve |
 |---|---|---|
 | Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel** | Tests E2E sur Chrome réel (`tests/e2e-ui.test.js`) |
-| Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles) | **Opérationnel** | 35 tests + sondes réelles des 4 agents |
-| Codex · Claude · Gemini CLI · OpenCode | Sessions réelles **validées** pour les 4 ; inférence réelle validée pour **Gemini** (clé API) et OpenCode (modèle gratuit) | `docs/research/live-probe.json`, `docs/validation.md` |
+| Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles) | **Opérationnel** | `tests/runtime.test.js` et sondes historiques |
+| Codex · Claude · Gemini CLI · OpenCode | Sessions réelles documentées pour les 4 ; accès et inférence fournisseur à revérifier selon disponibilité/conditions | `docs/research/live-probe.json`, `docs/validation.md` (historiques ; aucune inférence au sprint 09) |
 | Mode Auto par exigences et capacités | **Opérationnel** | Tests routeur |
 | Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent) | **Opérationnel** | 15 + 8 + 4 tests ; DAG réel avec Gemini |
 | Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié | **Opérationnel** | Runs réels documentés ; rejeu hors ligne testé |
 | Najah — démonstrateur fictif | **Simulé** (données marquées FICTIVES) | Tests |
 | Najah — brouillon de lettre avec relecture humaine | **Opérationnel**, aucun envoi possible | Tests API + E2E |
 | Registre de Skills (quarantaine, revue, versions, export natif, import GitHub) | **Opérationnel** | 12 tests ; import réel de career-ops |
-| Browser Gateway : Chrome isolé et CDP partagé, politique, approbations | **Opérationnel** | Tests sur Chrome réel |
+| Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement | **Opérationnel** | Chrome réel, consentements par run ; 64/64 essais mot de passe sous charge après correction |
 | Browser Gateway via l'extension Playwriter | **Implémenté, non testé** (extension non installée) | ADR 006 |
 | MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | |
 | Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | 9 tests ; ADR 007 |
@@ -144,16 +146,17 @@ Grille tarifaire dans `.data/pricing.json` (à 0 par défaut, aucun prix invent�
 { "currency": "EUR", "centsPerUnit": { "tool_call": 0, "data_search": 0, "browser_action": 0 }, "monthlyCapCents": null }
 ```
 
-Chaque plan affiche une estimation maximale ; un lancement au-dessus du budget est refusé ; un dépassement en
+Chaque plan affiche une estimation indicative (les appels dynamiques des agents peuvent la dépasser) ; un lancement au-dessus du budget est refusé ; un dépassement en
 cours d'exécution arrête le run. La consommation de votre propre CLI (BYOA) est affichée comme « inconnue,
 jamais refacturée » et ne peut pas recevoir de prix. Voir [ADR 007](docs/adr/007-usage-and-billing.md).
 
 ## Vérifier
 
 ```sh
-npm test          # 151 tests : unitaires, intégration ACP/MCP/HTTP, Chrome réel isolé, E2E interface
+npm test          # 210 tests : unitaires, intégration ACP/MCP/HTTP, Chrome réel isolé, E2E interface
 npm run test:browser   # tests navigateur et E2E seuls, en série
 npm run check     # syntaxe de tous les fichiers JavaScript
+npm run format:check  # style Prettier
 npm run demo      # parcours Najah complet dans un dossier temporaire
 npm audit         # nécessite le réseau
 ```
@@ -179,7 +182,7 @@ packages/billing/             Mètres, tarifs, estimation, résumé
 packages/storage/             SQLite : runs, événements, Skills, ledger chaîné
 domain-packs/core/            Analyse générale
 domain-packs/najah/           Skills, DAG, outils live et fixtures, politiques, évaluations
-tests/                        151 tests, faux agents ACP, fixtures enregistrées
+tests/                        210 tests, faux agents ACP, fixtures enregistrées
 docs/                         Recherche, architecture, ADR 001–007, validation
 .manager/                     Plan, briefs, rapports de la session de nuit (manager + Codex)
 ```

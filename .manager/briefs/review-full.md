@@ -36,3 +36,9 @@ principal redirigée, annuler puis relancer `page.goto(cibleFinale)` déjà vér
 gravité (critique/majeur/mineur), fichier:ligne, scénario concret, **test qui le démontre (rouge puis vert)**,
 correctif ciblé. Ne corrige pas le style. Ne cache aucun échec. Termine par un tableau : défauts trouvés,
 corrigés, non corrigés (et pourquoi), tests avant → après.
+
+## Test instable constaté par le manager (26/10 ~08:30)
+`tests/live-scripts.test.js` « live-run : même un journal terminal qui ne ferme pas est borné » : 1 échec dans
+`npm test` complet (phase parallèle), puis 6/6 vert isolé. Code identique à `f6ec07b` (suite verte). Cause
+probable : délai trop court sous charge. Trouver la cause racine (pas juste augmenter le délai), prouver par
+exécutions répétées sous charge.

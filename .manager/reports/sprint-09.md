@@ -707,3 +707,9 @@ Checking formatting...
 All matched files use Prettier code style!
 
 ```
+
+## 17:42 — Point 4 OPÉRATIONNEL
+
+- `.manager/reports/FINAL.md` réécrit avec §7 review-night + sprint 09, 10 critères MVP et preuves par fichier de test/commande, statuts OPÉRATIONNEL / SIMULÉ / INCOMPLET / PRÉVU explicites. Dernier décompte réel 210/210 (162 + 48), zéro skip ; aucune inférence fournisseur de ce sprint revendiquée.
+- Lecture ciblée de `docs/research/live-probe.json` (statuts seulement) et noms de tests réels ; aucune nouvelle sonde fournisseur. Les commandes de démarrage seront effectivement contrôlées au point 5 ; renvoi vers son journal, pas de sortie inventée.
+- Dernière suite et contrôles verts du point 3 toujours applicables : seules les documentations changent. `git diff --check` relancé avant commit.

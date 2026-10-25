@@ -1453,3 +1453,39 @@ for (const scenario of ['http-error', 'redirect', 'invalid-json', 'timeout', 'cl
     await provider.close();
   });
 }
+
+// Same-origin path redirect (FICTITIOUS server): the reported URL and relative links must follow the
+// final target, while every hop stays routed and policy-checked (see the chained-redirect test).
+test(
+  'Chrome : redirection de chemin même origine, URL et liens relatifs de la cible',
+  { skip: !hasChrome },
+  async (t) => {
+    let hits = 0;
+    const site = http.createServer((req, res) => {
+      hits++;
+      if (req.url === '/redirect') {
+        res.writeHead(302, { location: '/nested/page' });
+        return res.end();
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end('<title>FICTIF</title><a href="child">FICTIF</a>');
+    });
+    await new Promise((r) => site.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${site.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(async () => {
+      await provider.close();
+      site.closeAllConnections();
+      await new Promise((r) => site.close(r));
+    });
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({ allowLocalOrigins: [origin], capabilities: ALL }),
+    });
+    const result = await gateway.call('browser.navigate', { url: origin + '/redirect' });
+    assert.equal(result.url, origin + '/nested/page');
+    const href = await provider.page.locator('a').evaluate((a) => a.href);
+    assert.equal(href, origin + '/nested/child');
+    assert.ok(hits <= 4, `requêtes bornées (${hits})`);
+  },
+);

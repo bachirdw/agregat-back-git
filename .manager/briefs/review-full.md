@@ -22,7 +22,7 @@ Prompt « va sur youtube cherche cyril hanouna », agent Codex réel (codex-acp 
 `provenance.analysis = "démonstrateur"`. Statut mensonger : une analyse d'un vrai agent est étiquetée
 démonstrateur. Trouver la cause (orchestrator/result/verify core), test rouge puis vert.
 
-## Défaut de redirection de chemin (reste ouvert) — tentative du manager 26/10 ~08:20, REVERTÉE
+## Défaut de redirection de chemin — CORRIGÉ par le manager (26/10), 1re tentative revertée
 Repro : `node --test .manager/reports/review-full-evidence/redirect-path-repro.mjs`. Approche essayée :
 rendre le 3xx même origine à Chrome (`route.fulfill({status, location})`) pour qu'il suive lui-même. La repro
 passe, MAIS régression de sécurité prouvée : la requête suivie par Chrome après un 3xx « fulfilled » n'est
@@ -42,3 +42,11 @@ corrigés, non corrigés (et pourquoi), tests avant → après.
 `npm test` complet (phase parallèle), puis 6/6 vert isolé. Code identique à `f6ec07b` (suite verte). Cause
 probable : délai trop court sous charge. Trouver la cause racine (pas juste augmenter le délai), prouver par
 exécutions répétées sous charge.
+
+## Mise à jour manager (26/10)
+- Redirection de chemin corrigée : suivi gardé côté gateway, URL finale vérifiée mémorisée, puis UNE
+  navigation routée vers elle (`goto` dans `cdp.js`). Test `Chrome : redirection de chemin même origine…`
+  (rouge sans correctif, vert avec) ; chaîne interdite toujours confinée. **Limite à relire** : une
+  redirection déclenchée par un clic (pas par `goto`) n'est pas couverte.
+- Test live-run instable corrigé (`de817db`, 0/12 → 12/12 sous charge).
+- Reste du brief : poursuivre la relecture des modules non encore couverts selon le rapport.

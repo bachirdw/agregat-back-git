@@ -385,7 +385,15 @@ export class CdpBrowser {
             timeoutMs: this.navigationTimeoutMs,
           });
           const location = response.headers.location;
-          if (response.status < 300 || response.status >= 400 || !location)
+          if (response.status < 300 || response.status >= 400 || !location) {
+            // Chrome keeps the requested URL for a fulfilled redirect chain: remember the final,
+            // policy-checked URL so goto() can land there (relative links, reported URL).
+            if (
+              url !== request.url() &&
+              request.isNavigationRequest() &&
+              frame === this.page?.mainFrame()
+            )
+              this.redirectedTo = url;
             return await route.fulfill({
               status: response.status,
               headers: policy.allowJavaScript
@@ -393,6 +401,7 @@ export class CdpBrowser {
                 : noScriptHeaders(response.headers),
               body: response.body,
             });
+          }
           const next = new URL(location, url).href;
           await policy.assertUrl(next);
           // Fulfilling a fetched cross-origin redirect would keep the original origin in Chrome.
@@ -467,7 +476,8 @@ export class CdpBrowser {
     page.setDefaultTimeout(this.navigationTimeoutMs);
     await this.assertLanded(policy);
     this.blocked = null;
-    const goto = async (url) => {
+    const goto = async (url, landing = false) => {
+      this.redirectedTo = null;
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.navigationTimeoutMs });
       } catch (e) {
@@ -477,6 +487,10 @@ export class CdpBrowser {
       }
       if (this.blocked) throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
       await this.assertLanded(policy);
+      // One extra routed navigation to the already-validated final URL of a redirect chain.
+      const target = this.redirectedTo;
+      this.redirectedTo = null;
+      if (target && !landing && page.url() !== target) await goto(target, true);
     };
     switch (id) {
       case 'browser.navigate':

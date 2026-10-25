@@ -1,0 +1,13 @@
+(node:27237) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ API : Unicode FICTIF coupé à chaque octet de transport reste intact (212.547042ms)
+✔ API : UTF-8 invalide est refusé, sans remplacement silencieux du prompt (27.021166ms)
+✔ API : la limite porte sur les octets, avec refus avant planification (6.446125ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 436.707458

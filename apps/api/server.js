@@ -211,14 +211,19 @@ export function createApp({
         !req.headers['content-type']?.startsWith('application/json')
       )
         return json(res, 403, { error: 'En-tête applicatif JSON requis' });
-      let raw = '';
+      const chunks = [];
+      let size = 0;
       for await (const chunk of req) {
-        raw += chunk;
-        if (
-          Buffer.byteLength(raw) >
-          (ownerMode && path.startsWith('/api/internal/evidence/') ? 300000 : 32768)
-        )
+        size += chunk.length;
+        if (size > (ownerMode && path.startsWith('/api/internal/evidence/') ? 300000 : 32768))
           throw new Error('Requête trop volumineuse');
+        chunks.push(chunk);
+      }
+      let raw;
+      try {
+        raw = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, size));
+      } catch {
+        throw new Error('Corps JSON UTF-8 invalide');
       }
       const body = JSON.parse(raw || '{}');
       if (path === '/api/plan') {

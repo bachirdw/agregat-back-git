@@ -20,6 +20,17 @@ import { requestPinned } from '../policy-engine/http.js';
 //   opens its own page. Closing a connectOverCDP client disconnects its transport, not Chrome.
 // - launch: { executablePath } starts an isolated headless Chrome with a throwaway profile.
 // No arbitrary script evaluation is exposed: only typed capabilities.
+// Defence in depth, independent of CDP emulation: the page's own CSP forbids every script.
+// Several CSP values are all enforced, so appending can only restrict the site's policy.
+function noScriptHeaders(headers) {
+  const out = { ...headers };
+  const key = Object.keys(out).find((k) => k.toLowerCase() === 'content-security-policy');
+  const value = "script-src 'none'; worker-src 'none'";
+  if (key) out[key] = `${out[key]}, ${value}`;
+  else out['content-security-policy'] = value;
+  return out;
+}
+
 export class CdpBrowser {
   #authorization = null;
   #boundPolicy = null;
@@ -171,11 +182,21 @@ export class CdpBrowser {
         ? this.browser.contexts()[0]
         : await step(
             () =>
-              this.browser.newContext({
-                acceptDownloads: true,
-                javaScriptEnabled: policy.allowJavaScript,
-                serviceWorkers: 'block',
-              }),
+              this.browser
+                .newContext({
+                  acceptDownloads: true,
+                  javaScriptEnabled: policy.allowJavaScript,
+                  serviceWorkers: 'block',
+                })
+                .catch((error) => {
+                  // The Playwriter relay (chrome.debugger) cannot create browser contexts.
+                  if (/No tab found|createBrowserContext/.test(error.message))
+                    throw new Error(
+                      'Ce navigateur CDP (relais Playwriter) ne permet pas de contexte isolé : ' +
+                        'le contexte utilisateur partagé exige AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1 et votre consentement',
+                    );
+                  throw error;
+                }),
             (context) => context.close(),
           );
       if (!this.context) throw new Error('Contexte CDP partagé indisponible');
@@ -235,15 +256,23 @@ export class CdpBrowser {
       this.#pages.add(page);
       if (!this.ownsContext) {
         // These settings affect only our tab, never the user's other tabs/context settings.
-        session = await context.newCDPSession(page);
-        check();
-        this.pageSession = session;
-        await session.send('Emulation.setScriptExecutionDisabled', {
-          value: !policy.allowJavaScript,
+        // The Playwriter relay refuses tab CDP sessions (Target.attachToBrowserTarget): scripts then
+        // stay blocked by the route handler (script requests aborted, CSP script-src 'none'), and
+        // Playwright's own request interception already bypasses service workers for this tab.
+        session = await context.newCDPSession(page).catch((error) => {
+          if (/No tab found|attachToBrowserTarget/.test(error.message)) return null;
+          throw error;
         });
         check();
-        await session.send('Network.setBypassServiceWorker', { bypass: true });
-        check();
+        if (session) {
+          this.pageSession = session;
+          await session.send('Emulation.setScriptExecutionDisabled', {
+            value: !policy.allowJavaScript,
+          });
+          check();
+          await session.send('Network.setBypassServiceWorker', { bypass: true });
+          check();
+        }
         await page.routeWebSocket('**/*', (socket) => socket.close());
         check();
       }
@@ -271,6 +300,8 @@ export class CdpBrowser {
             return await route.fallback();
         }
         if (frame.page() !== this.page) throw new Error('Nouvel onglet refusé');
+        if (!policy.allowJavaScript && request.resourceType() === 'script')
+          throw new Error('Script refusé (JavaScript désactivé)');
         if (!['GET', 'HEAD'].includes(request.method()) && !this.writeInProgress)
           throw new Error('Requête d’écriture sans approbation');
         let url = request.url();
@@ -293,7 +324,9 @@ export class CdpBrowser {
           if (response.status < 300 || response.status >= 400 || !location)
             return await route.fulfill({
               status: response.status,
-              headers: response.headers,
+              headers: policy.allowJavaScript
+                ? response.headers
+                : noScriptHeaders(response.headers),
               body: response.body,
             });
           const next = new URL(location, url).href;

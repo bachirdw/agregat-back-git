@@ -2,7 +2,7 @@
 # Usage: .manager/run-sprint.sh <NN> [resume-session-id "message"]
 # Lance (ou reprend) une session Codex gpt-6.1-sol pour un sprint, journal JSONL complet dans .manager/logs/.
 set -u
-cd /Users/diaw/Downloads/agregateur-agent
+cd /Users/diaw/Downloads/agregat-backend
 [ -f .manager/secrets.env ] && { set -a; source .manager/secrets.env; set +a; }
 N=$1
 TS=$(date +%Y%m%d-%H%M%S)

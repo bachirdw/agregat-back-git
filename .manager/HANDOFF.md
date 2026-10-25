@@ -4,11 +4,11 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
 ## 1. État actuel
-- **Backend** `~/Downloads/agregateur-agent` : MVP complet, **199 tests verts** (162 sans navigateur + 37 Chrome
+- **Backend** `~/Downloads/agregat-backend` : MVP complet, **199 tests verts** (162 sans navigateur + 37 Chrome
   réel), `npm run check` et `format:check` verts au dernier contrôle. HEAD `df0c192` (commit « first commit »
   de l'utilisateur sur README ; remote `origin` = github.com/bachirdw/agr-gateur_agent_back). Ne jamais pousser
   soi-même.
-- **Frontend** `~/Downloads/agregateur-frontend` : React 19 + Vite + TS, branché au backend via proxy Vite
+- **Frontend** `~/Downloads/agregat-frontend` : React 19 + Vite + TS, branché au backend via proxy Vite
   (`/api` → 127.0.0.1:4310), E2E 9/9 contre le vrai backend. HEAD `194e6f1`.
 - **Serveurs** (lancés depuis la session manager, en arrière-plan) : backend **mode réel**
   (`AGENT_PLATFORM_LIVE=1`, clé Gemini sourcée depuis `.manager/secrets.env`) sur :4310 ; frontend dev sur :5173.
@@ -30,8 +30,8 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 | 8 | Facturation : mètres séparés, BYOA jamais facturable, aucun prix inventé (tarifs à 0), ledger SHA-256 chaîné + ancre, plafond mensuel, 402 au dépassement | ADR 007 |
 | 9 | CGU : modèles gratuits OpenCode refusés en backend → respecté, pas de contournement | ADR 005 |
 | 10 | Réseau : transport épinglé commun (`policy-engine/http.js`), IP validées injectées, pas de redirection implicite, tailles bornées | review-night |
-| 11 | Frontend séparé (`agregateur-frontend`) ; le backend peut servir un build via `AGENT_PLATFORM_WEB_DIR` (confiné) | 91ec14d |
-| 12 | Raisonnement Codex par défaut **medium** (`EFFORT=xhigh` pour monter) — demande de l'utilisateur | `run-sprint.sh`, `agregateur-frontend/.manager/run.sh` |
+| 11 | Frontend séparé (`agregat-frontend`) ; le backend peut servir un build via `AGENT_PLATFORM_WEB_DIR` (confiné) | 91ec14d |
+| 12 | Raisonnement Codex par défaut **medium** (`EFFORT=xhigh` pour monter) — demande de l'utilisateur | `run-sprint.sh`, `agregat-frontend/.manager/run.sh` |
 | 13 | Skills design Emil Kowalski (MIT, dont `apple-design`) dans `.claude/skills` ; exports zip pour Claude Design dans `exports/claude-design/` | bd9f610 |
 
 **Compromis en suspens** : review-night a désactivé JavaScript et les contextes partagés dans le navigateur.
@@ -57,7 +57,7 @@ Prévu : les rendre options de politique explicites avec consentement (non fait)
 - **Skills design** : `.claude/skills/*` (14 Skills + `SOURCES.md` + licence)
 - **Non commités** : `.manager/run-sprint.sh` (effort xhigh → medium), `exports/` (zips Claude Design) ;
   côté frontend, 3 captures `.manager/reports/front-01-screens/*.png` régénérées.
-- **Frontend** (`agregateur-frontend`) : `src/{App,Composer,Galleries,Mission,Markdown,Icon}.tsx`, `api.ts`, `types.ts`,
+- **Frontend** (`agregat-frontend`) : `src/{App,Composer,Galleries,Mission,Markdown,Icon}.tsx`, `api.ts`, `types.ts`,
   `style.css`, `tests/e2e.test.mjs`, `vite.config.ts`, `design/maquette.html`, `design/screens/*`, README,
   AGENTS.md, `.manager/{briefs/front-01.md,run.sh,reports/front-01.md}`.
 

@@ -1,0 +1,44 @@
+(node:24851) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ DAG : résultat final identique quand les étapes sont déclarées dans un autre ordre valide (90.940833ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 281.66175
+
+✖ failing tests:
+
+test at tests/workflow-review.test.js:82:1
+✖ DAG : résultat final identique quand les étapes sont déclarées dans un autre ordre valide (90.940833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   agent: 'fixture',
+  +   evidence: [],
+  -   evidence: [
+  -     {
+  -       verification: 'Structure seulement ; faits non vérifiés'
+  -     }
+  -   ],
+      provenance: {
+        analysis: 'démonstrateur',
+        data: null
+      },
+      simulated: true,
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/workflow-review.test.js:88:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { simulated: true, summary: 'FICTIF', evidence: [], agent: 'fixture', provenance: { data: null, analysis: 'démonstrateur' } },
+    expected: { simulated: true, provenance: { data: null, analysis: 'démonstrateur' }, summary: 'FICTIF', evidence: [ [Object] ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

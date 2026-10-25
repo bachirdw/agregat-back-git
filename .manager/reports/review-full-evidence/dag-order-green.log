@@ -1,0 +1,14 @@
+(node:24858) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ DAG : sortie ACP cumulée trop volumineuse arrêtée même si le JSON final est petit (94.061417ms)
+✔ DAG : excès de notifications ACP arrête le run au lieu de perdre silencieusement la suite (368.786708ms)
+✔ DAG : fragments proches des limites restent acceptés et donnent un résultat vérifié (428.000125ms)
+✔ DAG : résultat final identique quand les étapes sont déclarées dans un autre ordre valide (78.732083ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1152.035083

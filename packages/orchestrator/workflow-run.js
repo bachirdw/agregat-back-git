@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AcpRuntime, saveProbe } from '../agent-runtime/index.js';
 import { connectMcp } from '../mcp-gateway/client.js';
-import { WorkflowEngine } from '../workflow-engine/index.js';
+import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
 import { executionResult, parseAgentResult } from './result.js';
 
@@ -254,7 +254,8 @@ export async function executeWorkflow(orch, run, plan, control) {
       error.outcome = outcome;
       throw error;
     }
-    const last = dag.steps.at(-1).id;
+    // Declarations need not be topologically sorted: the result follows dependencies.
+    const last = validateWorkflow(dag).order.at(-1);
     return outcome.outputs[last];
   } finally {
     control.closeAll();

@@ -1,0 +1,26 @@
+Code exact extrait du parent historique de 87a54dd, aucune modification de l’historique. Résultat FICTIF : {"simulated":false,"provenance":{"data":"réelles","analysis":null},"summary":"FICTIF","evidence":[{}]}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ null
+- 'faux-agent-reel'
+
+    at file:///Users/diaw/Downloads/agregat-back/[eval1]:10:8
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:268:26)
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:265:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: null,
+  expected: 'faux-agent-reel',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.14.1

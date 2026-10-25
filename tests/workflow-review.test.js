@@ -78,3 +78,15 @@ test('DAG : fragments proches des limites restent acceptés et donnent un résul
     assert.ok(app.engine.workflows.steps(run.id).every((s) => s.state === 'succeeded'));
   }
 });
+
+test('DAG : résultat final identique quand les étapes sont déclarées dans un autre ordre valide', async (t) => {
+  const { app, run, plan, control } = await fixture(t);
+  // Le DAG déclare le rapport avant ses dépendances ; cet ordre est valide.
+  plan.dag.steps.reverse();
+  const result = await executeWorkflow(app.engine, run, plan, control);
+  const report = app.engine.workflows.row(run.id, 'report').output;
+  assert.deepEqual(result, report);
+  assert.ok(
+    result.evidence.some((e) => e.verification === 'Structure seulement ; faits non vérifiés'),
+  );
+});

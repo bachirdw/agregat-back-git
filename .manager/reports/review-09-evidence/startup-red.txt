@@ -1,0 +1,51 @@
+✖ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (1.113708ms)
+✖ démarrage : appels concurrents partagent un seul lancement (0.651541ms)
+✖ démarrage : erreur de garde conserve la cause et libère le contexte (3.935792ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 99.000291
+
+✖ failing tests:
+
+test at tests/browser-gateway.test.js:952:1
+✖ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (1.113708ms)
+  [AssertionError [ERR_ASSERTION]: Missing expected rejection.] { generatedMessage: false, code: 'ERR_ASSERTION', actual: undefined, expected: /fermé/, operator: 'rejects', diff: 'simple' }
+
+test at tests/browser-gateway.test.js:968:1
+✖ démarrage : appels concurrents partagent un seul lancement (0.651541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:978:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/browser-gateway.test.js:982:1
+✖ démarrage : erreur de garde conserve la cause et libère le contexte (3.935792ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(f.calls.includes('context-close'))
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:989:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -919,7 +919,10 @@ test('Chrome isolé : délai du faux exécutable muet et nettoyage explicite de 
     rmSync(dir, { recursive: true, force: true });
   });
   const started = Date.now();
-  await assert.rejects(provider.ensure(new RunPolicy()), /Timeout 1000ms exceeded/);
+  await assert.rejects(
+    provider.ensure(new RunPolicy()),
+    /Timeout 1000ms exceeded|Délai de démarrage navigateur dépassé/,
+  );
   assert.ok(Date.now() - started < 5000, 'la deadline rejette sans attendre un pair muet');
   assert.ok(existsSync(pidFile), 'le faux Chrome a réellement démarré');
 });
@@ -931,4 +934,123 @@ test('Chrome isolé : délai de démarrage strictement positif et entier', () =>
       /Délai de démarrage invalide/,
     );
   }
+});
+
+// Fictitious CDP objects make startup races deterministic without launching any browser.
+function startupFixture() {
+  const calls = [];
+  const page = { url: () => 'about:blank', close: async () => calls.push('page-close') };
+  const browser = { close: async () => calls.push('browser-close') };
+  const context = {
+    pages: () => [page],
+    browser: () => browser,
+    route: async () => {},
+    routeWebSocket: async () => {},
+    unroute: async () => {},
+    on: () => {},
+    off: () => {},
+    close: async () => calls.push('context-close'),
+  };
+  let release;
+  const ready = new Promise((r) => {
+    release = r;
+  });
+  return { calls, page, browser, context, ready, release };
+}
+
+test('démarrage : fermer pendant le lancement ne ressuscite aucun contexte', async () => {
+  const f = startupFixture();
+  const provider = new CdpBrowser({
+    launch: {},
+    chromium: {
+      launchPersistentContext: () => f.ready,
+    },
+  });
+  const task = provider.ensure(new RunPolicy());
+  const rejected = assert.rejects(task, /fermé/);
+  const closing = provider.close();
+  f.release(f.context);
+  await closing;
+  await rejected;
+  assert.ok(f.calls.includes('context-close'));
+  assert.equal(provider.context, null);
+  assert.equal(provider.page, null);
+});
+
+test('démarrage : appels concurrents partagent un seul lancement', async () => {
+  const f = startupFixture();
+  let launches = 0;
+  const provider = new CdpBrowser({
+    launch: {},
+    chromium: {
+      launchPersistentContext: async () => {
+        launches++;
+        return f.context;
+      },
+    },
+  });
+  const policy = new RunPolicy();
+  try {
+    const pages = await Promise.all([provider.ensure(policy), provider.ensure(policy)]);
+    assert.deepEqual(pages, [f.page, f.page]);
+    assert.equal(launches, 1);
+  } finally {
+    await provider.close();
+  }
+});
+
+test('démarrage : erreur de garde conserve la cause et libère le contexte', async () => {
+  const f = startupFixture();
+  f.context.route = async () => {
+    throw new Error('FICTIF route indisponible');
+  };
+  const provider = new CdpBrowser({
+    launch: {},
+    chromium: {
+      launchPersistentContext: async () => f.context,
+    },
+  });
+  await assert.rejects(provider.ensure(new RunPolicy()), /FICTIF route indisponible/);
+  assert.ok(f.calls.includes('context-close'));
+  assert.equal(provider.context, null);
+  await provider.close();
+});
+
+for (const boundary of ['context', 'page']) {
+  test(`démarrage CDP : deadline et résultat tardif nettoyé (${boundary})`, async () => {
+    const f = startupFixture();
+    f.context.newPage = () => (boundary === 'page' ? f.ready : Promise.resolve(f.page));
+    f.browser.newContext = () => (boundary === 'context' ? f.ready : Promise.resolve(f.context));
+    const provider = new CdpBrowser({
+      endpoint: 'http://127.0.0.1:1',
+      startupTimeoutMs: 30,
+      chromium: { connectOverCDP: async () => f.browser },
+    });
+    const started = Date.now();
+    await assert.rejects(provider.ensure(new RunPolicy()), /Délai de démarrage/);
+    assert.ok(Date.now() - started < 1000);
+    await provider.close();
+    f.release(boundary === 'context' ? f.context : f.page);
+    await new Promise((r) => setImmediate(r));
+    assert.ok(f.calls.includes(boundary === 'context' ? 'context-close' : 'page-close'));
+    assert.equal(provider.page, null);
+    assert.equal(provider.context, null);
+    assert.ok(!f.calls.includes('browser-close'), 'navigateur distant conservé');
+  });
+}
+
+test('démarrage : une mutation pendant le lancement refuse et nettoie le résultat', async () => {
+  const f = startupFixture();
+  const policy = new RunPolicy();
+  const provider = new CdpBrowser({
+    launch: {},
+    chromium: { launchPersistentContext: () => f.ready },
+  });
+  const task = provider.ensure(policy);
+  await new Promise((r) => setImmediate(r));
+  policy.allowJavaScript = true;
+  f.release(f.context);
+  await assert.rejects(task, /non réutilisable/);
+  assert.ok(f.calls.includes('context-close'));
+  await provider.close();
 });

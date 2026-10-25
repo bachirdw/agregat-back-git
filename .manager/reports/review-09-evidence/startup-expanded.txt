@@ -1,0 +1,15 @@
+✔ Chrome isolé : délai de démarrage strictement positif et entier (0.892542ms)
+✔ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (1.113041ms)
+✔ démarrage : appels concurrents partagent un seul lancement (0.547583ms)
+✔ démarrage : erreur de garde conserve la cause et libère le contexte (0.226042ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (context) (31.454708ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (page) (32.689584ms)
+✔ démarrage : une mutation pendant le lancement refuse et nettoie le résultat (0.409417ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 203.787

@@ -25,6 +25,8 @@ export class CdpBrowser {
   #boundPolicy = null;
   #closed = false;
   #pages = new WeakSet();
+  #opening = null;
+  #closing = null;
   // Grants live only in this provider instance. Neither RunPolicy JSON nor an agent tool call
   // can carry a grant to another run/provider. The approval bridge persists the human decision.
   async prepare(policy, approve) {
@@ -98,41 +100,102 @@ export class CdpBrowser {
     if ((policy.allowJavaScript || policy.allowSharedContext) && !this.#authorization)
       throw new Error('Consentement humain requis avant ouverture du navigateur');
     this.#boundPolicy ??= { policy, json: JSON.stringify(policy.toJSON()) };
+    if (this.#opening) return this.#opening;
     if (this.page) return this.page;
-    if (this.context) {
-      return this.newPage(policy);
+    this.#opening = this.open(policy).catch(async (error) => {
+      // Startup is transactional: never leave a partially guarded context available for reuse.
+      this.#closed = true;
+      await this.release();
+      throw error;
+    });
+    try {
+      return await this.#opening;
+    } finally {
+      this.#opening = null;
     }
-    const chromium = this.injected ?? (await import('playwright-core')).chromium;
+  }
+  async open(policy) {
+    const deadline = Date.now() + this.startupTimeoutMs;
+    const step = async (operation, dispose = async () => {}) => {
+      if (this.#closed) throw new Error('Navigateur fermé');
+      this.assertBinding(policy);
+      let timer;
+      let expired = false;
+      const pending = Promise.resolve().then(operation);
+      // A timed-out CDP call may resolve later. Dispose its result without adopting it.
+      const checked = pending.then(async (value) => {
+        if (expired || this.#closed) {
+          await dispose(value);
+          throw new Error('Navigateur fermé ou délai de démarrage dépassé');
+        }
+        try {
+          this.assertBinding(policy);
+        } catch (error) {
+          await dispose(value);
+          throw error;
+        }
+        return value;
+      });
+      try {
+        return await Promise.race([
+          checked,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => {
+                expired = true;
+                reject(new Error('Délai de démarrage navigateur dépassé'));
+              },
+              Math.max(0, deadline - Date.now()),
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    if (this.context) return step(() => this.newPage(policy));
+    const chromium = this.injected ?? (await step(() => import('playwright-core'))).chromium;
     if (this.endpoint) {
-      this.browser = await chromium.connectOverCDP(this.endpoint, { timeout: 15000 });
+      this.shared = true; // set before any await: cleanup never closes the remote browser
+      this.browser = await step(() =>
+        chromium.connectOverCDP(this.endpoint, { timeout: this.startupTimeoutMs }),
+      );
       this.ownsContext = !policy.allowSharedContext;
       this.context = policy.allowSharedContext
         ? this.browser.contexts()[0]
-        : await this.browser.newContext({
-            acceptDownloads: true,
-            javaScriptEnabled: policy.allowJavaScript,
-            serviceWorkers: 'block',
-          });
+        : await step(
+            () =>
+              this.browser.newContext({
+                acceptDownloads: true,
+                javaScriptEnabled: policy.allowJavaScript,
+                serviceWorkers: 'block',
+              }),
+            (context) => context.close(),
+          );
       if (!this.context) throw new Error('Contexte CDP partagé indisponible');
       this.shared = true;
     } else {
       // Include context initialization and the initial blank page in Playwright's launch deadline.
       // launch() followed by newContext() can hang indefinitely under Chrome startup contention.
       // Empty userDataDir asks Playwright to create AND remove a throwaway profile, not persist one.
-      this.context = await chromium.launchPersistentContext('', {
-        executablePath: this.launch.executablePath,
-        headless: this.launch.headless !== false,
-        args: ['--no-first-run', '--no-default-browser-check'],
-        timeout: this.startupTimeoutMs,
-        acceptDownloads: true,
-        javaScriptEnabled: policy.allowJavaScript,
-        serviceWorkers: 'block',
-      });
+      this.context = await step(
+        () =>
+          chromium.launchPersistentContext('', {
+            executablePath: this.launch.executablePath,
+            headless: this.launch.headless !== false,
+            args: ['--no-first-run', '--no-default-browser-check'],
+            timeout: this.startupTimeoutMs,
+            acceptDownloads: true,
+            javaScriptEnabled: policy.allowJavaScript,
+            serviceWorkers: 'block',
+          }),
+        (context) => context.close(),
+      );
       this.browser = this.context.browser();
       this.ownsContext = true;
       this.shared = false;
     }
-    await this.guard(policy); // install before any page (including popup first requests) exists
+    await step(() => this.guard(policy)); // install before any page (including popup first requests) exists
     this.onPage = (page) => {
       page
         .opener()
@@ -150,21 +213,42 @@ export class CdpBrowser {
       this.#pages.add(initial);
       return initial;
     }
-    return this.newPage(policy);
+    return step(() => this.newPage(policy));
   }
   async newPage(policy) {
-    this.page = await this.context.newPage();
-    this.#pages.add(this.page);
-    if (!this.ownsContext) {
-      // These settings affect only our tab, never the user's other tabs/context settings.
-      this.pageSession = await this.context.newCDPSession(this.page);
-      await this.pageSession.send('Emulation.setScriptExecutionDisabled', {
-        value: !policy.allowJavaScript,
-      });
-      await this.pageSession.send('Network.setBypassServiceWorker', { bypass: true });
-      await this.page.routeWebSocket('**/*', (socket) => socket.close());
+    const context = this.context;
+    const page = await context.newPage();
+    let session;
+    const check = () => {
+      if (this.#closed) throw new Error('Navigateur fermé');
+      this.assertBinding(policy);
+    };
+    try {
+      check();
+      this.page = page;
+      this.#pages.add(page);
+      if (!this.ownsContext) {
+        // These settings affect only our tab, never the user's other tabs/context settings.
+        session = await context.newCDPSession(page);
+        check();
+        this.pageSession = session;
+        await session.send('Emulation.setScriptExecutionDisabled', {
+          value: !policy.allowJavaScript,
+        });
+        check();
+        await session.send('Network.setBypassServiceWorker', { bypass: true });
+        check();
+        await page.routeWebSocket('**/*', (socket) => socket.close());
+        check();
+      }
+      return page;
+    } catch (error) {
+      await page.close().catch(() => {});
+      await session?.detach().catch(() => {});
+      if (this.page === page) this.page = null;
+      if (this.pageSession === session) this.pageSession = null;
+      throw error;
     }
-    return this.page;
   }
   async guard(policy) {
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is
@@ -379,6 +463,15 @@ export class CdpBrowser {
   }
   async close() {
     this.#closed = true;
+    this.#authorization = null;
+    this.#closing ??= (async () => {
+      // Startup checks the closed flag at every asynchronous boundary and releases late results.
+      await this.#opening?.catch(() => {});
+      await this.release();
+    })();
+    return this.#closing;
+  }
+  async release() {
     this.networkAbort?.abort(new Error('Navigateur fermé'));
     try {
       await this.page?.close();

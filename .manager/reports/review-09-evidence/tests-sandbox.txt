@@ -1,0 +1,736 @@
+
+> agent-platform@0.1.0 test
+> node scripts/run-tests.js
+
+
+▶ unitaires et intégration (parallèle) : 14 fichier(s)
+(node:86076) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ résultat agent : JSON brut, clôturé, entouré de prose (1.315375ms)
+✔ résultat agent : refus en texte libre rapporté avec extrait (0.173959ms)
+✔ résultat agent : vide, JSON invalide, hors contrat (0.159917ms)
+✔ résultat agent : extrait borné à 300 caractères (0.087417ms)
+(node:86077) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ publicAgents : ni commande, ni chemins, ni environnement ; résumé de sonde (1.174916ms)
+✔ catalogue HTTP : agents publics, sondes du dataDir (2656.866042ms)
+✔ plan Auto en démonstration : fixture, raisons et rejets visibles (2450.499042ms)
+✔ plan manuel : raisons « choisi manuellement » (1776.166708ms)
+✔ plan : agent réel refusé hors mode live (1902.359541ms)
+✔ plan : agent inconnu rejeté par le schéma (10.468792ms)
+✔ plan live : modèle non annoncé au dernier test refusé (3312.184792ms)
+✔ régression live : la permission exposée décrit l’outil demandé (5.578ms)
+✔ régression live : Gemini reçoit la confiance de l’espace de run, pas les autres agents (0.677709ms)
+✔ erreurs de validation lisibles, pas de JSON zod brut (6.010459ms)
+✔ probe audit : pair muet arrêté, puis session fictive sans authentification ni prompt (20484.153334ms)
+(node:86079) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ tarifs : aucun prix inventé par défaut, BYOA jamais facturable, validation stricte (1.029292ms)
+✔ estimation : lignes par catégorie, externe BYOA inconnu et non refacturé (0.606625ms)
+✔ ledger chaîné : vérification, modification, suppression et ligne non chaînée détectées (12.853209ms)
+✔ résumé par mètre : facturable / non facturable séparés (0.161ms)
+✔ plafond mensuel : dépassement refusé sans écriture partielle (8.277ms)
+✔ estimation au-dessus du budget : lancement refusé avant toute action (5022.024667ms)
+✔ plafond mensuel atteint pendant un workflow : exécution arrêtée, événement et raison visibles (2046.972458ms)
+✔ mesure depuis la gateway : jeton, mètres autorisés, 402 si budget dépassé (28.065375ms)
+✔ gateway de données : mesure refusée → aucune requête réseau (0.889041ms)
+✔ sécurité facturation : mètres propres, unités finies, BYOA gratuit même à la couche stockage (3.468416ms)
+✔ ledger : suppression de queue détectée après réouverture et écriture suivante refusée (6.059125ms)
+✔ agent : appels MCP facturés avant action et arrêt au budget, aucun double comptage du workflow (2208.467333ms)
+✔ estimation : les retries de lecture sont inclus, aucune relance automatique de write (0.15325ms)
+✔ ledger : compteur et identifiant v2 liés à l’empreinte ; suppression totale détectée (3.800791ms)
+✔ monnaie : un ledger non vide ne change pas de devise implicitement (3.592291ms)
+✔ évaluation Najah : data-engineer-berlin (14.582ms)
+✔ évaluation Najah : python-remote (0.53475ms)
+✔ évaluation Najah : no-false-sponsor (0.315167ms)
+✔ évaluation Najah : unrelated-query (0.283875ms)
+(node:86094) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ mots-clés : mots vides retirés, langages conservés (2.484834ms)
+✔ normalisation des sources réelles enregistrées : provenance complète, sponsoring inconnu (2.843292ms)
+✔ CSV : guillemets, virgules dans les champs, CRLF (0.4235ms)
+✔ registre UK : noms normalisés, correspondance de nom ≠ identité confirmée, pas de faux positif (1.172833ms)
+✔ classement explicable et déterministe ; lieux FR/EN ; bonus visa seulement si demandé (20.556042ms)
+✔ vérification live : classement altéré, provenance manquante, sponsoring inventé refusés (8.46425ms)
+✔ gateway de données : hôtes autorisés, HTTPS, redirections revérifiées, taille, cache, mesure (32.451584ms)
+✔ rejeu : réponses réelles enregistrées, jamais de réseau, allowlist conservée (3.356125ms)
+✔ toolArguments : $from relie les sorties, valeur absente omise (0.421708ms)
+✔ DAG Najah réel complet via l’API, en rejeu hors ligne : recherche → registre → classement → vérification (3518.865416ms)
+✔ recherche : sources entrelacées, une source abondante n’évince pas les autres (1.084375ms)
+✔ sécurité cache : allowlist, format, taille et corruption revérifiés sur chaque lecture (2.633666ms)
+✔ sécurité réseau : deadline totale, annulation du corps et limite en rejeu (52.982917ms)
+✔ Najah : aucune source disponible ne devient pas un classement vérifié vide (0.2125ms)
+✔ politique réseau : IPv4 mappées en hexadécimal et réseaux réservés refusés (0.527959ms)
+✔ cache concurrent : publications atomiques et cache symbolique ignoré (15.048209ms)
+✔ transport : connexion sur IP validée sans seconde résolution, taille, compression et deadline (58.947584ms)
+✔ origines locales : uniquement HTTP loopback explicite, pas d’origine null ou distante (0.31125ms)
+(node:86231) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gateway refuse écriture, exfiltration et URLs ambiguës (0.634459ms)
+✔ ledger refuse budget négatif/dépassement sans inscription partielle (5.947875ms)
+✔ historique durable et interruption au redémarrage (6.397125ms)
+✔ Skill non revu, désactivé et modifié rejeté (8.334959ms)
+✔ vrai MCP : découverte, classement et refus navigateur (181.44225ms)
+✔ API complète : plan → ACP → MCP → résultat, SSE replay et protections HTTP (7566.428416ms)
+✔ core reste indépendant de Najah (1875.337375ms)
+✔ annulation et délai maximal ne produisent pas de faux succès (3205.820917ms)
+✔ permissions ponctuelles : réponse valide, expiration logique et annulation (5.229042ms)
+✔ runtime : handshake réel et rejet de reprise non supportée (105.401833ms)
+✔ timeout réel : initialize sans réponse rejeté dans le délai (1564.271875ms)
+✔ timeout réel : session/new sans réponse (1573.075958ms)
+✔ timeout réel : prompt sans réponse, puis réponse tardive ignorée (3077.09725ms)
+✔ annulation par signal externe pendant le prompt (177.670042ms)
+✔ signal déjà annulé : aucune requête envoyée (82.154958ms)
+✔ crash de l’agent pendant une requête : erreur explicite immédiate (79.70275ms)
+✔ crash au démarrage (75.572583ms)
+✔ bruit non JSON sur stdout toléré (69.578583ms)
+✔ permission en attente puis annulation : pas de blocage (373.650875ms)
+✔ double cancel et close idempotents ; requête après fermeture refusée (131.643875ms)
+✔ auth requise : erreur de session explicite (76.696459ms)
+✔ environnement en liste blanche : la clé Gemini ne fuit pas vers un autre agent (75.935875ms)
+✔ environnement : la clé Gemini est transmise au seul profil qui la déclare (177.007667ms)
+✔ buildChildEnv : base, LC_*, profil, valeurs vides ignorées (0.138333ms)
+✔ redact masque valeurs connues et motifs de clés (0.082333ms)
+✔ mode sûr choisi parmi les modes annoncés (modes) (69.643666ms)
+✔ mode sûr via configOptions (style OpenCode) (70.817292ms)
+✔ mode sûr absent : refus de lancer (66.120292ms)
+✔ aucun mécanisme de mode annoncé pour un profil exigeant : refus (69.931417ms)
+✔ modèle via configOptions (116.633791ms)
+✔ modèle via models + session/set_model (style Gemini) (87.527708ms)
+✔ modèle non annoncé refusé ; vide garde le défaut (111.702542ms)
+✔ reprise : load refusé sans capacité, accepté avec (156.483167ms)
+✔ describe() n’expose ni environnement ni secrets (86.289541ms)
+✔ normalisation : sessionModels / sessionModes / capacités (0.176708ms)
+✔ routeur Auto : mode démo → fixture explicite (0.306583ms)
+✔ routeur Auto : préférence, rejets expliqués (0.123667ms)
+✔ routeur Auto : session refusée au dernier test → agent suivant (0.067417ms)
+✔ routeur Auto : exigence de modèle et de reprise (0.093292ms)
+✔ routeur Auto : ordre explicite et transport MCP http (0.058667ms)
+✔ routeur Auto : aucun candidat → erreur, jamais de repli fixture silencieux (0.10325ms)
+✔ découverte : agents.json, chemins absolus exigés, node_modules exclu du PATH (0.962167ms)
+✔ détection : CLI factice Gemini sans option ACP → incompatible avec raison (251.646083ms)
+✔ détection : CLI factice Gemini avec --acp → compatible (131.582083ms)
+✔ sondes : persistance atomique, fichier corrompu ignoré (1.560708ms)
+✔ reprise avec clé API : authenticate avant session/load, dossier isolé, clé jamais transmise (72.450333ms)
+✔ reprise sans clé API : pas d’authenticate, pas de dossier isolé (72.456167ms)
+✔ routeur Auto : dernier prompt refusé pour authentification → agent écarté, avec raison (0.143709ms)
+✔ sondes : fusion — une sonde de session n’efface pas le résultat d’inférence (1.118458ms)
+(node:86310) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sécurité : échec du mode sûr interdit ensuite le prompt et start après close (77.820292ms)
+✔ sécurité : secrets masqués dans événements, permissions, erreurs et SQLite (79.772541ms)
+✔ sécurité : secret du pont MCP ajouté à la liste de masquage, fermeture rejette un pair muet (144.277542ms)
+✔ sécurité : changement asynchrone vers un mode dangereux ferme le runtime (79.516ms)
+✔ sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du parent (1733.758083ms)
+(node:86336) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ analyse : front matter, nom, description, empreinte stable (6.137542ms)
+✔ analyse : scripts, binaires, motifs dangereux et licence absente signalés (1.0175ms)
+✔ analyse : références à des fichiers non fournis (Skill non autonome) (0.871209ms)
+✔ analyse : lien symbolique, fichier trop gros, trop de fichiers refusés (31.551375ms)
+✔ cycle tiers : import en quarantaine → installation refusée → revue → actif → résolu (8.579125ms)
+✔ revue refusée, nom réservé, revue des intégrés impossible (5.286416ms)
+✔ intégrité : modification après revue → résolution refusée et intégrité fausse (5.146166ms)
+✔ versions : une nouvelle version repasse en quarantaine, historique conservé (6.090083ms)
+✔ export natif : .agents/skills pour Codex/Gemini/OpenCode, .claude/skills pour Claude, sans scripts (11.869333ms)
+✔ import Git : seules les URL GitHub HTTPS sont acceptées (3.042291ms)
+✔ import local depuis l’API : limité aux racines autorisées (2.148791ms)
+✔ Skills intégrés : comportement historique conservé (3.33425ms)
+✔ sécurité : racine symbolique et import API via parent symbolique refusés (1.038541ms)
+✔ sécurité Git : sous-dossier absolu, options, credentials, ports et URL décorées refusés avant clone (3.490083ms)
+✔ sécurité export : octets revérifiés après resolve et destinations sans liens symboliques (6.067917ms)
+✔ sécurité revue : consentement lié à l’empreinte effectivement présentée (5.440708ms)
+✔ analyse bornée : snapshot stable et arborescence trop profonde refusée (2.6405ms)
+✔ écriture confinée : remplacement d’un hardlink ne modifie pas sa cible extérieure (1.516291ms)
+✔ API de revue : empreinte obligatoire et version courante uniquement (29.302458ms)
+(node:86342) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dist optionnel : fichiers confinés, MIME, API et protections HTTP conservées (1680.294875ms)
+(node:86362) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ définition : schéma, doublons, dépendances inconnues, cycles, ordre et niveaux (4.534625ms)
+✔ exécution séquentielle avec passage des sorties de dépendances (9.447833ms)
+✔ parallélisme réel borné par concurrency (fan-out / fan-in) (251.956417ms)
+✔ échec : dépendants ignorés, run en échec avec détail (5.332875ms)
+✔ étape optionnelle en échec : le workflow continue et réussit (4.134208ms)
+✔ tentatives : réussite après deux échecs, compteur persistant (4.463958ms)
+✔ tentatives épuisées → échec (4.368167ms)
+✔ délai d’étape : lecture en échec, écriture incertaine (jamais relancée seule) (406.534542ms)
+✔ approbation humaine : attente, approbation, suite du workflow (107.464208ms)
+✔ approbation refusée : dépendants ignorés (56.308333ms)
+✔ annulation : étapes en cours et en attente annulées, écriture en cours incertaine (56.852458ms)
+✔ sortie tardive d’une tentative abandonnée ignorée (génération) (129.118792ms)
+✔ reprise après crash : étapes terminées conservées, lecture relancée, écriture incertaine (108.5695ms)
+✔ exécuteur absent, sortie trop volumineuse, actions invalides (4.998542ms)
+✔ événements d’étape émis et persistés pour le streaming (3.511ms)
+✔ écriture : toute erreur après lancement devient incertaine, sans relance automatique (47.092709ms)
+✔ annulation pendant la notification running : exécuteur non lancé (3.909625ms)
+(node:86366) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reprise après redémarrage du serveur : étapes réussies conservées, run terminé en place (3821.7515ms)
+✔ reprise refusée : run terminé, actif, ou mode agent (3965.457916ms)
+✔ brouillon de candidature : attente d’approbation, approbation via l’API, aucun envoi (2096.785667ms)
+✔ brouillon refusé à la relecture : workflow en échec, reprise possible (3795.182041ms)
+✔ reprise concurrente : un seul contrôle et une seule exécution (16.15875ms)
+✔ redémarrage : les runs anciens au-delà de la liste UI sont tous interrompus (71.712916ms)
+✔ reprise : refus si la définition durable a été modifiée (3581.530292ms)
+(node:86405) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ plan workflow : DAG Najah affiché avec agents, niveaux et étape optionnelle (1732.228209ms)
+✔ workflow Najah complet : outils MCP réels, agent, vérification indépendante, agrégat (2040.654083ms)
+✔ workflow général (core) : agent requis puis vérification de structure (2064.896584ms)
+✔ workflow : annulation pendant l’exécution → cancelled, étapes annulées (1782.367667ms)
+✔ workflow : pack sans DAG ou mode inconnu refusés (5.3815ms)
+✔ aggregateOutputs : priorité au résultat vérifié, résumé d’analyse, preuves concaténées (0.157458ms)
+✔ toolArguments : objectif par défaut et substitution sans évaluation (0.098375ms)
+✔ injection : une analyse qui modifie le classement ne passe pas la vérification (0.455458ms)
+✔ proposition automatique de workflow : mots-clés, exigence réseau, défaut expliqué (0.450375ms)
+✔ plan workflow « auto » : DAG proposé, raison visible, identifiant enregistré dans le run (1663.51825ms)
+✔ plan : permissions affichées calculées selon le workflow réel (4867.727166ms)
+✔ timeout d’étape pendant initialize : le processus ACP est fermé sans attendre le handshake (533.306958ms)
+ℹ tests 162
+ℹ suites 0
+ℹ pass 162
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33360.996375
+
+▶ Chrome réel (série) : 3 fichier(s)
+(node:86590) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pont d’approbation : seules les capacités accordées sont listées (138.699583ms)
+✖ pont d’approbation : « Postuler » refusé dans l’interface → aucun envoi (42344.243208ms)
+✖ pont d’approbation : « Postuler » autorisé une fois → un envoi (41971.731125ms)
+✔ pont d’approbation : jeton invalide ou run inactif refusés (36.573ms)
+✔ pont : jeton lié au run et compteur refusé après abandon ou hors activité (5.172125ms)
+✔ permission : annulation locale résout immédiatement, conserve les autres demandes et ignore une réponse tardive (5.616375ms)
+✔ gateway réelle sans pont de mesure : action refusée avant lancement de Chrome (170.203459ms)
+✔ options navigateur via MCP : JavaScript deny, décision humaine enregistrée par run (204.683708ms)
+✖ options navigateur via MCP : JavaScript allow, décision humaine enregistrée par run (941.776542ms)
+✔ options navigateur : annuler pendant le consentement interdit le lancement (181.069458ms)
+✔ registre : contrats stables, schémas stricts, effets déclarés (2.109416ms)
+✔ politique : https, domaines, sous-domaines, IP, ports, identifiants, local explicite (3.5715ms)
+✔ politique : résolution DNS vers réseau privé refusée (rebinding) (0.354167ms)
+✔ politique : détection des éléments sensibles (0.466917ms)
+✔ politique : chemins de fichiers confinés au dossier du run (0.650958ms)
+✔ politique : sérialisation pour le processus MCP (0.131667ms)
+✔ redaction : clés, numéros de carte, troncature (0.219334ms)
+✔ gateway : lecture sans approbation, contenu marqué non fiable, mesure (0.749084ms)
+✔ gateway : clic sensible refusé sans approbation humaine, même auto-approuvé (0.624208ms)
+✔ gateway : clic approuvé exécuté ; texte saisi jamais transmis à l’approbation (0.687208ms)
+✔ gateway : capacités non accordées, arguments hors contrat, élément absent (0.525875ms)
+✔ gateway : domaine interdit et redirection vers domaine interdit bloqués (0.608ms)
+✔ gateway : upload hors dossier et lien symbolique refusés (1.253917ms)
+✔ CdpBrowser : endpoint distant refusé, configuration requise (0.113583ms)
+✖ Chrome réel isolé : navigation, instantané d’accessibilité, extraction (188.218833ms)
+✖ Chrome réel : « Postuler » refusé → aucun envoi au serveur (32.347084ms)
+✖ Chrome réel : « Postuler » approuvé → un seul envoi (33.576917ms)
+✖ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (32.817625ms)
+✖ Chrome réel : redirection serveur vers domaine interdit bloquée (31.716125ms)
+✖ Chrome réel : téléchargement dans le dossier du run, taille limitée (31.020625ms)
+✖ Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé (15023.385208ms)
+✖ Chrome : sous-ressources, iframe, popup et redirections en chaîne restent confinés (715.863834ms)
+✔ gateway : un élément modifié pendant l’approbation ne reçoit pas le consentement précédent (1.065292ms)
+✖ Chrome : téléchargement refuse un dossier symlink (71.254583ms)
+✔ gateway : upload revalidé après consentement et appels sérialisés (28.001791ms)
+✖ Chrome : redirection 303 après formulaire ne répète pas le POST approuvé (40.035542ms)
+✔ options navigateur : défaut sûr, booléens stricts et aller-retour JSON sans consentement (0.386ms)
+✔ options navigateur : aucun lancement sans consentement, y compris JSON prétendument approuvé (0.300208ms)
+✔ options navigateur : consentement strict, non transférable et changement de politique refusé (0.245958ms)
+✖ Chrome : JavaScript désactivé par défaut, activé après consentement et réseau toujours filtré (45.032792ms)
+✔ options navigateur : refus partiel, mutation et fermeture pendant le consentement restent fermés (1.013667ms)
+✔ Chrome isolé : contexte et page initiale font partie du lancement borné, sans newContext (0.826333ms)
+✖ Chrome isolé : délai du faux exécutable muet et nettoyage explicite de la fixture (1004.623375ms)
+✔ Chrome isolé : délai de démarrage strictement positif et entier (0.365208ms)
+✔ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (0.282667ms)
+✔ démarrage : appels concurrents partagent un seul lancement (0.580416ms)
+✔ démarrage : erreur de garde conserve la cause et libère le contexte (0.520584ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (context) (30.99075ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (page) (31.805417ms)
+✔ démarrage : une mutation pendant le lancement refuse et nettoie le résultat (2.011334ms)
+(node:86896) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (294.537167ms)
+✖ E2E interface : brouillon de candidature, approbation humaine dans l’interface (62.776209ms)
+✖ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (72.768916ms)
+✖ E2E interface : saisie avant chargement du catalogue sans erreur (47.638667ms)
+✖ tests/e2e-ui.test.js (72943.067042ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 35
+ℹ fail 19
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176539.256667
+
+✖ failing tests:
+
+test at tests/approval-bridge.test.js:83:1
+✖ pont d’approbation : « Postuler » refusé dans l’interface → aucun envoi (42344.243208ms)
+  Error: Aucune demande de permission reçue
+      at decideWhenAsked (file:///Users/diaw/Downloads/agregateur-agent/tests/approval-bridge.test.js:70:9)
+      at async Promise.all (index 1)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/approval-bridge.test.js:89:29)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)
+
+test at tests/approval-bridge.test.js:102:1
+✖ pont d’approbation : « Postuler » autorisé une fois → un envoi (41971.731125ms)
+  Error: Aucune demande de permission reçue
+      at decideWhenAsked (file:///Users/diaw/Downloads/agregateur-agent/tests/approval-bridge.test.js:70:9)
+      at async Promise.all (index 1)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/approval-bridge.test.js:108:22)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)
+
+test at tests/approval-bridge.test.js:224:3
+✖ options navigateur via MCP : JavaScript allow, décision humaine enregistrée par run (941.776542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + true
+  - undefined
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/approval-bridge.test.js:238:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/browser-gateway.test.js:345:1
+✖ Chrome réel isolé : navigation, instantané d’accessibilité, extraction (188.218833ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-ieV2e4 --remote-debugging-pipe about:blank
+  <launched> pid=86684
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-ieV2e4 --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86684[22m
+  [2m  - [pid=86684] <gracefully close start>[22m
+  [2m  - [pid=86684] <kill>[22m
+  [2m  - [pid=86684] <will force kill>[22m
+  [2m  - [pid=86684] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86684] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86684] starting temporary directories cleanup[22m
+  [2m  - [pid=86684] finished temporary directories cleanup[22m
+  [2m  - [pid=86684] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-ieV2e4 --remote-debugging-pipe about:blank', '  - <launched> pid=86684', '  - [pid=86684] <gracefully close start>', '  - [pid=86684] <kill>', '  - [pid=86684] <will force kill>', '  - [pid=86684] exception while trying to kill process: Error: kill EPERM', '  - [pid=86684] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86684] starting temporary directories cleanup', '  - [pid=86684] finished temporary directories cleanup', '  - [pid=86684] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:362:1
+✖ Chrome réel : « Postuler » refusé → aucun envoi au serveur (32.347084ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-hXTpJs --remote-debugging-pipe about:blank
+  <launched> pid=86686
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-hXTpJs --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86686[22m
+  [2m  - [pid=86686] <gracefully close start>[22m
+  [2m  - [pid=86686] <kill>[22m
+  [2m  - [pid=86686] <will force kill>[22m
+  [2m  - [pid=86686] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86686] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86686] starting temporary directories cleanup[22m
+  [2m  - [pid=86686] finished temporary directories cleanup[22m
+  [2m  - [pid=86686] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-hXTpJs --remote-debugging-pipe about:blank', '  - <launched> pid=86686', '  - [pid=86686] <gracefully close start>', '  - [pid=86686] <kill>', '  - [pid=86686] <will force kill>', '  - [pid=86686] exception while trying to kill process: Error: kill EPERM', '  - [pid=86686] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86686] starting temporary directories cleanup', '  - [pid=86686] finished temporary directories cleanup', '  - [pid=86686] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:375:1
+✖ Chrome réel : « Postuler » approuvé → un seul envoi (33.576917ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-O7b5tp --remote-debugging-pipe about:blank
+  <launched> pid=86688
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-O7b5tp --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86688[22m
+  [2m  - [pid=86688] <gracefully close start>[22m
+  [2m  - [pid=86688] <kill>[22m
+  [2m  - [pid=86688] <will force kill>[22m
+  [2m  - [pid=86688] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86688] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86688] starting temporary directories cleanup[22m
+  [2m  - [pid=86688] finished temporary directories cleanup[22m
+  [2m  - [pid=86688] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-O7b5tp --remote-debugging-pipe about:blank', '  - <launched> pid=86688', '  - [pid=86688] <gracefully close start>', '  - [pid=86688] <kill>', '  - [pid=86688] <will force kill>', '  - [pid=86688] exception while trying to kill process: Error: kill EPERM', '  - [pid=86688] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86688] starting temporary directories cleanup', '  - [pid=86688] finished temporary directories cleanup', '  - [pid=86688] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:387:1
+✖ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (32.817625ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-lAidWO --remote-debugging-pipe about:blank
+  <launched> pid=86689
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-lAidWO --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86689[22m
+  [2m  - [pid=86689] <gracefully close start>[22m
+  [2m  - [pid=86689] <kill>[22m
+  [2m  - [pid=86689] <will force kill>[22m
+  [2m  - [pid=86689] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86689] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86689] starting temporary directories cleanup[22m
+  [2m  - [pid=86689] finished temporary directories cleanup[22m
+  [2m  - [pid=86689] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-lAidWO --remote-debugging-pipe about:blank', '  - <launched> pid=86689', '  - [pid=86689] <gracefully close start>', '  - [pid=86689] <kill>', '  - [pid=86689] <will force kill>', '  - [pid=86689] exception while trying to kill process: Error: kill EPERM', '  - [pid=86689] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86689] starting temporary directories cleanup', '  - [pid=86689] finished temporary directories cleanup', '  - [pid=86689] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:403:1
+✖ Chrome réel : redirection serveur vers domaine interdit bloquée (31.716125ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /bloquée par la politique|non autorisé|Protocole/. Input:
+  
+  'Error: browserType.launchPersistentContext: Target page, context or browser has been closed\n' +
+    'Browser logs:\n' +
+    '\n' +
+    '<launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oLtuen --remote-debugging-pipe about:blank\n' +
+    '<launched> pid=86690\n' +
+    'Call log:\n' +
+    '\x1B[2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oLtuen --remote-debugging-pipe about:blank\x1B[22m\n' +
+    '\x1B[2m  - <launched> pid=86690\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] <gracefully close start>\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] <kill>\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] <will force kill>\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] exception while trying to kill process: Error: kill EPERM\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] <process did exit: exitCode=null, signal=SIGABRT>\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] starting temporary directories cleanup\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] finished temporary directories cleanup\x1B[22m\n' +
+    '\x1B[2m  - [pid=86690] <gracefully close end>\x1B[22m\n'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:408:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: browserType.launchPersistentContext: Target page, context or browser has been closed
+    Browser logs:
+    
+    <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oLtuen --remote-debugging-pipe about:blank
+    <launched> pid=86690
+    Call log:
+    [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oLtuen --remote-debugging-pipe about:blank[22m
+    [2m  - <launched> pid=86690[22m
+    [2m  - [pid=86690] <gracefully close start>[22m
+    [2m  - [pid=86690] <kill>[22m
+    [2m  - [pid=86690] <will force kill>[22m
+    [2m  - [pid=86690] exception while trying to kill process: Error: kill EPERM[22m
+    [2m  - [pid=86690] <process did exit: exitCode=null, signal=SIGABRT>[22m
+    [2m  - [pid=86690] starting temporary directories cleanup[22m
+    [2m  - [pid=86690] finished temporary directories cleanup[22m
+    [2m  - [pid=86690] <gracefully close end>[22m
+    
+        at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+        at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+        at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+        at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+        at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20),
+    expected: /bloquée par la politique|non autorisé|Protocole/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-gateway.test.js:420:1
+✖ Chrome réel : téléchargement dans le dossier du run, taille limitée (31.020625ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-rytSqP --remote-debugging-pipe about:blank
+  <launched> pid=86691
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-rytSqP --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86691[22m
+  [2m  - [pid=86691] <gracefully close start>[22m
+  [2m  - [pid=86691] <kill>[22m
+  [2m  - [pid=86691] <will force kill>[22m
+  [2m  - [pid=86691] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86691] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86691] starting temporary directories cleanup[22m
+  [2m  - [pid=86691] finished temporary directories cleanup[22m
+  [2m  - [pid=86691] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-rytSqP --remote-debugging-pipe about:blank', '  - <launched> pid=86691', '  - [pid=86691] <gracefully close start>', '  - [pid=86691] <kill>', '  - [pid=86691] <will force kill>', '  - [pid=86691] exception while trying to kill process: Error: kill EPERM', '  - [pid=86691] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86691] starting temporary directories cleanup', '  - [pid=86691] finished temporary directories cleanup', '  - [pid=86691] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:435:1
+✖ Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé (15023.385208ms)
+  Error: Chrome CDP non démarré
+      at Timeout._onTimeout (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:458:45)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at tests/browser-gateway.test.js:531:1
+✖ Chrome : sous-ressources, iframe, popup et redirections en chaîne restent confinés (715.863834ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-0pm7Ps --remote-debugging-pipe about:blank
+  <launched> pid=86867
+  [pid=86867] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=86867] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-0pm7Ps --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86867[22m
+  [2m  - [pid=86867] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86867] starting temporary directories cleanup[22m
+  [2m  - [pid=86867] <gracefully close start>[22m
+  [2m  - [pid=86867] <kill>[22m
+  [2m  - [pid=86867] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=86867] finished temporary directories cleanup[22m
+  [2m  - [pid=86867] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-0pm7Ps --remote-debugging-pipe about:blank', '  - <launched> pid=86867', '  - [pid=86867] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86867] starting temporary directories cleanup', '  - [pid=86867] <gracefully close start>', '  - [pid=86867] <kill>', '  - [pid=86867] <skipped force kill spawnedProcess.killed=false processClosed=true>', '  - [pid=86867] finished temporary directories cleanup', '  - [pid=86867] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:598:1
+✖ Chrome : téléchargement refuse un dossier symlink (71.254583ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-v8OrX9 --remote-debugging-pipe about:blank
+  <launched> pid=86880
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-v8OrX9 --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86880[22m
+  [2m  - [pid=86880] <gracefully close start>[22m
+  [2m  - [pid=86880] <kill>[22m
+  [2m  - [pid=86880] <will force kill>[22m
+  [2m  - [pid=86880] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86880] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86880] starting temporary directories cleanup[22m
+  [2m  - [pid=86880] finished temporary directories cleanup[22m
+  [2m  - [pid=86880] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-v8OrX9 --remote-debugging-pipe about:blank', '  - <launched> pid=86880', '  - [pid=86880] <gracefully close start>', '  - [pid=86880] <kill>', '  - [pid=86880] <will force kill>', '  - [pid=86880] exception while trying to kill process: Error: kill EPERM', '  - [pid=86880] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86880] starting temporary directories cleanup', '  - [pid=86880] finished temporary directories cleanup', '  - [pid=86880] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:645:1
+✖ Chrome : redirection 303 après formulaire ne répète pas le POST approuvé (40.035542ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-tlHqdz --remote-debugging-pipe about:blank
+  <launched> pid=86882
+  [pid=86882] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=86882] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-tlHqdz --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86882[22m
+  [2m  - [pid=86882] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86882] starting temporary directories cleanup[22m
+  [2m  - [pid=86882] <gracefully close start>[22m
+  [2m  - [pid=86882] <kill>[22m
+  [2m  - [pid=86882] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=86882] finished temporary directories cleanup[22m
+  [2m  - [pid=86882] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-tlHqdz --remote-debugging-pipe about:blank', '  - <launched> pid=86882', '  - [pid=86882] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86882] starting temporary directories cleanup', '  - [pid=86882] <gracefully close start>', '  - [pid=86882] <kill>', '  - [pid=86882] <skipped force kill spawnedProcess.killed=false processClosed=true>', '  - [pid=86882] finished temporary directories cleanup', '  - [pid=86882] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:773:1
+✖ Chrome : JavaScript désactivé par défaut, activé après consentement et réseau toujours filtré (45.032792ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-IyG3gx --remote-debugging-pipe about:blank
+  <launched> pid=86883
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-IyG3gx --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=86883[22m
+  [2m  - [pid=86883] <gracefully close start>[22m
+  [2m  - [pid=86883] <kill>[22m
+  [2m  - [pid=86883] <will force kill>[22m
+  [2m  - [pid=86883] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86883] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86883] starting temporary directories cleanup[22m
+  [2m  - [pid=86883] finished temporary directories cleanup[22m
+  [2m  - [pid=86883] <gracefully close end>[22m
+  
+      at async step (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+      at async CdpBrowser.open (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:172:22)
+      at async CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:112:14)
+      at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:350:18)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:122:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-IyG3gx --remote-debugging-pipe about:blank', '  - <launched> pid=86883', '  - [pid=86883] <gracefully close start>', '  - [pid=86883] <kill>', '  - [pid=86883] <will force kill>', '  - [pid=86883] exception while trying to kill process: Error: kill EPERM', '  - [pid=86883] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86883] starting temporary directories cleanup', '  - [pid=86883] finished temporary directories cleanup', '  - [pid=86883] <gracefully close end>' ]
+  }
+
+test at tests/browser-gateway.test.js:897:1
+✖ Chrome isolé : délai du faux exécutable muet et nettoyage explicite de la fixture (1004.623375ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Timeout 1000ms exceeded/. Input:
+  
+  'Error: Délai de démarrage navigateur dépassé'
+  
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processTimers (node:internal/timers:538:9)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:922:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Délai de démarrage navigateur dépassé
+        at Timeout.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:145:22)
+        at listOnTimeout (node:internal/timers:605:17)
+        at process.processTimers (node:internal/timers:541:7),
+    expected: /Timeout 1000ms exceeded/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/e2e-ui.test.js:30:1
+✖ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (294.537167ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-THCEFb --remote-debugging-pipe --no-startup-window
+  <launched> pid=86903
+  [pid=86903] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=86903] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-THCEFb --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=86903[22m
+  [2m  - [pid=86903] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86903] starting temporary directories cleanup[22m
+  [2m  - [pid=86903] <gracefully close start>[22m
+  [2m  - [pid=86903] <kill>[22m
+  [2m  - [pid=86903] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=86903] finished temporary directories cleanup[22m
+  [2m  - [pid=86903] <gracefully close end>[22m
+  
+      at open (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:17:34)
+      at async TestContext.<anonymous> (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:34:30) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-THCEFb --remote-debugging-pipe --no-startup-window', '  - <launched> pid=86903', '  - [pid=86903] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86903] starting temporary directories cleanup', '  - [pid=86903] <gracefully close start>', '  - [pid=86903] <kill>', '  - [pid=86903] <skipped force kill spawnedProcess.killed=false processClosed=true>', '  - [pid=86903] finished temporary directories cleanup', '  - [pid=86903] <gracefully close end>' ]
+  }
+
+test at tests/e2e-ui.test.js:67:1
+✖ E2E interface : brouillon de candidature, approbation humaine dans l’interface (62.776209ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-8O1ZhW --remote-debugging-pipe --no-startup-window
+  <launched> pid=86904
+  [pid=86904] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=86904] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-8O1ZhW --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=86904[22m
+  [2m  - [pid=86904] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86904] starting temporary directories cleanup[22m
+  [2m  - [pid=86904] <gracefully close start>[22m
+  [2m  - [pid=86904] <kill>[22m
+  [2m  - [pid=86904] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=86904] finished temporary directories cleanup[22m
+  [2m  - [pid=86904] <gracefully close end>[22m
+  
+      at open (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:17:34)
+      at async TestContext.<anonymous> (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:71:30) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-8O1ZhW --remote-debugging-pipe --no-startup-window', '  - <launched> pid=86904', '  - [pid=86904] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86904] starting temporary directories cleanup', '  - [pid=86904] <gracefully close start>', '  - [pid=86904] <kill>', '  - [pid=86904] <skipped force kill spawnedProcess.killed=false processClosed=true>', '  - [pid=86904] finished temporary directories cleanup', '  - [pid=86904] <gracefully close end>' ]
+  }
+
+test at tests/e2e-ui.test.js:93:1
+✖ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (72.768916ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-n2vjc7 --remote-debugging-pipe --no-startup-window
+  <launched> pid=86905
+  [pid=86905] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=86905] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-n2vjc7 --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=86905[22m
+  [2m  - [pid=86905] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86905] starting temporary directories cleanup[22m
+  [2m  - [pid=86905] <gracefully close start>[22m
+  [2m  - [pid=86905] <kill>[22m
+  [2m  - [pid=86905] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=86905] finished temporary directories cleanup[22m
+  [2m  - [pid=86905] <gracefully close end>[22m
+  
+      at open (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:17:34)
+      at async TestContext.<anonymous> (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:97:27) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-n2vjc7 --remote-debugging-pipe --no-startup-window', '  - <launched> pid=86905', '  - [pid=86905] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86905] starting temporary directories cleanup', '  - [pid=86905] <gracefully close start>', '  - [pid=86905] <kill>', '  - [pid=86905] <skipped force kill spawnedProcess.killed=false processClosed=true>', '  - [pid=86905] finished temporary directories cleanup', '  - [pid=86905] <gracefully close end>' ]
+  }
+
+test at tests/e2e-ui.test.js:112:1
+✖ E2E interface : saisie avant chargement du catalogue sans erreur (47.638667ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-Dra5D2 --remote-debugging-pipe --no-startup-window
+  <launched> pid=86906
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-Dra5D2 --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=86906[22m
+  [2m  - [pid=86906] <gracefully close start>[22m
+  [2m  - [pid=86906] <kill>[22m
+  [2m  - [pid=86906] <will force kill>[22m
+  [2m  - [pid=86906] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=86906] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=86906] starting temporary directories cleanup[22m
+  [2m  - [pid=86906] finished temporary directories cleanup[22m
+  [2m  - [pid=86906] <gracefully close end>[22m
+  
+      at TestContext.<anonymous> (/Users/diaw/Downloads/agregateur-agent/tests/e2e-ui.test.js:119:36) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-Dra5D2 --remote-debugging-pipe --no-startup-window', '  - <launched> pid=86906', '  - [pid=86906] <gracefully close start>', '  - [pid=86906] <kill>', '  - [pid=86906] <will force kill>', '  - [pid=86906] exception while trying to kill process: Error: kill EPERM', '  - [pid=86906] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=86906] starting temporary directories cleanup', '  - [pid=86906] finished temporary directories cleanup', '  - [pid=86906] <gracefully close end>' ]
+  }
+
+test at tests/e2e-ui.test.js:1:1
+✖ tests/e2e-ui.test.js (72943.067042ms)
+  'Promise resolution is still pending but the event loop has already resolved'

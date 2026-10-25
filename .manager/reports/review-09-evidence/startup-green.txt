@@ -1,0 +1,11 @@
+✔ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (1.187875ms)
+✔ démarrage : appels concurrents partagent un seul lancement (0.570625ms)
+✔ démarrage : erreur de garde conserve la cause et libère le contexte (0.225167ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 85.553167

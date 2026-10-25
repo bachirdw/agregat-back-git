@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Store, terminal } from '../../packages/storage/index.js';
@@ -62,6 +62,7 @@ export function createApp({
   dataDir = resolve(ROOT, '.data'),
   live = process.env.AGENT_PLATFORM_LIVE === '1',
   timeoutMs,
+  webDir = process.env.AGENT_PLATFORM_WEB_DIR || null,
 } = {}) {
   const store = new Store(resolve(dataDir, 'platform.sqlite'));
   const skills = new SkillRegistry(store, skillDefinitions, { dataDir });
@@ -91,7 +92,29 @@ export function createApp({
         return json(res, 403, { error: 'Origin refusée' });
       const url = new URL(req.url, 'http://127.0.0.1');
       const path = url.pathname;
-      if (req.method === 'GET' && files[path]) {
+      // Optional compiled frontend. Preserve Host/Origin/CSP checks above and never expose
+      // arbitrary files: only index.html and Vite assets inside the configured real directory.
+      if (webDir && req.method === 'GET' && (path === '/' || path.startsWith('/assets/'))) {
+        const base = realpathSync(resolve(webDir));
+        const candidate = resolve(base, '.' + decodeURIComponent(path === '/' ? '/index.html' : path));
+        const rel = relative(base, candidate);
+        if (rel.startsWith('..') || isAbsolute(rel))
+          return json(res, 404, { error: 'Fichier introuvable' });
+        let target;
+        try { target = realpathSync(candidate); } catch {
+          return json(res, 404, { error: 'Fichier introuvable' });
+        }
+        const actual = relative(base, target);
+        if (actual.startsWith('..') || isAbsolute(actual) || !statSync(target).isFile())
+          return json(res, 404, { error: 'Fichier introuvable' });
+        const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+          '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
+        const extension = target.slice(target.lastIndexOf('.'));
+        if (!Object.hasOwn(types, extension)) return json(res, 404, { error: 'Type refusé' });
+        res.writeHead(200, { 'content-type': types[extension] + '; charset=utf-8' });
+        return res.end(readFileSync(target));
+      }
+      if (!webDir && req.method === 'GET' && files[path]) {
         const [name, type] = files[path];
         res.writeHead(200, { 'content-type': type + '; charset=utf-8' });
         return res.end(readFileSync(resolve(ROOT, 'apps/web', name)));

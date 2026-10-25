@@ -44,8 +44,16 @@ export class RunPolicy {
     allowLocalOrigins = [],
     workspace = null,
     maxDownloadBytes = 10 * 1024 * 1024,
+    runId = null,
+    allowJavaScript = false,
+    allowSharedContext = false,
     resolveHost = async (host) => (await lookup(host, { all: true })).map((r) => r.address),
   } = {}) {
+    if (typeof allowJavaScript !== 'boolean' || typeof allowSharedContext !== 'boolean')
+      throw new Error('Options navigateur booléennes requises');
+    if (runId !== null && (typeof runId !== 'string' || !runId.trim()))
+      throw new Error('Identifiant de run invalide');
+    Object.assign(this, { runId, allowJavaScript, allowSharedContext });
     this.allowedDomains = allowedDomains.map((d) => d.toLowerCase());
     this.capabilities = new Set(capabilities);
     this.allowLocalOrigins = new Set(
@@ -72,6 +80,9 @@ export class RunPolicy {
       allowLocalOrigins: [...this.allowLocalOrigins],
       workspace: this.workspace,
       maxDownloadBytes: this.maxDownloadBytes,
+      runId: this.runId,
+      allowJavaScript: this.allowJavaScript,
+      allowSharedContext: this.allowSharedContext,
     };
   }
   assertCapability(id) {

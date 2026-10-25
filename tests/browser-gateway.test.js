@@ -277,6 +277,12 @@ function site() {
       res.writeHead(302, { location: 'https://evil.example.net/' });
       return res.end();
     }
+    if (req.url === '/script') {
+      res.setHeader('content-type', 'text/html');
+      return res.end(
+        '<title>FICTIF sans script</title><script>document.title="FICTIF script actif"</script>',
+      );
+    }
     if (req.url === '/file') {
       res.writeHead(200, {
         'content-type': 'text/plain',
@@ -467,6 +473,46 @@ test(
     const after = await listTabs();
     assert.deepEqual(after, before, 'seul l’onglet de la plateforme est fermé');
     assert.equal(chrome.exitCode, null, 'Chrome de l’utilisateur toujours ouvert');
+    for (const allowJavaScript of [false, true]) {
+      const sharedProvider = new CdpBrowser({ endpoint });
+      const consent = [];
+      const sharedGateway = new BrowserGateway({
+        provider: sharedProvider,
+        policy: new RunPolicy({
+          runId: `FICTIF-shared-${allowJavaScript}`,
+          allowSharedContext: true,
+          allowJavaScript,
+          allowLocalOrigins: [origin],
+          capabilities: ALL,
+        }),
+        approve: async (request) => {
+          consent.push(request);
+          return true;
+        },
+      });
+      try {
+        const out = await sharedGateway.call('browser.navigate', { url: origin + '/script' });
+        assert.equal(out.title, allowJavaScript ? 'FICTIF script actif' : 'FICTIF sans script');
+        assert.equal(sharedProvider.context, sharedProvider.browser.contexts()[0]);
+        const userPage = sharedProvider.context
+          .pages()
+          .find((p) => p.url().includes('onglet-utilisateur'));
+        assert.ok(userPage);
+        assert.equal(consent.length, allowJavaScript ? 2 : 1);
+        // The scoped router must not block a pre-existing user's tab, even while active.
+        await userPage.reload();
+        assert.equal(await userPage.title(), 'Offres de test');
+        await sharedProvider.close();
+        assert.equal(
+          await userPage.title(),
+          'Offres de test',
+          'contexte utilisateur toujours ouvert',
+        );
+        assert.deepEqual(await listTabs(), before);
+      } finally {
+        await sharedProvider.close();
+      }
+    }
   },
 );
 
@@ -625,3 +671,171 @@ test(
     assert.equal(reads, 1);
   },
 );
+
+// Options and consent use fictitious run IDs and local pages only.
+test('options navigateur : défaut sûr, booléens stricts et aller-retour JSON sans consentement', () => {
+  const policy = new RunPolicy();
+  assert.equal(policy.allowJavaScript, false);
+  assert.equal(policy.allowSharedContext, false);
+  for (const key of ['allowJavaScript', 'allowSharedContext']) {
+    assert.throws(() => new RunPolicy({ [key]: 'true' }), /booléennes/);
+  }
+  const enabled = new RunPolicy({
+    runId: 'FICTIF-a',
+    allowJavaScript: true,
+    allowSharedContext: true,
+  });
+  assert.deepEqual(RunPolicy.fromJSON(JSON.stringify(enabled)).toJSON(), enabled.toJSON());
+});
+
+test('options navigateur : aucun lancement sans consentement, y compris JSON prétendument approuvé', async () => {
+  let launches = 0;
+  const provider = new CdpBrowser({
+    launch: { executablePath: 'FICTIF' },
+    chromium: {
+      launch: () => {
+        launches++;
+        throw new Error('Ne doit pas être lancé');
+      },
+    },
+  });
+  const policy = RunPolicy.fromJSON({ runId: 'FICTIF', allowJavaScript: true, consent: true });
+  await assert.rejects(provider.ensure(policy), /Consentement humain requis/);
+  const gateway = new BrowserGateway({
+    provider,
+    policy,
+    autoApprove: ['browser.enableJavaScript'],
+  });
+  await assert.rejects(gateway.call('browser.snapshot'), /Consentement humain refusé/);
+  assert.equal(launches, 0);
+  await assert.rejects(
+    provider.prepare(new RunPolicy({ allowJavaScript: true }), async () => true),
+    /run requis/,
+  );
+  await assert.rejects(
+    provider.prepare(
+      new RunPolicy({ runId: 'FICTIF', allowSharedContext: true }),
+      async () => true,
+    ),
+    /endpoint CDP/,
+  );
+});
+
+test('options navigateur : consentement strict, non transférable et changement de politique refusé', async () => {
+  const provider = new CdpBrowser({ endpoint: 'http://127.0.0.1:1' });
+  const policy = new RunPolicy({
+    runId: 'FICTIF-a',
+    allowJavaScript: true,
+    allowSharedContext: true,
+  });
+  const requests = [];
+  await assert.rejects(
+    provider.prepare(policy, async () => ({ approved: true })),
+    /refusé/,
+  );
+  await provider.prepare(policy, async (req) => {
+    requests.push(req);
+    return true;
+  });
+  assert.deepEqual(
+    requests.map((r) => r.capability),
+    ['browser.enableJavaScript', 'browser.shareContext'],
+  );
+  assert.ok(requests.every((r) => r.sensitive && r.args.runId === 'FICTIF-a'));
+  await provider.prepare(policy, async () => {
+    throw new Error('Consentement déjà acquis dans ce provider');
+  });
+  await assert.rejects(
+    provider.prepare(RunPolicy.fromJSON(policy.toJSON()), async () => true),
+    /non réutilisable/,
+  );
+  policy.runId = 'FICTIF-b';
+  await assert.rejects(provider.ensure(policy), /non réutilisable/);
+  const other = new CdpBrowser({ endpoint: 'http://127.0.0.1:1' });
+  await assert.rejects(
+    other.ensure(RunPolicy.fromJSON(policy.toJSON())),
+    /Consentement humain requis/,
+  );
+  await provider.close();
+});
+
+test(
+  'Chrome : JavaScript désactivé par défaut, activé après consentement et réseau toujours filtré',
+  { skip: !hasChrome },
+  async (t) => {
+    let forbidden = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') forbidden++;
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        '<title>FICTIF sans script</title><script>document.title="FICTIF script actif";fetch("/write",{method:"POST"});</script>',
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    t.after(
+      () =>
+        new Promise((r) => {
+          server.closeAllConnections();
+          server.close(r);
+        }),
+    );
+    for (const allowJavaScript of [false, true]) {
+      const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+      const approvals = [];
+      const policy = new RunPolicy({
+        runId: 'FICTIF-js',
+        allowJavaScript,
+        allowLocalOrigins: [origin],
+      });
+      const gw = new BrowserGateway({
+        provider,
+        policy,
+        approve: async (req) => {
+          approvals.push(req);
+          return true;
+        },
+      });
+      try {
+        const out = await gw.call('browser.navigate', { url: origin });
+        assert.equal(out.title, allowJavaScript ? 'FICTIF script actif' : 'FICTIF sans script');
+        assert.equal(approvals.length, allowJavaScript ? 1 : 0);
+        assert.equal(forbidden, 0);
+      } finally {
+        await provider.close();
+      }
+    }
+  },
+);
+
+test('options navigateur : refus partiel, mutation et fermeture pendant le consentement restent fermés', async () => {
+  const provider = new CdpBrowser({ endpoint: 'http://127.0.0.1:1' });
+  const policy = new RunPolicy({
+    runId: 'FICTIF',
+    allowJavaScript: true,
+    allowSharedContext: true,
+  });
+  let count = 0;
+  await assert.rejects(
+    provider.prepare(policy, async () => ++count === 1),
+    /refusé/,
+  );
+  await assert.rejects(provider.ensure(policy), /Consentement humain requis/);
+  policy.allowSharedContext = false;
+  await assert.rejects(
+    provider.prepare(policy, async () => {
+      policy.runId = 'FICTIF-autre';
+      return true;
+    }),
+    /modifiée/,
+  );
+  await assert.rejects(provider.ensure(policy), /Consentement humain requis/);
+  await assert.rejects(
+    provider.prepare(policy, async () => {
+      await provider.close();
+      return true;
+    }),
+    /fermé/,
+  );
+  await assert.rejects(provider.ensure(policy), /fermé/);
+});

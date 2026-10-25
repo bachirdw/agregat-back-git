@@ -28,13 +28,15 @@ function site() {
   );
 }
 
-async function setup(t) {
+async function setup(t, options = {}) {
   const { server: siteServer, hits, origin } = await site();
   const saved = { ...process.env };
   Object.assign(process.env, {
     AGENT_PLATFORM_BROWSER: 'isolated',
     AGENT_PLATFORM_CHROME_PATH: CHROME,
     AGENT_PLATFORM_BROWSER_LOCAL_ORIGINS: origin,
+    AGENT_PLATFORM_BROWSER_JAVASCRIPT: options.allowJavaScript ? '1' : '0',
+    AGENT_PLATFORM_BROWSER_SHARED_CONTEXT: '0',
   });
   const app = createApp({ dataDir: temporary() });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
@@ -217,3 +219,58 @@ test('gateway réelle sans pont de mesure : action refusée avant lancement de C
     await client.close();
   }
 });
+
+for (const optionId of ['deny', 'allow']) {
+  test(
+    `options navigateur via MCP : JavaScript ${optionId}, décision humaine enregistrée par run`,
+    { skip: !existsSync(CHROME) },
+    async (t) => {
+      const { app, run, mcp, origin } = await setup(t, { allowJavaScript: true });
+      const [result, asked] = await Promise.all([
+        mcp.callTool({ name: 'browser_navigate', arguments: { url: origin } }),
+        decideWhenAsked(app, run.id, optionId),
+      ]);
+      assert.match(asked.tool.title, /ACTION SENSIBLE · browser.enableJavaScript/);
+      assert.equal(asked.tool.rawInput.args.runId, run.id);
+      if (optionId === 'deny') {
+        assert.equal(result.isError, true);
+        assert.match(result.content[0].text, /Consentement humain refusé/);
+      } else assert.equal(result.isError, undefined);
+      const events = app.store.events(run.id);
+      const request = events.find((e) => e.type === 'permission' && e.data.id === asked.id);
+      assert.equal(request.data.tool.rawInput.args.runId, run.id);
+      assert.ok(
+        events.some(
+          (e) =>
+            e.type === 'permission_resolved' &&
+            e.data.id === asked.id &&
+            e.data.optionId === optionId,
+        ),
+      );
+      // Same approval token cannot even request consent for another run.
+      await assert.rejects(
+        app.engine.gatewayApproval('FICTIF-other', app.engine.approvalTokens.get(run.id), {
+          capability: 'browser.enableJavaScript',
+        }),
+        /Jeton/,
+      );
+    },
+  );
+}
+
+test(
+  'options navigateur : annuler pendant le consentement interdit le lancement',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { app, run, mcp, origin } = await setup(t, { allowJavaScript: true });
+    const task = mcp.callTool({ name: 'browser_navigate', arguments: { url: origin } });
+    for (let i = 0; i < 200 && !app.engine.permissions.size; i++)
+      await new Promise((r) => setTimeout(r, 10));
+    assert.equal(app.engine.permissions.size, 1);
+    app.engine.active.get(run.id).abort.abort();
+    const result = await task;
+    assert.equal(result.isError, true);
+    assert.match(result.content[0].text, /Consentement humain refusé/);
+    assert.equal(app.engine.permissions.size, 0);
+  },
+);

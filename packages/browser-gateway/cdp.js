@@ -21,6 +21,52 @@ import { requestPinned } from '../policy-engine/http.js';
 // - launch: { executablePath } starts an isolated headless Chrome with a throwaway profile.
 // No arbitrary script evaluation is exposed: only typed capabilities.
 export class CdpBrowser {
+  #authorization = null;
+  #boundPolicy = null;
+  #closed = false;
+  #pages = new WeakSet();
+  // Grants live only in this provider instance. Neither RunPolicy JSON nor an agent tool call
+  // can carry a grant to another run/provider. The approval bridge persists the human decision.
+  async prepare(policy, approve) {
+    if (this.#closed) throw new Error('Navigateur fermé');
+    this.assertBinding(policy);
+    if (this.#authorization) return;
+    const json = JSON.stringify(policy.toJSON());
+    if ((policy.allowJavaScript || policy.allowSharedContext) && !policy.runId)
+      throw new Error('Identifiant de run requis pour le consentement navigateur');
+    if (policy.allowSharedContext && !this.endpoint)
+      throw new Error('Contexte partagé requis uniquement avec un endpoint CDP');
+    for (const [enabled, capability, risk] of [
+      [
+        policy.allowJavaScript,
+        'browser.enableJavaScript',
+        'Scripts de page actifs : effets automatiques possibles sur les domaines autorisés.',
+      ],
+      [
+        policy.allowSharedContext,
+        'browser.shareContext',
+        'Cookies et sessions utilisateur partagés ; service workers et requêtes sans frame peuvent être perturbés.',
+      ],
+    ]) {
+      if (!enabled) continue;
+      const approved = await approve({
+        capability,
+        sensitive: true,
+        args: { runId: policy.runId, risk },
+      });
+      if (approved !== true) throw new Error(`Consentement humain refusé : ${capability}`);
+    }
+    if (this.#closed || json !== JSON.stringify(policy.toJSON()))
+      throw new Error('Navigateur fermé ou politique modifiée pendant le consentement');
+    this.#authorization = { policy, json };
+  }
+  assertBinding(policy) {
+    const binding = this.#boundPolicy ?? this.#authorization;
+    if (binding && (binding.policy !== policy || binding.json !== JSON.stringify(policy.toJSON())))
+      throw new Error(
+        'Consentement ou contexte non réutilisable pour un autre run ou une autre politique',
+      );
+  }
   constructor({
     endpoint = null,
     launch = null,
@@ -38,20 +84,27 @@ export class CdpBrowser {
     this.page = null;
   }
   async ensure(policy) {
+    if (this.#closed) throw new Error('Navigateur fermé');
+    this.assertBinding(policy);
+    if ((policy.allowJavaScript || policy.allowSharedContext) && !this.#authorization)
+      throw new Error('Consentement humain requis avant ouverture du navigateur');
+    this.#boundPolicy ??= { policy, json: JSON.stringify(policy.toJSON()) };
     if (this.page) return this.page;
     if (this.context) {
-      this.page = await this.context.newPage();
-      return this.page;
+      return this.newPage(policy);
     }
     const chromium = this.injected ?? (await import('playwright-core')).chromium;
     if (this.endpoint) {
       this.browser = await chromium.connectOverCDP(this.endpoint, { timeout: 15000 });
-      // Never attach to the user's default context: cookies, workers and routing are shared there.
-      this.context = await this.browser.newContext({
-        acceptDownloads: true,
-        javaScriptEnabled: false,
-        serviceWorkers: 'block',
-      });
+      this.ownsContext = !policy.allowSharedContext;
+      this.context = policy.allowSharedContext
+        ? this.browser.contexts()[0]
+        : await this.browser.newContext({
+            acceptDownloads: true,
+            javaScriptEnabled: policy.allowJavaScript,
+            serviceWorkers: 'block',
+          });
+      if (!this.context) throw new Error('Contexte CDP partagé indisponible');
       this.shared = true;
     } else {
       this.browser = await chromium.launch({
@@ -62,32 +115,52 @@ export class CdpBrowser {
       });
       this.context = await this.browser.newContext({
         acceptDownloads: true,
-        javaScriptEnabled: false,
+        javaScriptEnabled: policy.allowJavaScript,
         serviceWorkers: 'block',
       });
+      this.ownsContext = true;
       this.shared = false;
     }
     await this.guard(policy); // install before any page (including popup first requests) exists
-    this.page = await this.context.newPage();
-    this.context.on('page', (page) => {
+    this.onPage = (page) => {
       page
         .opener()
         .then((opener) => {
-          if (opener) return page.close();
+          if (opener && (this.ownsContext || this.#pages.has(opener))) return page.close();
         })
         .catch(() => {});
-    });
+    };
+    this.context.on('page', this.onPage);
+    return this.newPage(policy);
+  }
+  async newPage(policy) {
+    this.page = await this.context.newPage();
+    this.#pages.add(this.page);
+    if (!this.ownsContext) {
+      // These settings affect only our tab, never the user's other tabs/context settings.
+      this.pageSession = await this.context.newCDPSession(this.page);
+      await this.pageSession.send('Emulation.setScriptExecutionDisabled', {
+        value: !policy.allowJavaScript,
+      });
+      await this.pageSession.send('Network.setBypassServiceWorker', { bypass: true });
+      await this.page.routeWebSocket('**/*', (socket) => socket.close());
+    }
     return this.page;
   }
   async guard(policy) {
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is
     // disabled: a read navigation must not submit a form or run arbitrary network code.
     this.networkAbort = new AbortController();
-    await this.context.route('**/*', async (route) => {
+    this.routeHandler = async (route) => {
       const request = route.request();
       let frame = null;
       try {
         frame = request.frame(); // popup navigation may have no frame yet: abort it
+        if (!this.ownsContext && frame.page() !== this.page) {
+          const opener = await frame.page().opener();
+          if (!this.#pages.has(frame.page()) && (!opener || !this.#pages.has(opener)))
+            return await route.fallback();
+        }
         if (frame.page() !== this.page) throw new Error('Nouvel onglet refusé');
         if (!['GET', 'HEAD'].includes(request.method()) && !this.writeInProgress)
           throw new Error('Requête d’écriture sans approbation');
@@ -136,8 +209,9 @@ export class CdpBrowser {
           this.blocked = `${request.url()} — ${e.message}`;
         await route.abort('blockedbyclient').catch(() => {});
       }
-    });
-    await this.context.routeWebSocket('**/*', (socket) => socket.close());
+    };
+    await this.context.route('**/*', this.routeHandler);
+    if (this.ownsContext) await this.context.routeWebSocket('**/*', (socket) => socket.close());
     return this.page;
   }
   // A blocked navigation leaves the tab on an error page whose pending navigations interrupt the
@@ -146,6 +220,8 @@ export class CdpBrowser {
     const page = this.page;
     this.page = null;
     await page?.close().catch(() => {});
+    await this.pageSession?.detach().catch(() => {});
+    this.pageSession = null;
   }
   // Defence in depth: whatever happened, never return content from a page outside the policy.
   async assertLanded(policy) {
@@ -283,16 +359,25 @@ export class CdpBrowser {
     }
   }
   async close() {
+    this.#closed = true;
     this.networkAbort?.abort(new Error('Navigateur fermé'));
     try {
       await this.page?.close();
     } catch {
       /* already closed */
     }
-    await this.context?.close().catch(() => {});
+    await this.pageSession?.detach().catch(() => {});
+    this.pageSession = null;
+    if (this.context) {
+      if (this.onPage) this.context.off('page', this.onPage);
+      if (this.routeHandler) await this.context.unroute('**/*', this.routeHandler).catch(() => {});
+      if (this.ownsContext) await this.context.close().catch(() => {});
+    }
     this.context = null;
     // A shared Chrome (Playwriter relay / user browser) is never closed by the platform.
     if (this.browser && !this.shared) await this.browser.close().catch(() => {});
     this.page = null;
+    this.#authorization = null;
+    this.#boundPolicy = null;
   }
 }

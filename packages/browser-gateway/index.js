@@ -58,6 +58,8 @@ export class BrowserGateway {
     const args = cap.schema.parse(rawArgs);
     this.policy.assertCapability(capabilityId);
     if (args.url) await this.policy.assertUrl(args.url);
+    // Deployment policy can request these modes, but only a recorded human decision enables them.
+    await this.provider.prepare?.(this.policy, this.approve);
     const pageBefore = await this.provider.currentUrl?.();
     if (pageBefore && pageBefore !== 'about:blank') await this.policy.assertUrl(pageBefore);
     let element = null;

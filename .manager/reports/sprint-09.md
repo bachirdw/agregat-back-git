@@ -51,7 +51,7 @@ test at tests/browser-gateway.test.js:373:1
 ✖ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (484.641417ms)
   browserType.launch: Target page, context or browser has been closed
   Browser logs:
-  
+
   <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-IQxKo0 --remote-debugging-pipe --no-startup-window
   <launched> pid=76236
   Call log:
@@ -65,7 +65,7 @@ test at tests/browser-gateway.test.js:373:1
   [2m  - [pid=76236] starting temporary directories cleanup[22m
   [2m  - [pid=76236] finished temporary directories cleanup[22m
   [2m  - [pid=76236] <gracefully close end>[22m
-  
+
       at CdpBrowser.ensure (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:57:37)
       at async CdpBrowser.perform (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:184:18)
       at async BrowserGateway.execute (/Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/index.js:120:20) {
@@ -336,3 +336,153 @@ Relance `npm test` hors bac à sable : code 0, 199/199 tests (162 + 37), aucun s
 - Les 199 tests et les deux contrôles du point 0 sont toujours applicables : seul `.gitignore` et le rapport changent depuis cette validation ; aucun code modifié.
 
 - 17:31 — Les deux tentatives de commit des points 0 et 1 ont échoué avant écriture de l’index : `fatal: Unable to create .../.git/index.lock: Operation not permitted` (code 128). Le bac à sable autorise les fichiers du dépôt mais interdit `.git` ; relance avec permissions adaptées. Aucun commit créé lors des deux échecs.
+
+## Point 2 — Implémentation en cours
+
+- 17:32 — `RunPolicy` : `allowJavaScript` et `allowSharedContext` booléens, défaut false, `runId` explicite, sérialisation sans consentement. Options demandées au démarrage par `AGENT_PLATFORM_BROWSER_JAVASCRIPT=1` / `AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1` ; les arguments MCP restent stricts et ne permettent pas de les activer.
+- `BrowserGateway` appelle la préparation du provider avant toute ouverture/description. Le provider demande une approbation humaine distincte, sensible, par option, via le pont existant (événements permission et permission_resolved persistés). Autorisation en mémoire privée, liée à l’instance, au run et à la politique complète ; ni JSON ni autoApprove ne peuvent l’accorder. Changer de run ou de politique impose un autre provider/consentement. Pas de persistance réutilisable après redémarrage.
+- Mode CDP : contexte dédié par défaut ; partage explicite du contexte utilisateur seulement après accord. Le routage laisse les onglets existants continuer, les réglages JS et bypass service worker visent uniquement l’onglet plateforme. Fermeture : retrait du handler et de l’écouteur, fermeture uniquement de notre page, jamais du contexte partagé.
+- Tests ciblés initiaux : options 3/3, Chrome (JS et CDP défaut) 2/2, codes 0. Tests intégration du pont et contexte partagé réel ajoutés ; validation en cours. Recherche `rg ... tests/core.test.js` : fichier absent (code 2), nom erroné dans une recherche, aucun effet produit.
+
+- 17:33 — La première suite sous bac à sable a continué à échouer (Chrome SIGABRT, 15 s CDP, attentes d’approbation 42 s), puis restait vivante après les échecs E2E. `ps` hors bac à sable a identifié exclusivement ses descendants ; `kill -TERM 77094 76080 75553` : code 0. La relance validée du point 0 était indépendante et terminée avec code 0. Échecs initiaux complets archivés dans le rapport ci-dessous.
+- Première suite du point 2 : consentements via pont (refus, accord enregistré, annulation) verts ; nouveau scénario de contexte partagé rouge. Diagnostic TAP ciblé lancé pour conserver la cause avant correction.
+
+## 17:34 — Point 2 : erreur détectée et correction
+
+- Première suite navigateur : 43/44 verts, 1 rouge. Le test partagé réel a prouvé que détacher la session CDP réactive JavaScript : titre `FICTIF script actif` au lieu de `FICTIF sans script`. Correction : conserver la session CDP de notre page jusqu’au reset/close. Relance ciblée partagée + JS : 2/2 verts, code 0. Aucune assertion affaiblie.
+- Consentement renforcé contre mutation de politique ou fermeture pendant la décision. Tests supplémentaires : refus partiel, mutation, fermeture ; documentation ADR 006 des options, risques scripts/cookies, absence d’isolation OS, perturbation possible des requêtes sans frame, extension Playwriter non validée.
+- `npm run check`, `npm run format:check`, `git diff --check` : codes 0. Suite complète en cours avant commit.
+
+Sortie TAP de l’échec confirmé :
+```text
+TAP version 13
+# Subtest: Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé
+not ok 1 - Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé
+  ---
+  duration_ms: 2115.705125
+  type: 'test'
+  location: '/Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:422:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'FICTIF script actif'
+    - 'FICTIF sans script'
+               ^
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'FICTIF sans script'
+  actual: 'FICTIF script actif'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-gateway.test.js:493:16)
+    async Test.run (node:internal/test_runner/test:1125:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2244.770958
+
+```
+Correction ciblée :
+```text
+✔ Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé (1259.740583ms)
+✔ Chrome : JavaScript désactivé par défaut, activé après consentement et réseau toujours filtré (1105.597167ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2448.859334
+
+```
+
+- 17:35 — `git diff --check` a détecté deux lignes vides avec espaces dans la sortie TAP copiée au rapport (code 2). Espaces finaux retirés du rapport uniquement ; sortie de test inchangée sur le fond.
+
+## 17:35 — Point 2 OPÉRATIONNEL
+
+- Suite complète : code 0, **207/207** tests (162 + 45), aucun skip. Après dernière revue du routage partagé (suivi des pages par WeakSet pour ne pas bloquer les onglets utilisateur pendant un reset), tous les tests BrowserGateway relancés : **31/31**, code 0. Les autres chemins sont inchangés.
+- `check` et `format:check` : codes 0. État du fournisseur isolé et du partage de contexte temporaire : OPÉRATIONNEL sur Chrome réel. Transport extension Playwriter : INCOMPLET, extension non testée. Pas de modèle appelé.
+
+Sorties brutes pertinentes :
+```text
+▶ unitaires et intégration (parallèle) : 14 fichier(s)
+ℹ tests 162
+ℹ suites 0
+ℹ pass 162
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32367.046083
+▶ Chrome réel (série) : 3 fichier(s)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41160.407625
+✔ registre : contrats stables, schémas stricts, effets déclarés (1.965792ms)
+✔ politique : https, domaines, sous-domaines, IP, ports, identifiants, local explicite (4.007292ms)
+✔ politique : résolution DNS vers réseau privé refusée (rebinding) (0.424042ms)
+✔ politique : détection des éléments sensibles (0.442292ms)
+✔ politique : chemins de fichiers confinés au dossier du run (0.324208ms)
+✔ politique : sérialisation pour le processus MCP (0.121209ms)
+✔ redaction : clés, numéros de carte, troncature (0.2075ms)
+✔ gateway : lecture sans approbation, contenu marqué non fiable, mesure (0.660834ms)
+✔ gateway : clic sensible refusé sans approbation humaine, même auto-approuvé (0.458ms)
+✔ gateway : clic approuvé exécuté ; texte saisi jamais transmis à l’approbation (0.44125ms)
+✔ gateway : capacités non accordées, arguments hors contrat, élément absent (0.30775ms)
+✔ gateway : domaine interdit et redirection vers domaine interdit bloqués (0.204458ms)
+✔ gateway : upload hors dossier et lien symbolique refusés (1.1405ms)
+✔ CdpBrowser : endpoint distant refusé, configuration requise (0.124417ms)
+✔ Chrome réel isolé : navigation, instantané d’accessibilité, extraction (859.097ms)
+✔ Chrome réel : « Postuler » refusé → aucun envoi au serveur (717.516166ms)
+✔ Chrome réel : « Postuler » approuvé → un seul envoi (858.549958ms)
+✔ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (775.999334ms)
+✔ Chrome réel : redirection serveur vers domaine interdit bloquée (1004.4955ms)
+✔ Chrome réel : téléchargement dans le dossier du run, taille limitée (842.448417ms)
+✔ Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé (1183.536833ms)
+✔ Chrome : sous-ressources, iframe, popup et redirections en chaîne restent confinés (1519.239166ms)
+✔ gateway : un élément modifié pendant l’approbation ne reçoit pas le consentement précédent (0.440083ms)
+✔ Chrome : téléchargement refuse un dossier symlink (869.737833ms)
+✔ gateway : upload revalidé après consentement et appels sérialisés (25.743208ms)
+✔ Chrome : redirection 303 après formulaire ne répète pas le POST approuvé (863.714625ms)
+✔ options navigateur : défaut sûr, booléens stricts et aller-retour JSON sans consentement (0.217625ms)
+✔ options navigateur : aucun lancement sans consentement, y compris JSON prétendument approuvé (0.225416ms)
+✔ options navigateur : consentement strict, non transférable et changement de politique refusé (0.202625ms)
+✔ Chrome : JavaScript désactivé par défaut, activé après consentement et réseau toujours filtré (1303.988208ms)
+✔ options navigateur : refus partiel, mutation et fermeture pendant le consentement restent fermés (0.296459ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10931.37675
+
+> agent-platform@0.1.0 check
+> node scripts/check.js
+
+Syntaxe JavaScript valide.
+
+> agent-platform@0.1.0 format:check
+> prettier --check apps packages domain-packs tests scripts/*.js
+
+Checking formatting...
+All matched files use Prettier code style!
+
+```

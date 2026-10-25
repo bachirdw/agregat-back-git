@@ -96,6 +96,9 @@ export class Orchestrator {
           allowedDomains: declared.allowedDomains ?? [],
           capabilities: declared.capabilities ?? undefined,
           workspace: run.cwd,
+          runId: run.id,
+          allowJavaScript: process.env.AGENT_PLATFORM_BROWSER_JAVASCRIPT === '1',
+          allowSharedContext: process.env.AGENT_PLATFORM_BROWSER_SHARED_CONTEXT === '1',
           // Development/tests only: explicit local origins, e.g. http://127.0.0.1:8080.
           allowLocalOrigins: (process.env.AGENT_PLATFORM_BROWSER_LOCAL_ORIGINS ?? '')
             .split(',')

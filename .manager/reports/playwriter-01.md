@@ -77,3 +77,11 @@ Audit final `ps ... | rg` des noms de sondes/tests et profils Chrome jetables : 
 **Brief traité par l'alternative de refus explicite autorisée au point 2.** Le contournement est prouvé,
 le refus sécurisé est livré et testé, la documentation est rectifiée. La navigation via extension demeure
 techniquement indisponible ; elle exige un futur adaptateur ciblé, pas une autorisation plus large.
+
+## Livraison git locale — 22:45
+
+`git add -A && git add -f .manager/reports/playwriter-01-evidence && git commit -m '[playwriter-01] Refuser le relais incompatible et protéger les onglets CDP'` :
+code **0**, commit **6f28922**, 42 fichiers (preuves brutes incluses explicitement malgré l'exclusion globale `*.log`).
+Aucun push. La présente consignation ajoute uniquement le résultat de livraison au rapport ; aucun code,
+test ou paramètre de validation n'est modifié après les contrôles verts. Commit documentaire de clôture :
+`[playwriter-01] Consigner la validation et la livraison`.

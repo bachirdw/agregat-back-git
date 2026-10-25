@@ -1,0 +1,3 @@
+Bloc 1: purify.sanitize is not a function
+Bloc 2: purify.sanitize is not a function
+Bloc 3: { diagramType: 'sequence', config: {} }

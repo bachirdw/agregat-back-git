@@ -1,6 +1,6 @@
 # ADR 006 — Browser Gateway : capacités typées, politique imposée par le code, Playwriter comme simple transport
 
-Date : 25 octobre 2026 (sprint 04). Statut : accepté.
+Date initiale : 25 octobre 2026 (sprint 04). Actualisé le 26 octobre 2026 (docs-01). Statut : accepté, périmètre sécurisé ; exception propriétaire dans l’[ADR 008](008-local-owner-mode.md).
 
 ## Contexte
 Le serveur MCP de Playwriter (`remorses/playwriter`, `MCP.md`) expose un outil `execute` qui exécute du
@@ -8,6 +8,13 @@ Le serveur MCP de Playwriter (`remorses/playwriter`, `MCP.md`) expose un outil `
 local écoute sur `127.0.0.1:19988` et accepte `chromium.connectOverCDP('http://127.0.0.1:19988')` (README,
 section « Playwright API »). Le relais envoie par défaut une télémétrie anonyme (désactivable par
 `PLAYWRITER_TELEMETRY=0` ou `DO_NOT_TRACK=1`, `playwriter/src/telemetry.ts`).
+
+## Périmètre actuel
+
+Les garanties ci-dessous concernent le **mode sécurisé** (`ownerMode=false`). Le mode propriétaire
+local utilise `owner-transport.js`, partage le profil, active JavaScript et supprime les approbations ;
+il est opérationnel dans un périmètre de confiance différent, décrit dans l'ADR 008. Le refus Playwriter
+sécurisé et la navigation Playwriter propriétaire sont deux comportements distincts et testés.
 
 ## Décision
 - Ne **jamais** exposer `execute` (ni aucune évaluation de script) aux agents. Playwriter est utilisé comme
@@ -20,7 +27,8 @@ section « Playwright API »). Le relais envoie par défaut une télémétrie an
   l'URL finale, fichiers confinés au dossier du run (liens symboliques résolus), taille de téléchargement.
 - Toute action `write` exige une décision humaine sauf pré-autorisation explicite ; toute action **sensible**
   (soumettre, postuler, envoyer, payer, champ mot de passe ou carte, fichier) exige **toujours** une décision
-  humaine, même pré-autorisée. Le texte saisi n'est jamais montré ni stocké.
+  humaine, même pré-autorisée. La demande d'approbation contient le sélecteur et la longueur du texte,
+  pas sa valeur ; cela n'est pas une garantie d'absence de ce texte dans les sorties ou journaux du CLI.
 - Les sorties issues des pages sont marquées `untrusted` avec un avertissement d'injection ; secrets et
   numéros de carte masqués, texte tronqué.
 - Le processus MCP demande les décisions à l'API locale (pont d'approbation à jeton aléatoire par run, en
@@ -32,7 +40,7 @@ section « Playwright API »). Le relais envoie par défaut une télémétrie an
 - `fixture` (défaut) : démonstrateur sans réseau ni navigateur.
 - `isolated` : Chrome headless avec profil jetable (`AGENT_PLATFORM_CHROME_PATH`). **Testé réellement.**
 - `playwriter` : relais Playwriter local (`AGENT_PLATFORM_CDP_ENDPOINT`, défaut `http://127.0.0.1:19988`).
-  **INCOMPATIBLE avec le relais réel 0.7.0** : refus avant connexion CDP. L'extension est installée et
+  **INCOMPATIBLE en mode sécurisé avec le relais réel 0.7.0** : refus avant connexion CDP. L'extension est installée et
   connectée ; le smoke vérifie le refus sûr et la conservation des onglets (playwriter-01 ci-dessous).
   Le Chrome partagé via CDP classique reste testé avec un profil temporaire et une session CDP d'onglet effective.
 
@@ -44,7 +52,8 @@ section « Playwright API »). Le relais envoie par défaut une télémétrie an
 
 ## Limites connues
 - Les ressources sont satisfaites par le transport HTTP de la plateforme, avec IP DNS validée épinglée ;
-  les cookies proviennent uniquement du contexte dédié de la plateforme.
+  en contexte dédié, les cookies proviennent uniquement du contexte propre à la plateforme. Le partage
+  explicite décrit plus bas réutilise les cookies utilisateur.
 - La détection d'élément sensible est heuristique (mots-clés FR/EN, types de champ) : en cas de doute, une
   action `write` demande déjà une décision humaine par défaut.
 - Pas encore de liste blanche par onglet existant (accès aux onglets de l'utilisateur volontairement exclu).
@@ -56,7 +65,9 @@ cookie ni worker du contexte utilisateur n’est réutilisé. JavaScript et serv
 Le sprint 09 ajoute les exceptions explicites ci-dessous pour les sites nécessitant des scripts ou une session utilisateur. Toutes les ressources et
 iframes passent par le filtre du contexte installé avant la page ; nouveaux onglets et WebSockets refusés.
 Les redirections sont suivies manuellement avec contrôle à chaque saut et limite de cinq ; les changements
-d’origine sont refusés (le document satisfait par route.fetch garderait sinon l’origine initiale).
+d’origine sont refusés. Depuis `a299199`, le navigateur rejoint aussi le chemin final de même origine :
+servir le corps final sous le chemin initial donnait une base incorrecte aux liens relatifs. La régression
+Chrome réelle correspondante est dans `tests/browser-gateway.test.js`.
 Les appels de la gateway sont sérialisés et les éléments/pages revérifiés après consentement. La saisie
 n’expose plus les valeurs de champs dans la description envoyée à l’approbation. Les téléchargements
 n’écrasent jamais un fichier existant et refusent un dossier downloads symbolique.
@@ -180,19 +191,20 @@ pour l'analyse de cette installation ; le clone est une comparaison, pas une ver
 | Méthode | Traitement constaté | Portée de la preuve |
 |---|---|---|
 | `Browser.getVersion` | Réponse synthétique `Chrome/Extension-Bridge` | `dist/cdp-relay.js:504` ; `/json/version` réel annonce `Playwriter/0.7.0` |
-| `Target.getTargets`, `Target.getTargetInfo` | Inventaire des cibles connectées | `dist/cdp-relay.js:567–598`, inspection ; pas de lecture de contenu |
-| `Target.attachToTarget` | Renvoie le sessionId existant d'une cible connectée | `dist/cdp-relay.js:552` ; ne suffit pas au chemin public `newCDPSession` de Playwright |
+| `Target.getTargets`, `Target.getTargetInfo` | Inventaire des cibles connectées | `dist/cdp-relay.js:568–598`, inspection ; pas de lecture de contenu |
+| `Target.attachToTarget` | Renvoie le sessionId existant d'une cible connectée | `dist/cdp-relay.js:554` ; ne suffit pas au chemin public `newCDPSession` de Playwright |
 | `Target.createTarget`, `Target.closeTarget` | Relais vers `chrome.tabs` création/fermeture | `dist/cdp-relay.js:599–621`, `dist/extension/background.js:3147–3170` ; pas exécuté par notre smoke |
-| `Target.setAutoAttach` | Transmis aux onglets connectés ; peut créer un onglet initial | `dist/cdp-relay.js:534`, `dist/extension/background.js:3100` ; raison du précontrôle sans attachement |
-| `Browser.setDownloadBehavior` | Comportement mémorisé et appliqué aux cibles de l'extension | `dist/cdp-relay.js:515` ; portée plus large que notre onglet, autre raison de ne pas attacher le client au relais |
+| `Target.setAutoAttach` | Transmis aux onglets connectés ; peut créer un onglet initial | `dist/cdp-relay.js:531`, `dist/extension/background.js:3112` ; raison du précontrôle sans attachement |
+| `Browser.setDownloadBehavior` | Comportement mémorisé et appliqué aux cibles de l'extension | `dist/cdp-relay.js:513` ; portée plus large que notre onglet, autre raison de ne pas attacher le client au relais |
 | `Target.createBrowserContext`, `Target.attachToBrowserTarget` | Pas de traitement spécial ; absence de cible → `No tab found` | `dist/extension/background.js:3175` ; erreurs réelles du manager dans le brief, reproduites par faux relais |
 | `Emulation.setScriptExecutionDisabled`, `Network.setBypassServiceWorker`, `Fetch.*` | Commandes ciblées transmises à `chrome.debugger.sendCommand` | `dist/extension/background.js:3180–3195` ; pas une preuve de session publique Playwright fonctionnelle |
 
 Playwright 1.64.1 : `coreBundle.js:40194` appelle `_clientRootSession()` pour `newCDPSession(page)` ;
 `:36323` exige `Target.attachToBrowserTarget`. Le routage réseau n'ajoute pas le bypass worker à cette
 page (`:39018` ne traite que la page interne de storage state). Aucun champ privé Playwright n'est utilisé
-pour contourner ces contrats. Une future alternative pourrait maintenir une session CDP directe ciblée
-sur une cible explicitement créée par nous ; elle nécessiterait des tests de cycle de vie et d'isolation.
+pour contourner ces contrats. Le mode propriétaire maintient désormais une session CDP directe ciblée via `owner-transport.js`.
+Il ne rétablit pas les garanties sécurisées ci-dessus : les gardes du provider y sont désactivées.
+Ses tests de cycle de vie et de périmètre sont dans `tests/owner-transport.test.js`.
 
 ### Preuves et limites
 
@@ -206,4 +218,4 @@ sur une cible explicitement créée par nous ; elle nécessiterait des tests de 
   Aucun titre, URL, cookie ou session d'onglet existant n'est lu. Aucune navigation n'est exécutée.
 - Les sorties brutes et erreurs intermédiaires sont dans `.manager/reports/playwriter-01-evidence/` ;
   journal et état final dans `.manager/reports/playwriter-01.md`. Un smoke vert valide une incompatibilité
-  traitée sûrement ; **le statut extension reste INCOMPATIBLE, pas OPÉRATIONNEL**.
+  traitée sûrement ; **le statut extension sécurisé reste INCOMPLET (incompatible), tandis que le propriétaire a une preuve réelle historique distincte**.

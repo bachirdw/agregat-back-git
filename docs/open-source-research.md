@@ -1,4 +1,4 @@
-# Audit open source — sprint 01, 25 octobre 2026
+# Audit open source — sprint 01 et actualisation docs-01 du 26 octobre 2026
 
 ## Périmètre et méthode
 
@@ -13,7 +13,7 @@ git -C /Users/diaw/Downloads/agent-repos/openclaw__acpx log -1 --format='%H %cI 
 nl -ba /Users/diaw/Downloads/agent-repos/openclaw__acpx/src/flows/runtime.ts | sed -n '345,374p'
 ```
 
-Les 4 compléments ont été clonés avec `git clone --depth 200`. Les arbres de travail sont complets ; **18 des 27 historiques sont shallow**, y compris 13 clones initiaux (champ `shallow` de l’inventaire). Les dates et lectures portent donc sur les commits présents, sans prétendre analyser tout l’historique. Aucun checkout, rebase ou changement de l’historique des clones fournis. Les licences permissives autorisent généralement une exploitation commerciale sous leurs obligations de notices/attribution ; cela ne couvre ni les services distants, ni les marques, ni les contenus/poids/données associés. Aucun code tiers n’a été copié dans Relay.
+Les 4 compléments ont été clonés avec `git clone --depth 200`. Les arbres de travail sont complets ; **18 des 27 historiques sont shallow**, y compris 13 clones initiaux (champ `shallow` de l’inventaire). Les dates et lectures portent donc sur les commits présents, sans prétendre analyser tout l’historique. Aucun checkout, rebase ou changement de l’historique des clones fournis. Les licences permissives autorisent généralement une exploitation commerciale sous leurs obligations de notices/attribution ; cela ne couvre ni les services distants, ni les marques, ni les contenus/poids/données associés. Aucun code tiers n’avait été copié dans Relay au sprint 01. Depuis, Najah adapte une méthode career-ops (notice dans `THIRD_PARTY_NOTICES.md`) ; cela ne signifie pas intégration de son runtime ou de ses scripts.
 
 ## Inventaire comparatif à SHA fixe
 
@@ -144,7 +144,7 @@ Le probe utilise GEMINI_CLI_HOME/OPENCODE_TEST_HOME/XDG temporaires, un environn
 
 | Candidat | Capacités réelles, sessions et streaming | Risques / décision | Preuves |
 |---|---|---|---|
-| Playwriter | TypeScript ; relais CDP, extension Chrome `chrome.debugger`, état d’exécution/sessions et sélection de pages. Outil MCP `execute(code, timeout)` ; logs/événements, pas du streaming ACP. Remote host/token possibles. | Fournisseur prioritaire à expérimenter derrière gateway typé, pas une dépendance structurelle de Najah. Host/Origin et jeton optionnel présents ; scripts VM avec imports natifs et timeout ne valent pas une isolation OS. Coût navigateur à mesurer dans Relay. | [playwriter/src/mcp.ts:247–275](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/mcp.ts#L247-L275) ; [extension/src/background.ts:64–104](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/extension/src/background.ts#L64-L104) ; [playwriter/src/cdp-relay.ts:912–942](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/cdp-relay.ts#L912-L942) ; [playwriter/src/cdp-relay.ts:981–999](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/cdp-relay.ts#L981-L999) ; [playwriter/src/executor.ts:1864–1903](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/executor.ts#L1864-L1903) |
+| Playwriter | TypeScript ; relais CDP, extension Chrome `chrome.debugger`, état d’exécution/sessions et sélection de pages. Outil MCP `execute(code, timeout)` ; logs/événements, pas du streaming ACP. Remote host/token possibles. | Transport intégré en propriétaire local ; refusé dans le mode sécurisé (voir actualisation 0.7.0 ci-dessous), pas une dépendance structurelle de Najah. Host/Origin et jeton optionnel présents ; scripts VM avec imports natifs et timeout ne valent pas une isolation OS. Coût navigateur à mesurer dans Relay. | [playwriter/src/mcp.ts:247–275](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/mcp.ts#L247-L275) ; [extension/src/background.ts:64–104](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/extension/src/background.ts#L64-L104) ; [playwriter/src/cdp-relay.ts:912–942](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/cdp-relay.ts#L912-L942) ; [playwriter/src/cdp-relay.ts:981–999](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/cdp-relay.ts#L981-L999) ; [playwriter/src/executor.ts:1864–1903](https://github.com/remorses/playwriter/blob/6489336628e6737e32a59f25ed270622400cb277/playwriter/src/executor.ts#L1864-L1903) |
 | Playwriter Browser MCP (Babelcloud) | TypeScript ; BrowserConnection et outils navigate/snapshot/click/type, tabs/fichiers/réseau/evaluate/run-code enregistrés ensemble. Cycle MCP, pas runtime agent ni budget universel. | Surface trop large pour exposition directe ; licence explicite absente. S’inspirer des noms d’opérations, ne pas intégrer/redistribuer sans clarification. | [src/mcp-server.ts:49–104](https://github.com/babelcloud/playwriter-browser-mcp/blob/5f97001472a0302c4f504fe3ae9a62a47673355a/src/mcp-server.ts#L49-L104) |
 | Playwright MCP 0.0.83 | Wrapper Node délègue à playwright-core `1.64.0-alpha-1790635538000`. Le vrai moteur inclut **mode extension Chrome utilisateur** et connexion CDP ; l’alternative navigateur isolé existe aussi. | Corrige l’étude précédente qui ne lisait que le wrapper. Autorisation de connexion extension ≠ autorisation métier d’un clic. Outil JavaScript unsafe présent ; filtrage des outils/capabilities et policy Relay nécessaires. Version alpha à valider avant intégration, aucune extension testée live ici. | [index.js:18–19](https://github.com/microsoft/playwright-mcp/blob/0c4107acbecb75472b23c05c0e42471a0011874f/index.js#L18-L19) ; [package.json:39–45](https://github.com/microsoft/playwright-mcp/blob/0c4107acbecb75472b23c05c0e42471a0011874f/package.json#L39-L45) ; archive exacte détaillée ci-dessous. |
 
@@ -158,7 +158,7 @@ Le moteur Playwright a été **lu dans le paquet npm exact**, sans scripts : `np
 
 Sources correspondantes : [extensionContextFactory](https://github.com/microsoft/playwright/blob/e8149b8257d32dcf8f72573ecc43e72439da7080/packages/playwright-core/src/tools/mcp/extensionContextFactory.ts), [cdpRelay](https://github.com/microsoft/playwright/blob/e8149b8257d32dcf8f72573ecc43e72439da7080/packages/playwright-core/src/tools/mcp/cdpRelay.ts). Les numéros ci-dessus concernent le **bundle distribué**, pas les fichiers TypeScript ; ne pas les transposer aux liens source.
 
-Choix : garder un contrat `browser.navigate/snapshot/extract/click/type/upload/download`, fournisseur fixture pour tests ; implémenter un premier provider Playwriter revu, conserver Playwright MCP extension comme alternative de même niveau pour le Chrome utilisateur. Passerelle doit lier action/run/onglet/origine/consentement expirant, vérifier redirections et effets (un clic peut soumettre), limiter fichiers et extractions, révoquer les autorisations au cancel. Aucun outil code/évaluation arbitraire offert aux packs ; le provider ne compile que nos opérations fixes. Les pages et sorties MCP restent non fiables, leurs instructions ne peuvent pas accorder des permissions. Aucun des projets ne remplace ce contrôle métier ni notre ledger.
+Choix initial du sprint 01 (réalisation et limites actuelles ci-dessous) : garder un contrat `browser.navigate/snapshot/extract/click/type/upload/download`, fournisseur fixture pour tests ; implémenter un premier provider Playwriter revu, conserver Playwright MCP extension comme alternative de même niveau pour le Chrome utilisateur. Passerelle doit lier action/run/onglet/origine/consentement expirant, vérifier redirections et effets (un clic peut soumettre), limiter fichiers et extractions, révoquer les autorisations au cancel. Aucun outil code/évaluation arbitraire offert aux packs ; le provider ne compile que nos opérations fixes. Les pages et sorties MCP restent non fiables, leurs instructions ne peuvent pas accorder des permissions. Aucun des projets ne remplace ce contrôle métier ni notre ledger.
 
 ## Recherche complémentaire : quatre clones et career-ops ajouté par le manager
 
@@ -182,13 +182,13 @@ Quatre projets découverts par recherches web GitHub/Hugging Face puis clonés p
 |---|---|---|
 | Transport client ↔ agent | **Dépendance** ACP SDK 2.0.2, protocole v1 | NDJSON/routeur existants ; négocier les capacités. Ne pas assimiler SDK 2.x au protocole v2. |
 | Codex / Claude | **Dépendances** adaptateurs épinglés actuels | App-server / Agent SDK déjà traduits ; pas de nouveau wrapper. Vérifier source du tarball avant d’utiliser une nouveauté HEAD. |
-| Gemini / OpenCode | **Adopter** ACP natif | Commandes et initialize prouvés ; profils de lancement/capacités/modèles à normaliser, pas réimplémentation des protocoles. |
+| Gemini / OpenCode | **Adopter** ACP natif | Commandes et initialize prouvés ; profils de lancement/capacités/modèles normalisés dans `packages/agent-runtime` et testés avec faux ACP, pas de réimplémentation des protocoles. |
 | Lifecycle/pooling/reconnect | **Développer le minimum**, **s’inspirer** d’acpx | Runtime importable utile mais double stockage/queue, policy et migration à mesurer avant dépendance ; aucune adoption imposée par les flows. |
-| Workflow DAG local | **Développer** ordonnanceur borné SQLite ; **s’inspirer** CAO/DBOS | acpx single-cursor ; CAO parallel réservé ; DBOS PostgreSQL. Ne pas écrire un moteur distribué. Tests de crash et réconciliation indispensables au sprint 03. |
+| Workflow DAG local | **Développer** ordonnanceur borné SQLite ; **s’inspirer** CAO/DBOS | acpx single-cursor ; CAO parallel réservé ; DBOS PostgreSQL. Ne pas écrire un moteur distribué. Implémenté dans `packages/workflow-engine`, couvert par `tests/workflow-engine.test.js` et `tests/workflow-resume.test.js` ; ni CAO ni DBOS ne sont des dépendances. |
 | Capability / MCP gateway | **Dépendance** MCP SDK verrouillé + **développer** policy/allowlists | SDK fournit transport/schema ; annotations et MCP servers ne fournissent pas nos permissions. agentgateway différé au gateway partagé. |
-| Browser gateway | **Développer** contrat + **adopter** provider Playwriter derrière contrôle ; alternative Playwright extension | Code exact des deux inspecté ; tous deux exposent une surface puissante, consentement de connexion insuffisant pour les effets métier. |
+| Browser gateway | **Développer** gateway typée et proxy propriétaire ; **intégrer** Playwright core/CDP, relais Playwriter externe en propriétaire ; alternative Playwright MCP différée | Playwright core 1.64.1 est une dépendance réelle ; Playwriter n’est pas une dépendance npm du produit. En sécurisé, refus sûr 0.7.0 ; propriétaire sans gardes réseau du provider, ADR 008. |
 | Skill registry / export | **S’inspirer** Vercel/Portable + **développer** quarantaine/revue | Format, locks, chemins utiles ; pas de garantie de licence ou innocuité du contenu. Pas de fork nécessaire. |
-| Domain Packs / intent / Auto | **Développer** manifest et sélection par capacités ; **s’inspirer/adopter sélectivement** career-ops dans Najah | Ni MCP ni ACP ne sont un planner métier. Scripts/Skills career-ops revus et importés en quarantaine, notices MIT et marque respectées ; Najah reste isolé du runtime. |
+| Domain Packs / intent / Auto | **Développer** manifest et sélection par capacités ; **s’inspirer/adopter sélectivement** career-ops dans Najah | Ni MCP ni ACP ne sont un planner métier. Skill métier embarqué inspiré de career-ops, attribution dans `THIRD_PARTY_NOTICES.md` ; import tiers via registre/quarantaine, pas de scripts career-ops dépendants du moteur. Najah reste isolé du runtime. |
 | Policy / usage / facturation | **Développer** décisions hors prompt + ledger séparé | Coûts rapportés optionnels/cumulatifs, budget natif hétérogène. Ne jamais refacturer les tokens BYOA. |
 | Managed / cloud multi-utilisateurs | **Prévu**, réévaluer DBOS/agentgateway/tiny-agents | Aucun de ces composants n’est déjà intégré ni validé commercialement ; conserver les interfaces, ajouter tenant/isolation/auth avant exposition distante. |
 
@@ -199,3 +199,44 @@ Aucun fork justifié : les lacunes portent surtout sur les contrats de notre pro
 La licence d’un CLI/adaptateur et le droit d’utiliser son service distant sont distincts. La vérification officielle, les extraits courts et la distinction abonnement personnel / API / hébergement commercial sont dans l’[ADR 005](adr/005-byoa-provider-terms.md). Points déterminants : conditions Anthropic propres à l’intégration produit et facturation directe de l’utilisateur ; Codex propose des chemins programmatiques mais ne donne pas un droit général de revente d’abonnements ; Gemini interdit l’accès direct à ses services via réutilisation OAuth tierce, alors que son mode ACP est documenté ; OpenCode distingue son logiciel local open source de ses services hébergés et des modèles tiers.
 
 **État du sprint : analyse et probes opérationnelles ; streaming/cancel/reprise live et compatibilité commerciale du produit final non validés.** Aucun envoi, candidature, création de compte, authentification ni appel modèle réalisé.
+
+
+## Actualisation code livré — docs-01, 26 octobre 2026
+
+La recherche à SHA fixe ci-dessus reste historique, pas une nouvelle enquête sur les dernières versions.
+Épingles relues dans `package.json` : ACP SDK 2.0.2, codex-acp 2.2.2, claude-agent-acp 0.95.0,
+MCP SDK 1.32.2, playwright-core 1.64.1 et ws 8.22.0. Aucun fork de ces projets dans le produit.
+Playwright MCP, acpx, DBOS, agentgateway, tiny-agents et smolagents ne sont pas intégrés comme runtimes.
+Le registre Skill, l'ordonnanceur, les politiques, le proxy CDP et le ledger sont développés localement.
+
+### Playwriter 0.7.0 : relais réellement inspecté
+
+Source installée inspectée en lecture seule : `~/.npm-global/lib/node_modules/playwriter/dist/cdp-relay.js`
+et `dist/extension/background.js` ; preuves historiques détaillées dans
+[ADR 006](adr/006-browser-gateway.md#méthodes-réellement-traitées-dans-le-code-inspecté) et
+[playwriter-01](../.manager/reports/playwriter-01.md). Le clone à SHA fixe ne doit pas être confondu avec
+le paquet installé. Ce contrôle documentaire n'exécute pas le relais ni ne lit les pages utilisateur.
+
+| Méthode CDP | Comportement installé 0.7.0 | Conséquence dans Relay |
+|---|---|---|
+| `Browser.getVersion` | Synthétique `Chrome/Extension-Bridge` ; `/json/version` annonce `Playwriter/0.7.0` | Détection HTTP avant attachement en sécurisé |
+| `Target.getTargets`, `Target.getTargetInfo` | Inventaire des cibles connectées | Proxy propriétaire filtre la vue du client |
+| `Target.attachToTarget` | Session existante de la cible | Utilisé par le proxy pour sa cible créée |
+| `Target.createTarget`, `Target.closeTarget` | Création/fermeture via chrome.tabs | Proxy ne ferme que ses cibles suivies |
+| `Target.setAutoAttach` | Rejoue les cibles, peut créer une page initiale | Proxy simule cette réponse au lieu de transmettre un attachement global |
+| `Browser.setDownloadBehavior` | Réglage partagé du relais | Refusé par le proxy ; liens HTTP utilisés pour télécharger |
+| `Target.createBrowserContext`, `Target.attachToBrowserTarget` | Non traités spécialement, erreur `No tab found` | Pas de contexte isolé et `newCDPSession` Playwright incompatible |
+| `Emulation.setScriptExecutionDisabled`, `Network.enable`, `Network.setBypassServiceWorker`, `Fetch.*` | Transmission ciblée à chrome.debugger | Ne prouve pas le succès du chemin public Playwright ; gardes exigées en sécurisé |
+
+Le fallback historique routage/CSP seul a été retiré : worker préexistant contournant les protections,
+reproduit sur profil jetable. **Mode sécurisé : INCOMPLET pour Playwriter**, refus sûr conservé.
+**Mode propriétaire : OPÉRATIONNEL dans son périmètre de confiance**, proxy `owner-transport.js` et
+preuve historique Gemini/YouTube (trois titres, run SQLite b2035e5a, extrait dans les preuves docs-01), sans ces gardes ; repli initial Chrome isolé testé.
+Le proxy est notre code, pas un fork Playwriter. Les workflows Najah ne dépendent pas du fournisseur.
+
+### Sponsoring et portée des preuves
+
+Le code Najah actuel interroge seulement le registre UK. Pays-Bas IND et Irlande sont **PRÉVUS**,
+aucun rapport sprint-10/review-10 ni module correspondant présent. Une correspondance de nom UK n'est
+ni une identité d'employeur prouvée ni un visa garanti. Les tests publics utilisent le rejeu hors ligne.
+Dernière suite complète, erreurs et démarrages renouvelés : [docs-01](../.manager/reports/docs-01.md).

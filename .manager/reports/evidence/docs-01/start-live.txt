@@ -1,0 +1,14 @@
+Copie temporaire : /var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/relay-docs-start-xoveqanj
+$ AGENT_PLATFORM_LIVE=1 PORT=0 npm start
+
+> agent-platform@0.1.0 start
+> node apps/api/server.js
+
+(node:43422) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Agent Platform : http://127.0.0.1:62033 — BYOA réel disponible
+GET / -> HTTP 200, 7877 octets
+GET /api/catalog -> HTTP 200, 12227 octets
+GET /api/runs -> HTTP 200, 2 octets
+Aucun run créé, aucun outil navigateur appelé, aucune inférence.
+Groupe npm arrêté, code de sortie -15.

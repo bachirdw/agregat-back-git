@@ -1,182 +1,91 @@
-# Rapport final de la nuit — plateforme d'agrégation d'agents CLI (« Relay »)
+# Bilan actuel — Relay, prototype local mono-utilisateur
 
-Actualisé après review-09, le 25 octobre 2026. Les preuves historiques des fournisseurs ne sont pas des
-validations d'inférence renouvelées : ni le sprint 09 ni review-09 n'ont appelé de modèle ni de service payant.
+Actualisé le **26 octobre 2026 par docs-01** à partir du code et des preuves conservées. Ce document
+remplace les anciens bilans chiffrés 199/210/257 : ils portaient sur des révisions antérieures.
 
-## 1. Déroulement de la nuit
+## Validation renouvelée
 
-- 02:29–02:53 : Codex a réalisé le sprint 01 (audit source de 27 dépôts, matrice ACP, conditions BYOA,
-  ADR 003–005).
-- 02:56 : limite d'usage du compte Codex atteinte ; review-01 interrompue et conservée comme partielle.
-- 02:58–04:50 : le manager Claude a réalisé les sprints 02–08, puis des essais réels et améliorations.
-- À partir de 07:29 : relecture indépendante review-night, corrections et tests de régression.
-- Sprint 09 : formatage initial corrigé, exports ignorés, options navigateur soumises au consentement par
-  run, blocage Chrome reproduit/corrigé sous charge, bilan et démarrage revérifiés.
+La validation docs-01 du **26 octobre 2026** n'est pas verte : le lancement Chrome est bloqué dans
+le sandbox (SIGABRT et kill EPERM sur une sonde minimale), et la première phase hors Chrome a un échec
+intermittent live-run (requête bornée à 100 ms). Sa relance isolée réussit 5/5. Aucun test supprimé,
+aucune modification de code applicatif. Les contrôles syntaxe et Prettier sont verts.
 
-## 2. Décisions principales
+Dernière exécution complète : **284 tests, 259 réussis, 24 échoués, 1 ignoré** (`npm test`, code 1).
 
-- ACP v1 commun aux quatre agents ; adaptateurs upstream Codex/Claude et ACP natif Gemini/OpenCode.
-- DAG déclaratif durable sur SQLite : étapes tool/agent/approval/verify/aggregate, générations et reprise ;
-  effets interrompus incertains résolus explicitement, jamais rejoués aveuglément.
-- Capacités navigateur typées uniquement ; Playwriter est un transport CDP, jamais un outil execute.
-  JavaScript et contexte utilisateur partagés désactivés par défaut, chacun exige un consentement humain
-  enregistré pour le run (ADR 006), dans le périmètre des outils MCP. Le canal HTTP local ne prouve
-  pas une identité humaine contre un CLI natif du même compte. Profil Chrome isolé jetable pour les tests.
-- Skills tiers en quarantaine, revue liée à l'empreinte, scripts non exécutés à l'import/export.
-- Najah reste un Domain Pack découplé. Sources citées, sponsoring inconnu en l'absence de preuve primaire.
-- Ledger chaîné et ancré localement, catégories distinctes, budgets imposés avant les actions ; aucun prix
-  fournisseur inventé et aucun token BYOA refacturé (ADR 007).
-- Conditions OpenCode respectées : refus d'utilisation des modèles gratuits comme backend d'un autre
-  service ; aucun contournement. MVP local mono-utilisateur, sans isolation OS contre un CLI malveillant.
+**Contrôle du manager hors sandbox (26/10/2026 09:05, même arbre)** : `npm test` → **284 tests, 283 réussis, 0 échec, 1 ignoré** (test Playwriter live opt-in) ; `npm run check` et `npm run format:check` verts. Les 24 échecs ci-dessus viennent du sandbox de la session Codex (Chrome SIGABRT/EPERM), pas du code.
+Phase hors Chrome : 205 tests, 204 réussis, 0 échec, 1 live ignoré ; phase navigateur : 79 tests,
+55 réussis, 24 échecs, aucun ignoré. La chaîne finale `npm test && npm run check && npm run format:check`
+s'arrête donc sur npm test ; check et format:check relancés séparément retournent chacun le code 0.
+La première exécution avait 258 réussites, 25 échecs, 1 ignoré ; son échec live-run ne se reproduit pas
+au second passage. Les deux sorties intégrales sont conservées, sans désactivation de tests.
 
-## 3. Les dix points du MVP : état et preuves
+Sorties **brutes** : [.manager/reports/evidence/docs-01/](evidence/docs-01/), journal et commandes dans
+[docs-01](docs-01.md). Les tests utilisent des agents fictifs et des pages de test/rejeux publics,
+sans appel modèle ni service payant. Les statuts OPÉRATIONNEL ci-dessous décrivent le code livré et ses
+preuves reproductibles/historiques ; ils ne signifient pas que les tests Chrome ont réussi dans cette session.
 
-Dernière suite complète du sprint 09 : **210 tests réussis / 210, aucun ignoré**,
-soit 162 tests sans navigateur et 48 tests Chrome/pont/E2E. Commande : `npm test`, code 0.
-`npm test && npm run check && npm run format:check` final : code 0 après réinstallation npm.
-`npm audit` : code 0, aucune vulnérabilité déclarée. Sorties brutes :
-[rapport sprint 09](sprint-09.md). Les tests n'utilisent que des agents fictifs, données de test marquées
-ou réponses publiques préenregistrées ; aucun modèle ni service payant.
+## Dix points MVP
 
-| # | Point du MVP | État explicite | Preuve reproductible et limite |
+| # | Point MVP | Statut | Preuve et périmètre |
 |---|---|---|---|
-| 1 | Prompt et interface web | OPÉRATIONNEL | `tests/e2e-ui.test.js` : saisie, préparation, lancement, résultats et erreurs ; Chrome réel |
-| 2 | Choix Claude/Codex/Gemini disponibles, modèle et Auto | OPÉRATIONNEL pour sélection/routage ; accès fournisseur conditionnel | `tests/api-agents.test.js`, `tests/runtime.test.js` : rejets expliqués, modèles annoncés, pas de repli fixture silencieux |
-| 3 | Détection CLI et compatibilité ACP | OPÉRATIONNEL | `tests/runtime.test.js` : faux CLI avec/sans ACP, chemins absolus, exclusion de node_modules ; `npm run doctor` pour l'installation locale |
-| 4 | Session agent | OPÉRATIONNEL pour runtime ; inférence fournisseur partiellement validée historiquement | `tests/runtime.test.js` : handshake, modes sûrs, session/load, crash, timeout, annulation ; rapports réels `docs/research/live-probe.json`, non renouvelés ici |
-| 5 | Streaming, suivi et historique | OPÉRATIONNEL | `tests/platform.test.js` : API ACP/MCP complète et SSE replay ; `tests/e2e-ui.test.js` : étapes en direct ; stockage durable testé |
-| 6 | Skills portables | OPÉRATIONNEL | `tests/skill-registry.test.js` : quarantaine, revue/hash, versions, export, traversées/symlinks/hardlinks et mutations refusés |
-| 7 | Connexion MCP | OPÉRATIONNEL pour le serveur plateforme ; INCOMPLET pour services externes arbitraires | `tests/platform.test.js`, `tests/approval-bridge.test.js` : vrai stdio MCP, découverte/appel, pont de décision et mesure ; pas de catalogue externe intégré |
-| 8 | Playwriter ou démonstrateur Browser Gateway | OPÉRATIONNEL sur Chrome isolé et CDP de test ; SIMULÉ en mode fixture ; INCOMPATIBLE pour extension Playwriter 0.7.0 (refus sûr prouvé) ; canal humain isolé INCOMPLET | `tests/browser-gateway.test.js` : domaines/SSRF, ressources, redirections, saisie, fichiers, partage avec consentement ; banc de charge 64/64 ; extension réelle connectée : refus sûr et onglets inchangés prouvés, rapport playwriter-01 |
-| 9 | Najah minimal | OPÉRATIONNEL pour traitement en rejeu hors ligne et vérification ; accès réseau actuel non revérifié ; SIMULÉ pour offres fictives du démonstrateur | `tests/najah-live.test.js` : rejeu hors ligne des sources publiques enregistrées et DAG API ; `tests/najah-evals.test.js` ; sponsoring UK = correspondance de nom à confirmer, jamais identité déduite |
-| 10 | Workflow recherche → analyse → classement vérifié | OPÉRATIONNEL pour DAG ; analyse modèle SIMULÉE dans la suite | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` : parallèle, approbations, reprise/crash/incertitude ; E2E Najah et brouillon sans envoi |
+| 1 | Prompt et interface web | OPÉRATIONNEL, validation Chrome actuelle bloquée | `tests/e2e-ui.test.js`, `tests/api-body.test.js`, `tests/web-state.test.js` ; HTTP 200 renouvelé, E2E réel historique |
+| 2 | Choix Claude/Codex/Gemini/OpenCode, modèle et Auto | OPÉRATIONNEL | `tests/api-agents.test.js`, `tests/runtime.test.js` ; sélection selon disponibilités/capacités, modèles annoncés uniquement ; accès fournisseur conditionnel |
+| 3 | Détection CLI et compatibilité | OPÉRATIONNEL | `tests/runtime.test.js`, doctor docs-01 : quatre CLI détectés ; readiness `handshake-requis` ne vaut pas authentification |
+| 4 | Session agent | OPÉRATIONNEL avec faux ACP ; accès fournisseur INCOMPLET à revalider | `tests/runtime.test.js`, `tests/resume-probe.test.js` : handshake, modes, session/load, crash, délais, annulation ; sondes fournisseur historiques dans `docs/research/live-probe.json` |
+| 5 | Streaming, suivi et historique | OPÉRATIONNEL | `tests/platform.test.js`, `tests/workflow-resume.test.js` : SSE, événements et persistance ; tests UI Chrome présents mais non renouvelés avec succès ici |
+| 6 | Skills portables | OPÉRATIONNEL | `tests/skill-registry.test.js` : quarantaine, revue/hash, versions, export et chemins ; import GitHub réussi historique, pas de clone renouvelé |
+| 7 | Connexion MCP | OPÉRATIONNEL en stdio plateforme ; externes arbitraires INCOMPLETS | `tests/platform.test.js`, `tests/approval-bridge.test.js` : échanges interprocessus, découverte/appels et ponts ; aucune promesse de catalogue externe |
+| 8 | Playwriter ou Browser Gateway | SIMULÉ en fixture ; OPÉRATIONNEL sur Chrome isolé/CDP historique et propriétaire de confiance ; Playwriter sécurisé INCOMPLET (incompatible 0.7.0) | `tests/browser-gateway.test.js`, `tests/owner-mode.test.js`, `tests/owner-transport.test.js`, `tests/owner-browser.test.js` ; Chrome actuel bloqué par sandbox ; extrait historique `owner-historical-proof.json` dans les preuves docs-01 : Gemini/Playwriter réel, trois titres ; ADR 006/008 |
+| 9 | Najah minimal | OPÉRATIONNEL en rejeu public ; SIMULÉ pour offres fictives ; multi-pays PRÉVU | `tests/najah-live.test.js`, `tests/najah-evals.test.js` : sources/provenance/classement, registre UK uniquement, correspondance de nom à confirmer ; disponibilité réseau non revalidée |
+| 10 | Recherche → analyse → classement vérifié | OPÉRATIONNEL pour DAG ; analyse modèle SIMULÉE dans la suite | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` : parallèle, reprise, effets incertains et vérification ; `npm run demo` docs-01 completed, données FICTIVES ; browser-agent propriétaire distinct du DAG |
 
-Compléments transversaux : `tests/billing.test.js` prouve mesures/budgets/plafond/ledger/BYOA ;
-`tests/network-policy.test.js` prouve transport IP épinglé, tailles, compression, timeout et annulation.
-Le montant fournisseur inconnu reste inconnu ; tarifs plateforme à zéro par défaut.
+## Décisions et limites
 
-## 4. Simulé, incomplet et prévu
+- ACP v1, SDK 2.0.2, adaptateurs Codex/Claude épinglés ; Gemini/OpenCode natifs. Les outils OS du CLI
+  ne sont pas confinés par l'absence de fs/terminal client. Conditions BYOA dans ADR 005.
+- DAG local SQLite, tentatives/générations, reprise et effets incertains ; pas de garantie exactly-once.
+- Mode sécurisé : capacités browser.* typées, décisions hors prompt, scripts/partage désactivés par
+  défaut, chaque option liée au run. Playwriter 0.7.0 incompatible, refus sûr ; Chrome isolé/CDP classique
+  implémentés. Le canal HTTP local reste invocable par un programme natif du même compte.
+- Mode propriétaire (ADR 008) : proxy CDP propre à nos cibles, Playwriter et repli initial isolé,
+  JavaScript/profil partagé et actions sans approbation, modes ACP plus permissifs. Les gardes réseau
+  Chrome sont désactivées ; checks d'entrée et proxy ne constituent pas une sandbox. Le run Gemini
+  `b2035e5a…` dans SQLite prouve trois titres (`owner-historical-proof.json`), contrairement aux essais
+  Codex antérieurs partiels. Cette preuve a été extraite sans nouvelle inférence.
+- Skills tiers en quarantaine, revue liée au hash, pas d'exécution à l'import ; inspiration career-ops
+  attribuée, aucun runtime career-ops adopté. Najah reste un Domain Pack indépendant.
+- Usage et ledger opérationnels sur tests fictifs ; BYOA jamais refacturé, aucun prix fournisseur inventé.
+  Mode propriétaire : prix à zéro et plafond mensuel retiré, sans limiter les dépenses fournisseur.
+- Sponsoring : UK seul livré ; NL/IE prévus. Replay de données publiques, pas de disponibilité réseau
+  renouvelée ici. CV chiffré, Managed, multi-utilisateurs et companion cloud restent prévus.
 
-- SIMULÉ : démonstrateur ACP, fournisseur navigateur fixture et offres explicitement fictives. Les
-  échanges ACP/MCP restent de vrais échanges entre processus ; les tests ne prouvent pas une inférence.
-- INCOMPLET : extension Playwriter dans Chrome utilisateur, prompt Claude authentifié, nouvelle validation
-  d'inférence de chaque fournisseur, services MCP externes arbitraires. Les sessions et prompts historiques
-  sont détaillés dans `docs/research/live-probe.json` et `docs/validation.md` ; un handshake ne garantit
-  ni authentification utilisable ni autorisation commerciale. Aucun fournisseur n'a été rappelé au sprint 09.
-- PRÉVU : multi-utilisateurs/authentification/tenant_id, isolation OS et companion distant authentifié,
-  mode Managed, abonnements/crédits, CV local chiffré, sponsoring hors UK, DAG générés par modèle.
-  Voir `docs/mvp-plan.md`.
-- Limites : contenu local en clair, contrôle des effets natifs des CLI incomplet, décision humaine locale
-  non isolée d'un programme du même UID, ancre du ledger modifiable par le propriétaire du disque.
-  Le consentement à JavaScript/au contexte partagé accepte les risques décrits dans l'ADR 006. Un appel
-  natif local peut lister puis approuver une permission sans Origin : cette limite est démontrée dans
-  `tests/approval-bridge.test.js`. La protection contre un CLI hostile du même UID reste INCOMPLÈTE.
+## Commandes de démarrage renouvelées
 
-Budget historique déclaré : environ 0,044 $ Gemini selon `.manager/api-usage.md`. Consommation du sprint
-09 : **zéro appel modèle / zéro dollar de service payant**.
+`npm ci --ignore-scripts` : code 0, 130 paquets ajoutés, 131 audités, aucune vulnérabilité annoncée.
+`npm run doctor` : code 0, quatre CLI détectés, handshake encore requis. `npm run demo` : code 0,
+run completed sur trois offres FICTIVES. Aucun prompt fournisseur ni authentification lancé.
 
-## 5. Démarrer
+Copie temporaire du code sans données ni secrets, node_modules partagé en lecture : port 4310 occupé,
+serveur existant préservé ; `PORT=4311 npm start` et `PORT=0 npm start` réussissent. Les variantes LIVE=1,
+fixture, isolated, playwriter et propriétaire répondent HTTP 200 sur `/`, `/api/catalog`, `/api/runs`.
+Aucun run créé, aucun outil navigateur appelé ; connexions navigateur différées non prouvées par ce test.
+Les groupes lancés ont été arrêtés, copie supprimée. Sorties brutes et banc dans `evidence/docs-01/`.
+
+Reproduction utilisateur :
 
 ```sh
-cd ~/Downloads/agregateur-agent
+cd ~/Downloads/agregat-back
 npm ci --ignore-scripts
-npm test
-npm start
+PORT=0 npm start
 ```
 
-Ouvrir http://127.0.0.1:4310, garder le démonstrateur et lancer Najah sur les offres fictives.
-Si un serveur tourne déjà sur ce port, le conserver et choisir `PORT=4311 npm start`.
-Pour les agents réels déjà configurés : `AGENT_PLATFORM_LIVE=1 PORT=4311 npm start` ; ce démarrage seul
-n'appelle aucun modèle. Les tests d'inférence sont des opérations distinctes et ne font pas partie de
-la vérification sans dépense de ce sprint. Voir le README pour les modes navigateur et leurs limites.
+Ouvrir l'URL affichée, conserver le démonstrateur et choisir Najah pour des données fictives. Les tests
+live et smoke extension sont optionnels, non exécutés par docs-01 ; ils peuvent requérir des accès et
+ne doivent jamais être confondus avec npm test. Aucune lecture de secrets, inférence, publication ou push.
 
-Vérification sprint 09 : `npm ci --ignore-scripts`, `npm run doctor` et `npm run demo` ont réussi.
-Les démarrages démonstration, live, fixture, isolated et playwriter ont répondu HTTP 200 sur `/`,
-`/api/catalog`, `/api/runs` avec historique vide, sur ports libres et copie du dépôt/base isolée.
-Le port 4310 était occupé : le premier `npm start` a échoué avec EADDRINUSE, puis `PORT=4311 npm start`
-a réussi. Les groupes de test ont été arrêtés ; le serveur du manager est conservé. Démarrer en mode
-Playwriter ne valide pas sa connexion différée au relais/extension ; cette intégration reste incomplète.
-Sorties brutes dans le rapport du sprint 09.
+## Passation et reste à faire
 
-
-## 6. Travaux restants prioritaires
-
-Tester l'extension Playwriter avec l'utilisateur ; valider l'accès fournisseur nécessaire selon ses
-conditions ; isoler processus/réseau et canal de décision avant tout agent non fiable ou SaaS. Les suites
-produit sont dans `docs/mvp-plan.md`. Aucun e-mail, candidature, publication ou push effectué.
-
-## 7. Relecture indépendante et sprint 09
-
-### Review-night
-
-La relecture a ajouté des régressions rouges avant correction, puis validé les correctifs suivants
-([journal complet](review-night.md)) :
-
-- Navigateur : sous-ressources/iframes/popups et redirections filtrés, contexte dédié, scripts/workers
-  désactivés par défaut, appels sérialisés, élément/page revérifiés après consentement, valeurs de champs
-  retirées des descriptions, uploads figés, téléchargements sans écrasement et sans dossier symlink.
-- Runtime ACP : état ready et mode sûr imposés, démarrage unique, délais réels et annulation, nettoyage
-  récursif des secrets dans événements/erreurs, fermeture des requêtes et descendants.
-- Workflow : effets write incertains après erreur, pas de retry aveugle, signaux déjà annulés respectés,
-  reprise concurrente refusée, définition persistée et Skills revérifiés, récupération de tous les runs.
-- Skills : scans bornés et snapshots, refus des traversées/symlinks, import Git contrôlé, export sans
-  écraser un hardlink, revue liée au hash affiché.
-- Réseau/Najah : DNS validé épinglé dans la connexion HTTP, corps/decompression bornés, cache revérifié
-  sous la politique courante, IP privées mappées refusées, erreur explicite quand aucune source ne répond.
-- Facturation : mètres hérités refusés, ancre transactionnelle du ledger, outils MCP d'agents mesurés avant
-  handler, pas de double débit scheduler, devise stable, estimation dynamique clairement non garantie.
-
-Cette revue a aussi documenté l'absence d'isolation OS et de canal humain protégé contre un CLI du même
-compte : les politiques et jetons locaux ne suffisent pas à une plateforme multi-utilisateurs hostile.
-
-### Sprint 09
-
-- Points 0–1 : formatage des deux fichiers existants et exclusion des zips `exports/`.
-- Point 2 : options RunPolicy désactivées par défaut, consentements humains distincts enregistrés et
-  liés au run, refus sans pont/consentement, refus de réutilisation ou mutation. Tests unitaires, Chrome
-  réel et MCP/pont ; correction d'un défaut CDP détecté par le test (détacher la session réactivait JS).
-- Point 3 : blocage reproduit sous charge avant toute saisie, localisé sur `browser.newContext()` non
-  borné. Démarrage isolé contexte+page sous deadline dans un profil jetable ; **64/64 essais consécutifs**
-  après correction contre **62/64** dans le banc tracé avant correction. Les limites du binaire muet sont
-  explicites ; la cause interne Chromium n'est pas revendiquée comme connue.
-- Points 4–5 : bilan actualisé avec dix critères et preuves ; vérification des commandes de démarrage
-  consignée au fil de l'eau dans [sprint-09.md](sprint-09.md), y compris commandes non exécutées et raison.
-- Dernière suite complète : **210/210**, 162 sans navigateur + 48 Chrome/pont/E2E, zéro skip. Contrôles
-  syntaxe et Prettier verts. Les rapports consignent aussi les erreurs de tests, sandbox, diagnostics,
-  manipulation du rapport et leurs corrections ; aucun succès n'est déduit d'un rapport non testé.
-
-### Relecture indépendante review-09
-
-Le commit initial 66aff05 a été vérifié dans une copie exacte temporaire : **210/210 tests verts**, sans
-modèle ni service payant. Les échecs du premier passage dans le bac à sable et son arrêt explicite sont
-conservés dans [review-09.md](review-09.md), sans être imputés à tort au produit.
-
-La revue a démontré puis corrigé la résurrection d'un contexte après fermeture pendant lancement,
-le double lancement concurrent, la fuite de contexte après erreur des gardes, les attentes CDP de
-création de contexte/page non bornées, et le transport CDP restant connecté après fermeture. Les tests
-vérifient aussi les résultats tardifs, la mutation de politique et la préservation des onglets distants.
-Le banc indépendant mot de passe est **64/64 vert, concurrence 8, 33,38 s** ; il confirme le scénario
-observé et ne garantit pas tous les binaires/charges.
-
-La validation finale review-09 est consignée dans son rapport. Les tests supplémentaires prouvent que les
-arguments MCP forgés et faux outils ne valent pas consentement, que les requêtes Origin de pages sont
-refusées, et que **le canal HTTP de décision reste invocable par un programme natif local**. Le qualificatif
-OPÉRATIONNEL du navigateur concerne donc les capacités MCP dans le prototype mono-utilisateur de confiance,
-pas une isolation d'un agent malveillant. L'extension Playwriter et les accès fournisseurs n'ont pas été
-revalidés. Les tests d'import GitHub ne prouvent que les rejets ; l'import distant réussi reste historique.
-
-
-## Rectification Playwriter — playwriter-01
-
-L'extension est installée et connectée au relais réel `Playwriter/0.7.0`. Les anciennes mentions « non
-installée/testée » ci-dessus sont historiques et remplacées par ce constat : **INCOMPATIBLE, refus sûr
-vérifié**, aucune navigation via extension livrée. Le correctif manager par routage/CSP seul était
-contournable par un service worker préexistant ; preuve sur profil Chrome jetable, puis bypass CDP réel
-vérifié. Le fournisseur exige désormais les protections CDP par onglet et refuse les relais Playwriter
-HTTP dès leurs métadonnées, avant attachement aux onglets. Le consentement partagé ne suffit pas.
-
-Le smoke réel et le test optionnel `PLAYWRITER_LIVE=1` vérifient les refus et les mêmes 13 identifiants
-d'onglets Chrome avant/après, sans contenu, cookies ni sessions lus. Chrome isolé et CDP classique restent
-les transports livrés. Un adaptateur CDP ciblé compatible avec le relais reste à développer et valider
-avant de déclarer Playwriter opérationnel. Journal, commandes, échecs et preuves brutes :
-[playwriter-01](playwriter-01.md), [ADR 006](../../docs/adr/006-browser-gateway.md).
+Validation Chrome bloquée par la politique de cette session ; le manager doit renouveler la suite dans
+un environnement adapté avant tout commit déclaré vert. Rapport docs-01 et § 0 de HANDOFF sont la file
+actuelle. Sponsoring NL/IE, isolation OS/canal humain et accès fournisseur restent les priorités produit.
+Le contenu local est en clair ; le ledger ancré localement n'est pas inviolable par le propriétaire du disque.

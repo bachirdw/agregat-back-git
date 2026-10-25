@@ -1,0 +1,1 @@
+Port 4310 occupé : commande non lancée ([Errno 48] Address already in use); variante PORT=0 testée séparément.

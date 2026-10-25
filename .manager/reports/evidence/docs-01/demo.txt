@@ -1,0 +1,257 @@
+
+> agent-platform@0.1.0 demo
+> node scripts/demo.js
+
+(node:43674) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "id": "2190a2ab-155e-41b4-bc7f-9c6915a60d54",
+  "createdAt": "2026-10-25T21:58:30.401Z",
+  "state": "completed",
+  "prompt": "Rechercher des offres d'emploi Python SQL",
+  "agent": "fixture",
+  "pack": "najah",
+  "skills": [
+    "opportunity-analysis",
+    "evidence-review"
+  ],
+  "model": "",
+  "budgetCents": 0,
+  "mode": "agent",
+  "cwd": "/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/relay-demo-NIPMrU/workspaces/2190a2ab-155e-41b4-bc7f-9c6915a60d54",
+  "simulated": true,
+  "sessionId": "9506d714-cd0c-4271-958e-749cd7bb67b2",
+  "resumable": false,
+  "skillsSnapshot": [
+    {
+      "id": "opportunity-analysis",
+      "version": "0.1.0",
+      "hash": "3ef980c06fbef6e608e96ebef62bcc083aa81cd48e2a885f8353b32351d301e5",
+      "origin": "bundled"
+    },
+    {
+      "id": "evidence-review",
+      "version": "0.1.0",
+      "hash": "fa4a0249bd829fc0354f73a4f6caee8f4ef4862d26a95e6a0ce28e8dc75397d0",
+      "origin": "bundled"
+    }
+  ],
+  "plan": {
+    "steps": [
+      "Préparer les Skills",
+      "Examiner la source de démonstration",
+      "Rechercher dans le jeu de test",
+      "Classer avec des critères explicites",
+      "Vérifier le résultat"
+    ],
+    "cost": {
+      "platformCents": 0,
+      "externalCents": null,
+      "currency": "EUR",
+      "lines": [
+        {
+          "dimension": "workflow_run",
+          "units": 1,
+          "cents": 0
+        }
+      ],
+      "budgetCents": 0,
+      "withinBudget": true,
+      "description": "Aucun modèle appelé"
+    },
+    "workflow": null
+  },
+  "result": {
+    "simulated": true,
+    "summary": "Classement de trois offres fictives selon les compétences mentionnées. Sponsoring non vérifié.",
+    "evidence": [
+      {
+        "tool": "browser_snapshot",
+        "data": {
+          "simulated": true,
+          "provider": "fixture",
+          "url": "https://jobs.example.test",
+          "text": "Page de test locale : trois offres fictives. Aucun accès à Chrome ou au réseau."
+        }
+      },
+      {
+        "tool": "opportunities_search",
+        "data": {
+          "simulated": true,
+          "opportunities": [
+            {
+              "id": "demo-001",
+              "title": "Software Engineer — Python",
+              "company": "Example Harbour Labs (fictif)",
+              "location": "Sydney",
+              "skills": [
+                "python",
+                "api",
+                "sql"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-001",
+              "simulated": true
+            },
+            {
+              "id": "demo-002",
+              "title": "Frontend Engineer — React",
+              "company": "Example Coast Studio (fictif)",
+              "location": "Melbourne",
+              "skills": [
+                "react",
+                "typescript",
+                "design"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-002",
+              "simulated": true
+            },
+            {
+              "id": "demo-003",
+              "title": "Data Analyst — SQL & Python",
+              "company": "Example Southern Data (fictif)",
+              "location": "Remote Australia",
+              "skills": [
+                "sql",
+                "python",
+                "analytics"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-003",
+              "simulated": true
+            }
+          ]
+        }
+      },
+      {
+        "tool": "opportunities_rank",
+        "data": {
+          "simulated": true,
+          "opportunities": [
+            {
+              "id": "demo-001",
+              "title": "Software Engineer — Python",
+              "company": "Example Harbour Labs (fictif)",
+              "location": "Sydney",
+              "skills": [
+                "python",
+                "api",
+                "sql"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-001",
+              "simulated": true,
+              "score": 60,
+              "reasons": [
+                "Compétence mentionnée : python",
+                "Compétence mentionnée : sql"
+              ]
+            },
+            {
+              "id": "demo-003",
+              "title": "Data Analyst — SQL & Python",
+              "company": "Example Southern Data (fictif)",
+              "location": "Remote Australia",
+              "skills": [
+                "sql",
+                "python",
+                "analytics"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-003",
+              "simulated": true,
+              "score": 60,
+              "reasons": [
+                "Compétence mentionnée : sql",
+                "Compétence mentionnée : python"
+              ]
+            },
+            {
+              "id": "demo-002",
+              "title": "Frontend Engineer — React",
+              "company": "Example Coast Studio (fictif)",
+              "location": "Melbourne",
+              "skills": [
+                "react",
+                "typescript",
+                "design"
+              ],
+              "sponsorship": "unknown",
+              "source": "https://jobs.example.test/demo-002",
+              "simulated": true,
+              "score": 0,
+              "reasons": [
+                "Aucune compétence correspondante ; score nul"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "opportunities": [
+      {
+        "id": "demo-001",
+        "title": "Software Engineer — Python",
+        "company": "Example Harbour Labs (fictif)",
+        "location": "Sydney",
+        "skills": [
+          "python",
+          "api",
+          "sql"
+        ],
+        "sponsorship": "unknown",
+        "source": "https://jobs.example.test/demo-001",
+        "simulated": true,
+        "score": 60,
+        "reasons": [
+          "Compétence mentionnée : python",
+          "Compétence mentionnée : sql"
+        ]
+      },
+      {
+        "id": "demo-003",
+        "title": "Data Analyst — SQL & Python",
+        "company": "Example Southern Data (fictif)",
+        "location": "Remote Australia",
+        "skills": [
+          "sql",
+          "python",
+          "analytics"
+        ],
+        "sponsorship": "unknown",
+        "source": "https://jobs.example.test/demo-003",
+        "simulated": true,
+        "score": 60,
+        "reasons": [
+          "Compétence mentionnée : sql",
+          "Compétence mentionnée : python"
+        ]
+      },
+      {
+        "id": "demo-002",
+        "title": "Frontend Engineer — React",
+        "company": "Example Coast Studio (fictif)",
+        "location": "Melbourne",
+        "skills": [
+          "react",
+          "typescript",
+          "design"
+        ],
+        "sponsorship": "unknown",
+        "source": "https://jobs.example.test/demo-002",
+        "simulated": true,
+        "score": 0,
+        "reasons": [
+          "Aucune compétence correspondante ; score nul"
+        ]
+      }
+    ],
+    "agent": "fixture",
+    "provenance": {
+      "data": "fictives",
+      "analysis": "démonstrateur"
+    }
+  },
+  "finishedAt": "2026-10-25T21:58:30.944Z"
+}

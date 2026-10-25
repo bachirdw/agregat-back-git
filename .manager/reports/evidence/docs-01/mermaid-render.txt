@@ -1,0 +1,13 @@
+Generating single mermaid chart
+
+Error: Failed to launch the browser process:  Code: null
+
+stderr:
+
+
+TROUBLESHOOTING: https://pptr.dev/troubleshooting
+
+    at ChildProcess.onClose (file:///private/tmp/relay-docs-01-npm-cache/_npx/fa58c8ce4c502b5d/node_modules/@puppeteer/browsers/lib/launch.js:346:24)
+    at ChildProcess.emit (node:events:520:35)
+    at ChildProcess._handle.onexit (node:internal/child_process:294:12)
+

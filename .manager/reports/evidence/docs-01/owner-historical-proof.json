@@ -1,0 +1,33 @@
+{
+  "source": ".data/platform.sqlite (lecture seule)",
+  "id": "b2035e5a-8753-4f1a-92f2-a5d8dbf989ab",
+  "state": "completed",
+  "agent": "gemini",
+  "createdAt": "2026-10-25T12:08:02.185Z",
+  "simulated": false,
+  "evidence": [
+    {
+      "provider": "playwriter-owner",
+      "capability": "browser.navigate",
+      "url": "https://www.youtube.com/results?search_query=Cyril+Hanouna",
+      "title": ""
+    },
+    {
+      "provider": "playwriter-owner",
+      "capability": "browser.navigate",
+      "url": "https://www.youtube.com/results?search_query=Cyril+Hanouna&sp=EgIQAQ%253D%253D",
+      "title": ""
+    },
+    {
+      "provider": "playwriter-owner",
+      "capability": "browser.extract",
+      "url": "https://www.youtube.com/results?search_query=Cyril+Hanouna&sp=EgIQAQ%253D%253D",
+      "text": "Cyril Hanouna appelle la compagne d’Olivier Dartigolles pour sauver leur couple !\nBenjamin Castaldi pousse un coup de gueule !\nUne femme d'un policier témoigne sur l'angoisse permanente qu'elle vit",
+      "count": 3
+    }
+  ],
+  "provenance": {
+    "data": "navigateur réel",
+    "analysis": "gemini"
+  }
+}

@@ -1,0 +1,135 @@
+
+> agent-platform@0.1.0 doctor
+> node apps/companion/doctor.js
+
+{
+  "node": "v24.14.1",
+  "agents": [
+    {
+      "id": "fixture",
+      "name": "Démonstrateur ACP",
+      "command": "/usr/local/bin/node",
+      "args": [
+        "/Users/diaw/Downloads/agregat-back/tests/fixtures/agent.js"
+      ],
+      "simulated": true,
+      "env": [],
+      "safeModes": [],
+      "preference": 99,
+      "installed": true,
+      "compatible": true,
+      "version": "fixture-0.1.0",
+      "readiness": "test-reproductible"
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "cli": "codex",
+      "package": "codex-acp",
+      "env": [
+        "CODEX_HOME",
+        "OPENAI_API_KEY",
+        "CODEX_API_KEY"
+      ],
+      "safeModes": [
+        "read-only"
+      ],
+      "preference": 1,
+      "command": "/Users/diaw/Downloads/agregat-back/node_modules/.bin/codex-acp",
+      "args": [],
+      "cliPath": "/Users/diaw/.local/bin/codex",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "codex-cli 0.163.0",
+      "readiness": "handshake-requis"
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "cli": "claude",
+      "package": "claude-agent-acp",
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "CLAUDE_CONFIG_DIR"
+      ],
+      "safeModes": [
+        "default"
+      ],
+      "preference": 2,
+      "command": "/Users/diaw/Downloads/agregat-back/node_modules/.bin/claude-agent-acp",
+      "args": [],
+      "cliPath": "/usr/local/bin/claude",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "2.1.114 (Claude Code)",
+      "readiness": "handshake-requis"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "cli": "gemini",
+      "acpFlags": [
+        "--acp",
+        "--experimental-acp"
+      ],
+      "env": [
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_CLOUD_PROJECT",
+        "GEMINI_CLI_HOME"
+      ],
+      "safeModes": [
+        "default",
+        "plan"
+      ],
+      "fixedEnv": {
+        "GEMINI_CLI_TRUST_WORKSPACE": "true"
+      },
+      "apiKeyAuth": {
+        "envKey": "GEMINI_API_KEY",
+        "methodId": "gemini-api-key",
+        "homeEnv": "GEMINI_CLI_HOME"
+      },
+      "preference": 3,
+      "command": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/gemini",
+      "args": [
+        "--acp"
+      ],
+      "cliPath": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/gemini",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "0.65.0",
+      "readiness": "handshake-requis"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "cli": "opencode",
+      "args": [
+        "acp",
+        "--hostname",
+        "127.0.0.1",
+        "--pure"
+      ],
+      "env": [
+        "OPENCODE_CONFIG",
+        "OPENCODE_CONFIG_DIR"
+      ],
+      "safeModes": [
+        "plan"
+      ],
+      "preference": 4,
+      "command": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/opencode",
+      "cliPath": "/Users/diaw/Downloads/agent-repos/.cli/node_modules/.bin/opencode",
+      "installed": true,
+      "compatible": true,
+      "reason": null,
+      "version": "1.19.4",
+      "readiness": "handshake-requis"
+    }
+  ],
+  "note": "Présence/version ne prouvent ni authentification ni capacité de prompt. npm run test:live teste le handshake."
+}

@@ -44,6 +44,7 @@ AGENT_PLATFORM_LIVE=1 npm start   # interface avec agents réels, aucun appel mo
 Les modèles proposés dans l'interface sont ceux annoncés au dernier test (`.data/agent-probes.json`).
 Les modèles gratuits d'OpenCode refusent d'être utilisés comme moteur d'un autre service (ADR 005).
 
+Les commandes suivantes restent optionnelles et distinctes des démarrages vérifiés.
 Le diagnostic avancé `npm run test:live` effectue un handshake et une session fournisseur, sans prompt par
 défaut. Il est séparé des tests courants et n'a pas été relancé au sprint 09. Activer `LIVE_PROMPT=1`
 déclenche une inférence et consomme le compte utilisateur ; choisir volontairement l'agent (`LIVE_AGENTS`)
@@ -74,9 +75,10 @@ AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Pla
 
 Le démarrage `isolated` ou `playwriter` est paresseux : il ne lance/connecte le navigateur qu'au premier
 outil navigateur. Les trois commandes ci-dessus démarrent l'API ; la commande Playwriter ne prouve pas la
-présence du relais ou de l'extension. Le sprint 09 a vérifié le démarrage et les réponses HTTP des trois
-modes sur des ports libres ; Chrome isolé et CDP temporaire sont aussi testés réellement.
-**L'extension Playwriter 0.7.0 est incompatible avec les protections requises : connexion refusée avant
+présence du relais ou de l'extension. Le contrôle docs-01 a revérifié le démarrage et les réponses HTTP des trois
+modes sur des ports libres ; voir les sorties brutes dans [.manager/reports/docs-01.md](.manager/reports/docs-01.md).
+Cela ne déclenche pas la connexion navigateur différée.
+**En mode sécurisé, l'extension Playwriter 0.7.0 est incompatible avec les protections requises : connexion refusée avant
 attachement aux onglets**, même avec consentement partagé. Le relais ne crée pas de contexte isolé et
 refuse la session CDP par onglet de Playwright. Le fallback routage/CSP est supprimé : un service worker
 existant peut le contourner. Utiliser le mode `isolated`. Preuves :
@@ -101,23 +103,32 @@ métadonnées du relais sont lus ; aucune page utilisateur n'est inspectée. Voi
 ## Mode propriétaire local (un seul utilisateur, sur sa machine)
 
 ```sh
-set -a && source .manager/secrets.env && set +a   # clé Gemini (facultatif)
 AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 npm start
 ```
 
-Désactive les protections multi-utilisateurs : tous les domaines publics, JavaScript actif, clics, saisie et
+Active les exceptions locales décrites dans [ADR 008](docs/adr/008-local-owner-mode.md) : tous les domaines publics HTTP/HTTPS, JavaScript actif, clics, saisie et
 formulaires **sans approbation**, permissions ACP auto-approuvées, budget non bloquant (le ledger continue
 d'enregistrer). Le navigateur est le Chrome de l'utilisateur via l'extension Playwriter, à travers un proxy CDP
 local qui ne laisse passer que les onglets créés par la plateforme (les onglets existants ne sont pas touchés) ;
-sans extension, bascule sur Chrome isolé. Les prompts « va sur… / cherche… » sont routés vers le workflow
-`browser-agent`. Refusé si le serveur n'écoute pas uniquement sur 127.0.0.1 ; bandeau visible dans l'interface.
+si l'établissement initial du proxy échoue, tente Chrome isolé et signale le repli dans les résultats.
+Ce repli ne partage pas les sessions utilisateur. Hors pack Najah, un workflow absent ou `auto` choisit
+le parcours `browser-agent` (session ACP, pas un DAG durable), quel que soit le texte du prompt. Refusé si le serveur n'écoute pas uniquement sur 127.0.0.1 ; bandeau visible dans l'interface.
 **Risque assumé** : une page web hostile peut tenter de détourner l'agent (injection de prompt), qui agit alors
 sans confirmation. Ne pas utiliser ce mode pour plusieurs utilisateurs.
 
-Preuve (25/10/2026, 23:08) : run `b2035e5a…`, agent Gemini réel, prompt « va sur youtube.com et cherche Cyril
-Hanouna, donne les 3 premiers titres » → navigation `youtube.com/results?search_query=Cyril+Hanouna` dans le
-Chrome de l'utilisateur, instantané, extraction (un premier sélecteur en échec, relancé), 3 titres réels,
-`simulated: false`. Tests : `tests/owner-mode.test.js`, `tests/owner-browser.test.js`, `tests/owner-transport.test.js`.
+Les gardes réseau Chrome sont désactivées dans ce mode : les contrôles d'URL à l'entrée des outils ne
+filtrent pas toutes les ressources, redirections, workers ou WebSockets d'une page. Les modes ACP deviennent
+plus permissifs parmi les modes annoncés (Codex `workspace-write`, Claude `bypassPermissions` en priorité,
+Gemini `yolo` en priorité, OpenCode `build`). Les prix plateforme sont neutralisés ; les coûts fournisseur
+restent possibles. Une clé Gemini peut être fournie dans l'environnement, sans être nécessaire au démarrage.
+
+Preuve historique vérifiée en lecture seule dans SQLite (25/10/2026, 23:08 AEDT) : run
+`b2035e5a-8753-4f1a-92f2-a5d8dbf989ab`, Gemini réel, provider `playwriter-owner`, `simulated:false`,
+recherche YouTube et extraction de **trois titres** (`count:3`).
+[Extrait ciblé de la preuve](.manager/reports/evidence/docs-01/owner-historical-proof.json).
+Les fichiers Codex de [owner-mode-01](.manager/reports/owner-mode-01.md) concernent des essais antérieurs
+partiels (deux titres). Aucune inférence renouvelée par docs-01. Tests : `tests/owner-mode.test.js`,
+`tests/owner-browser.test.js`, `tests/owner-transport.test.js`.
 
 ## Aperçu
 
@@ -128,7 +139,7 @@ Chrome de l'utilisateur, instantané, extraction (un premier sélecteur en éche
 Captures générées par `node scripts/screenshots.js` (Chrome headless, données réelles enregistrées le 25/10/2026,
 analyse par le démonstrateur sans modèle).
 
-## Fonctionnalités et limites (état au 25 octobre 2026)
+## Fonctionnalités et limites (état au 26 octobre 2026)
 
 | Fonction | État | Preuve |
 |---|---|---|
@@ -138,12 +149,13 @@ analyse par le démonstrateur sans modèle).
 | Mode Auto par exigences et capacités | **Opérationnel** | `tests/runtime.test.js`, `tests/api-agents.test.js` |
 | Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent) | **Opérationnel** | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` ; agents fictifs, essai Gemini historique |
 | Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié | **Opérationnel en rejeu hors ligne** ; disponibilité des sources en ligne non revérifiée | `tests/najah-live.test.js`, `tests/najah-evals.test.js` ; runs réseau historiques |
+| Najah — sponsoring multi-pays NL/IE | **PRÉVU**, aucune implémentation livrée | `domain-packs/najah/live.js` ne contient que UK ; sprint-10/review-10 absents |
 | Najah — démonstrateur fictif | **Simulé** (données marquées FICTIVES) | Tests |
 | Najah — brouillon de lettre avec relecture humaine | **Opérationnel**, aucun envoi possible | Tests API + E2E |
 | Registre de Skills (quarantaine, revue, versions, export natif, import local) | **Opérationnel** | `tests/skill-registry.test.js` : cycle local complet et refus de chemins/empreintes non sûrs |
 | Import GitHub de Skills | **Implémenté**, validation réseau historique | `tests/skill-registry.test.js` teste les rejets ; import career-ops historique, aucun clone distant renouvelé par la revue |
 | Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement | **Opérationnel dans le périmètre MCP de confiance** ; canal humain non isolé | `tests/browser-gateway.test.js`, `tests/approval-bridge.test.js` : Chrome réel, déconnexion CDP, courses, consentements et limite native ; revue indépendante : 64/64 essais sous charge |
-| Browser Gateway via l'extension Playwriter | **INCOMPATIBLE, refus sûr vérifié** sur relais réel 0.7.0 ; aucune navigation livrée | [Rapport](.manager/reports/playwriter-01.md), ADR 006 |
+| Browser Gateway via l'extension Playwriter | Mode sécurisé **INCOMPLET** (incompatible, refus sûr) ; propriétaire **OPÉRATIONNEL** sur preuve historique partielle, sans isolation réseau du provider | [Rapport](.manager/reports/playwriter-01.md), ADR 006 |
 | MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | `tests/platform.test.js`, `tests/approval-bridge.test.js` |
 | Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | `tests/billing.test.js`, ADR 007 |
 | Companion cloud, mode Managed, comptes, abonnements, multi-utilisateurs | **Prévu** | |
@@ -172,6 +184,9 @@ Pour des démonstrations reproductibles sans réseau : `AGENT_PLATFORM_DATA_REPL
 réelles.
 
 ## Coûts
+
+Ces blocages concernent le mode sécurisé. Le mode propriétaire neutralise les prix et le plafond
+mensuel ; il conserve les compteurs, sans protéger le budget fournisseur.
 
 Grille tarifaire dans `.data/pricing.json` (à 0 par défaut, aucun prix inventé) :
 
@@ -216,7 +231,7 @@ packages/storage/             SQLite : runs, événements, Skills, ledger chaîn
 domain-packs/core/            Analyse générale
 domain-packs/najah/           Skills, DAG, outils live et fixtures, politiques, évaluations
 tests/                        Tests, faux agents ACP, fixtures enregistrées
-docs/                         Recherche, architecture, ADR 001–007, validation
+docs/                         Recherche, architecture, ADR 001–008, validation
 .manager/                     Plan, briefs, rapports de la session de nuit (manager + Codex)
 ```
 
@@ -226,7 +241,7 @@ Données locales : `.data/platform.sqlite` (runs, événements, Skills, ledger),
 
 - [Audit de 27 dépôts, licences, matrice ACP et références à SHA fixe](docs/open-source-research.md)
 - [Architecture et frontières de confiance](docs/architecture.md)
-- Décisions : [ADR 001 à 007](docs/adr/) (runtime, workflows, navigateur, Skills, conditions BYOA, facturation)
+- Décisions : [ADR 001 à 008](docs/adr/) (runtime, workflows, navigateur, Skills, conditions BYOA, facturation)
 - [Plan MVP et suites](docs/mvp-plan.md)
 - [Validation et blocages](docs/validation.md)
 - [Conditions BYOA par fournisseur et limites commerciales](docs/adr/005-byoa-provider-terms.md)

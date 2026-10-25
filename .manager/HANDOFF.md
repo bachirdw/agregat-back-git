@@ -1,9 +1,34 @@
-# Passation — Relay (agrégateur d'agents CLI) — 2026-10-25
+# Passation — Relay (agrégateur d'agents CLI) — 2026-10-26
 
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 0bis. Mise à jour du 25/10, 23:30 — nuit
+## 0. Mise à jour docs-01 — 26/10/2026 — À LIRE EN PREMIER
+
+- Reprise : rapport docs-01 initialement absent, arbre Git propre sur `a299199`. Brief documentaire
+  uniquement ; aucun code applicatif modifié, aucune inférence ni push. Rapport courant
+  `.manager/reports/docs-01.md`, sorties sous `.manager/reports/evidence/docs-01/`.
+- Documentation alignée : architecture des modules, ACP/MCP/Skill/Workflow/Agent/Domain Pack, Data Gateway,
+  proxy `owner-transport`, parcours `browser-agent`, ADR 006 sécurisé et nouvel ADR 008 propriétaire.
+- Playwriter 0.7.0 : refus sûr en sécurisé ; propriétaire via proxy ciblé sans gardes réseau Chrome.
+  Les artefacts Codex sont partiels (deux titres) ; la lecture seule du run Gemini `b2035e5a…`
+  dans SQLite confirme **trois titres**, preuve ciblée `owner-historical-proof.json` dans docs-01.
+  Aucune nouvelle navigation dans le Chrome personnel.
+- Sponsoring NL/IE : **PRÉVU**, pas de code ni rapports sprint-10/review-10 ; UK seul présent. Ne pas
+  considérer la file de nuit historique ci-dessous comme terminée.
+- Suite docs-01 : validation Chrome bloquée par sandbox (SIGABRT/EPERM), premier passage hors Chrome
+  avec un échec intermittent live-run, puis 5/5 verts en ciblé. Dernière suite complète : **284 tests,
+  259 réussis, 24 échecs navigateur, 1 live ignoré** ; phase hors Chrome 204 réussis, aucun échec.
+  Sortie brute `evidence/docs-01/final-chain.txt` ; anciens totaux remplacés.
+- `npm ci --ignore-scripts`, doctor, demo, check et format:check verts ; démarrages HTTP vérifiés en
+  copie temporaire et arrêtés. Port 4310 occupé, serveur existant conservé. Pas de nouveaux serveurs laissés.
+- File prochaine : contrôle manager docs-01/review-full/propriétaire ; renouveler la suite hors de cette
+  restriction de lancement Chrome, enquêter sur le délai 100 ms de live-scripts sous charge ; ensuite
+  sprint-10 NL/IE puis review-10. Aucun accès fournisseur à réauthentifier automatiquement.
+
+## Archives de passation — états historiques remplacés par § 0
+
+### Archive 0bis. Mise à jour du 25/10, 23:30 — nuit
 - **Poussé sur GitHub** (demande de l'utilisateur) : back `4373716`, front `9dbbf46`. Depuis : commits locaux
   seulement. Lien `agregat-backend` supprimé.
 - **Mode propriétaire local** (`51d111f`, README) : prouvé en réel (Gemini, YouTube dans le Chrome de
@@ -15,7 +40,7 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 - Si la session manager redémarre, la file s'arrête : relancer le sprint en cours avec
   `.manager/run-until-done.sh <id>` après avoir lu son rapport.
 
-## 0. Mise à jour du 25/10, 22:35 (session manager du soir) — À LIRE EN PREMIER
+### Archive 0. Mise à jour du 25/10, 22:35 (session manager du soir)
 - **Renommages** : dossiers `agregat-back` (lien temporaire `agregat-backend` → à supprimer) et `agregat-front` ;
   remotes `github.com/bachirdw/agregat-back-git` et `agregat-front-git` (vérifiés par `git ls-remote`).
   Rien poussé. Dépôts GitHub **publics** : `secrets.env` jamais commité, aucune clé `AIza…` dans l'historique.

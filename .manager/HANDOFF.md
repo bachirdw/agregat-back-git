@@ -3,7 +3,33 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 1. État actuel
+## 0. Mise à jour du 25/10, 22:35 (session manager du soir) — À LIRE EN PREMIER
+- **Renommages** : dossiers `agregat-back` (lien temporaire `agregat-backend` → à supprimer) et `agregat-front` ;
+  remotes `github.com/bachirdw/agregat-back-git` et `agregat-front-git` (vérifiés par `git ls-remote`).
+  Rien poussé. Dépôts GitHub **publics** : `secrets.env` jamais commité, aucune clé `AIza…` dans l'historique.
+- **Commits du soir** : sprint-09 (6), review-09 (`5242801`, commité par le manager après coupure Codex),
+  Playwriter `64374e9`, renommages. Dernière suite vérifiée par le manager : **221/221** (163 + 58), `check`
+  vert ; `format:check` en défaut sur `tests/browser-gateway.test.js` (non commité, voir ci-dessous).
+- **Playwriter réel** : extension installée et connectée (relais 127.0.0.1:19988). Le relais refuse
+  `Target.createBrowserContext` et `Target.attachToBrowserTarget`. Correctif `64374e9` : contexte partagé
+  avec consentement ; JS bloqué par routage (scripts refusés + CSP `script-src 'none'`). Preuves :
+  `scripts/playwriter-smoke.js`, `scripts/js-bypass-probe.js` (10 vecteurs bloqués ; contre-épreuve JS
+  active : 7/10 détectés, donc `object`/`svg`/`javascript:` iframe non concluants).
+- **Non commité, laissé à Codex (playwriter-01)** : test `relais sans session CDP d'onglet` dans
+  `tests/browser-gateway.test.js` (prouvé rouge sans protection / vert avec) et `scripts/js-bypass-probe.js`.
+- **Faille trouvée par Codex 22:39** : le commentaire de `64374e9` est faux — l'interception Playwright ne
+  contourne PAS les service workers de notre onglet ; un SW déjà installé dans le profil utilisateur pourrait
+  servir des scripts. Codex prévoit de le reproduire puis de refuser explicitement le démarrage si les
+  protections par onglet sont impossibles. **Tant que ce n'est pas réglé, ne tester l'extension que sur
+  example.com / pages locales, pas sur des sites où l'utilisateur est connecté.**
+- Fermeture bloquée observée une fois via le relais (série complète de la sonde), non reproduite : ouvert.
+- **File en cours** : `playwriter-01` (démarré 22:30) puis `review-full` (relecture de tout le code),
+  enchaînés par une tâche de fond du manager. Serveurs : backend :4310 en mode
+  `AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1`, frontend :5173.
+- **Ensuite** : contrôle manager de playwriter-01 et review-full (diff, suite relancée, rapports), puis
+  sprint-10 (brief prêt : sponsoring NL/IE) — reporté à la demande de l'utilisateur.
+
+## 1. État actuel (rédigé avant le 25/10 soir — voir § 0)
 - **Backend** `~/Downloads/agregat-back` : MVP complet, **199 tests verts** (162 sans navigateur + 37 Chrome
   réel), `npm run check` et `format:check` verts au dernier contrôle. HEAD `df0c192` (commit « first commit »
   de l'utilisateur sur README ; remote `origin` = github.com/bachirdw/agr-gateur_agent_back). Ne jamais pousser

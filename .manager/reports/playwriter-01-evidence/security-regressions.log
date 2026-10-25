@@ -1,0 +1,41 @@
+✔ CSP et routage seuls : documents réseau sans scripts, contre-épreuve JS active (8584.481583ms)
+PREUVE worker malgré routage/CSP : FICTIF SCRIPT EXECUTED
+✖ CSP seule : un service worker préexistant contourne le routage du document (1022.175125ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=false (2.124791ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=true (0.247917ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=false (0.17975ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=true (0.173333ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=false (0.185375ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=true (0.177333ms)
+✔ relais FICTIF : contexte isolé indisponible, consentement proposé sans bascule silencieuse (0.222542ms)
+✔ relais FICTIF HTTP : précontrôle Playwriter sans connexion ni lecture des onglets (18.013958ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9753.28975
+
+✖ failing tests:
+
+test at tests/browser-gateway.test.js:1193:1
+✖ CSP seule : un service worker préexistant contourne le routage du document (1022.175125ms)
+  AssertionError [ERR_ASSERTION]: le bypass worker impose la réponse réseau filtrée
+  + actual - expected
+  
+  + 'FICTIF worker'
+  - 'FICTIF réseau'
+            ^
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-gateway.test.js:1270:14)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'FICTIF worker',
+    expected: 'FICTIF réseau',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

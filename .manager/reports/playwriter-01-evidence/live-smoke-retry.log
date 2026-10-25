@@ -1,0 +1,8 @@
+ONGLETS AVANT (identifiants uniquement) : 312695944, 312695945, 312696007, 312696098, 312696149, 312696152, 312696154, 312696155, 312696156, 312696161, 312696162, 312696166, 312696176
+RELAIS RÉEL : Playwriter/0.7.0
+REFUS ATTENDU partagé=false : Ce relais Playwriter ne permet pas de contexte isolé : le contexte partagé exige AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1 et votre consentement. Le transport partagé reste incompatible avec les protections CDP par onglet ; utilisez le mode Chrome isolé.
+CONSENTEMENT : browser.shareContext
+REFUS ATTENDU partagé=true : Protection CDP par onglet indisponible (relais Playwriter incompatible) : navigation refusée. Le routage/CSP seul est contournable par un service worker existant. Utilisez le mode Chrome isolé.
+STATUT : INCOMPATIBLE, refus sûr vérifié ; aucune navigation exécutée
+ONGLETS APRÈS (identifiants uniquement) : 312695944, 312695945, 312696007, 312696098, 312696149, 312696152, 312696154, 312696155, 312696156, 312696161, 312696162, 312696166, 312696176
+AUDIT ONGLETS : liste inchangée ; aucun contenu, cookie ou session lu

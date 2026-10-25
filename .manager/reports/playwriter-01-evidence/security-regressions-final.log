@@ -1,0 +1,21 @@
+✔ CSP et routage seuls : documents réseau sans scripts, contre-épreuve JS active (7765.731209ms)
+PREUVE worker malgré routage/CSP : FICTIF SCRIPT EXECUTED
+✔ CSP seule : un service worker préexistant contourne le routage du document (1286.284167ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=false (0.936458ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=true (0.255042ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=false (0.181792ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=true (0.182917ms)
+✔ relais FICTIF : refus avant navigation si protection network échoue, JS=false (0.175042ms)
+✔ relais FICTIF : refus avant navigation si protection network échoue, JS=true (0.195916ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=false (0.177458ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=true (0.145792ms)
+✔ relais FICTIF : contexte isolé indisponible, consentement proposé sans bascule silencieuse (0.234333ms)
+✔ relais FICTIF HTTP : précontrôle Playwriter sans connexion ni lecture des onglets (11.876916ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9175.267

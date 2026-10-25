@@ -1,0 +1,21 @@
+CONTRE-ÉPREUVE worker avant garde FICTIF SCRIPT EXĆ‰CUTĆ‰
+APRÈS GARDE worker FICTIF SCRIPT EXĆ‰CUTĆ‰
+✖ CSP seule : un service worker préexistant contourne le routage du document (3020.398292ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3126.61725
+
+✖ failing tests:
+
+test at tests/browser-gateway.test.js:1186:1
+✖ CSP seule : un service worker préexistant contourne le routage du document (3020.398292ms)
+  page.waitForFunction: Timeout 2000ms exceeded.
+      at TestContext.<anonymous> (/Users/diaw/Downloads/agregat-back/tests/browser-gateway.test.js:1224:16) {
+    name: 'TimeoutError',
+    log: []
+  }

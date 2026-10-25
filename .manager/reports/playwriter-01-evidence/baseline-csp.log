@@ -1,0 +1,18 @@
+✖ relais sans session CDP d’onglet : JavaScript bloqué par routage seul, contre-épreuve JS active (15011.427709ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15105.753375
+
+✖ failing tests:
+
+test at tests/browser-gateway.test.js:1082:1
+✖ relais sans session CDP d’onglet : JavaScript bloqué par routage seul, contre-épreuve JS active (15011.427709ms)
+  Error: Chrome CDP non démarré
+      at Timeout._onTimeout (file:///Users/diaw/Downloads/agregat-back/tests/browser-gateway.test.js:1126:45)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

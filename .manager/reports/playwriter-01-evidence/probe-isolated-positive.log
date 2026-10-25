@@ -1,0 +1,3 @@
+EXÉCUTÉ (contre-épreuve) /inline       balises=["inline"] titre « JS inline »
+OK    navigate javascript: refusé (Protocole refusé : javascript:)
+Chrome isolé : 0 échec(s)

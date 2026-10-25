@@ -1,0 +1,19 @@
+✖ CSP seule : un service worker préexistant contourne le routage du document (31308.804875ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31402.061417
+
+✖ failing tests:
+
+test at tests/browser-gateway.test.js:1186:1
+✖ CSP seule : un service worker préexistant contourne le routage du document (31308.804875ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/Users/diaw/Downloads/agregat-back/tests/browser-gateway.test.js:1221:16) {
+    name: 'TimeoutError',
+    log: []
+  }

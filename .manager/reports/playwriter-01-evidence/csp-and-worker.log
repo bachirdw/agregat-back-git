@@ -1,0 +1,11 @@
+✔ CSP et routage seuls : documents réseau sans scripts, contre-épreuve JS active (6167.691041ms)
+PREUVE worker malgré routage/CSP : FICTIF SCRIPT EXECUTED
+✔ CSP seule : un service worker préexistant contourne le routage du document (733.556584ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7005.375041

@@ -1,0 +1,15 @@
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=false (1.579667ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=true (0.274ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=false (0.222208ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=true (0.217458ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=false (0.212542ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=true (0.177208ms)
+✔ relais FICTIF : contexte isolé indisponible, consentement proposé sans bascule silencieuse (0.197834ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 98.321541

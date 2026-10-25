@@ -75,8 +75,12 @@ AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Pla
 Le démarrage `isolated` ou `playwriter` est paresseux : il ne lance/connecte le navigateur qu'au premier
 outil navigateur. Les trois commandes ci-dessus démarrent l'API ; la commande Playwriter ne prouve pas la
 présence du relais ou de l'extension. Le sprint 09 a vérifié le démarrage et les réponses HTTP des trois
-modes sur des ports libres ; Chrome isolé et CDP temporaire sont aussi testés réellement, l'extension
-Playwriter reste non validée. Preuves et commandes exactes : [.manager/reports/sprint-09.md](.manager/reports/sprint-09.md).
+modes sur des ports libres ; Chrome isolé et CDP temporaire sont aussi testés réellement.
+**L'extension Playwriter 0.7.0 est incompatible avec les protections requises : connexion refusée avant
+attachement aux onglets**, même avec consentement partagé. Le relais ne crée pas de contexte isolé et
+refuse la session CDP par onglet de Playwright. Le fallback routage/CSP est supprimé : un service worker
+existant peut le contourner. Utiliser le mode `isolated`. Preuves :
+[rapport playwriter-01](.manager/reports/playwriter-01.md).
 
 Par défaut, JavaScript est désactivé et le contexte utilisateur n'est pas partagé, même via CDP.
 `AGENT_PLATFORM_BROWSER_JAVASCRIPT=1` demande JavaScript ;
@@ -88,7 +92,11 @@ programme natif du même compte peut l'appeler sans Origin et approuver lui-mêm
 les appels MCP et les requêtes de pages, mais la résistance à un CLI hostile reste **incomplète**.
 Les risques scripts/cookies et limites du contexte partagé sont dans l'ADR 006.
 
-Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Voir [ADR 006](docs/adr/006-browser-gateway.md).
+Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Vérification optionnelle sur macOS,
+après autorisation d'utiliser Chrome : `PLAYWRITER_TELEMETRY=0 PLAYWRITER_LIVE=1 node --test tests/playwriter-live.test.js`
+ou `PLAYWRITER_TELEMETRY=0 node scripts/playwriter-smoke.js`. **Un résultat vert prouve le refus sûr et
+la liste d'onglets inchangée, pas une navigation fonctionnelle.** Seuls les identifiants des onglets et les
+métadonnées du relais sont lus ; aucune page utilisateur n'est inspectée. Voir [ADR 006](docs/adr/006-browser-gateway.md).
 
 ## Aperçu
 
@@ -114,7 +122,7 @@ analyse par le démonstrateur sans modèle).
 | Registre de Skills (quarantaine, revue, versions, export natif, import local) | **Opérationnel** | `tests/skill-registry.test.js` : cycle local complet et refus de chemins/empreintes non sûrs |
 | Import GitHub de Skills | **Implémenté**, validation réseau historique | `tests/skill-registry.test.js` teste les rejets ; import career-ops historique, aucun clone distant renouvelé par la revue |
 | Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement | **Opérationnel dans le périmètre MCP de confiance** ; canal humain non isolé | `tests/browser-gateway.test.js`, `tests/approval-bridge.test.js` : Chrome réel, déconnexion CDP, courses, consentements et limite native ; revue indépendante : 64/64 essais sous charge |
-| Browser Gateway via l'extension Playwriter | **Implémenté, non testé** (extension non installée) | ADR 006 |
+| Browser Gateway via l'extension Playwriter | **INCOMPATIBLE, refus sûr vérifié** sur relais réel 0.7.0 ; aucune navigation livrée | [Rapport](.manager/reports/playwriter-01.md), ADR 006 |
 | MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | `tests/platform.test.js`, `tests/approval-bridge.test.js` |
 | Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | `tests/billing.test.js`, ADR 007 |
 | Companion cloud, mode Managed, comptes, abonnements, multi-utilisateurs | **Prévu** | |

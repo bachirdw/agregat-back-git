@@ -1,0 +1,12 @@
+OK    /inline       balises=[] titre « FICTIF 89 »
+OK    /external     balises=[] titre « FICTIF 29 »
+OK    /handler      balises=[] titre « FICTIF 106 »
+OK    /srcdoc       balises=[] titre « FICTIF 214 »
+OK    /data-iframe  balises=[] titre « FICTIF 152 »
+OK    /subframe     balises=[] titre « FICTIF 31 »
+OK    /meta-csp     balises=[] titre « FICTIF 167 »
+OK    /object       balises=[] titre « FICTIF 151 »
+OK    /svg          balises=[] titre « FICTIF 30 »
+OK    /js-href      balises=[] titre « FICTIF 127 »
+OK    navigate javascript: refusé (Protocole refusé : javascript:)
+Chrome isolé : 0 échec(s)

@@ -1,0 +1,13 @@
+✔ précontrôle CDP FICTIF : http-error, aucune connexion après échec (17.942166ms)
+✔ précontrôle CDP FICTIF : redirect, aucune connexion après échec (8.03025ms)
+✔ précontrôle CDP FICTIF : invalid-json, aucune connexion après échec (2.825ms)
+✔ précontrôle CDP FICTIF : timeout, aucune connexion après échec (101.397542ms)
+✔ précontrôle CDP FICTIF : close, aucune connexion après échec (3.325ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 214.693875

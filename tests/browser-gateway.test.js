@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -443,15 +443,22 @@ test(
       [
         '--headless=new',
         '--remote-debugging-port=0',
+        '--remote-debugging-address=127.0.0.1',
         `--user-data-dir=${profile}`,
         '--no-first-run',
         `${origin}/?onglet-utilisateur`,
       ],
       { stdio: ['ignore', 'ignore', 'pipe'] },
     );
-    t.after(() => {
-      chrome.kill('SIGKILL');
-      server.close();
+    t.after(async () => {
+      if (chrome.exitCode === null && chrome.signalCode === null) {
+        const exited = new Promise((r) => chrome.once('exit', r));
+        chrome.kill('SIGKILL');
+        await exited;
+      }
+      server.closeAllConnections();
+      await new Promise((r) => server.close(r));
+      rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     });
     const endpoint = await new Promise((resolveEndpoint, reject) => {
       let buffer = '';
@@ -1075,3 +1082,374 @@ test('démarrage : une mutation pendant le lancement refuse et nettoie le résul
   assert.ok(f.calls.includes('context-close'));
   await provider.close();
 });
+
+// Defence in depth only: routing/CSP blocks ordinary documents, but not worker-synthesized ones.
+// A no-op CDP fixture isolates these protections; it does not represent a secure relay.
+// Pages are FICTITIOUS; a script that runs sends a beacon counted by the local server.
+test(
+  'CSP et routage seuls : documents réseau sans scripts, contre-épreuve JS active',
+  { skip: !hasChrome && 'Chrome absent' },
+  async (t) => {
+    const hits = [];
+    const beacon = (v) => `new Image().src='/hit?v=${v}&t='+Date.now()`;
+    const pages = {
+      '/inline': `<script>${beacon('inline')}</script>`,
+      '/external': `<script src="/x.js"></script>`,
+      '/handler': `<img src="/absent.png" onerror="${beacon('handler')}">`,
+      '/srcdoc': `<iframe srcdoc="<script>${beacon('srcdoc')}</script>"></iframe>`,
+      '/data-iframe': `<iframe src="data:text/html,<script>${encodeURIComponent(beacon('data').replace("'/hit", "'ORIGIN/hit"))}</script>"></iframe>`,
+      '/subframe': `<iframe src="/inline"></iframe>`,
+      '/javascript-frame': `<iframe src="javascript:${encodeURIComponent('void(' + beacon('jsurl').replace("'/hit", "'ORIGIN/hit") + ')')}"></iframe>`,
+      '/javascript-link': `<a id="js" href="javascript:void(${beacon('jsurl')})">FICTIF lien script</a>`,
+      '/blob-frame': `<body><script>const blob = new Blob([${JSON.stringify('<script>' + beacon('blob').replace("'/hit", "'ORIGIN/hit") + '</script>').replaceAll('<', '\\u003c')}], {type:'text/html'});const frame=document.createElement('iframe');frame.src=URL.createObjectURL(blob);document.body.append(frame);</script>`,
+      '/meta-csp': `<meta http-equiv="Content-Security-Policy" content="script-src * 'unsafe-inline'"><script>${beacon('meta')}</script>`,
+    };
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url, 'http://x');
+      if (url.pathname === '/hit') return (hits.push(url.searchParams.get('v')), res.end());
+      if (url.pathname === '/x.js') return res.end(beacon('external'));
+      if (!pages[url.pathname]) return res.writeHead(404).end();
+      res.setHeader('cache-control', 'public, max-age=3600');
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        `<!doctype html><title>FICTIF</title>${pages[url.pathname].replaceAll('ORIGIN', origin)}`,
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const profile = temporary();
+    const chrome = spawn(
+      CHROME,
+      [
+        '--headless=new',
+        '--remote-debugging-port=0',
+        '--remote-debugging-address=127.0.0.1',
+        `--user-data-dir=${profile}`,
+        '--no-first-run',
+      ],
+      { stdio: ['ignore', 'ignore', 'pipe'] },
+    );
+    t.after(async () => {
+      if (chrome.exitCode === null && chrome.signalCode === null) {
+        const exited = new Promise((r) => chrome.once('exit', r));
+        chrome.kill('SIGKILL');
+        await exited;
+      }
+      server.closeAllConnections();
+      await new Promise((r) => server.close(r));
+      rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    });
+    const endpoint = await new Promise((resolveEndpoint, reject) => {
+      let buffer = '';
+      const timer = setTimeout(() => reject(new Error('Chrome CDP non démarré')), 15000);
+      chrome.stderr.on('data', (c) => {
+        buffer += c;
+        const m = buffer.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//);
+        if (m) {
+          clearTimeout(timer);
+          resolveEndpoint(`http://127.0.0.1:${m[1]}`);
+        }
+      });
+    });
+    const { chromium } = await import('playwright-core');
+    // CDP commands deliberately do nothing in this defence-in-depth fixture.
+    let fixtureSessions = 0;
+    const relayLike = {
+      connectOverCDP: async (...args) => {
+        const browser = await chromium.connectOverCDP(...args);
+        for (const context of browser.contexts())
+          context.newCDPSession = () => (
+            ++fixtureSessions,
+            Promise.resolve({ send: async () => {}, detach: async () => {} })
+          );
+        return browser;
+      },
+    };
+    // Warm the real browser HTTP cache before adding CSP. Interception must still protect reloads.
+    const warmer = await chromium.connectOverCDP(endpoint);
+    const warmPage = await warmer.contexts()[0].newPage();
+    await warmPage.goto(origin + '/inline');
+    await warmPage.close();
+    await warmer.close();
+    for (const allowJavaScript of [false, true]) {
+      const provider = new CdpBrowser({ endpoint, chromium: relayLike });
+      const gateway = new BrowserGateway({
+        provider,
+        policy: new RunPolicy({
+          runId: `FICTIF-relais-${allowJavaScript}`,
+          allowSharedContext: true,
+          allowJavaScript,
+          allowLocalOrigins: [origin],
+          capabilities: ALL,
+        }),
+        approve: async () => true,
+      });
+      const before = hits.length;
+      try {
+        for (const path of Object.keys(pages)) {
+          await gateway.call('browser.navigate', { url: origin + path });
+          // Adversarial fixture input bypasses gateway approval to test the browser CSP itself.
+          if (path === '/javascript-link') await provider.page.locator('#js').click();
+          await new Promise((r) => setTimeout(r, 300));
+        }
+        assert.ok(fixtureSessions > 0, 'session CDP fictive sans effet : défense CSP testée seule');
+      } finally {
+        await provider.close();
+      }
+      const fresh = hits.slice(before);
+      if (allowJavaScript) {
+        console.log('CONTRE-ÉPREUVE scripts réseau :', JSON.stringify(fresh));
+        for (const vector of [
+          'inline',
+          'external',
+          'handler',
+          'srcdoc',
+          'data',
+          'jsurl',
+          'blob',
+          'meta',
+        ])
+          assert.ok(
+            fresh.includes(vector),
+            `contre-épreuve absente : ${vector} (${JSON.stringify(fresh)})`,
+          );
+      } else assert.deepEqual(fresh, [], 'aucun script exécuté sans JavaScript');
+    }
+  },
+);
+
+// Regression FICTITIOUS: a pre-existing worker can synthesize an un-routed document without CSP.
+// This uses a throwaway profile, never the user's Chrome or service workers.
+test(
+  'CSP seule : un service worker préexistant contourne le routage du document',
+  { skip: !hasChrome },
+  async (t) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/sw.js') {
+        res.setHeader('content-type', 'application/javascript');
+        return res.end(`self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', e => { if (new URL(e.request.url).pathname === '/controlled')
+e.respondWith(new Response('<title>FICTIF worker</title><script>document.title="FICTIF SCRIPT EXECUTED"</script>', {headers:{'content-type':'text/html'}})); });`);
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end('<title>FICTIF network</title>');
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      server.close();
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const { chromium } = await import('playwright-core');
+    const context = await chromium.launchPersistentContext('', {
+      executablePath: CHROME,
+      headless: true,
+    });
+    t.after(() => context.close());
+    const seed = context.pages()[0];
+    await seed.goto(origin);
+    await seed.evaluate(async () => {
+      await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller)
+        await new Promise((r) =>
+          navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }),
+        );
+    });
+    const page = await context.newPage();
+    const provider = new CdpBrowser({ endpoint: 'http://127.0.0.1:1' });
+    // Exercise the former fallback directly: interception + CSP, without CDP protections.
+    provider.context = context;
+    provider.page = page;
+    provider.ownsContext = false;
+    const policy = new RunPolicy({ allowLocalOrigins: [origin] });
+    await page.goto(origin + '/controlled');
+    assert.equal(await page.title(), 'FICTIF SCRIPT EXECUTED');
+    await provider.guard(policy);
+    try {
+      await page.goto(origin + '/controlled');
+      console.log('PREUVE worker malgré routage/CSP :', await page.title());
+      await page.waitForFunction(() => document.title === 'FICTIF SCRIPT EXECUTED', null, {
+        timeout: 2000,
+      });
+      assert.equal(
+        await page.title(),
+        'FICTIF SCRIPT EXECUTED',
+        'le worker contourne la CSP ajoutée par route.fulfill',
+      );
+    } finally {
+      await provider.close();
+    }
+    // The same worker cannot synthesize our document when actual per-tab bypass succeeds.
+    const secureProvider = new CdpBrowser({
+      endpoint: 'http://127.0.0.1:1',
+      chromium: { connectOverCDP: async () => context.browser() },
+    });
+    const gateway = new BrowserGateway({
+      provider: secureProvider,
+      policy: new RunPolicy({
+        runId: 'FICTIF-worker-protected',
+        allowSharedContext: true,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => true,
+    });
+    try {
+      const result = await gateway.call('browser.navigate', { url: origin + '/controlled' });
+      assert.equal(
+        result.title,
+        'FICTIF network',
+        'le bypass worker impose la réponse réseau filtrée',
+      );
+    } finally {
+      await secureProvider.close();
+    }
+  },
+);
+
+for (const failure of ['session', 'emulation', 'network', 'worker']) {
+  for (const allowJavaScript of [false, true]) {
+    test(`relais FICTIF : refus avant navigation si protection ${failure} échoue, JS=${allowJavaScript}`, async () => {
+      const f = startupFixture();
+      const session = {
+        send: async (method) => {
+          f.calls.push(method);
+          if (
+            (failure === 'emulation' && method.startsWith('Emulation.')) ||
+            (failure === 'network' && method === 'Network.enable') ||
+            (failure === 'worker' && method === 'Network.setBypassServiceWorker')
+          )
+            throw new Error('FICTIF protection refusée');
+        },
+        detach: async () => f.calls.push('detach'),
+      };
+      f.context.newPage = async () => f.page;
+      f.page.routeWebSocket = async () => f.calls.push('websocket');
+      f.context.newCDPSession = async () => {
+        if (failure === 'session')
+          throw new Error('Protocol error (Target.attachToBrowserTarget): No tab found');
+        return session;
+      };
+      f.browser.contexts = () => [f.context];
+      const provider = new CdpBrowser({
+        endpoint: 'http://127.0.0.1:19988',
+        chromium: { connectOverCDP: async () => f.browser },
+      });
+      const policy = new RunPolicy({ runId: 'FICTIF', allowSharedContext: true, allowJavaScript });
+      await provider.prepare(policy, async () => true);
+      await assert.rejects(
+        provider.ensure(policy),
+        failure === 'session'
+          ? /Protection CDP par onglet indisponible.*navigation refusée/
+          : /protection refusée/,
+      );
+      assert.ok(f.calls.includes('page-close'));
+      assert.ok(f.calls.includes('browser-close'));
+      assert.ok(!f.calls.includes('context-close'), 'le contexte partagé reste ouvert');
+      assert.ok(!f.calls.includes('websocket'), 'aucune page utilisable après refus');
+      assert.equal(provider.page, null);
+      await assert.rejects(provider.ensure(policy), /fermé/);
+      await provider.close();
+    });
+  }
+}
+
+test('relais FICTIF : contexte isolé indisponible, consentement proposé sans bascule silencieuse', async () => {
+  const f = startupFixture();
+  f.browser.newContext = async () => {
+    throw new Error('Target.createBrowserContext: No tab found');
+  };
+  f.browser.contexts = () => {
+    throw new Error('ne doit pas adopter le contexte partagé');
+  };
+  const provider = new CdpBrowser({
+    endpoint: 'http://127.0.0.1:19988',
+    chromium: { connectOverCDP: async () => f.browser },
+  });
+  await assert.rejects(provider.ensure(new RunPolicy()), /contexte isolé.*consentement/);
+  assert.ok(f.calls.includes('browser-close'));
+  assert.equal(provider.page, null);
+  await provider.close();
+});
+
+test('relais FICTIF HTTP : précontrôle Playwriter sans connexion ni lecture des onglets', async (t) => {
+  const requests = [];
+  const server = http.createServer((req, res) => {
+    requests.push(req.url);
+    res.setHeader('content-type', 'application/json');
+    res.end(
+      JSON.stringify({
+        Browser: 'Playwriter/0.7.0',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:1/NEVER',
+      }),
+    );
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  for (const allowSharedContext of [false, true]) {
+    for (const allowJavaScript of [false, true]) {
+      const provider = new CdpBrowser({ endpoint: `http://127.0.0.1:${server.address().port}` });
+      const policy = new RunPolicy({ runId: 'FICTIF', allowSharedContext, allowJavaScript });
+      await provider.prepare(policy, async () => true);
+      await assert.rejects(
+        provider.ensure(policy),
+        allowSharedContext
+          ? /Protection CDP par onglet indisponible/
+          : /contexte isolé.*consentement/,
+      );
+      assert.equal(provider.browser, null);
+      assert.equal(provider.page, null);
+      await provider.close();
+    }
+  }
+  assert.deepEqual(requests, Array(4).fill('/json/version'));
+});
+
+for (const scenario of ['http-error', 'redirect', 'invalid-json', 'timeout', 'close']) {
+  test(`précontrôle CDP FICTIF : ${scenario}, aucune connexion après échec`, async (t) => {
+    let respond;
+    const received = new Promise((resolveRequest) => {
+      respond = resolveRequest;
+    });
+    const server = http.createServer((req, res) => {
+      respond(res);
+      if (scenario === 'http-error') res.writeHead(503).end();
+      if (scenario === 'redirect')
+        res.writeHead(302, { location: 'http://127.0.0.1:1/NEVER' }).end();
+      if (scenario === 'invalid-json') res.end('FICTIF invalid JSON');
+      // timeout and close deliberately hold metadata until the caller revokes startup.
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      server.close();
+    });
+    const provider = new CdpBrowser({
+      endpoint: `http://127.0.0.1:${server.address().port}`,
+      startupTimeoutMs: scenario === 'timeout' ? 100 : 5000,
+    });
+    const task = provider.ensure(new RunPolicy());
+    const rejected = assert.rejects(
+      task,
+      scenario === 'http-error'
+        ? /HTTP 503/
+        : scenario === 'close'
+          ? /fermé/
+          : /JSON|fetch failed|démarrage|timeout|aborted/i,
+    );
+    if (scenario === 'close') {
+      const response = await received;
+      const closing = provider.close();
+      response.end(JSON.stringify({ Browser: 'Chrome/FICTIF' }));
+      await closing;
+    }
+    await rejected;
+    assert.equal(provider.browser, null);
+    assert.equal(provider.page, null);
+    await provider.close();
+  });
+}

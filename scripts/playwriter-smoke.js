@@ -1,66 +1,76 @@
-// Test manuel de la Browser Gateway via le relais Playwriter (extension dans le Chrome de l'utilisateur).
+// Test réel optionnel, jamais l'outil Playwriter execute ni un appel modèle.
 // Usage : PLAYWRITER_TELEMETRY=0 node scripts/playwriter-smoke.js
-// Lecture seule sur example.com, puis vérifie deux refus : domaine non autorisé, clic sans approbation.
+// Le succès signifie « incompatibilité détectée et refus sûr », pas navigation opérationnelle.
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { BrowserGateway, CdpBrowser } from '../packages/browser-gateway/index.js';
-import http from 'node:http';
 import { RunPolicy } from '../packages/policy-engine/run-policy.js';
 
-// Page locale FICTIVE : un script inline et un script externe changeraient le titre si JS s'exécutait.
-const site = http.createServer((req, res) => {
-  if (req.url === '/x.js') return res.end("document.title = 'JS EXTERNE EXÉCUTÉ'");
-  res.setHeader('content-type', 'text/html');
-  res.end(
-    "<title>FICTIF sans script</title><script>document.title='JS INLINE EXÉCUTÉ'</script><script src='/x.js'></script>",
-  );
-});
-await new Promise((r) => site.listen(0, '127.0.0.1', r));
-const origin = `http://127.0.0.1:${site.address().port}`;
+assert.equal(process.env.PLAYWRITER_TELEMETRY, '0', 'PLAYWRITER_TELEMETRY=0 requis');
+assert.equal(
+  process.platform,
+  'darwin',
+  'audit complet des identifiants Chrome implémenté sur macOS',
+);
 const endpoint = process.env.RELAY_CDP_ENDPOINT ?? 'http://127.0.0.1:19988';
-const provider = new CdpBrowser({ endpoint });
-const gw = new BrowserGateway({
-  provider,
-  policy: new RunPolicy({
-    runId: 'SMOKE-playwriter',
-    allowedDomains: ['example.com'],
-    allowLocalOrigins: [origin],
-    capabilities: ['browser.navigate', 'browser.snapshot', 'browser.extract', 'browser.click'],
-    // Playwriter ne crée pas de contexte isolé : le contexte partagé exige un consentement (ci-dessous).
-    allowSharedContext: process.env.SMOKE_SHARED === '1',
-  }),
-  // Consentement de l'opérateur humain qui lance ce script : accordé UNIQUEMENT pour le contexte partagé,
-  // toute autre demande (clic, saisie…) est refusée.
-  approve: async (request) => {
-    const text = JSON.stringify(request);
-    const shared = /shared|partag/i.test(text);
-    console.log(`APPROBATION ${shared ? 'accordée' : 'refusée'} :`, text.slice(0, 300));
-    return shared;
-  },
-});
-const step = async (name, fn) => {
-  try {
-    const out = await fn();
-    console.log(`OK   ${name}:`, JSON.stringify(out).slice(0, 300));
-  } catch (e) {
-    console.log(`REFUS ${name}: ${e.message}`);
-  }
-};
+const url = new URL(endpoint);
+assert.equal(url.hostname, '127.0.0.1', 'relais local uniquement');
+const tabs = () =>
+  execFileSync(
+    'osascript',
+    ['-e', 'tell application "Google Chrome" to get id of every tab of every window'],
+    {
+      encoding: 'utf8',
+      timeout: 10000,
+    },
+  ).trim();
+const before = tabs();
+console.log('ONGLETS AVANT (identifiants uniquement) :', before);
 try {
-  await step('navigate example.com', () =>
-    gw.call('browser.navigate', { url: 'https://example.com/' }),
-  );
-  await step('snapshot', () => gw.call('browser.snapshot', {}));
-  await step('extract', () => gw.call('browser.extract', {}));
-  await step('page locale avec scripts (attendu : titre « FICTIF sans script »)', () =>
-    gw.call('browser.navigate', { url: origin + '/' }),
-  );
-  await step('navigate domaine interdit (attendu : refus)', () =>
-    gw.call('browser.navigate', { url: 'https://www.google.com/' }),
-  );
-  await step('clic sensible, approbation refusée (attendu : refus)', () =>
-    gw.call('browser.click', { selector: 'a' }),
-  );
+  const response = await fetch(new URL('/json/version', endpoint), {
+    redirect: 'error',
+    signal: AbortSignal.timeout(5000),
+  });
+  assert.equal(response.ok, true);
+  const metadata = await response.json();
+  assert.match(metadata.Browser, /^Playwriter\//, 'le test exige un vrai relais Playwriter');
+  console.log('RELAIS RÉEL :', metadata.Browser);
+  for (const allowSharedContext of [false, true]) {
+    const provider = new CdpBrowser({ endpoint });
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        runId: `SMOKE-playwriter-${allowSharedContext}`,
+        allowedDomains: ['example.com'],
+        capabilities: ['browser.navigate'],
+        allowSharedContext,
+      }),
+      // Autorisation du brief : seul le partage du contexte est consenti.
+      approve: async (request) => {
+        console.log('CONSENTEMENT :', request.capability);
+        return request.capability === 'browser.shareContext';
+      },
+    });
+    try {
+      await assert.rejects(
+        gateway.call('browser.navigate', { url: 'https://example.com/' }),
+        (error) => {
+          console.log(`REFUS ATTENDU partagé=${allowSharedContext} :`, error.message);
+          return allowSharedContext
+            ? /Protection CDP par onglet indisponible.*navigation refusée/.test(error.message)
+            : /contexte isolé.*consentement/.test(error.message);
+        },
+      );
+      assert.equal(provider.browser, null, 'aucune connexion CDP aux onglets utilisateur');
+      assert.equal(provider.page, null, 'aucun onglet créé');
+    } finally {
+      await provider.close();
+    }
+  }
+  console.log('STATUT : INCOMPATIBLE, refus sûr vérifié ; aucune navigation exécutée');
 } finally {
-  await provider.close();
-  site.close();
-  console.log('fermé : onglet de la plateforme fermé, Chrome utilisateur laissé ouvert');
+  const after = tabs();
+  console.log('ONGLETS APRÈS (identifiants uniquement) :', after);
+  assert.equal(after, before, 'liste complète des onglets Chrome inchangée');
+  console.log('AUDIT ONGLETS : liste inchangée ; aucun contenu, cookie ou session lu');
 }

@@ -47,7 +47,7 @@ ou réponses publiques préenregistrées ; aucun modèle ni service payant.
 | 5 | Streaming, suivi et historique | OPÉRATIONNEL | `tests/platform.test.js` : API ACP/MCP complète et SSE replay ; `tests/e2e-ui.test.js` : étapes en direct ; stockage durable testé |
 | 6 | Skills portables | OPÉRATIONNEL | `tests/skill-registry.test.js` : quarantaine, revue/hash, versions, export, traversées/symlinks/hardlinks et mutations refusés |
 | 7 | Connexion MCP | OPÉRATIONNEL pour le serveur plateforme ; INCOMPLET pour services externes arbitraires | `tests/platform.test.js`, `tests/approval-bridge.test.js` : vrai stdio MCP, découverte/appel, pont de décision et mesure ; pas de catalogue externe intégré |
-| 8 | Playwriter ou démonstrateur Browser Gateway | OPÉRATIONNEL sur Chrome isolé et CDP de test ; SIMULÉ en mode fixture ; INCOMPLET pour extension Playwriter et canal humain isolé | `tests/browser-gateway.test.js` : domaines/SSRF, ressources, redirections, saisie, fichiers, partage avec consentement ; banc de charge 64/64 ; extension utilisateur non installée/testée |
+| 8 | Playwriter ou démonstrateur Browser Gateway | OPÉRATIONNEL sur Chrome isolé et CDP de test ; SIMULÉ en mode fixture ; INCOMPATIBLE pour extension Playwriter 0.7.0 (refus sûr prouvé) ; canal humain isolé INCOMPLET | `tests/browser-gateway.test.js` : domaines/SSRF, ressources, redirections, saisie, fichiers, partage avec consentement ; banc de charge 64/64 ; extension réelle connectée : refus sûr et onglets inchangés prouvés, rapport playwriter-01 |
 | 9 | Najah minimal | OPÉRATIONNEL pour traitement en rejeu hors ligne et vérification ; accès réseau actuel non revérifié ; SIMULÉ pour offres fictives du démonstrateur | `tests/najah-live.test.js` : rejeu hors ligne des sources publiques enregistrées et DAG API ; `tests/najah-evals.test.js` ; sponsoring UK = correspondance de nom à confirmer, jamais identité déduite |
 | 10 | Workflow recherche → analyse → classement vérifié | OPÉRATIONNEL pour DAG ; analyse modèle SIMULÉE dans la suite | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` : parallèle, approbations, reprise/crash/incertitude ; E2E Najah et brouillon sans envoi |
 
@@ -164,3 +164,19 @@ refusées, et que **le canal HTTP de décision reste invocable par un programme 
 OPÉRATIONNEL du navigateur concerne donc les capacités MCP dans le prototype mono-utilisateur de confiance,
 pas une isolation d'un agent malveillant. L'extension Playwriter et les accès fournisseurs n'ont pas été
 revalidés. Les tests d'import GitHub ne prouvent que les rejets ; l'import distant réussi reste historique.
+
+
+## Rectification Playwriter — playwriter-01
+
+L'extension est installée et connectée au relais réel `Playwriter/0.7.0`. Les anciennes mentions « non
+installée/testée » ci-dessus sont historiques et remplacées par ce constat : **INCOMPATIBLE, refus sûr
+vérifié**, aucune navigation via extension livrée. Le correctif manager par routage/CSP seul était
+contournable par un service worker préexistant ; preuve sur profil Chrome jetable, puis bypass CDP réel
+vérifié. Le fournisseur exige désormais les protections CDP par onglet et refuse les relais Playwriter
+HTTP dès leurs métadonnées, avant attachement aux onglets. Le consentement partagé ne suffit pas.
+
+Le smoke réel et le test optionnel `PLAYWRITER_LIVE=1` vérifient les refus et les mêmes 13 identifiants
+d'onglets Chrome avant/après, sans contenu, cookies ni sessions lus. Chrome isolé et CDP classique restent
+les transports livrés. Un adaptateur CDP ciblé compatible avec le relais reste à développer et valider
+avant de déclarer Playwriter opérationnel. Journal, commandes, échecs et preuves brutes :
+[playwriter-01](playwriter-01.md), [ADR 006](../../docs/adr/006-browser-gateway.md).

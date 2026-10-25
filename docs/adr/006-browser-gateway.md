@@ -32,9 +32,9 @@ section « Playwright API »). Le relais envoie par défaut une télémétrie an
 - `fixture` (défaut) : démonstrateur sans réseau ni navigateur.
 - `isolated` : Chrome headless avec profil jetable (`AGENT_PLATFORM_CHROME_PATH`). **Testé réellement.**
 - `playwriter` : relais Playwriter local (`AGENT_PLATFORM_CDP_ENDPOINT`, défaut `http://127.0.0.1:19988`).
-  Même code que le mode « Chrome partagé via CDP », testé avec un Chrome lancé en débogage distant sur un
-  profil temporaire ; **non testé avec l'extension Playwriter elle-même** (non installée, choix de
-  l'utilisateur requis).
+  **INCOMPATIBLE avec le relais réel 0.7.0** : refus avant connexion CDP. L'extension est installée et
+  connectée ; le smoke vérifie le refus sûr et la conservation des onglets (playwriter-01 ci-dessous).
+  Le Chrome partagé via CDP classique reste testé avec un profil temporaire et une session CDP d'onglet effective.
 
 ## Alternatives rejetées
 - Donner `execute` de Playwriter aux agents : contrôle impossible des effets et des données.
@@ -106,7 +106,8 @@ Les limites d'isolation OS et de confiance du canal de décision décrites plus 
 Preuves : `tests/browser-gateway.test.js` (défauts, refus sans consentement, accord, refus partiel,
 non-transfert inter-run, mutation, fermeture, scripts réels et contexte partagé temporaire avec onglet
 utilisateur préservé) ; `tests/approval-bridge.test.js` (MCP → décision → événements persistés, jeton lié
-au run, annulation pendant le consentement). L'extension Playwriter reste non validée dans cette session.
+au run, annulation pendant le consentement). Cette validation historique ne prouvait pas la compatibilité
+avec l'extension Playwriter ; voir la correction playwriter-01 ci-dessous.
 
 ## Fiabilité du démarrage isolé (sprint 09)
 
@@ -142,3 +143,67 @@ l'ancien client ne doivent plus être utilisés après cette déconnexion.
 Ces corrections ne garantissent pas la destruction d'un exécutable arbitraire qui ignore le protocole,
 ni une fermeture bornée si le pair bloque aussi ses opérations de nettoyage. L'isolation des processus
 et le canal humain protégé restent nécessaires contre un CLI natif hostile.
+
+
+## Compatibilité réelle et refus sûr (playwriter-01)
+
+Le correctif manager 64374e9 acceptait une session CDP d'onglet absente grâce au routage/CSP. Cette solution
+est **retirée** : un service worker préexistant peut synthétiser un document sans passer par `route.fulfill`,
+sans la CSP ajoutée, avec JavaScript actif. La régression sur un profil jetable reproduit le titre
+`FICTIF SCRIPT EXECUTED`, puis prouve que le véritable `Network.setBypassServiceWorker` restaure le document
+réseau filtré. Le consentement JavaScript ne dispense pas de ce bypass : le worker compromet aussi le
+contrôle réseau. Aucun worker ou état utilisateur n'est inspecté ou supprimé pour ce test.
+
+Toute nouvelle page partagée exige désormais une session CDP d'onglet fonctionnelle, puis le succès de
+`Emulation.setScriptExecutionDisabled`, `Network.enable`, puis `Network.setBypassServiceWorker`.
+La contre-épreuve réelle a montré que le bypass sans `Network.enable` laissait le worker servir le document ;
+le domaine Network doit être activé sur cette session avant son réglage. Chaque échec ferme uniquement
+la page créée et déconnecte le client ; aucune page exploitable n'est conservée. La CSP et le refus des
+requêtes script restent des défenses supplémentaires pour les réponses réseau.
+
+Sur un endpoint HTTP identifié par `/json/version` comme `Playwriter/*`, le fournisseur refuse même avant
+`connectOverCDP`. Ce précontrôle évite l'auto-attachement de Playwright aux cibles existantes et leur
+initialisation. Sans partage consenti, l'erreur explique l'absence de contexte isolé et le consentement
+nécessaire ; elle précise également que le partage ne résout pas l'incompatibilité. Avec partage consenti,
+la navigation reste refusée pour protection CDP indisponible. Les versions Playwriter futures restent
+refusées jusqu'à validation d'un adaptateur dédié. Un endpoint WebSocket ne permet pas cette identification
+HTTP anticipée ; la protection CDP obligatoire reste appliquée, mais ce chemin n'est pas validé pour
+l'extension ni utilisé dans le smoke autorisé.
+
+### Méthodes réellement traitées dans le code inspecté
+
+Installation effective : `/Users/diaw/.npm-global/lib/node_modules/playwriter`, paquet 0.7.0. Le chemin
+renvoyé par `npm root -g` (`/usr/local/lib/node_modules`) ne contenait pas ce paquet. Clone consulté :
+`remorses__playwriter`, commit `6489336628e6737e32a59f25ed270622400cb277`. Le code installé fait foi
+pour l'analyse de cette installation ; le clone est une comparaison, pas une version supposée identique.
+
+| Méthode | Traitement constaté | Portée de la preuve |
+|---|---|---|
+| `Browser.getVersion` | Réponse synthétique `Chrome/Extension-Bridge` | `dist/cdp-relay.js:504` ; `/json/version` réel annonce `Playwriter/0.7.0` |
+| `Target.getTargets`, `Target.getTargetInfo` | Inventaire des cibles connectées | `dist/cdp-relay.js:567–598`, inspection ; pas de lecture de contenu |
+| `Target.attachToTarget` | Renvoie le sessionId existant d'une cible connectée | `dist/cdp-relay.js:552` ; ne suffit pas au chemin public `newCDPSession` de Playwright |
+| `Target.createTarget`, `Target.closeTarget` | Relais vers `chrome.tabs` création/fermeture | `dist/cdp-relay.js:599–621`, `dist/extension/background.js:3147–3170` ; pas exécuté par notre smoke |
+| `Target.setAutoAttach` | Transmis aux onglets connectés ; peut créer un onglet initial | `dist/cdp-relay.js:534`, `dist/extension/background.js:3100` ; raison du précontrôle sans attachement |
+| `Browser.setDownloadBehavior` | Comportement mémorisé et appliqué aux cibles de l'extension | `dist/cdp-relay.js:515` ; portée plus large que notre onglet, autre raison de ne pas attacher le client au relais |
+| `Target.createBrowserContext`, `Target.attachToBrowserTarget` | Pas de traitement spécial ; absence de cible → `No tab found` | `dist/extension/background.js:3175` ; erreurs réelles du manager dans le brief, reproduites par faux relais |
+| `Emulation.setScriptExecutionDisabled`, `Network.setBypassServiceWorker`, `Fetch.*` | Commandes ciblées transmises à `chrome.debugger.sendCommand` | `dist/extension/background.js:3180–3195` ; pas une preuve de session publique Playwright fonctionnelle |
+
+Playwright 1.64.1 : `coreBundle.js:40194` appelle `_clientRootSession()` pour `newCDPSession(page)` ;
+`:36323` exige `Target.attachToBrowserTarget`. Le routage réseau n'ajoute pas le bypass worker à cette
+page (`:39018` ne traite que la page interne de storage state). Aucun champ privé Playwright n'est utilisé
+pour contourner ces contrats. Une future alternative pourrait maintenir une session CDP directe ciblée
+sur une cible explicitement créée par nous ; elle nécessiterait des tests de cycle de vie et d'isolation.
+
+### Preuves et limites
+
+- `tests/browser-gateway.test.js` : faux relais sans extension, refus de chaque étape de protection, aucun repli
+  partagé silencieux, précontrôle HTTP sans WebSocket ; documents réseau srcdoc/data/blob/javascript,
+  cache préchauffé, CSP meta permissive et contre-épreuve JS active ; worker fictif hostile et bypass réel.
+- Le bouton sensible existant de la page locale est testé sur Chrome isolé par la suite : refus humain,
+  aucune soumission, puis accord explicite. Ce test ne prétend pas fonctionner via l'extension refusée.
+- `PLAYWRITER_TELEMETRY=0 node scripts/playwriter-smoke.js` et le test optionnel `PLAYWRITER_LIVE=1` :
+  relais réel 0.7.0, refus des deux modes, liste complète des identifiants d'onglets macOS identique avant/après.
+  Aucun titre, URL, cookie ou session d'onglet existant n'est lu. Aucune navigation n'est exécutée.
+- Les sorties brutes et erreurs intermédiaires sont dans `.manager/reports/playwriter-01-evidence/` ;
+  journal et état final dans `.manager/reports/playwriter-01.md`. Un smoke vert valide une incompatibilité
+  traitée sûrement ; **le statut extension reste INCOMPATIBLE, pas OPÉRATIONNEL**.

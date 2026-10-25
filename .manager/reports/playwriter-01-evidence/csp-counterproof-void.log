@@ -1,0 +1,10 @@
+CONTRE-ÉPREUVE scripts réseau : ["inline","external","handler","srcdoc","data","inline","jsurl","jsurl","blob","meta"]
+✔ CSP et routage seuls : documents réseau sans scripts, contre-épreuve JS active (9277.003333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9394.693625

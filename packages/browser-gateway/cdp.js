@@ -16,8 +16,9 @@ import { requestPinned } from '../policy-engine/http.js';
 
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
 // - endpoint: a CDP endpoint (Playwriter relay `http://127.0.0.1:19988`, or Chrome started with
-//   --remote-debugging-port). The user's existing tabs are never listed or touched: the provider
-//   opens its own page. Closing a connectOverCDP client disconnects its transport, not Chrome.
+//   --remote-debugging-port). Actions target only the provider's own page. Ordinary CDP discovery
+//   initializes existing targets; known Playwriter HTTP relays are rejected before attachment.
+//   Closing a connectOverCDP client disconnects its transport, not Chrome.
 // - launch: { executablePath } starts an isolated headless Chrome with a throwaway profile.
 // No arbitrary script evaluation is exposed: only typed capabilities.
 // Defence in depth, independent of CDP emulation: the page's own CSP forbids every script.
@@ -170,6 +171,31 @@ export class CdpBrowser {
       }
     };
     if (this.context) return step(() => this.newPage(policy));
+    // Inspect only public relay metadata before Playwright auto-attaches to existing targets.
+    // That attachment initializes existing pages, which is outside the scope of our own tab.
+    if (this.endpoint && !this.injected && /^https?:/.test(this.endpoint)) {
+      const metadata = await step(async () => {
+        const response = await fetch(new URL('/json/version', this.endpoint), {
+          redirect: 'error',
+          signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+        });
+        if (!response.ok)
+          throw new Error(`Métadonnées CDP indisponibles : HTTP ${response.status}`);
+        return response.json();
+      });
+      if (/^Playwriter\//.test(metadata.Browser ?? '')) {
+        if (!policy.allowSharedContext)
+          throw new Error(
+            'Ce relais Playwriter ne permet pas de contexte isolé : le contexte partagé exige ' +
+              'AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1 et votre consentement. ' +
+              'Le transport partagé reste incompatible avec les protections CDP par onglet ; utilisez le mode Chrome isolé.',
+          );
+        throw new Error(
+          'Protection CDP par onglet indisponible (relais Playwriter incompatible) : navigation refusée. ' +
+            'Le routage/CSP seul est contournable par un service worker existant. Utilisez le mode Chrome isolé.',
+        );
+      }
+    }
     const chromium = this.injected ?? (await step(() => import('playwright-core'))).chromium;
     if (this.endpoint) {
       this.shared = true; // set before any await: cleanup never closes the remote browser
@@ -255,24 +281,28 @@ export class CdpBrowser {
       this.page = page;
       this.#pages.add(page);
       if (!this.ownsContext) {
-        // These settings affect only our tab, never the user's other tabs/context settings.
-        // The Playwriter relay refuses tab CDP sessions (Target.attachToBrowserTarget): scripts then
-        // stay blocked by the route handler (script requests aborted, CSP script-src 'none'), and
-        // Playwright's own request interception already bypasses service workers for this tab.
+        // Settings must be established on our tab before its first navigation. Routing/CSP alone
+        // cannot protect documents synthesized by an existing service worker in a shared profile.
+        // Playwriter 0.7.0 rejects Playwright's Target.attachToBrowserTarget: fail closed rather
+        // than silently run with active scripts or network requests outside the routing policy.
         session = await context.newCDPSession(page).catch((error) => {
-          if (/No tab found|attachToBrowserTarget/.test(error.message)) return null;
-          throw error;
+          throw new Error(
+            'Protection CDP par onglet indisponible (relais Playwriter incompatible) : ' +
+              'navigation refusée, JavaScript et service workers ne peuvent pas être maîtrisés. ' +
+              'Utilisez le mode Chrome isolé. Cause : ' +
+              error.message,
+          );
         });
         check();
-        if (session) {
-          this.pageSession = session;
-          await session.send('Emulation.setScriptExecutionDisabled', {
-            value: !policy.allowJavaScript,
-          });
-          check();
-          await session.send('Network.setBypassServiceWorker', { bypass: true });
-          check();
-        }
+        this.pageSession = session;
+        await session.send('Emulation.setScriptExecutionDisabled', {
+          value: !policy.allowJavaScript,
+        });
+        check();
+        await session.send('Network.enable');
+        check();
+        await session.send('Network.setBypassServiceWorker', { bypass: true });
+        check();
         await page.routeWebSocket('**/*', (socket) => socket.close());
         check();
       }

@@ -16,6 +16,12 @@ payant, Chrome isolé uniquement.
 - **Tests** : tests qui passent sans vérifier ce qu'ils annoncent (assertions faibles, mocks qui court-circuitent
   la logique testée). Signale-les et renforce-les.
 
+## Défaut constaté par le manager (22:45, run réel 79e2d3e7…)
+Prompt « va sur youtube cherche cyril hanouna », agent Codex réel (codex-acp 2.2.2, session réelle) :
+`run.simulated = false`, mais `result.simulated = true` et l'étape verify indique
+`provenance.analysis = "démonstrateur"`. Statut mensonger : une analyse d'un vrai agent est étiquetée
+démonstrateur. Trouver la cause (orchestrator/result/verify core), test rouge puis vert.
+
 ## Méthode
 `npm test`, `npm run check`, `npm run format:check` au début et à la fin (sorties brutes). Pour chaque défaut :
 gravité (critique/majeur/mineur), fichier:ligne, scénario concret, **test qui le démontre (rouge puis vert)**,

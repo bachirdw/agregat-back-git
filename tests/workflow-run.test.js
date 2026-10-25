@@ -293,3 +293,72 @@ test('timeout d’étape pendant initialize : le processus ACP est fermé sans a
     await app.close();
   }
 });
+
+test('core réel (faux ACP) : le booléen généré ne transforme pas une analyse réelle en démonstrateur', async () => {
+  const { executeWorkflow } = await import('../packages/orchestrator/workflow-run.js');
+  const app = createApp({ dataDir: temporary() });
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'running',
+    cwd: temporary(),
+    prompt: 'FICTIF',
+    model: '',
+    budgetCents: 0,
+  };
+  app.store.create(run);
+  const definition = {
+    id: 'fictif-real',
+    command: process.execPath,
+    args: [resolve('tests/fixtures/fake-acp.js')],
+    env: [],
+    safeModes: [],
+    fixedEnv: {
+      FAKE_ACP: JSON.stringify({
+        result: {
+          simulated: true,
+          summary: 'Analyse FICTIVE pour tester un profil réel',
+          evidence: [],
+        },
+      }),
+    },
+  };
+  const plan = {
+    agent: definition,
+    pack: { id: 'core' },
+    skills: [],
+    dag: {
+      id: 'fictif',
+      title: 'FICTIF',
+      steps: [
+        { id: 'analysis', title: 'FICTIF', kind: 'agent', prompt: 'FICTIF' },
+        { id: 'verify', title: 'FICTIF', kind: 'verify', dependsOn: ['analysis'] },
+        { id: 'report', title: 'FICTIF', kind: 'aggregate', dependsOn: ['verify'] },
+      ],
+    },
+  };
+  try {
+    const result = await executeWorkflow(app.engine, run, plan, { abort: new AbortController() });
+    const steps = app.engine.workflows.steps(run.id);
+    for (const id of ['analysis', 'verify', 'report']) {
+      const output = steps.find((s) => s.step_id === id).output;
+      assert.equal(output.simulated, false, id);
+      assert.equal(output.provenance.analysis, definition.id, id);
+    }
+    assert.equal(result.provenance.analysis, definition.id);
+  } finally {
+    await app.close();
+  }
+});
+
+test('agrégation répétée : conserve les provenances réelles/fictives de verify', () => {
+  for (const simulated of [true, false]) {
+    const first = aggregateOutputs({
+      rank: { simulated, opportunities: [{ id: 'FICTIF' }] },
+      analysis: { simulated: false, agent: 'faux-agent-reel', summary: 'FICTIF', evidence: [] },
+    });
+    const final = aggregateOutputs({ verify: { ...first, verified: true, scope: 'FICTIF' } });
+    assert.equal(final.simulated, simulated);
+    assert.equal(final.provenance.analysis, 'faux-agent-reel');
+    assert.equal(final.provenance.data, simulated ? 'fictives' : 'réelles');
+  }
+});

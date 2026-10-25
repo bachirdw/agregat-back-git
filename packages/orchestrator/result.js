@@ -33,3 +33,17 @@ export function parseAgentResult(text) {
     };
   return { ok: true, value: parsed.data };
 }
+
+// Execution provenance comes from the runtime profile, never from model-generated claims.
+// Fixture data can still be analysed by a real agent (Najah's legacy agent workflow).
+export function executionResult(value, definition, { fixtureData = false } = {}) {
+  return {
+    ...value,
+    simulated: fixtureData || !!definition.simulated,
+    agent: definition.id,
+    provenance: {
+      data: fixtureData ? 'fictives' : null,
+      analysis: definition.simulated ? 'démonstrateur' : definition.id,
+    },
+  };
+}

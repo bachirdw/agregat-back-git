@@ -4,7 +4,7 @@ import { AcpRuntime, saveProbe } from '../agent-runtime/index.js';
 import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
-import { parseAgentResult } from './result.js';
+import { executionResult, parseAgentResult } from './result.js';
 
 // Runs a pack DAG: tool steps call the capability gateway directly (deterministic, no model),
 // agent steps open an ACP session on the agent assigned to that step (multi-agent), verify steps
@@ -53,8 +53,15 @@ export function aggregateOutputs(inputs) {
   return {
     simulated,
     provenance: {
-      data: ranked ? (ranked.simulated === true ? 'fictives' : 'réelles') : null,
-      analysis: analysis ? (analysis.simulated === true ? 'démonstrateur' : analysisAgent) : null,
+      data: ranked?.opportunities
+        ? ranked.simulated === true
+          ? 'fictives'
+          : 'réelles'
+        : (verified?.provenance?.data ?? null),
+      analysis: analysis
+        ? (analysis.provenance?.analysis ??
+          (analysis.simulated === true ? 'démonstrateur' : analysisAgent))
+        : (verified?.provenance?.analysis ?? null),
     },
     summary:
       analysis?.summary ??
@@ -202,7 +209,7 @@ export async function executeWorkflow(orch, run, plan, control) {
           throw new Error(`${parsed.reason} : « ${parsed.excerpt} »`);
         }
         orch.meter(run.id, definition.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
-        return { ...parsed.value, agent: definition.id };
+        return executionResult(parsed.value, definition);
       } finally {
         stepSignal.removeEventListener('abort', onAbort);
         runtimes.delete(runtime);

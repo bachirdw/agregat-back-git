@@ -175,7 +175,7 @@ const app = agent({ name: 'fake-acp' })
       sessionId: ctx.params.sessionId,
       update: {
         sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text: JSON.stringify(report) },
+        content: { type: 'text', text: JSON.stringify(cfg.result ?? report) },
       },
     });
     if (cfg.stderrSecret) process.stderr.write('leak ' + (process.env.GEMINI_API_KEY ?? '') + '\n');

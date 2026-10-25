@@ -96,19 +96,30 @@ export function createApp({
       // arbitrary files: only index.html and Vite assets inside the configured real directory.
       if (webDir && req.method === 'GET' && (path === '/' || path.startsWith('/assets/'))) {
         const base = realpathSync(resolve(webDir));
-        const candidate = resolve(base, '.' + decodeURIComponent(path === '/' ? '/index.html' : path));
+        const candidate = resolve(
+          base,
+          '.' + decodeURIComponent(path === '/' ? '/index.html' : path),
+        );
         const rel = relative(base, candidate);
         if (rel.startsWith('..') || isAbsolute(rel))
           return json(res, 404, { error: 'Fichier introuvable' });
         let target;
-        try { target = realpathSync(candidate); } catch {
+        try {
+          target = realpathSync(candidate);
+        } catch {
           return json(res, 404, { error: 'Fichier introuvable' });
         }
         const actual = relative(base, target);
         if (actual.startsWith('..') || isAbsolute(actual) || !statSync(target).isFile())
           return json(res, 404, { error: 'Fichier introuvable' });
-        const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-          '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
+        const types = {
+          '.html': 'text/html',
+          '.js': 'text/javascript',
+          '.css': 'text/css',
+          '.svg': 'image/svg+xml',
+          '.png': 'image/png',
+          '.woff2': 'font/woff2',
+        };
         const extension = target.slice(target.lastIndexOf('.'));
         if (!Object.hasOwn(types, extension)) return json(res, 404, { error: 'Type refusé' });
         res.writeHead(200, { 'content-type': types[extension] + '; charset=utf-8' });

@@ -108,7 +108,8 @@ test('live-run : délai invalide refusé avant de créer un run', async (t) => {
 test('live-run : même un journal terminal qui ne ferme pas est borné', async (t) => {
   const { calls, result } = await probe(t, {
     hang: true,
-    env: { LIVE_RUN_REQUEST_TIMEOUT_MS: '50' },
+    // Only the never-closing log gets a short bound; ordinary requests keep a margin under load.
+    env: { LIVE_RUN_REQUEST_TIMEOUT_MS: '1000', LIVE_RUN_EVENTS_TIMEOUT_MS: '50' },
   });
   assert.equal(result.killed, false);
   assert.equal(result.code, 1);

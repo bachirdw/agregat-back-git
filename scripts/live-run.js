@@ -6,7 +6,9 @@ const base = `http://127.0.0.1:${process.env.PORT ?? 4310}/api`;
 const headers = { 'content-type': 'application/json', 'x-platform-request': '1' };
 const timeoutMs = Number(process.env.LIVE_RUN_TIMEOUT_MS ?? 240000);
 const requestMs = Number(process.env.LIVE_RUN_REQUEST_TIMEOUT_MS ?? 15000);
-for (const value of [timeoutMs, requestMs])
+// The event log may stay open after a terminal state: it has its own bound.
+const eventsMs = Number(process.env.LIVE_RUN_EVENTS_TIMEOUT_MS ?? requestMs);
+for (const value of [timeoutMs, requestMs, eventsMs])
   if (!Number.isSafeInteger(value) || value <= 0 || value > 2147483647)
     throw new Error('Délai de sonde invalide');
 const request = async (path, body, ms = requestMs) => {
@@ -57,7 +59,7 @@ try {
   }
   if (!terminal.has(state?.state)) throw new Error('Délai maximal de sonde dépassé');
   const response = await fetch(`${base}/runs/${run.id}/events`, {
-    signal: AbortSignal.timeout(requestMs),
+    signal: AbortSignal.timeout(eventsMs),
   });
   if (!response.ok) throw new Error(`Journal indisponible : HTTP ${response.status}`);
   const events = await response.text();

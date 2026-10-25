@@ -135,6 +135,15 @@ const app = agent({ name: 'fake-acp' })
         sessionId: ctx.params.sessionId,
         update: { sessionUpdate: 'current_mode_update', currentModeId: 'yolo' },
       });
+    // Bounded synthetic floods for regression tests, no model or service.
+    for (let i = 0; i < (cfg.chunkCount ?? 0); i++)
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: ' '.repeat(cfg.chunkSize ?? 1) },
+        },
+      });
     if (cfg.eventText)
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,

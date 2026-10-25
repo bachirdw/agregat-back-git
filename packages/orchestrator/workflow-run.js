@@ -139,9 +139,17 @@ export async function executeWorkflow(orch, run, plan, control) {
         cwd,
         agentHome: resolve(orch.dataDir, 'agent-homes', definition.id),
         onEvent: (update) => {
-          if (++events > 4000) return; // bounded: excess updates are dropped, not stored
-          if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text')
+          if (++events > 4000) {
+            control.abort.abort(new Error('Trop d’événements'));
+            return;
+          }
+          if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
             text += update.content.text;
+            if (text.length > 1000000) {
+              control.abort.abort(new Error('Résultat trop volumineux'));
+              return;
+            }
+          }
           orch.store.event(run.id, 'agent', { stepId: step.id, ...update });
           if (update.sessionUpdate === 'tool_call') orch.meter(run.id, 'tool_observed', 1);
         },

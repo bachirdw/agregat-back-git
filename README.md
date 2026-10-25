@@ -98,6 +98,27 @@ ou `PLAYWRITER_TELEMETRY=0 node scripts/playwriter-smoke.js`. **Un résultat ver
 la liste d'onglets inchangée, pas une navigation fonctionnelle.** Seuls les identifiants des onglets et les
 métadonnées du relais sont lus ; aucune page utilisateur n'est inspectée. Voir [ADR 006](docs/adr/006-browser-gateway.md).
 
+## Mode propriétaire local (un seul utilisateur, sur sa machine)
+
+```sh
+set -a && source .manager/secrets.env && set +a   # clé Gemini (facultatif)
+AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 npm start
+```
+
+Désactive les protections multi-utilisateurs : tous les domaines publics, JavaScript actif, clics, saisie et
+formulaires **sans approbation**, permissions ACP auto-approuvées, budget non bloquant (le ledger continue
+d'enregistrer). Le navigateur est le Chrome de l'utilisateur via l'extension Playwriter, à travers un proxy CDP
+local qui ne laisse passer que les onglets créés par la plateforme (les onglets existants ne sont pas touchés) ;
+sans extension, bascule sur Chrome isolé. Les prompts « va sur… / cherche… » sont routés vers le workflow
+`browser-agent`. Refusé si le serveur n'écoute pas uniquement sur 127.0.0.1 ; bandeau visible dans l'interface.
+**Risque assumé** : une page web hostile peut tenter de détourner l'agent (injection de prompt), qui agit alors
+sans confirmation. Ne pas utiliser ce mode pour plusieurs utilisateurs.
+
+Preuve (25/10/2026, 23:08) : run `b2035e5a…`, agent Gemini réel, prompt « va sur youtube.com et cherche Cyril
+Hanouna, donne les 3 premiers titres » → navigation `youtube.com/results?search_query=Cyril+Hanouna` dans le
+Chrome de l'utilisateur, instantané, extraction (un premier sélecteur en échec, relancé), 3 titres réels,
+`simulated: false`. Tests : `tests/owner-mode.test.js`, `tests/owner-browser.test.js`, `tests/owner-transport.test.js`.
+
 ## Aperçu
 
 | Plan proposé automatiquement | Offres réelles citées et vérifiées | Brouillon en attente de relecture |

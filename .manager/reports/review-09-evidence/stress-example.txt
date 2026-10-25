@@ -1,0 +1,78 @@
+[password-stage 2026-10-25T06:54:52.971Z] navigate:start
+2026-10-25T06:54:53.372Z pw:api => browserType.launchPersistentContext started
+2026-10-25T06:54:53.378Z pw:browser <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-OxRHGd --remote-debugging-pipe about:blank
+2026-10-25T06:54:53.406Z pw:browser <launched> pid=89416
+2026-10-25T06:54:55.106Z pw:browser [pid=89416][err] Trying to load the allocator multiple times. This is *not* supported.
+2026-10-25T06:54:55.517Z pw:browser [pid=89416][err] [89445:22508917:1025/175455.516402:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.517Z pw:browser [pid=89416][err] [89445:22509219:1025/175455.517030:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.529Z pw:browser [pid=89416][err] [89445:22508917:1025/175455.527742:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.529Z pw:browser [pid=89416][err] [89445:22509219:1025/175455.527797:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.530Z pw:browser [pid=89416][err] [89445:22508917:1025/175455.528604:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.530Z pw:browser [pid=89416][err] [89445:22509219:1025/175455.528644:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.530Z pw:browser [pid=89416][err] [89445:22508917:1025/175455.528747:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.530Z pw:browser [pid=89416][err] [89445:22509219:1025/175455.528798:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.530Z pw:browser [pid=89416][err] [89445:22508917:1025/175455.529031:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:55.530Z pw:browser [pid=89416][err] [89445:22509219:1025/175455.529089:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2026-10-25T06:54:56.248Z pw:api <= browserType.launchPersistentContext succeeded
+2026-10-25T06:54:56.252Z pw:api => browserContext.route started
+2026-10-25T06:54:56.342Z pw:api <= browserContext.route succeeded
+2026-10-25T06:54:56.343Z pw:api => browserContext.routeWebSocket started
+2026-10-25T06:54:56.534Z pw:api <= browserContext.routeWebSocket succeeded
+2026-10-25T06:54:56.536Z pw:api => page.goto started
+2026-10-25T06:54:56.539Z pw:api navigating to "http://127.0.0.1:49528/", waiting until "domcontentloaded"
+2026-10-25T06:54:56.597Z pw:api => route.fulfill started
+2026-10-25T06:54:56.601Z pw:api <= route.fulfill succeeded
+2026-10-25T06:54:56.633Z pw:api   "commit" event fired
+2026-10-25T06:54:56.633Z pw:api   navigated to "http://127.0.0.1:49528/"
+2026-10-25T06:54:56.683Z pw:api   "domcontentloaded" event fired
+2026-10-25T06:54:56.685Z pw:api <= page.goto succeeded
+2026-10-25T06:54:56.686Z pw:api => page.title started
+2026-10-25T06:54:56.692Z pw:api   "load" event fired
+2026-10-25T06:54:56.747Z pw:api <= page.title succeeded
+[password-stage 2026-10-25T06:54:56.747Z] navigate:done;type:start
+2026-10-25T06:54:56.756Z pw:api => locator.count started
+2026-10-25T06:54:56.847Z pw:api <= locator.count succeeded
+2026-10-25T06:54:56.849Z pw:api => locator.evaluate started
+2026-10-25T06:54:56.870Z pw:api waiting for locator('#pw').first()
+2026-10-25T06:54:57.032Z pw:api   locator resolved to visible <input id="pw" type="password" autocomplete="current-password"/>
+2026-10-25T06:54:57.068Z pw:api <= locator.evaluate succeeded
+2026-10-25T06:54:57.070Z pw:api => locator.count started
+2026-10-25T06:54:57.072Z pw:api <= locator.count succeeded
+2026-10-25T06:54:57.072Z pw:api => locator.evaluate started
+2026-10-25T06:54:57.073Z pw:api waiting for locator('#pw').first()
+2026-10-25T06:54:57.074Z pw:api   locator resolved to visible <input id="pw" type="password" autocomplete="current-password"/>
+2026-10-25T06:54:57.078Z pw:api <= locator.evaluate succeeded
+2026-10-25T06:54:57.082Z pw:api => locator.fill started
+2026-10-25T06:54:57.083Z pw:api waiting for locator('#pw').first()
+2026-10-25T06:54:57.085Z pw:api   locator resolved to <input id="pw" type="password" autocomplete="current-password"/>
+2026-10-25T06:54:57.086Z pw:api   fill("secret-123")
+2026-10-25T06:54:57.086Z pw:api attempting fill action
+2026-10-25T06:54:57.087Z pw:api   waiting for element to be visible, enabled and editable
+2026-10-25T06:54:57.184Z pw:api   "networkidle" event fired
+2026-10-25T06:54:57.207Z pw:api <= locator.fill succeeded
+[password-stage 2026-10-25T06:54:57.207Z] type:done
+[password-stage 2026-10-25T06:54:57.209Z] cleanup:browser:start
+2026-10-25T06:54:57.214Z pw:api => page.close started
+2026-10-25T06:54:57.378Z pw:api <= page.close succeeded
+2026-10-25T06:54:57.379Z pw:api => browserContext.unroute started
+2026-10-25T06:54:57.380Z pw:api <= browserContext.unroute succeeded
+2026-10-25T06:54:57.382Z pw:api => browserContext.close started
+2026-10-25T06:54:57.382Z pw:browser [pid=89416] <gracefully close start>
+2026-10-25T06:54:57.918Z pw:browser [pid=89416] <process did exit: exitCode=0, signal=null>
+2026-10-25T06:54:57.919Z pw:browser [pid=89416] starting temporary directories cleanup
+2026-10-25T06:54:57.972Z pw:browser [pid=89416] finished temporary directories cleanup
+2026-10-25T06:54:57.972Z pw:browser [pid=89416] <gracefully close end>
+2026-10-25T06:54:57.972Z pw:api <= browserContext.close succeeded
+2026-10-25T06:54:57.972Z pw:api => browser.close started
+2026-10-25T06:54:57.973Z pw:api <= browser.close failed
+[password-stage 2026-10-25T06:54:57.973Z] cleanup:browser:done
+[password-stage 2026-10-25T06:54:57.974Z] cleanup:server:done
+✔ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (5019.4975ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5225.700792

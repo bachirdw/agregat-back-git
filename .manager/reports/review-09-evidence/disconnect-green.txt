@@ -1,0 +1,16 @@
+✔ Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé (1357.198375ms)
+✔ Chrome isolé : délai de démarrage strictement positif et entier (1.033541ms)
+✔ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (2.267333ms)
+✔ démarrage : appels concurrents partagent un seul lancement (0.27975ms)
+✔ démarrage : erreur de garde conserve la cause et libère le contexte (0.211375ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (context) (29.889375ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (page) (29.792125ms)
+✔ démarrage : une mutation pendant le lancement refuse et nettoie le résultat (0.386958ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1508.178584

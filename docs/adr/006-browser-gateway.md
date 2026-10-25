@@ -123,3 +123,22 @@ synthèses et banc reproductible : `.manager/reports/sprint-09-evidence/`. Ce r�
 du blocage observé dans ce banc, pas une garantie universelle sur tous les binaires Chrome/charges.
 Un exécutable totalement muet qui ignore même Browser.close provoque bien le rejet à la deadline, mais
 sa destruction gracieuse peut être retardée par Playwright ; la fixture de test est arrêtée explicitement.
+
+## Corrections de la relecture review-09
+
+Le lancement est unique par provider, même pour plusieurs `ensure` concurrents. La fermeture révoque
+immédiatement le consentement, attend le lancement en cours et nettoie ses ressources ; chaque frontière
+asynchrone revérifie la fermeture et la politique. Un résultat tardif après expiration est fermé sans être
+adopté. Une erreur d'installation des gardes ferme le contexte et conserve l'erreur d'origine. Une deadline
+globale couvre aussi les étapes CDP `connectOverCDP`, `newContext`, les gardes et `newPage`.
+
+Le client Playwright `connectOverCDP` est déconnecté à la fermeture, y compris lorsqu'il arrive après la
+deadline. Pour la version épinglée, son `browser.close()` ferme le transport CDP et ses fichiers temporaires,
+sans envoyer la commande CDP `Browser.close` au Chrome distant (`playwright-core/lib/coreBundle.js`,
+`_connectOverCDPImpl`). Le test réel vérifie `isConnected() === false`, puis retrouve les onglets et leur
+titre via un appel HTTP indépendant ; le processus Chrome temporaire reste vivant. Les objets Page de
+l'ancien client ne doivent plus être utilisés après cette déconnexion.
+
+Ces corrections ne garantissent pas la destruction d'un exécutable arbitraire qui ignore le protocole,
+ni une fermeture bornée si le pair bloque aussi ses opérations de nettoyage. L'isolation des processus
+et le canal humain protégé restent nécessaires contre un CLI natif hostile.

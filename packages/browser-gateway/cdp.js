@@ -17,7 +17,7 @@ import { requestPinned } from '../policy-engine/http.js';
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
 // - endpoint: a CDP endpoint (Playwriter relay `http://127.0.0.1:19988`, or Chrome started with
 //   --remote-debugging-port). The user's existing tabs are never listed or touched: the provider
-//   opens its own page and closes only that page. It never calls browser.close() on a shared Chrome.
+//   opens its own page. Closing a connectOverCDP client disconnects its transport, not Chrome.
 // - launch: { executablePath } starts an isolated headless Chrome with a throwaway profile.
 // No arbitrary script evaluation is exposed: only typed capabilities.
 export class CdpBrowser {
@@ -157,8 +157,9 @@ export class CdpBrowser {
     const chromium = this.injected ?? (await step(() => import('playwright-core'))).chromium;
     if (this.endpoint) {
       this.shared = true; // set before any await: cleanup never closes the remote browser
-      this.browser = await step(() =>
-        chromium.connectOverCDP(this.endpoint, { timeout: this.startupTimeoutMs }),
+      this.browser = await step(
+        () => chromium.connectOverCDP(this.endpoint, { timeout: this.startupTimeoutMs }),
+        (browser) => browser.close(),
       );
       this.ownsContext = !policy.allowSharedContext;
       this.context = policy.allowSharedContext
@@ -486,8 +487,10 @@ export class CdpBrowser {
       if (this.ownsContext) await this.context.close().catch(() => {});
     }
     this.context = null;
-    // A shared Chrome (Playwriter relay / user browser) is never closed by the platform.
-    if (this.browser && !this.shared) await this.browser.close().catch(() => {});
+    // Playwright's connectOverCDP browserProcess.close only closes the CDP transport.
+    // It sends no Browser.close command to the remote Chrome (coreBundle.js, _connectOverCDPImpl).
+    await this.browser?.close().catch(() => {});
+    this.browser = null;
     this.page = null;
     this.#authorization = null;
     this.#boundPolicy = null;

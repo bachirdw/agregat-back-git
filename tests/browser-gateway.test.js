@@ -480,7 +480,9 @@ test(
     const out = await gw.call('browser.navigate', { url: origin + '/plateforme' });
     assert.equal(out.provider, 'cdp-shared');
     assert.equal((await listTabs()).length, before.length + 1, 'un onglet dédié a été ouvert');
+    const connection = provider.browser;
     await provider.close();
+    assert.equal(connection.isConnected(), false, 'transport CDP déconnecté');
     const after = await listTabs();
     assert.deepEqual(after, before, 'seul l’onglet de la plateforme est fermé');
     assert.equal(chrome.exitCode, null, 'Chrome de l’utilisateur toujours ouvert');
@@ -513,9 +515,12 @@ test(
         // The scoped router must not block a pre-existing user's tab, even while active.
         await userPage.reload();
         assert.equal(await userPage.title(), 'Offres de test');
+        const connection = sharedProvider.browser;
         await sharedProvider.close();
+        assert.equal(connection.isConnected(), false, 'transport CDP partagé déconnecté');
+        const tabs = await (await fetch(endpoint + '/json/list')).json();
         assert.equal(
-          await userPage.title(),
+          tabs.find((tab) => tab.url.includes('onglet-utilisateur')).title,
           'Offres de test',
           'contexte utilisateur toujours ouvert',
         );
@@ -1016,7 +1021,7 @@ test('démarrage : erreur de garde conserve la cause et libère le contexte', as
   await provider.close();
 });
 
-for (const boundary of ['context', 'page']) {
+for (const boundary of ['connection', 'context', 'page']) {
   test(`démarrage CDP : deadline et résultat tardif nettoyé (${boundary})`, async () => {
     const f = startupFixture();
     f.context.newPage = () => (boundary === 'page' ? f.ready : Promise.resolve(f.page));
@@ -1024,18 +1029,32 @@ for (const boundary of ['context', 'page']) {
     const provider = new CdpBrowser({
       endpoint: 'http://127.0.0.1:1',
       startupTimeoutMs: 30,
-      chromium: { connectOverCDP: async () => f.browser },
+      chromium: {
+        connectOverCDP: () => (boundary === 'connection' ? f.ready : Promise.resolve(f.browser)),
+      },
     });
     const started = Date.now();
     await assert.rejects(provider.ensure(new RunPolicy()), /Délai de démarrage/);
     assert.ok(Date.now() - started < 1000);
     await provider.close();
-    f.release(boundary === 'context' ? f.context : f.page);
+    f.release(boundary === 'connection' ? f.browser : boundary === 'context' ? f.context : f.page);
     await new Promise((r) => setImmediate(r));
-    assert.ok(f.calls.includes(boundary === 'context' ? 'context-close' : 'page-close'));
+    assert.ok(
+      f.calls.includes(
+        boundary === 'connection'
+          ? 'browser-close'
+          : boundary === 'context'
+            ? 'context-close'
+            : 'page-close',
+      ),
+    );
     assert.equal(provider.page, null);
     assert.equal(provider.context, null);
-    assert.ok(!f.calls.includes('browser-close'), 'navigateur distant conservé');
+    assert.equal(
+      f.calls.filter((call) => call === 'browser-close').length,
+      1,
+      'transport CDP fermé',
+    );
   });
 }
 

@@ -38,9 +38,9 @@ En cours ; aucune conclusion de conformité à ce stade.
 |---|---|---|---|---|
 | R09-1 | Élevée | `packages/browser-gateway/cdp.js:94–155` (HEAD initial) | `close()` pendant `launchPersistentContext()` ; `ensure()` revient ensuite avec une page, contexte jamais fermé. Test « fermer pendant le lancement », rouge dans `startup-red.txt`. | Corrigé : révocation immédiate, contrôle après attente, ressource tardive fermée ; commit 142476c. |
 | R09-2 | Moyenne | `cdp.js:94–155` (HEAD initial) | Deux `ensure()` concurrents lancent deux contextes ; le premier est écrasé. Test « appels concurrents », 2 lancements au lieu de 1. | Corrigé : promesse de démarrage partagée ; commit 142476c. |
-| R09-3 | Moyenne | `cdp.js:140` (HEAD initial) | Échec de `context.route()` après lancement : contexte conservé sans gardes. Test « erreur de garde », zéro fermeture avant correction. | Corrigé : nettoyage transactionnel, erreur d'origine conservée ; commit 142476c. |
-| R09-4 | Moyenne | `cdp.js:107–113,155–158` (HEAD initial) | `newContext`/`newPage` CDP sans deadline, possibilité de rester suspendu et d'adopter une ressource tardive. | Corrigé : deadline de démarrage globale et nettoyage des retours tardifs, tests fictifs context/page ; commit 142476c. |
-| R09-5 | Moyenne | `cdp.js:395–398` (HEAD initial) | Fermeture de provider CDP laissant `browser.isConnected() === true`. Test Chrome réel rouge `disconnect-red.txt`. | Corrigé : fermeture du transport client, Chrome/onglets préservés ; second commit en cours. |
+| R09-3 | Moyenne | `cdp.js:135` (HEAD initial) | Échec de `context.route()` après lancement : contexte conservé sans gardes. Test « erreur de garde », zéro fermeture avant correction. | Corrigé : nettoyage transactionnel, erreur d'origine conservée ; commit 142476c. |
+| R09-4 | Moyenne | `cdp.js:111,156` (HEAD initial) | `newContext`/`newPage` CDP sans deadline, possibilité de rester suspendu et d'adopter une ressource tardive. | Corrigé : deadline de démarrage globale et nettoyage des retours tardifs, tests fictifs context/page ; commit 142476c. |
+| R09-5 | Moyenne | `cdp.js:395–398` (HEAD initial) | Fermeture de provider CDP laissant `browser.isConnected() === true`. Test Chrome réel rouge `disconnect-red.txt`. | Corrigé : fermeture du transport client, Chrome/onglets préservés ; commit b56cba7. |
 | R09-6 | Élevée hors périmètre de confiance mono-utilisateur | `apps/api/server.js:299–302`, contrôles Host/Origin lignes 88–93 | Un programme natif local peut lister les permissions puis envoyer la décision HTTP en omettant Origin. Le jeton du pont ne protège pas cette route humaine. | Non corrigé au niveau OS : limite connue, démonstration et clarification documentaire à livrer. Impossible d'établir l'identité humaine avec ces seules routes ; ne pas présenter le consentement comme une protection contre un CLI hostile du même UID. |
 
 Les numéros historiques des défauts CDP désignent les fichiers du commit 66aff05, relus dans le diff demandé.
@@ -57,3 +57,29 @@ contre un exécutable hostile ; les opérations de nettoyage du pair peuvent ell
 - Le canal HTTP humain reste accessible à un programme natif du même utilisateur. Une injection conduisant un CLI à utiliser ses outils natifs sort de la protection offerte par MCP ; isolation système et canal humain séparé restent requis.
 
 - 17:55 — Banc de charge terminé : **64/64, concurrence 8, durée 33,38 s, code 0**, aucun essai ignoré. Sortie brute `stress-summary.txt`, un essai intégral `stress-example.txt`, script reproductible `stress.py` ; les 64 traces détaillées restent `/tmp/review09-trace-01.log` à `64.log`. Le démarrage isolé du sprint 09 est donc reproduit vert indépendamment, après les corrections de cycle de vie. Deuxième correction prête : 217 tests et tous contrôles verts, plus charge 64/64.
+
+- 17:56 — Priorité 1 : deux nouvelles preuves passent (2/2, code 0, `boundary.txt`) : faux outil/arguments MCP ne valent pas consentement, run terminal refusé ; Origin hostile et null refusées, mais appel natif sans Origin accepte une décision locale. Aucun navigateur lancé pour ces tests. R09-6 est donc démontré sans modèle. Décision : ne pas inventer une authentification humaine avec un simple nouveau jeton accessible au même UID ; documenter INCOMPLET hors périmètre MCP de confiance. README et FINAL corrigés : statut navigateur borné, disponibilité réseau Najah non renouvelée, import GitHub réussi seulement historique, anciens décomptes par composant retirés au profit des tests exacts.
+
+- 17:57 — Vérification supplémentaire de R09-1 : une fermeture AVANT la microtâche du launcher déclenchait encore le faux lancement, bien que son résultat soit ensuite nettoyé. Nouveau test isolé `tests/browser-startup.test.js`, rouge code 1 (`queued-red.txt`). Correction : revérifier fermé/politique dans la microtâche avant appel effectif. Test vert code 0 (`queued-green.txt`), aucun processus réel lancé. Le test de fermeture PENDANT lancement attend désormais explicitement le démarrage de sa fixture. Une nouvelle validation complète sera nécessaire après ce changement ; la suite dite finale en cours est une validation intermédiaire et sera conservée comme telle.
+
+## Audit des statuts documentaires (priorité 3)
+
+Chaque ligne OPÉRATIONNEL de FINAL a été rapprochée du fichier de tests cité et de son exécution :
+
+| Point | Preuve effectivement lue et exécutée | Conclusion documentaire |
+|---|---|---|
+| Prompt/interface | E2E démonstrateur, erreurs budget, saisie avant catalogue | Opérationnel pour ces parcours ; la sélection de modèles est aussi testée API/runtime, pas présentée comme une inférence E2E fournisseur. |
+| Sélection/Auto | api-agents et runtime : filtres, refus, modèles annoncés | Opérationnel pour routage local ; fournisseurs conditionnels et sondes historiques. |
+| CLI/ACP | runtime : faux CLI/chemins/capacités ; test probe muet | Opérationnel pour détection/protocole ; aucun nouveau handshake externe promis. |
+| Sessions | runtime : handshake, modes, load, crash/timeout/annulation sur faux agents | Opérationnel pour runtime, inférence réelle non renouvelée. |
+| Streaming/historique | platform et E2E, SSE et stockage | Opérationnel dans le prototype local. |
+| Skills | skill-registry : cycle local, quarantaine, hash, export, traversées/liens | Opérationnel local ; les tests importGit ne testent que des refus. README distingue désormais import GitHub implémenté/preuve réseau historique. |
+| MCP | platform et approval-bridge : processus stdio réels et refus | Opérationnel pour serveur plateforme ; services externes arbitraires incomplets. |
+| Navigateur | browser-gateway, approval-bridge, charge indépendante | Opérationnel MCP/Chrome isolé et CDP temporaire ; extension Playwriter et canal humain isolé incomplets. |
+| Najah | najah-live en rejeu enregistré, evals, sponsors par nom seulement | Opérationnel pour le traitement hors ligne ; disponibilité actuelle des sources non revalidée. |
+| DAG | workflow-engine, workflow-run, workflow-resume et E2E | Opérationnel pour orchestration ; analyse modèle simulée dans la suite. |
+
+Facturation : billing teste effectivement tarifs, BYOA, budgets, plafond, ledger et compteurs ; retrait du
+compte historique « 9 tests » du README au profit du fichier de preuve. Les comptes « 12 Skills » et
+« 15 + 8 + 4 workflow » étaient également historiques, retirés du README. Les preuves historiques du
+sprint 09 restent marquées comme telles dans FINAL et ne sont pas réattribuées à cette revue.

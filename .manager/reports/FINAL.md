@@ -1,7 +1,7 @@
 # Rapport final de la nuit — plateforme d'agrégation d'agents CLI (« Relay »)
 
-Actualisé au sprint 09, le 25 octobre 2026. Les preuves historiques des fournisseurs ne sont pas des
-validations d'inférence renouvelées : ce sprint n'a appelé aucun modèle ni service payant.
+Actualisé après review-09, le 25 octobre 2026. Les preuves historiques des fournisseurs ne sont pas des
+validations d'inférence renouvelées : ni le sprint 09 ni review-09 n'ont appelé de modèle ni de service payant.
 
 ## 1. Déroulement de la nuit
 
@@ -20,7 +20,8 @@ validations d'inférence renouvelées : ce sprint n'a appelé aucun modèle ni s
   effets interrompus incertains résolus explicitement, jamais rejoués aveuglément.
 - Capacités navigateur typées uniquement ; Playwriter est un transport CDP, jamais un outil execute.
   JavaScript et contexte utilisateur partagés désactivés par défaut, chacun exige un consentement humain
-  enregistré pour le run (ADR 006). Profil Chrome isolé jetable pour les tests.
+  enregistré pour le run (ADR 006), dans le périmètre des outils MCP. Le canal HTTP local ne prouve
+  pas une identité humaine contre un CLI natif du même compte. Profil Chrome isolé jetable pour les tests.
 - Skills tiers en quarantaine, revue liée à l'empreinte, scripts non exécutés à l'import/export.
 - Najah reste un Domain Pack découplé. Sources citées, sponsoring inconnu en l'absence de preuve primaire.
 - Ledger chaîné et ancré localement, catégories distinctes, budgets imposés avant les actions ; aucun prix
@@ -46,8 +47,8 @@ ou réponses publiques préenregistrées ; aucun modèle ni service payant.
 | 5 | Streaming, suivi et historique | OPÉRATIONNEL | `tests/platform.test.js` : API ACP/MCP complète et SSE replay ; `tests/e2e-ui.test.js` : étapes en direct ; stockage durable testé |
 | 6 | Skills portables | OPÉRATIONNEL | `tests/skill-registry.test.js` : quarantaine, revue/hash, versions, export, traversées/symlinks/hardlinks et mutations refusés |
 | 7 | Connexion MCP | OPÉRATIONNEL pour le serveur plateforme ; INCOMPLET pour services externes arbitraires | `tests/platform.test.js`, `tests/approval-bridge.test.js` : vrai stdio MCP, découverte/appel, pont de décision et mesure ; pas de catalogue externe intégré |
-| 8 | Playwriter ou démonstrateur Browser Gateway | OPÉRATIONNEL sur Chrome isolé et CDP de test ; SIMULÉ en mode fixture ; INCOMPLET pour extension Playwriter | `tests/browser-gateway.test.js` : domaines/SSRF, ressources, redirections, saisie, fichiers, partage avec consentement ; banc de charge 64/64 ; extension utilisateur non installée/testée |
-| 9 | Najah minimal | OPÉRATIONNEL pour outils et vérification ; SIMULÉ pour offres fictives du démonstrateur | `tests/najah-live.test.js` : rejeu hors ligne des sources publiques enregistrées et DAG API ; `tests/najah-evals.test.js` ; sponsoring UK = correspondance de nom à confirmer, jamais identité déduite |
+| 8 | Playwriter ou démonstrateur Browser Gateway | OPÉRATIONNEL sur Chrome isolé et CDP de test ; SIMULÉ en mode fixture ; INCOMPLET pour extension Playwriter et canal humain isolé | `tests/browser-gateway.test.js` : domaines/SSRF, ressources, redirections, saisie, fichiers, partage avec consentement ; banc de charge 64/64 ; extension utilisateur non installée/testée |
+| 9 | Najah minimal | OPÉRATIONNEL pour traitement en rejeu hors ligne et vérification ; accès réseau actuel non revérifié ; SIMULÉ pour offres fictives du démonstrateur | `tests/najah-live.test.js` : rejeu hors ligne des sources publiques enregistrées et DAG API ; `tests/najah-evals.test.js` ; sponsoring UK = correspondance de nom à confirmer, jamais identité déduite |
 | 10 | Workflow recherche → analyse → classement vérifié | OPÉRATIONNEL pour DAG ; analyse modèle SIMULÉE dans la suite | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` : parallèle, approbations, reprise/crash/incertitude ; E2E Najah et brouillon sans envoi |
 
 Compléments transversaux : `tests/billing.test.js` prouve mesures/budgets/plafond/ledger/BYOA ;
@@ -67,7 +68,9 @@ Le montant fournisseur inconnu reste inconnu ; tarifs plateforme à zéro par d�
   Voir `docs/mvp-plan.md`.
 - Limites : contenu local en clair, contrôle des effets natifs des CLI incomplet, décision humaine locale
   non isolée d'un programme du même UID, ancre du ledger modifiable par le propriétaire du disque.
-  Le consentement à JavaScript/au contexte partagé accepte les risques décrits dans l'ADR 006.
+  Le consentement à JavaScript/au contexte partagé accepte les risques décrits dans l'ADR 006. Un appel
+  natif local peut lister puis approuver une permission sans Origin : cette limite est démontrée dans
+  `tests/approval-bridge.test.js`. La protection contre un CLI hostile du même UID reste INCOMPLÈTE.
 
 Budget historique déclaré : environ 0,044 $ Gemini selon `.manager/api-usage.md`. Consommation du sprint
 09 : **zéro appel modèle / zéro dollar de service payant**.
@@ -141,3 +144,23 @@ compte : les politiques et jetons locaux ne suffisent pas à une plateforme mult
 - Dernière suite complète : **210/210**, 162 sans navigateur + 48 Chrome/pont/E2E, zéro skip. Contrôles
   syntaxe et Prettier verts. Les rapports consignent aussi les erreurs de tests, sandbox, diagnostics,
   manipulation du rapport et leurs corrections ; aucun succès n'est déduit d'un rapport non testé.
+
+### Relecture indépendante review-09
+
+Le commit initial 66aff05 a été vérifié dans une copie exacte temporaire : **210/210 tests verts**, sans
+modèle ni service payant. Les échecs du premier passage dans le bac à sable et son arrêt explicite sont
+conservés dans [review-09.md](review-09.md), sans être imputés à tort au produit.
+
+La revue a démontré puis corrigé la résurrection d'un contexte après fermeture pendant lancement,
+le double lancement concurrent, la fuite de contexte après erreur des gardes, les attentes CDP de
+création de contexte/page non bornées, et le transport CDP restant connecté après fermeture. Les tests
+vérifient aussi les résultats tardifs, la mutation de politique et la préservation des onglets distants.
+Le banc indépendant mot de passe est **64/64 vert, concurrence 8, 33,38 s** ; il confirme le scénario
+observé et ne garantit pas tous les binaires/charges.
+
+La validation finale review-09 est consignée dans son rapport. Les tests supplémentaires prouvent que les
+arguments MCP forgés et faux outils ne valent pas consentement, que les requêtes Origin de pages sont
+refusées, et que **le canal HTTP de décision reste invocable par un programme natif local**. Le qualificatif
+OPÉRATIONNEL du navigateur concerne donc les capacités MCP dans le prototype mono-utilisateur de confiance,
+pas une isolation d'un agent malveillant. L'extension Playwriter et les accès fournisseurs n'ont pas été
+revalidés. Les tests d'import GitHub ne prouvent que les rejets ; l'import distant réussi reste historique.

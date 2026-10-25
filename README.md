@@ -60,7 +60,7 @@ La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seule
 
 ## Navigateur (Browser Gateway)
 
-Les agents n'accèdent au navigateur que par des capacités typées (`browser_navigate`, `browser_snapshot`,
+Les outils MCP navigateur fournis aux agents exposent des capacités typées (`browser_navigate`, `browser_snapshot`,
 `browser_extract`, `browser_click`, `browser_type`, `browser_upload`, `browser_download`) contrôlées par la
 gateway : domaines autorisés du pack, HTTPS, anti-SSRF, redirections revérifiées, fichiers confinés au
 dossier du run. Toute action d'écriture demande une décision dans l'interface ; les actions sensibles
@@ -83,7 +83,10 @@ Par défaut, JavaScript est désactivé et le contexte utilisateur n'est pas par
 `AGENT_PLATFORM_BROWSER_SHARED_CONTEXT=1` demande le contexte utilisateur (mode `playwriter` seulement).
 Chaque option nécessite ensuite son propre consentement humain enregistré pour le run, avant toute
 ouverture. Un refus, une annulation ou l'absence de pont empêche l'activation. Le consentement n'est pas
-transférable à un autre run. Les risques scripts/cookies et limites du contexte partagé sont dans l'ADR 006.
+transférable à un autre run. **Le canal de décision HTTP local n'authentifie pas une personne** : un
+programme natif du même compte peut l'appeler sans Origin et approuver lui-même. Ce mécanisme protège
+les appels MCP et les requêtes de pages, mais la résistance à un CLI hostile reste **incomplète**.
+Les risques scripts/cookies et limites du contexte partagé sont dans l'ADR 006.
 
 Avec Playwriter, désactiver sa télémétrie (`PLAYWRITER_TELEMETRY=0`). Voir [ADR 006](docs/adr/006-browser-gateway.md).
 
@@ -100,19 +103,20 @@ analyse par le démonstrateur sans modèle).
 
 | Fonction | État | Preuve |
 |---|---|---|
-| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel** | Tests E2E sur Chrome réel (`tests/e2e-ui.test.js`) |
+| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel** | Parcours démonstrateur et approbations : `tests/e2e-ui.test.js` ; sélection/modèles côté API et runtime : `tests/api-agents.test.js`, `tests/runtime.test.js` |
 | Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles) | **Opérationnel** | `tests/runtime.test.js` et sondes historiques |
 | Codex · Claude · Gemini CLI · OpenCode | Sessions réelles documentées pour les 4 ; accès et inférence fournisseur à revérifier selon disponibilité/conditions | `docs/research/live-probe.json`, `docs/validation.md` (historiques ; aucune inférence au sprint 09) |
-| Mode Auto par exigences et capacités | **Opérationnel** | Tests routeur |
-| Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent) | **Opérationnel** | 15 + 8 + 4 tests ; DAG réel avec Gemini |
-| Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié | **Opérationnel** | Runs réels documentés ; rejeu hors ligne testé |
+| Mode Auto par exigences et capacités | **Opérationnel** | `tests/runtime.test.js`, `tests/api-agents.test.js` |
+| Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent) | **Opérationnel** | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` ; agents fictifs, essai Gemini historique |
+| Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié | **Opérationnel en rejeu hors ligne** ; disponibilité des sources en ligne non revérifiée | `tests/najah-live.test.js`, `tests/najah-evals.test.js` ; runs réseau historiques |
 | Najah — démonstrateur fictif | **Simulé** (données marquées FICTIVES) | Tests |
 | Najah — brouillon de lettre avec relecture humaine | **Opérationnel**, aucun envoi possible | Tests API + E2E |
-| Registre de Skills (quarantaine, revue, versions, export natif, import GitHub) | **Opérationnel** | 12 tests ; import réel de career-ops |
-| Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement | **Opérationnel** | Chrome réel, consentements par run ; 64/64 essais mot de passe sous charge après correction |
+| Registre de Skills (quarantaine, revue, versions, export natif, import local) | **Opérationnel** | `tests/skill-registry.test.js` : cycle local complet et refus de chemins/empreintes non sûrs |
+| Import GitHub de Skills | **Implémenté**, validation réseau historique | `tests/skill-registry.test.js` teste les rejets ; import career-ops historique, aucun clone distant renouvelé par la revue |
+| Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement | **Opérationnel dans le périmètre MCP de confiance** ; canal humain non isolé | `tests/browser-gateway.test.js`, `tests/approval-bridge.test.js` : Chrome réel, déconnexion CDP, courses, consentements et limite native ; revue indépendante : 64/64 essais sous charge |
 | Browser Gateway via l'extension Playwriter | **Implémenté, non testé** (extension non installée) | ADR 006 |
-| MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | |
-| Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | 9 tests ; ADR 007 |
+| MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | `tests/platform.test.js`, `tests/approval-bridge.test.js` |
+| Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | `tests/billing.test.js`, ADR 007 |
 | Companion cloud, mode Managed, comptes, abonnements, multi-utilisateurs | **Prévu** | |
 
 Les Skills se trouvent sous `domain-packs/*/skills/*/SKILL.md`. Seuls les contenus embarqués et revus sont installables directement ; les Skills tiers passent par la quarantaine et une revue humaine. L'installation ne lance aucun script. Pour ajouter un pack : déclarer manifest (Skills, `dag`/`dags`, `policies`), plugin d'outils/validation, puis l'ajouter à la liste de packs approuvés dans `packages/orchestrator/packs.js`. Ne jamais charger du code de pack à partir d'une URL fournie par l'utilisateur.
@@ -153,7 +157,7 @@ jamais refacturée » et ne peut pas recevoir de prix. Voir [ADR 007](docs/adr/0
 ## Vérifier
 
 ```sh
-npm test          # 210 tests : unitaires, intégration ACP/MCP/HTTP, Chrome réel isolé, E2E interface
+npm test          # suite complète : unitaires, intégration ACP/MCP/HTTP, Chrome réel isolé, E2E interface
 npm run test:browser   # tests navigateur et E2E seuls, en série
 npm run check     # syntaxe de tous les fichiers JavaScript
 npm run format:check  # style Prettier
@@ -182,7 +186,7 @@ packages/billing/             Mètres, tarifs, estimation, résumé
 packages/storage/             SQLite : runs, événements, Skills, ledger chaîné
 domain-packs/core/            Analyse générale
 domain-packs/najah/           Skills, DAG, outils live et fixtures, politiques, évaluations
-tests/                        210 tests, faux agents ACP, fixtures enregistrées
+tests/                        Tests, faux agents ACP, fixtures enregistrées
 docs/                         Recherche, architecture, ADR 001–007, validation
 .manager/                     Plan, briefs, rapports de la session de nuit (manager + Codex)
 ```

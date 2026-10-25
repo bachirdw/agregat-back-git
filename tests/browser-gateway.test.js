@@ -973,6 +973,8 @@ test('démarrage : fermer pendant le lancement ne ressuscite aucun contexte', as
   });
   const task = provider.ensure(new RunPolicy());
   const rejected = assert.rejects(task, /fermé/);
+  // Ensure the fake launcher has actually started; the queued-launch case has its own test.
+  await new Promise((resolve) => setImmediate(resolve));
   const closing = provider.close();
   f.release(f.context);
   await closing;

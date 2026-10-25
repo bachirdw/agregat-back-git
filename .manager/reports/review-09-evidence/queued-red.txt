@@ -1,0 +1,29 @@
+✖ fermeture avant la microtâche de lancement : aucun processus même fictif démarré (1.378625ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.294208
+
+✖ failing tests:
+
+test at tests/browser-startup.test.js:6:1
+✖ fermeture avant la microtâche de lancement : aucun processus même fictif démarré (1.378625ms)
+  [AssertionError [ERR_ASSERTION]: The input did not match the regular expression /fermé/. Input:
+  
+  'Error: FICTIF : ne doit jamais démarrer'
+  ] {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: FICTIF : ne doit jamais démarrer
+        at Object.launchPersistentContext (file:///Users/diaw/Downloads/agregateur-agent/tests/browser-startup.test.js:13:15)
+        at file:///Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:184:20
+        at async step (file:///Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:140:16)
+        at async CdpBrowser.open (file:///Users/diaw/Downloads/agregateur-agent/packages/browser-gateway/cdp.js:182:22),
+    expected: /fermé/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

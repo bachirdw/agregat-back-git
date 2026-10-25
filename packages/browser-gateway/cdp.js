@@ -121,7 +121,12 @@ export class CdpBrowser {
       this.assertBinding(policy);
       let timer;
       let expired = false;
-      const pending = Promise.resolve().then(operation);
+      const pending = Promise.resolve().then(() => {
+        // close() can run after step() queued this microtask but before the actual launch.
+        if (this.#closed) throw new Error('Navigateur fermé');
+        this.assertBinding(policy);
+        return operation();
+      });
       // A timed-out CDP call may resolve later. Dispose its result without adopting it.
       const checked = pending.then(async (value) => {
         if (expired || this.#closed) {

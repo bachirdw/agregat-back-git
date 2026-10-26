@@ -160,6 +160,44 @@ test(
     assert.equal(result.clickMode, 'forced');
     assert.equal(approvals, 1);
     assert.equal(posts, 1);
+    approvals = 0;
+    posts = 0;
+    await gateway.call('browser.navigate', { url: origin });
+    const perform = provider.perform.bind(provider);
+    provider.perform = async (capability, args, policy) => {
+      if (capability !== 'browser.click') return perform(capability, args, policy);
+      const locator = provider.page.locator.bind(provider.page);
+      provider.page.locator = (selector, options) => {
+        const original = locator(selector, options);
+        if (selector !== 'button') return original;
+        return {
+          first: () => {
+            const target = original.first();
+            return {
+              click: async ({ force }) => {
+                if (!force) {
+                  const error = new Error('FICTIF timeout');
+                  error.name = 'TimeoutError';
+                  throw error;
+                }
+              },
+              isVisible: () => target.isVisible(),
+              isEnabled: () => target.isEnabled(),
+              evaluate: (...values) => target.evaluate(...values),
+            };
+          },
+        };
+      };
+      try {
+        return await perform(capability, args, policy);
+      } finally {
+        provider.page.locator = locator;
+      }
+    };
+    const domResult = await gateway.call('browser.click', { selector: 'button' });
+    assert.equal(domResult.clickMode, 'dom-hidden-tab');
+    assert.equal(approvals, 1);
+    assert.equal(posts, 1);
     allow = false;
     approvals = 0;
     posts = 0;

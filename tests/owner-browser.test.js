@@ -372,3 +372,46 @@ test(
     }
   },
 );
+
+test(
+  'extract FICTIF : élément tardif sans indicateur de chargement',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        `<p>FICTIF coquille</p><script>setTimeout(() => { document.body.insertAdjacentHTML('beforeend', '<p id="late">FICTIF tardif</p>'); }, 3000)</script>`,
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-late',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => {
+        throw new Error('Aucun accord attendu');
+      },
+    });
+    for (const limit of [1, 2]) {
+      await t.test(`limit ${limit}`, async () => {
+        await gateway.call('browser.navigate', { url: origin });
+        const start = Date.now();
+        const result = await gateway.call('browser.extract', { selector: '#late', limit });
+        assert.match(result.text, /FICTIF tardif/);
+        assert.equal(result.loading, false);
+        assert.ok(Date.now() - start < 10500);
+      });
+    }
+  },
+);

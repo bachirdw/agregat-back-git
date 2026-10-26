@@ -693,14 +693,15 @@ export class CdpBrowser {
         return {
           url: page.url(),
           title: await page.title(),
-          snapshot: await page.locator('body').ariaSnapshot({ timeout: 1500 }),
+          snapshot: await page.locator('body').ariaSnapshot({ timeout: 5000 }),
           loading,
         };
       }
       case 'browser.extract': {
+        // Late elements without a loading indicator still get the former 10 s budget.
+        const readDeadline = Date.now() + 10000;
         const loading = await waitForReadablePage(page);
-        const readDeadline = Date.now() + 1500;
-        const readTimeout = () => Math.max(1, readDeadline - Date.now());
+        const readTimeout = () => Math.max(2000, readDeadline - Date.now());
         if ((args.limit ?? 1) > 1) {
           const matches = page.locator(args.selector);
           await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });

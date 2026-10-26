@@ -1,0 +1,40 @@
+(node:7396) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ extract FICTIF : élément tardif sans indicateur de chargement
+  ✖ limit 1 (4360.947458ms)
+  ✖ limit 2 (2095.699917ms)
+✖ extract FICTIF : élément tardif sans indicateur de chargement (6673.889125ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7964.288792
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:407:15
+✖ limit 1 (4360.947458ms)
+  locator.innerText: Timeout 1500ms exceeded.
+  Call log:
+    - waiting for locator('#late').first()
+  
+      at CdpBrowser.perform (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:722:55)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:139:20) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for locator('#late').first()" ]
+  }
+
+test at tests/owner-browser.test.js:407:15
+✖ limit 2 (2095.699917ms)
+  locator.waitFor: Timeout 1500ms exceeded.
+  Call log:
+    - waiting for locator('#late').first() to be visible
+  
+      at CdpBrowser.perform (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:706:33)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:139:20) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for locator('#late').first() to be visible" ]
+  }

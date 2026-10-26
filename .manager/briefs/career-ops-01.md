@@ -17,6 +17,14 @@ Commits `[career-ops-01]`, tests verts à chaque commit. Jamais de push.
 3. **Aucun envoi réel pendant ce sprint ni dans les tests** : e-mails vers un serveur SMTP FICTIF local,
    candidatures sur des formulaires FICTIFS locaux. Aucune candidature réelle, aucun message réel.
 
+## API de fichiers joints (priorité : l'utilisateur doit pouvoir joindre son CV depuis l'interface)
+`POST /api/files` (corps binaire brut, en-têtes `x-file-name` et `content-type`, mêmes protections que les
+autres POST : `x-platform-request: 1`, local uniquement), taille max 10 Mo, types PDF/DOCX/MD/TXT. Stocke le
+fichier dans l'espace career-ops (`~/Downloads/agregat-career-ops/inputs/`), nom assaini, renvoie
+`{id, name, size, type}`. `POST /api/runs` et `/api/plan` acceptent `attachments: [id…]` : les chemins sont
+donnés à l'agent dans son prompt. Un CV joint est converti en `cv.md` (conversion locale). Contrat documenté
+dans `docs/api-attachments.md` pour le frontend. Tests : taille, type, nom hostile (`../`), id inconnu.
+
 ## Travail
 1. **Espace career-ops** : clone de `https://github.com/career-ops-hq/career-ops` (commit consigné) dans
    `~/Downloads/agregat-career-ops`, `npm ci --ignore-scripts` (PAS de téléchargement Chromium ; utiliser le

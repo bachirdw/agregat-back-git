@@ -28,4 +28,4 @@ Source officielle : https://ai.google.dev/gemini-api/docs/pricing.md (0,25 / 1,5
 Tokens relevés dans les sessions Gemini (`relay/agent-home/.gemini/.../chats/*.jsonl`), tarif 0,25 / 1,50 USD/M.
 Une mission career-ops coûte ≈ 0,2–0,35 $ (contexte relu à chaque tour) : plafond opérationnel 2 $ à surveiller.
 | 15:35 | étape 1 utilisateur (échec : Gemini figé après 4 min, délai prompt 10 min) | gemini-3.1-flash-lite | scan + recherches web, aucune offre enregistrée | 378 914 / 9 860 | ≈ 0.110 $ | ≈ 0.80 $ (avec intake ≈ 0,1 $) |
-| 15:48 | étape 1 relancée (consigne stricte) | gemini-3.1-flash-lite | scan Seek + 3 recherches web, 10 offres notées | 1610057 / 71805 | ≈ 0.5102 $ | ≈ 0.95 $ |
+| 15:48 | étape 1 relancée (consigne stricte) | gemini-3.1-flash-lite | scan Seek + 3 recherches web, 10 offres notées | 1610057 / 71805 | ≈ 0.5102 $ | ≈ 1.31 $ |

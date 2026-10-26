@@ -41,6 +41,15 @@ test('GraphQL : une lecture passe, une mutation ou un POST quelconque reste un e
   assert.equal(isGraphqlRead('[{"query":"{ me { id } }"},{"query":"query A { a }"}]'), true);
   assert.equal(isGraphqlRead('{"query":"mutation Apply { apply(jobId: 1) }"}'), false);
   assert.equal(isGraphqlRead('[{"query":"query A { a }"},{"query":"mutation B { b }"}]'), false);
+  for (const query of [
+    '# commentaire FICTIF\nmutation SubmitApplication { apply }',
+    'query Read { status } mutation SubmitApplication { apply }',
+    '{ status } mutation SubmitApplication { apply }',
+  ]) {
+    const body = JSON.stringify({ operationName: 'SubmitApplication', query });
+    assert.equal(isGraphqlRead(body), false, query);
+    assert.equal(isSensitiveRequest('https://example.test/graphql', body), true, query);
+  }
   assert.equal(isGraphqlRead('FICTIF scripted'), false);
   assert.equal(isGraphqlRead('[{"event":"component_displayed"}]'), false);
 });

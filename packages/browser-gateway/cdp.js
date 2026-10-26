@@ -46,10 +46,7 @@ export function isGraphqlRead(body) {
       ops.length > 0 &&
       ops.every(
         (op) =>
-          op &&
-          typeof op.query === 'string' &&
-          !/^\s*(mutation|subscription)\b/.test(op.query) &&
-          !/\bmutation\s*[({]/.test(op.query),
+          op && typeof op.query === 'string' && !/\b(?:mutation|subscription)\b/i.test(op.query),
       )
     );
   } catch {

@@ -1,0 +1,38 @@
+✔ Envoi sensible : chemin et operationName, avec frontières de mots et lots GraphQL (1.411541ms)
+✖ GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi (0.81525ms)
+✔ GraphQL : les noms sensibles de lectures ne réclament aucun accord (0.191875ms)
+✔ Aperçu d’envoi : jetons masqués et taille bornée (0.409167ms)
+✔ Session : le renouvellement de connexion n’est pas un envoi (0.214958ms)
+✔ Même site : API de la page oui, statistiques tierces non (4.733125ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 79.916167
+
+✖ failing tests:
+
+test at tests/owner-send-filter.test.js:39:1
+✖ GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi (0.81525ms)
+  AssertionError [ERR_ASSERTION]: # commentaire FICTIF
+  mutation SubmitApplication { apply }
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-send-filter.test.js:50:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

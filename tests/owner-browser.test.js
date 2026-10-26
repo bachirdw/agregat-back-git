@@ -307,7 +307,8 @@ test(
       res.end(`<title>FICTIF GraphQL</title><script>
       fetch('/graphql', {method:'POST', body:JSON.stringify({operationName:'GetApplyStatus',query:'query GetApplyStatus { status }'})});
       function mutate() { fetch('/graphql', {method:'POST', body:JSON.stringify({operationName:'SubmitApplication',query:'mutation SubmitApplication { apply }'})}).catch(() => {}); }
-    </script><button id="mutate" onclick="mutate()">FICTIF action</button>`);
+      function disguised() { fetch('/graphql', {method:'POST', body:JSON.stringify({operationName:'SubmitApplication',query:'# FICTIF\\nmutation SubmitApplication { apply }'})}).catch(() => {}); }
+    </script><button id="mutate" onclick="mutate()">FICTIF action</button><button id="disguised" onclick="disguised()">FICTIF opération commentée</button>`);
     });
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     t.after(() => {
@@ -343,6 +344,10 @@ test(
     await gateway.call('browser.click', { selector: '#mutate' });
     await waitFor(() => approvals === 1);
     assert.equal(approvals, 1);
+    assert.deepEqual(posts, ['GetApplyStatus']);
+    await gateway.call('browser.click', { selector: '#disguised' });
+    await waitFor(() => approvals === 2);
+    assert.equal(approvals, 2);
     assert.deepEqual(posts, ['GetApplyStatus']);
   },
 );

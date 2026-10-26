@@ -85,7 +85,7 @@ export function isSensitiveRequest(url, body) {
   }
 }
 // Same registrable site (au.seek.com ~ www.seek.com ; example.com.au keeps three labels).
-const site = (host) => {
+export const registrableSite = (host) => {
   if (isIP(host.replace(/^\[|\]$/g, ''))) return host.toLowerCase();
   const labels = host.toLowerCase().split('.');
   const second = labels.at(-2) ?? '';
@@ -94,7 +94,7 @@ const site = (host) => {
 };
 export function sameSite(a, b) {
   try {
-    return site(new URL(a).hostname) === site(new URL(b).hostname);
+    return registrableSite(new URL(a).hostname) === registrableSite(new URL(b).hostname);
   } catch {
     return false;
   }
@@ -513,7 +513,10 @@ export class CdpBrowser {
         }
         const firstParty = sameSite(request.url(), pageUrl);
         // Reads and session upkeep are automatic only for this site's own endpoints.
-        const sensitive = isSensitiveRequest(request.url(), body);
+        // Chrome/Playwright classify navigator.sendBeacon as "ping". A beacon cannot
+        // wait for an application response, even if its endpoint says "send".
+        const sensitive =
+          request.resourceType() !== 'ping' && isSensitiveRequest(request.url(), body);
         if (firstParty && !sensitive && (isGraphqlRead(body) || isAuthRefresh(request.url())))
           return route.continue();
         // Outside an agent click, the page's own API calls load the page (allowed);

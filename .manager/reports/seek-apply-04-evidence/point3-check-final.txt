@@ -1,0 +1,6 @@
+
+> agent-platform@0.1.0 check
+> node scripts/check.js
+
+Syntaxe JavaScript valide.
+exit=0

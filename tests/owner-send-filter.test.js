@@ -5,6 +5,7 @@ import {
   isGraphqlRead,
   isSensitiveRequest,
   previewBody,
+  registrableSite,
   sameSite,
 } from '../packages/browser-gateway/cdp.js';
 
@@ -88,6 +89,8 @@ test('Session : le renouvellement de connexion n’est pas un envoi', () => {
   assert.equal(isAuthRefresh('https://au.seek.com/apply/submit'), false);
 });
 test('Même site : API de la page oui, statistiques tierces non', () => {
+  assert.equal(registrableSite('au.seek.com'), 'seek.com');
+  assert.equal(registrableSite('www.seek.com.au'), 'seek.com.au');
   assert.equal(sameSite('https://au.seek.com/graphql', 'https://au.seek.com/job/1/apply'), true);
   assert.equal(sameSite('https://www.seek.com/x', 'https://au.seek.com/job/1'), true);
   assert.equal(sameSite('https://api.seek.com.au/x', 'https://www.seek.com.au/job/1'), true);

@@ -623,6 +623,58 @@ test(
 );
 
 test(
+  'balise FICTIVE même site /v1/send hors clic : aucun accord demandé',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const fixture = await site(t);
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    let approvals = 0;
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-beacon',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [fixture.origin],
+      }),
+      approve: async () => {
+        approvals++;
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: fixture.origin });
+    const requestPromise = provider.page.waitForRequest((request) =>
+      request.url().endsWith('/v1/send'),
+    );
+    assert.equal(
+      await provider.page.evaluate(() => navigator.sendBeacon('/v1/send', 'FICTIF telemetry')),
+      true,
+    );
+    const request = await requestPromise;
+    assert.equal(request.resourceType(), 'ping');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(approvals, 0);
+    assert.equal(fixture.posts(), 1);
+    const thirdParty = fixture.origin.replace('127.0.0.1', 'localhost') + '/v1/send';
+    const thirdPartyRequest = provider.page.waitForRequest((candidate) =>
+      candidate.url().startsWith(thirdParty),
+    );
+    assert.equal(
+      await provider.page.evaluate(
+        (url) => navigator.sendBeacon(url, 'FICTIF telemetry'),
+        thirdParty,
+      ),
+      true,
+    );
+    assert.equal((await thirdPartyRequest).resourceType(), 'ping');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(approvals, 0, 'la balise tierce reste silencieuse');
+    assert.equal(fixture.posts(), 1, 'la balise tierce est bloquée');
+  },
+);
+
+test(
   'chargement différé FICTIF : snapshot et extract attendent le formulaire',
   { skip: !existsSync(CHROME) },
   async (t) => {

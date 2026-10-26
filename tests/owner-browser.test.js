@@ -255,6 +255,7 @@ test(
     approved = true;
     await gateway.call('browser.click', { selector: '#send' });
     assert.equal(fixture.posts(), 1);
-    assert.equal(requests, 3);
+    // Refused click, then approved click: the scripted POST is blocked without asking.
+    assert.equal(requests, 2);
   },
 );

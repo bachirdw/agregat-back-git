@@ -33,6 +33,37 @@ function noScriptHeaders(headers) {
   return out;
 }
 
+// Owner mode: a POST only needs approval right after an agent click (form submit, apply…).
+const CLICK_SEND_WINDOW_MS = 8000;
+export function isGraphqlRead(body) {
+  try {
+    const value = JSON.parse(body);
+    const ops = Array.isArray(value) ? value : [value];
+    return (
+      ops.length > 0 &&
+      ops.every(
+        (op) =>
+          op &&
+          typeof op.query === 'string' &&
+          !/^\s*(mutation|subscription)\b/.test(op.query) &&
+          !/\bmutation\s*[({]/.test(op.query),
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+// Approval preview: session tokens masked, size bounded.
+export function previewBody(body) {
+  const masked = body
+    .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[jeton masqué]')
+    .replace(
+      /("(?:[\w-]*(?:token|jwt|secret|password|cookie|session)[\w-]*)"\s*:\s*)"[^"]*"/gi,
+      '$1"[masqué]"',
+    );
+  return masked.length > 4000 ? masked.slice(0, 4000) + '… [tronqué]' : masked;
+}
+
 export class CdpBrowser {
   #authorization = null;
   #boundPolicy = null;
@@ -364,6 +395,12 @@ export class CdpBrowser {
         const host = new URL(request.url()).hostname;
         if (/(^|\.)linkedin\.com$/.test(host)) return route.abort('blockedbyclient');
         const body = request.postData() ?? '';
+        // Read-only GraphQL queries (SPA data loading) are not sends.
+        if (isGraphqlRead(body)) return route.continue();
+        // Outside an agent click, page scripts (telemetry, trackers, scripted POSTs) may not
+        // write: blocked silently instead of flooding the user with approval requests.
+        if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS)
+          return route.abort('blockedbyclient');
         const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
@@ -373,7 +410,7 @@ export class CdpBrowser {
             capability: 'browser.send',
             sensitive: true,
             actionClass: 'send',
-            args: { url: request.url(), method: request.method(), body },
+            args: { url: request.url(), method: request.method(), body: previewBody(body) },
           }));
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         return route.continue();
@@ -611,6 +648,7 @@ export class CdpBrowser {
         } finally {
           this.writeInProgress = false;
           this.sendGrant = false;
+          this.lastClickEnd = Date.now();
         }
         if (this.blocked) {
           await this.reset();

@@ -29,3 +29,14 @@ Tokens relevés dans les sessions Gemini (`relay/agent-home/.gemini/.../chats/*.
 Une mission career-ops coûte ≈ 0,2–0,35 $ (contexte relu à chaque tour) : plafond opérationnel 2 $ à surveiller.
 | 15:35 | étape 1 utilisateur (échec : Gemini figé après 4 min, délai prompt 10 min) | gemini-3.1-flash-lite | scan + recherches web, aucune offre enregistrée | 378 914 / 9 860 | ≈ 0.110 $ | ≈ 0.80 $ (avec intake ≈ 0,1 $) |
 | 15:48 | étape 1 relancée (consigne stricte) | gemini-3.1-flash-lite | scan Seek + 3 recherches web, 10 offres notées | 1610057 / 71805 | ≈ 0.5102 $ | ≈ 1.31 $ |
+
+## Relevé du 26/10, 22:05 (manager Claude) — total réel de la journée
+Tokens relus dans `relay/agent-home/.gemini/tmp/agregat-career-ops/chats/session-2026-10-26*.jsonl` (champ `tokens` : input inclut le cache ; thoughts facturés comme sortie). Tarifs : 3.5-flash-lite 0,30/2,50 ; 3.8-flash 0,75/3,75 (promo jusqu'au 31/12/2026) ; cache estimé à 10 % du tarif d'entrée.
+| Session (UTC) | Modèle réellement servi | Entrée (dont cache) | Sortie+pensées | Coût estimé |
+|---|---|---|---|---|
+| 03:47 → 04:35 (5 sessions) | gemini-3.5-flash-lite | 3,17 M (2,02 M) | 65 k | ≈ 0,56 $ |
+| 04:46 c6aa578f (Lookahead, non relevée jusqu'ici) | gemini-3.5-flash-lite | 6,24 M (4,41 M) | 93 k | ≈ 0,91 $ |
+| 09:01 3d7b21ff (missions Seek 212d4ade, de1850a2, d7ba9058) | gemini-3.8-flash | 14,61 M (12,98 M) | 62 k | ≈ 2,43 $ |
+**Total du jour ≈ 3,90 $ (+ ≈ 0,05 $ d'appels REST de test) sur le plafond opérationnel de 5 $.**
+ANOMALIE : toutes les missions de l'après-midi enregistrées « gemini-3.1-flash-lite » ont été servies par gemini-3.5-flash-lite (modèle non annoncé par le probe ; le CLI a substitué). À corriger : le modèle enregistré doit être le modèle réellement servi.
+Coût dominé par la relecture du contexte (≈ 78 k jetons par tour, 187 tours sur une session reprise 3 fois). AUCUNE nouvelle mission Gemini sans accord explicite de l'utilisateur (reste ≈ 1 $).

@@ -216,6 +216,13 @@ export class CdpBrowser {
       throw new Error('Consentement humain requis avant ouverture du navigateur');
     this.#boundPolicy ??= { policy, json: JSON.stringify(policy.toJSON()) };
     if (this.#opening) return this.#opening;
+    // The tab can close under us (user, relay, site) while an approval is pending: reopen one.
+    if (this.page?.isClosed()) {
+      this.page = null;
+      this.redirectLanding = null;
+      await this.pageSession?.detach().catch(() => {});
+      this.pageSession = null;
+    }
     if (this.page) return this.page;
     this.#opening = this.open(policy).catch(async (error) => {
       // Startup is transactional: never leave a partially guarded context available for reuse.
@@ -273,7 +280,15 @@ export class CdpBrowser {
         clearTimeout(timer);
       }
     };
-    if (this.context) return step(() => this.newPage(policy));
+    if (this.context) {
+      try {
+        return await step(() => this.newPage(policy));
+      } catch (error) {
+        // Context or connection lost (relay restarted, Chrome closed): reconnect from scratch.
+        if (this.#closed || !/has been closed|disconnected/i.test(error.message)) throw error;
+        await this.dropConnection();
+      }
+    }
     if (policy.ownerMode && this.endpoint && !this.injected) {
       try {
         this.ownerConnection = await step(
@@ -888,6 +903,12 @@ export class CdpBrowser {
     return this.#closing;
   }
   async release() {
+    await this.dropConnection();
+    this.#authorization = null;
+    this.#boundPolicy = null;
+  }
+  // Transport only: the human consent and policy binding survive a reconnection.
+  async dropConnection() {
     this.networkAbort?.abort(new Error('Navigateur fermé'));
     try {
       await this.page?.close();
@@ -910,7 +931,5 @@ export class CdpBrowser {
     this.ownerConnection = null;
     this.redirectLanding = null;
     this.page = null;
-    this.#authorization = null;
-    this.#boundPolicy = null;
   }
 }

@@ -1,0 +1,22 @@
+(node:14472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ propriétaire : onglet ou contexte fermé pendant une attente → rouvert au prochain appel (2572.0175ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3052.588708
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:541:1
+✖ propriétaire : onglet ou contexte fermé pendant une attente → rouvert au prochain appel (2572.0175ms)
+  page.goto: Target page, context or browser has been closed
+      at goto (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:680:20)
+      at CdpBrowser.perform (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:697:29)
+      at async BrowserGateway.execute (/Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:141:20) {
+    log: []
+  }

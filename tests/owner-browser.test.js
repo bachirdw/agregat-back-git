@@ -537,3 +537,33 @@ test(
     assert.doesNotMatch(JSON.stringify(approvals), /FICTIF-csrf-123|eyJFICTIF/);
   },
 );
+
+test(
+  'propriétaire : onglet ou contexte fermé pendant une attente → rouvert au prochain appel',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const fixture = await site(t);
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-reopen',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [fixture.origin],
+      }),
+      approve: async () => false,
+    });
+    await gateway.call('browser.navigate', { url: fixture.origin });
+    // Refused send, then the tab disappears (user, relay or site closed it).
+    await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
+    await provider.page.close();
+    const again = await gateway.call('browser.snapshot', { url: fixture.origin });
+    assert.match(again.snapshot, /FICTIF premier/);
+    // Whole browser context lost (relay restarted): a new connection is opened.
+    await provider.context.close();
+    const third = await gateway.call('browser.navigate', { url: fixture.origin });
+    assert.equal(third.title, 'FICTIF JS actif');
+  },
+);

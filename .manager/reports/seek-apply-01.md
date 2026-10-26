@@ -35,3 +35,12 @@
 - Point 3, persévérance : `CAREER_INSTRUCTIONS` réécrit pour candidater — boucle snapshot → remplir → Continue → re-snapshot après chaque clic, capture jamais finale (loading:true → jusqu'à 3 nouvelles captures), clic final soumis à l'accord, arrêt seulement sur blocage nommé (étape, champ, cause), questions employeur sans réponse posées, jamais inventées. Test de présence des règles.
 - Suite 368/0/1, check et format verts. Défaut de modèle inchangé (`GEMINI_MODEL` du script).
 - Reste : mission réelle Seek (serveur 4310 à redémarrer, corrections du CV à valider par l'utilisateur), point 5 (relecture `ownerSendGuard` hors ce qui a été revu en B2).
+
+## Mission réelle 212d4ade (gemini-3.8-flash, promo jusqu'au 31/12/2026) — 26/10 soir
+- Serveur 4310 redémarré avec le code de l'étape C. Session neuve. Page Seek chargée, utilisateur reconnu, documents trouvés.
+- Blocage réel, étape 1 « Choose documents » : le compte Seek a atteint la limite de 10 CV ; Seek exige une suppression avant tout téléversement.
+- L'agent a voulu cliquer « Delete » sur le plus ancien CV du compte : demande d'accord REFUSÉE par le manager (suppression irréversible hors demande). Aucun envoi, aucune suppression.
+- Défaut trouvé : pendant l'attente de l'accord, l'onglet de l'agent s'est fermé ; `ensure()` renvoyait la page morte → tous les appels suivants « has been closed », mission abandonnée. Corrigé : onglet fermé rouvert, contexte/connexion perdus → reconnexion (`dropConnection`) sans perdre le consentement. Test rouge→vert (`reopen-*.txt`). Suite 369/0/1, check et format verts.
+- Confinement vérifié : tentatives `run_shell_command` (ps aux) annulées.
+- Lenteur : ≈ 3 min 30 à l'étape 1, surtout des `browser_extract` sur des sélecteurs absents (jusqu'à 10 s chacun).
+- Décision attendue de l'utilisateur : supprimer lui-même un ancien CV Seek, ou réutiliser un CV existant.

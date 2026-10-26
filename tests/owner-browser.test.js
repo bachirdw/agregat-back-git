@@ -73,13 +73,100 @@ test(
     });
     await gateway.call('browser.navigate', { url: origin });
     const clicked = await gateway.call('browser.click', { selector: '#moving' });
-    assert.equal(clicked.clickMode, 'forced-hidden-tab');
+    assert.equal(clicked.clickMode, 'forced');
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'block';
     });
     await assert.rejects(gateway.call('browser.click', { selector: '#covered' }), /masqué par div/);
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    await provider.page.locator('#cover').evaluate((el) => {
+      el.style.display = 'none';
+    });
+    await provider.page.locator('#moving').evaluate((el) => {
+      el.click = () => {};
+    });
+    const realLocator = provider.page.locator.bind(provider.page);
+    provider.page.locator = (selector, options) => {
+      const locator = realLocator(selector, options);
+      if (selector !== '#moving') return locator;
+      return {
+        first: () => {
+          const target = locator.first();
+          return {
+            click: async ({ force }) => {
+              if (!force) {
+                const error = new Error('FICTIF timeout');
+                error.name = 'TimeoutError';
+                throw error;
+              }
+            },
+            isVisible: () => target.isVisible(),
+            isEnabled: () => target.isEnabled(),
+            evaluate: (...args) => target.evaluate(...args),
+          };
+        },
+      };
+    };
+    await assert.rejects(
+      provider.perform('browser.click', { selector: '#moving' }, gateway.policy),
+      /Clic non délivré à la page/,
+    );
+    provider.page.locator = realLocator;
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+  },
+);
+
+test(
+  'Chrome FICTIF : formulaire final instable demande accord et refuse le POST',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    let posts = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') posts++;
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        '<style>@keyframes move { from { transform: translateX(-20px) } to { transform: translateX(20px) } } button { animation: move .12s linear infinite alternate; margin: 80px }</style><form method="post" action="/api/apply"><button>Submit application</button></form>',
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({
+      launch: { executablePath: CHROME },
+      navigationTimeoutMs: 5000,
+    });
+    t.after(() => provider.close());
+    let approvals = 0;
+    let allow = true;
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-final',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => {
+        approvals++;
+        return allow;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const result = await gateway.call('browser.click', { selector: 'button' });
+    assert.equal(result.clickMode, 'forced');
+    assert.equal(approvals, 1);
+    assert.equal(posts, 1);
+    allow = false;
+    approvals = 0;
+    posts = 0;
+    await gateway.call('browser.navigate', { url: origin });
+    await assert.rejects(gateway.call('browser.click', { selector: 'button' }), /Action refusée/);
+    assert.equal(approvals, 1);
+    assert.equal(posts, 0);
   },
 );
 

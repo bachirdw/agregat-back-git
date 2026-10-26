@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
+import { randomUUID } from 'node:crypto';
 
 import { ownerTransport } from './owner-transport.js';
 import { requestPinned } from '../policy-engine/http.js';
@@ -815,8 +816,55 @@ export class CdpBrowser {
               throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
                 cause: error,
               });
-            await target.click({ force: true, timeout: this.navigationTimeoutMs });
-            clickMode = 'forced-hidden-tab';
+            const marker = `__gatewayClick_${randomUUID().replaceAll('-', '')}`;
+            let delivered = false;
+            const onConsole = (message) => {
+              if (message.type() === 'debug' && message.text() === marker) delivered = true;
+            };
+            page.on('console', onConsole);
+            const observed = async () => {
+              const deadline = Date.now() + 1000;
+              do {
+                if (delivered) return true;
+                if (Date.now() >= deadline) return false;
+                await new Promise((resolve) => setTimeout(resolve, 20));
+              } while (true);
+            };
+            try {
+              await target.evaluate((el, key) => {
+                const listener = (event) => {
+                  if (event.composedPath().includes(el)) console.debug(key);
+                };
+                window.addEventListener('click', listener, true);
+                window[key] = listener;
+              }, marker);
+              try {
+                await target.click({ force: true, timeout: this.navigationTimeoutMs });
+              } catch (forcedError) {
+                if (forcedError.name !== 'TimeoutError') throw forcedError;
+              }
+              if (await observed()) clickMode = 'forced';
+              else {
+                try {
+                  await target.evaluate((el) => el.click());
+                } catch (domError) {
+                  if (!(await observed())) throw domError;
+                }
+                if (!(await observed())) throw new Error('Clic non délivré à la page');
+                clickMode = 'dom-hidden-tab';
+              }
+            } finally {
+              page.off('console', onConsole);
+              await target
+                .evaluate((_el, key) => {
+                  const listener = window[key];
+                  if (listener) {
+                    window.removeEventListener('click', listener, true);
+                    delete window[key];
+                  }
+                }, marker)
+                .catch(() => {});
+            }
           }
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {

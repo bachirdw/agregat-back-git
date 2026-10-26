@@ -1,0 +1,19 @@
+(node:39361) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Chrome FICTIF : clic instable contrôlé et superposition refusée (7600.896084ms)
+✖ Chrome FICTIF : formulaire final instable demande accord et refuse le POST (608.556208ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8630.226083
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:86:1
+✖ Chrome FICTIF : formulaire final instable demande accord et refuse le POST (608.556208ms)
+  Error: Action refusée par l’utilisateur : browser.click
+      at BrowserGateway.execute (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:115:17)

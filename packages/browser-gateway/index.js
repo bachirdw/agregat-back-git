@@ -83,12 +83,24 @@ export class BrowserGateway {
         throw new Error('Fichier trop volumineux');
       args.path = real;
     }
-    if (cap.effect !== 'read' && !this.policy.ownerMode) {
-      const needsHuman = sensitive || !this.autoApprove.has(capabilityId);
+    const sending =
+      ['browser.click', 'browser.download'].includes(capabilityId) &&
+      !!element &&
+      (element.inForm ||
+        this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
+    const linkedIn = pageBefore && /(^|\.)linkedin\.com$/.test(new URL(pageBefore).hostname);
+    if (linkedIn && cap.effect !== 'read')
+      throw new Error(
+        'LinkedIn : écriture automatisée interdite ; ouvrir le profil et copier le brouillon manuellement',
+      );
+    const preview = sending ? await this.provider.submissionPreview?.(args.selector) : null;
+    if (sending || (cap.effect !== 'read' && !this.policy.ownerMode)) {
+      const needsHuman = sending || sensitive || !this.autoApprove.has(capabilityId);
       if (needsHuman) {
         const approved = await this.approve({
           capability: capabilityId,
           sensitive,
+          ...(sending ? { actionClass: 'send', preview } : {}),
           element,
           // Typed text of secret fields is never shown or stored.
           args:
@@ -107,6 +119,11 @@ export class BrowserGateway {
         pageBefore !== (await this.provider.currentUrl?.()))
     )
       throw new Error('Élément ou page modifié pendant l’approbation');
+    if (
+      sending &&
+      !isDeepStrictEqual(preview, await this.provider.submissionPreview?.(args.selector))
+    )
+      throw new Error('Formulaire modifié pendant l’approbation');
     if (capabilityId === 'browser.upload') {
       // Freeze the approved bytes; Playwright must not reopen a path that may have changed.
       const real = realpathSync(this.policy.workspacePath(rawArgs.path));
@@ -119,7 +136,11 @@ export class BrowserGateway {
       args.filePayload = { name: basename(real), mimeType: 'application/octet-stream', buffer };
     }
     await this.meter(cap.meter, 1, capabilityId);
-    const output = await this.provider.perform(capabilityId, args, this.policy);
+    const output = await this.provider.perform(
+      capabilityId,
+      { ...args, ...(sending ? { sendApproved: true } : {}) },
+      this.policy,
+    );
     return {
       untrusted: true,
       notice:

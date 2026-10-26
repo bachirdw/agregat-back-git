@@ -38,7 +38,7 @@ async function site(t) {
 }
 
 test(
-  'propriétaire Chrome réel : JS actif, saisie/clic/formulaire/upload/download sans approbation',
+  'propriétaire Chrome réel : JS actif, préparation automatique et envoi approuvé',
   { skip: !existsSync(CHROME) },
   async (t) => {
     const fixture = await site(t),
@@ -56,9 +56,11 @@ test(
     const gateway = new BrowserGateway({
       provider,
       policy,
-      approve: async () => {
+      approve: async (request) => {
         approvals++;
-        return false;
+        assert.equal(request.actionClass, 'send');
+        assert.equal(request.preview.fields[0].type, 'submit');
+        return true;
       },
     });
     const nav = await gateway.call('browser.navigate', { url: fixture.origin });
@@ -94,7 +96,7 @@ test(
     );
     await gateway.call('browser.click', { selector: '#send' });
     assert.equal(fixture.posts(), 1);
-    assert.equal(approvals, 0);
+    assert.equal(approvals, 1);
   },
 );
 
@@ -160,6 +162,7 @@ test('propriétaire : relais qui refuse newCDPSession ne bloque pas notre onglet
   const page = { opener: async () => null, close: async () => {} };
   const context = {
     newPage: async () => page,
+    route: async () => {},
     newCDPSession: async () => {
       sessions++;
       throw new Error('FICTIF refus relais');
@@ -214,5 +217,44 @@ test(
     await provider.close();
     assert.equal(context.pages().length, 1);
     assert.equal(await foreign.title(), 'FICTIF onglet étranger');
+  },
+);
+
+test(
+  'propriétaire Chrome FICTIF : zéro POST sans accord, puis une soumission après accord avec aperçu',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const fixture = await site(t);
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const policy = new RunPolicy({
+      ownerMode: true,
+      runId: 'FICTIF',
+      capabilities: capabilityIds,
+      allowLocalOrigins: [fixture.origin],
+    });
+    let approved = false,
+      requests = 0;
+    const gateway = new BrowserGateway({
+      provider,
+      policy,
+      approve: async (r) => {
+        requests++;
+        assert.equal(r.actionClass, 'send');
+        return approved;
+      },
+    });
+    await gateway.call('browser.navigate', { url: fixture.origin });
+    await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
+    assert.equal(fixture.posts(), 0);
+    // A page script cannot use a normal read/navigation to bypass the outbound-write gate.
+    await provider.page.evaluate(() =>
+      fetch('/', { method: 'POST', body: 'FICTIF scripted' }).catch(() => {}),
+    );
+    assert.equal(fixture.posts(), 0);
+    approved = true;
+    await gateway.call('browser.click', { selector: '#send' });
+    assert.equal(fixture.posts(), 1);
+    assert.equal(requests, 3);
   },
 );

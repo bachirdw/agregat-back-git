@@ -150,14 +150,24 @@ export class Orchestrator {
     const outcome = await this.permission(
       runId,
       {
+        actionClass: request.actionClass,
         toolCall: {
           toolCallId: 'gateway-' + randomUUID(),
           title,
           kind: 'other',
-          rawInput: { capability: request.capability, args: request.args, page: request.page },
+          rawInput: {
+            capability: request.capability,
+            args: request.args,
+            page: request.page,
+            preview: request.preview,
+          },
         },
         options: [
-          { optionId: 'allow', name: 'Autoriser une fois', kind: 'allow_once' },
+          {
+            optionId: 'allow',
+            name: request.actionClass === 'send' ? 'Approuver l’envoi' : 'Autoriser une fois',
+            kind: 'allow_once',
+          },
           { optionId: 'deny', name: 'Refuser', kind: 'reject_once' },
         ],
       },
@@ -599,7 +609,7 @@ export class Orchestrator {
     }
   }
   permission(runId, p, simulated, signal) {
-    if (this.ownerMode && !signal.aborted) {
+    if (this.ownerMode && p.actionClass !== 'send' && !signal.aborted) {
       const option =
         p.options.find((o) => o.kind === 'allow_once') ??
         p.options.find((o) => o.kind === 'allow_always');
@@ -639,12 +649,17 @@ export class Orchestrator {
       );
       this.permissions.set(id, { id, runId, options, tool: p.toolCall ?? null, finish });
       signal.addEventListener('abort', onAbort, { once: true });
-      this.store.event(runId, 'permission', {
-        id,
-        tool: p.toolCall,
-        options,
-        expiresAt: Date.now() + 60000,
-      });
+      this.store.event(
+        runId,
+        'permission',
+        {
+          id,
+          tool: p.toolCall,
+          options,
+          expiresAt: Date.now() + 60000,
+        },
+        { privatePreview: p.actionClass === 'send' },
+      );
     });
   }
   decide(id, optionId) {

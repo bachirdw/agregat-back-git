@@ -65,7 +65,7 @@ test('propriétaire : refus synchrone de toute écoute sauf 127.0.0.1, bandeau e
   }
 });
 
-test('propriétaire : clic sensible et saisie sans approbation ; garde des arguments et injections conservée', async () => {
+test('propriétaire : envoi approuvé et saisie automatique ; garde des arguments et injections conservée', async () => {
   const url = 'https://example.com/';
   const provider = new FixturePageProvider({
     [url]: {
@@ -86,9 +86,10 @@ test('propriétaire : clic sensible et saisie sans approbation ; garde des argum
       capabilities: capabilityIds,
       resolveHost: async () => ['1.1.1.1'],
     }),
-    approve: async () => {
+    approve: async (request) => {
       approvals++;
-      return false;
+      assert.equal(request.actionClass, 'send');
+      return true;
     },
     meter: () => metered++,
   });
@@ -98,7 +99,7 @@ test('propriétaire : clic sensible et saisie sans approbation ; garde des argum
   const result = await gateway.call('browser.extract');
   assert.equal(result.untrusted, true);
   assert.match(result.text, /FICTIF/);
-  assert.equal(approvals, 0);
+  assert.equal(approvals, 1);
   assert.equal(metered, 4);
   await assert.rejects(gateway.call('browser.click', { selector: '' }));
   await assert.rejects(

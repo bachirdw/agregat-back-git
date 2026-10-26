@@ -35,3 +35,6 @@ commit `2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af`. Code MIT ; marque réservée 
 citée pour compatibilité et attribution. La licence complète est conservée dans le clone externe.
 
 > MIT License — Copyright (c) 2026 Santiago Fernández de Valderrama.
+
+- nodemailer 10.2.1 : MIT-0 (métadonnées npm et licence du paquet installé vérifiées),
+  client SMTP, version épinglée dans package.json et package-lock.json.

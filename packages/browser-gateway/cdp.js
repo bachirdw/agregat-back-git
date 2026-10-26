@@ -47,6 +47,7 @@ export class CdpBrowser {
     this.assertBinding(policy);
     if (this.#authorization) return;
     const json = JSON.stringify(policy.toJSON());
+    this.approve = approve;
     if (policy.ownerMode) {
       this.#authorization = { policy, json };
       return;
@@ -349,7 +350,32 @@ export class CdpBrowser {
     }
   }
   async guard(policy) {
-    if (policy.ownerMode) return;
+    if (policy.ownerMode) {
+      // Owner mode keeps ordinary browsing automatic. Each outbound write still needs a
+      // one-use grant; a scripted POST after an ordinary click cannot bypass the send queue.
+      this.ownerSendGuard = async (route) => {
+        const request = route.request();
+        if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
+        const host = new URL(request.url()).hostname;
+        if (/(^|\.)linkedin\.com$/.test(host)) return route.abort('blockedbyclient');
+        const body = request.postData() ?? '';
+        if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
+        const granted = this.sendGrant === true;
+        this.sendGrant = false;
+        const approved =
+          granted ||
+          (await this.approve?.({
+            capability: 'browser.send',
+            sensitive: true,
+            actionClass: 'send',
+            args: { url: request.url(), method: request.method(), body },
+          }));
+        if (approved !== true || this.#closed) return route.abort('blockedbyclient');
+        return route.continue();
+      };
+      await this.context.route('**/*', this.ownerSendGuard);
+      return;
+    }
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is
     // disabled: a read navigation must not submit a form or run arbitrary network code.
     this.networkAbort = new AbortController();
@@ -491,6 +517,31 @@ export class CdpBrowser {
       autocomplete: el.getAttribute('autocomplete'),
     }));
   }
+  async submissionPreview(selector) {
+    if (!this.page) return null;
+    const fields = await this.page
+      .locator(selector)
+      .first()
+      .evaluate((el) => {
+        const form = el.form || el.closest('form');
+        return {
+          action: form?.action ?? null,
+          method: form?.method ?? null,
+          fields: Array.from(form?.elements ?? []).map((f) => ({
+            name: f.name || f.id,
+            type: f.type,
+            value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
+            checked: f.checked,
+            files: Array.from(f.files ?? []).map((x) => ({
+              name: x.name,
+              size: x.size,
+              type: x.type,
+            })),
+          })),
+        };
+      });
+    return { page: this.page.url(), title: await this.page.title(), ...fields };
+  }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
     page.setDefaultTimeout(this.navigationTimeoutMs);
@@ -547,12 +598,14 @@ export class CdpBrowser {
         };
       }
       case 'browser.click':
+        this.sendGrant = args.sendApproved === true;
         this.writeInProgress = true;
         try {
           await page.locator(args.selector).first().click({ timeout: this.navigationTimeoutMs });
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {
           this.writeInProgress = false;
+          this.sendGrant = false;
         }
         if (this.blocked) {
           await this.reset();
@@ -638,6 +691,7 @@ export class CdpBrowser {
         try {
           // The gateway has already approved this element, including form submissions.
           // Permit its POST only until the click and download event have completed.
+          this.sendGrant = args.sendApproved === true;
           this.writeInProgress = true;
           try {
             await Promise.all([

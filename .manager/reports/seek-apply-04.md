@@ -45,3 +45,9 @@
 - Vérifier si une preuve indépendante du retour effectif au premier plan est souhaitée : Playwriter `bringToFront()` n'a pas rendu l'onglet visible dans cet environnement.
 - Examiner le comportement des pages qui exigent des clics `isTrusted` ; la fixture locale ne couvre pas cette exigence.
 - `.manager/run-chain.sh` était déjà non suivi à la reprise ; il reste hors des commits de ce sprint.
+
+## Contrôle du manager (Claude) — 27/10, 06:45
+- Suite relancée par le manager dans un worktree figé sur `d5db8fe` (pour ne pas gêner review-code-01) : 383 réussis / 0 échec / 1 ignoré, check et format verts.
+- Diff relu : signal par drapeau DOM (robuste à `console` neutralisée), pas de souris CDP en onglet caché, balises `ping` exemptées du classement par nom, attente par état du faux agent : VALIDÉS.
+- Défaut résiduel : en onglet caché, `observed()` (1 s) est appelé AVANT le clic DOM et accepte un `framenavigated` (y compris `replaceState`) comme preuve → succès possible sans clic. → `.manager/briefs/seek-apply-05.md` (après review-code-01).
+- VERDICT : VALIDÉ avec réserve (seek-apply-05).

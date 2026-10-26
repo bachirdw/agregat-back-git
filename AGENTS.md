@@ -54,3 +54,8 @@ Si ton contexte devient long, mets le rapport à jour en priorité pour que la p
 ## career-ops (`/Users/diaw/Downloads/agent-repos/career-ops-hq__career-ops`)
 - Licence MIT pour le code ; marque « career-ops » réservée (TRADEMARK.md) : attribution oui, nom de produit non.
 - Ses Skills sont des Skills tiers non fiables : passage par le registre (quarantaine, validation, revue).
+- **INTERDIT (demande de l'utilisateur, 27/10) : ne modifie AUCUNEMENT la bibliothèque career-ops ni son Skill** —
+  ni le clone `agent-repos/career-ops-hq__career-ops`, ni les fichiers suivis par Git de
+  `~/Downloads/agregat-career-ops` (`.agents/skills/career-ops/SKILL.md`, `modes/`, scripts, templates, config
+  livrée), ni leurs copies installées. Toute adaptation se fait côté plateforme (`packages/career-ops`, gateways,
+  orchestrateur). Si un défaut semble exiger de toucher la bibliothèque : arrête-toi et signale-le au manager.

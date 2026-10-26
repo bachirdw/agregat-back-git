@@ -39,7 +39,8 @@ commande, extrait) · décision : CORRIGÉ (commit) / PROPOSÉ (trop large ou d�
 Pas de constat sans scénario concret. Les corrections touchent le minimum de code.
 
 ## Interdits (absolus)
-Aucune mission Gemini, aucun appel de modèle payant, aucun redémarrage/arrêt du serveur 4310 ni du relais 19988,
+Aucune modification de la bibliothèque career-ops ni de son Skill (voir `AGENTS.md`), aucune mission Gemini,
+aucun appel de modèle payant, aucun redémarrage/arrêt du serveur 4310 ni du relais 19988,
 aucune action sur un site réel, aucun e-mail, aucune candidature, pas de `.manager/secrets.env`, pas de lecture de
 `~/Downloads/agregat-career-ops` (données personnelles), jamais de push.
 

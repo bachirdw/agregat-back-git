@@ -1,0 +1,20 @@
+(node:1793) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ chargement différé FICTIF : snapshot et extract attendent le formulaire
+  ✔ browser.snapshot (4320.858459ms)
+  ✔ browser.extract (3113.378334ms)
+✔ chargement différé FICTIF : snapshot et extract attendent le formulaire (7533.0795ms)
+▶ chargement FICTIF : délai borné, indicateurs persistants et réseau continu
+  ✔ /busy (8503.814ms)
+  ✔ /alert (8060.123792ms)
+  ✔ /progress (8060.046125ms)
+  ✔ /ready (1188.998541ms)
+✔ chargement FICTIF : délai borné, indicateurs persistants et réseau continu (26070.467208ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34013.053916

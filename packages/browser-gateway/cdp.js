@@ -86,6 +86,48 @@ export function previewBody(body) {
   return masked.length > 4000 ? masked.slice(0, 4000) + '… [tronqué]' : masked;
 }
 
+// Readiness is advisory: background traffic must not prevent reading a usable page.
+// Both phases share one eight-second budget; only Playwright timeouts are recoverable.
+async function waitForReadablePage(page) {
+  const deadline = Date.now() + 8000;
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 1000 });
+  } catch (error) {
+    if (error.name !== 'TimeoutError') throw error;
+  }
+  try {
+    const ready = await page.waitForFunction(
+      () => {
+        if (document.readyState === 'loading') return false;
+        return !Array.from(
+          document.querySelectorAll('[aria-busy="true"], [role="alert"], [role="progressbar"]'),
+        ).some((el) => {
+          const style = getComputedStyle(el);
+          if (
+            style.visibility === 'hidden' ||
+            style.visibility === 'collapse' ||
+            !el.getClientRects().length
+          )
+            return false;
+          return (
+            el.getAttribute('aria-busy') === 'true' ||
+            /\bloading\b|chargement/i.test(
+              `${el.textContent} ${el.getAttribute('aria-label') ?? ''}`,
+            )
+          );
+        });
+      },
+      null,
+      { timeout: Math.max(1, deadline - Date.now()), polling: 100 },
+    );
+    await ready.dispose();
+    return false;
+  } catch (error) {
+    if (error.name !== 'TimeoutError') throw error;
+    return true;
+  }
+}
+
 export class CdpBrowser {
   #authorization = null;
   #boundPolicy = null;
@@ -645,29 +687,40 @@ export class CdpBrowser {
       case 'browser.navigate':
         await goto(args.url);
         return { url: page.url(), title: await page.title() };
-      case 'browser.snapshot':
+      case 'browser.snapshot': {
         if (args.url) await goto(args.url);
+        const loading = await waitForReadablePage(page);
         return {
           url: page.url(),
           title: await page.title(),
-          snapshot: await page.locator('body').ariaSnapshot({ timeout: 10000 }),
+          snapshot: await page.locator('body').ariaSnapshot({ timeout: 1500 }),
+          loading,
         };
+      }
       case 'browser.extract': {
+        const loading = await waitForReadablePage(page);
+        const readDeadline = Date.now() + 1500;
+        const readTimeout = () => Math.max(1, readDeadline - Date.now());
         if ((args.limit ?? 1) > 1) {
           const matches = page.locator(args.selector);
-          await matches.first().waitFor({ state: 'visible', timeout: 10000 });
+          await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
           const count = Math.min(await matches.count(), args.limit);
           const texts = [];
           for (let i = 0; i < count; i++)
-            texts.push(await matches.nth(i).innerText({ timeout: 10000 }));
-          return { url: page.url(), text: texts.join('\n').slice(0, args.maxChars), count };
+            texts.push(await matches.nth(i).innerText({ timeout: readTimeout() }));
+          return {
+            url: page.url(),
+            text: texts.join('\n').slice(0, args.maxChars),
+            count,
+            loading,
+          };
         }
         return {
           url: page.url(),
-          text: (await page.locator(args.selector).first().innerText({ timeout: 10000 })).slice(
-            0,
-            args.maxChars,
-          ),
+          loading,
+          text: (
+            await page.locator(args.selector).first().innerText({ timeout: readTimeout() })
+          ).slice(0, args.maxChars),
         };
       }
       case 'browser.click':

@@ -1,0 +1,42 @@
+8d9f531 Brief seek-apply-01 : faire aboutir une candidature Seek (snapshot après chargement, formulaire multi-étapes fictif, persévérance, modèle, relecture du filtre d'envoi)
+b3d3c1c Passation : état du 26/10 (career-ops en réel, filtre d'envoi propriétaire, blocage Seek en cours)
+1ce9694 Mode propriétaire : l'API de la page (même site) peut charger la page hors clic ; seuls les POST tiers de fond sont bloqués ; accord demandé après clic ou saisie
+315281a Reprise de session : le dernier bloc JSON est la réponse (plus l'ancien tour rejoué) ; mode propriétaire : renouvellement de connexion autorisé
+06a5871 API : plus de plantage du serveur quand un événement arrive après la fin du flux SSE
+a8480fe Mode propriétaire : accord d'envoi seulement après un clic de l'agent ; POST de fond (statistiques, scripts) bloqués sans demande ; lectures GraphQL autorisées ; jetons masqués dans l'aperçu
+4ca3fd5 career-ops : PDF de CV/lettre mis en forme (titres, gras, listes) au lieu du Markdown brut ; plafond Gemini relevé à 5 $ par l'utilisateur
+5cc6a21 Consommation : cumul corrigé (≈ 1,31 $)
+c6e9264 Consommation Gemini : étapes career-ops du 26/10
+e9fad7b API : message privé d'un tour career-ops (GET /api/career/runs/:id/input) pour reconstruire la conversation
+690915d career-ops : le résumé est le message complet à l'utilisateur (questions numérotées incluses)
+aa1b116 career-ops : une réponse en texte libre (questions intake) est le résultat de la mission, plus un échec ; consignes à jour (recherche Google, questions permises)
+0e9ffa4 career-ops : Seek (fournisseur jobstreet) autorisé au scan, 60 tours Gemini, délai de run réglable (15 min au lancement career-ops)
+b3a16aa career-ops : recherche web Google autorisée à l'agent (search_queries LinkedIn/Indeed)
+a932c6b career-ops : étapes de l'agent diffusées en direct pour le propriétaire local
+cfabf57 [career-ops-01] Pack career-ops : espace privé, outils MCP, documents, Gemini par API, envois approuvés ; UI intégrée et docs
+cec1933 [career-ops-01] Imposer l’accord par envoi et protéger SMTP et LinkedIn
+830d297 [career-ops-01] Ajouter les CV joints et l’espace de travail privé
+a7b209e [review-all-1] Autoriser les téléchargements POST explicitement approuvés
+21ee61b [review-all-1] Restreindre les origines locales au protocole HTTP
+240cd97 [review-all-1] Aligner les schémas MCP sur les contrats stricts du registre
+76e39ae Brief career-ops-01 : API de fichiers joints (CV depuis l'interface)
+1ad4eaf Brief career-ops-01 : career-ops complet, Gemini API, envois validés un par un, LinkedIn sans envoi automatisé
+e154f89 [review-all-1] Libérer les téléchargements temporaires sur tous les échecs
+cb5ffe6 [review-all-1] Conserver la réponse et l’URL finales des redirections sans double requête
+dd08bdd [review-all-1] Reconnaître les boutons de soumission effectifs avant approbation
+e246399 Manager : chaque reprise Codex = session neuve repartant du rapport (passation), plus de reprise de conversation
+0327b68 Manager : règles d'économie de contexte pour Codex ; relecture complète découpée en 3 sessions
+6864216 [review-all] Mode propriétaire : les commandes Target d'une session possédée passent par l'inventaire filtré
+cd30c31 Brief review-all : relecture complète demandée par l'utilisateur
+54e3d84 [docs-01] Documentation alignée sur le code : architecture (Mermaid validé), ADR 006 à jour, ADR 008 mode propriétaire, recherche, plan MVP, FINAL, README, passation
+a299199 Navigateur : une redirection de chemin même origine atterrit sur l'URL finale vérifiée
+de817db live-run : délai propre au journal d'événements ; test instable corrigé à la racine
+77a69c9 Brief review-full : test live-run instable sous charge
+3ae89d5 Brief review-full : tentative de correctif de redirection revertée (contournement de context.route prouvé)
+f6ec07b [review-full] (partiel, coupé par la limite d'usage) live-resume : ne rapporter que le tour courant après session/load
+115d89d [review-full] Borner la sonde live et refuser les permissions fondées sur un titre
+ce8ecbd [review-full] Nettoyer les ressources de validation même si Chrome échoue
+eb74344 [review-full] Préserver et valider l’UTF-8 des corps JSON fragmentés
+e873ced [review-full] Écarter les réponses UI périmées et les sélections invalides
+1a42b56 [review-full] Renvoyer le résultat final selon les dépendances du DAG
+cafebc6 [review-full] Borner les sorties et notifications des agents DAG

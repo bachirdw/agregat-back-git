@@ -262,3 +262,113 @@ test(
     assert.equal(requests, 2);
   },
 );
+
+test(
+  'chargement différé FICTIF : snapshot et extract attendent le formulaire',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        `<div role="alert">Loading</div><main aria-busy="true"><div role="progressbar" aria-label="Loading"></div></main><script>setTimeout(() => { document.body.innerHTML = '<form><label>FICTIF Nom<input></label><button>Continue</button></form>'; }, 3000)</script>`,
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-loading',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => {
+        throw new Error('Aucun accord attendu');
+      },
+    });
+    for (const capability of ['browser.snapshot', 'browser.extract']) {
+      await t.test(capability, async () => {
+        await gateway.call('browser.navigate', { url: origin });
+        const start = Date.now();
+        const result = await gateway.call(
+          capability,
+          capability === 'browser.extract' ? { selector: 'body' } : {},
+        );
+        assert.match(result.snapshot ?? result.text, /FICTIF Nom/);
+        assert.doesNotMatch(result.snapshot ?? result.text, /Loading/);
+        assert.equal(result.loading, false);
+        assert.ok(Date.now() - start < 10000);
+      });
+    }
+  },
+);
+
+test(
+  'chargement FICTIF : délai borné, indicateurs persistants et réseau continu',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/pending') {
+        res.writeHead(200);
+        res.write('FICTIF');
+        return;
+      }
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      const marker =
+        req.url === '/busy'
+          ? '<main aria-busy="true">FICTIF attente</main>'
+          : req.url === '/alert'
+            ? '<div role="alert">Loading</div>'
+            : req.url === '/progress'
+              ? '<div role="progressbar" aria-label="Loading"></div>'
+              : '<div role="alert" hidden>Loading</div><div aria-busy="true" hidden></div><p>FICTIF prêt</p><script>fetch("/pending")</script>';
+      res.end(marker);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-loading-timeout',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => {
+        throw new Error('Aucun accord attendu');
+      },
+    });
+    for (const path of ['/busy', '/alert', '/progress', '/ready']) {
+      await t.test(path, async () => {
+        await gateway.call('browser.navigate', { url: origin + path });
+        const start = Date.now();
+        const result = await gateway.call(
+          path === '/busy' ? 'browser.extract' : 'browser.snapshot',
+          path === '/busy' ? { selector: 'main', limit: 2 } : {},
+        );
+        const elapsed = Date.now() - start;
+        assert.equal(result.loading, path !== '/ready');
+        assert.ok(elapsed < 10000, `Attente bornée : ${elapsed} ms`);
+        if (path === '/ready') {
+          assert.match(result.snapshot, /FICTIF prêt/);
+          assert.ok(elapsed < 3000, `Repli réseau : ${elapsed} ms`);
+        } else {
+          assert.ok(elapsed >= 7500, `Budget utilisé : ${elapsed} ms`);
+        }
+      });
+    }
+  },
+);

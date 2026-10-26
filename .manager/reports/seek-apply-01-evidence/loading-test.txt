@@ -1,0 +1,24 @@
+
+test('chargement différé FICTIF : snapshot et extract attendent le formulaire', { skip: !existsSync(CHROME) }, async (t) => {
+  const server = http.createServer((req, res) => {
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.end(`<div role="alert">Loading</div><main aria-busy="true"><div role="progressbar" aria-label="Loading"></div></main><script>setTimeout(() => { document.body.innerHTML = '<form><label>FICTIF Nom<input></label><button>Continue</button></form>'; }, 3000)</script>`);
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => { server.closeAllConnections(); return new Promise((r) => server.close(r)); });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+  t.after(() => provider.close());
+  const gateway = new BrowserGateway({ provider, policy: new RunPolicy({ ownerMode: true, runId: 'FICTIF-loading', capabilities: capabilityIds, allowLocalOrigins: [origin] }), approve: async () => { throw new Error('Aucun accord attendu'); } });
+  for (const capability of ['browser.snapshot', 'browser.extract']) {
+    await t.test(capability, async () => {
+      await gateway.call('browser.navigate', { url: origin });
+      const start = Date.now();
+      const result = await gateway.call(capability, capability === 'browser.extract' ? { selector: 'body' } : {});
+      assert.match(result.snapshot ?? result.text, /FICTIF Nom/);
+      assert.doesNotMatch(result.snapshot ?? result.text, /Loading/);
+      assert.equal(result.loading, false);
+      assert.ok(Date.now() - start < 10000);
+    });
+  }
+});

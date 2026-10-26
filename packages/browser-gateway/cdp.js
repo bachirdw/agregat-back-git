@@ -458,10 +458,10 @@ export class CdpBrowser {
     if (!(await handle.count())) return null;
     return handle.evaluate((el) => ({
       tag: el.tagName.toLowerCase(),
-      inputType: el.getAttribute('type')?.toLowerCase() ?? null,
-      buttonType: el.tagName === 'BUTTON' ? (el.getAttribute('type') ?? 'submit') : null,
-      inForm: !!el.closest('form'),
-      formAction: el.closest('form')?.getAttribute('action') ?? null,
+      inputType: el.tagName === 'INPUT' ? el.type : null,
+      buttonType: el.tagName === 'BUTTON' ? el.type : null,
+      inForm: !!el.form,
+      formAction: el.form?.getAttribute('action') ?? null,
       text: (el.innerText ?? '').slice(0, 200),
       ariaLabel: el.getAttribute('aria-label'),
       // Values may contain passwords, card numbers or private data even on text inputs.

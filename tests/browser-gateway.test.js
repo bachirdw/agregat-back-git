@@ -1489,3 +1489,51 @@ test(
     assert.ok(hits <= 4, `requêtes bornées (${hits})`);
   },
 );
+
+test(
+  'Chrome : tout bouton de soumission effectif exige un consentement sensible',
+  { skip: !hasChrome },
+  async (t) => {
+    let posts = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') posts++;
+      res.setHeader('content-type', 'text/html');
+      res.end(`<title>FICTIF</title><form id="form" method="post" action="/next">
+        <button id="upper" type="SUBMIT">Continuer</button>
+        <button id="invalid" type="invalide">Continuer</button>
+        </form><button id="external" form="form">Continuer</button>`);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(async () => {
+      await provider.close();
+      server.closeAllConnections();
+      await new Promise((r) => server.close(r));
+    });
+    const requests = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({ allowLocalOrigins: [origin], capabilities: ALL }),
+      autoApprove: ['browser.click'],
+      approve: async (request) => {
+        requests.push(request);
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    for (const selector of ['#upper', '#invalid', '#external']) {
+      await assert.rejects(gateway.call('browser.click', { selector }), /refusée/);
+      assert.equal(requests.at(-1).sensitive, true);
+    }
+    assert.equal(requests.length, 3);
+    assert.equal(posts, 0, 'aucune soumission FICTIVE avant consentement');
+    gateway.approve = async (request) => {
+      requests.push(request);
+      return true;
+    };
+    await gateway.call('browser.click', { selector: '#external' });
+    assert.equal(requests.at(-1).sensitive, true);
+    assert.equal(posts, 1, 'soumission FICTIVE après consentement explicite');
+  },
+);

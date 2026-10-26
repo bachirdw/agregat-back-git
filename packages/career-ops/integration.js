@@ -35,7 +35,7 @@ export function reviewCareer(career, registry) {
       hooksConfig: { enabled: false },
       admin: { extensions: { enabled: false } },
       telemetry: { enabled: false },
-      model: { name: CAREER_MODEL, maxSessionTurns: 15 },
+      model: { name: CAREER_MODEL, maxSessionTurns: 60 },
     }),
   );
   return {

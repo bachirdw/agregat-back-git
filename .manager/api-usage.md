@@ -23,3 +23,7 @@ Note 03:58 : les heures des lignes « manager » ci-dessus après 03:05 sont est
 Correction du tarif du smoke 14:26 : le calcul utilisait encore le tarif 2.5 après passage à 3.1.
 Source officielle : https://ai.google.dev/gemini-api/docs/pricing.md (0,25 / 1,50 USD/M).
 | 14:27 | career-ops-01 | gemini-3.1-flash-lite | Correction comptable du même appel REST, aucun nouvel appel | 4 / 2 | ≤ 0.000004 $ | ≤ 0.054004 $ (20 appels) |
+| 14:47 | mission utilisateur career-ops (Gemini CLI, clé API) | gemini-3.1-flash-lite | Analyse CV + recherche Remotive, 2 offres | 694 031 / 11 285 | ≈ 0.190 $ | ≈ 0.244 $ |
+| 15:05 | test manager career-ops (scan Seek + LinkedIn/Indeed + 5 évaluations) | gemini-3.1-flash-lite | Mission réelle, rien envoyé | 1 196 063 / 30 774 | ≈ 0.345 $ | ≈ 0.589 $ |
+Tokens relevés dans les sessions Gemini (`relay/agent-home/.gemini/.../chats/*.jsonl`), tarif 0,25 / 1,50 USD/M.
+Une mission career-ops coûte ≈ 0,2–0,35 $ (contexte relu à chaque tour) : plafond opérationnel 2 $ à surveiller.

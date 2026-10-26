@@ -160,7 +160,9 @@ export class CareerTools {
           if (
             /parser|command|script|plugin/i.test(k) ||
             (k === 'provider' &&
-              !['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters'].includes(item))
+              !['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters', 'jobstreet'].includes(
+                item,
+              ))
           )
             throw new Error('Scanner : provider ou exécutable non autorisé');
           validate(item);

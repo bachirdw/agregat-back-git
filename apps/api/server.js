@@ -65,7 +65,10 @@ export function publicAgents(agents, probes) {
 export function createApp({
   dataDir = resolve(ROOT, '.data'),
   live = process.env.AGENT_PLATFORM_LIVE === '1',
-  timeoutMs,
+  // Optional run deadline override (ms), e.g. long career-ops scans; invalid values keep the default.
+  timeoutMs = Number(process.env.AGENT_PLATFORM_TIMEOUT_MS) > 0
+    ? Number(process.env.AGENT_PLATFORM_TIMEOUT_MS)
+    : undefined,
   ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
   career = new CareerWorkspace(),
   webDir = process.env.AGENT_PLATFORM_WEB_DIR || null,

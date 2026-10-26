@@ -573,7 +573,9 @@ export class Orchestrator {
               return;
             }
           }
-          if (plan.pack.id !== 'career-ops') this.store.event(run.id, 'agent', update);
+          // career-ops updates quote the CV: persisted (and streamed) only for the local owner.
+          if (plan.pack.id !== 'career-ops' || this.ownerMode)
+            this.store.event(run.id, 'agent', update);
           if (update.sessionUpdate === 'tool_call') this.meter(run.id, 'tool_observed', 1);
         },
         onPermission: (p) =>

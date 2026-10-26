@@ -18,7 +18,7 @@ import { CareerTools, sourceSnapshot } from '../packages/career-ops/tools.js';
 import { reviewCareer, assertCareerReview } from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 
-function fixture(t) {
+function fixture(t, ownerMode = false) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-integrated-FICTIF-')));
   mkdirSync(join(root, '.agents/skills/career-ops'), { recursive: true });
   writeFileSync(
@@ -26,7 +26,7 @@ function fixture(t) {
     '---\nname: career-ops\ndescription: Routeur de test FICTIF\nlicense: MIT\n---\n# FICTIF\n',
   );
   const career = new CareerWorkspace({ root, roots: [root] });
-  const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: false });
+  const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode });
   t.after(async () => {
     await app.close();
     rmSync(root, { recursive: true, force: true });
@@ -222,4 +222,42 @@ test('Lecture privée paginée et script annulé : sortie bornée, processus arr
   const pending = tools.script({ command: 'find', query: 'FICTIF' }, controller.signal);
   controller.abort();
   await assert.rejects(pending, /annulée ou expirée/);
+});
+
+test('Propriétaire local : les étapes de l’agent career-ops sont diffusées en direct', async (t) => {
+  const { career, app } = fixture(t, true);
+  reviewCareer(career, app.skills);
+  const attachment = await career.upload(Buffer.from('CV FICTIF'), 'CV.md', 'text/markdown');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const run = await (
+    await fetch(base + '/api/runs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+      body: JSON.stringify({
+        prompt: 'évalue cette offre FICTIVE',
+        agent: 'fixture',
+        attachments: [attachment.id],
+      }),
+    })
+  ).json();
+  for (let i = 0; i < 300 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  assert.equal(
+    app.store.get(run.id).state,
+    'completed',
+    JSON.stringify(app.store.events(run.id).slice(-4)),
+  );
+  const agentEvents = app.store.events(run.id).filter((e) => e.type === 'agent');
+  assert.ok(agentEvents.length > 0, 'étapes de l’agent visibles pour le propriétaire');
 });

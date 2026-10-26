@@ -182,22 +182,27 @@ export function createApp({
           const after = Number(req.headers['last-event-id'] ?? url.searchParams.get('after') ?? 0);
           if (!Number.isSafeInteger(after) || after < 0) throw new Error('Curseur invalide');
           res.writeHead(200, { 'content-type': 'text/event-stream', connection: 'keep-alive' });
+          // Never write after the stream ended: an unhandled write error used to crash the server.
+          res.on('error', () => {});
+          const open = () => !res.writableEnded && !res.destroyed;
           const send = (e) =>
-            res.write(`id: ${e.seq}\nevent: update\ndata: ${JSON.stringify(e)}\n\n`);
+            open() && res.write(`id: ${e.seq}\nevent: update\ndata: ${JSON.stringify(e)}\n\n`);
           for (const e of store.events(id, after)) send(e);
           if (terminal.has(run.state)) {
             res.write('event: end\ndata: {}\n\n');
             return res.end();
           }
           const listener = (e) => {
+            if (!open()) return store.off(id, listener);
             send(e);
             if (e.type === 'state' && terminal.has(e.data.state)) {
+              store.off(id, listener);
               res.write('event: end\ndata: {}\n\n');
               res.end();
             }
           };
           store.on(id, listener);
-          const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 15000);
+          const heartbeat = setInterval(() => open() && res.write(': heartbeat\n\n'), 15000);
           res.on('close', () => {
             clearInterval(heartbeat);
             store.off(id, listener);

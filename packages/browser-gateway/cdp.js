@@ -372,6 +372,24 @@ export class CdpBrowser {
         let method = request.method(),
           body = request.postDataBuffer();
         const headers = await request.allHeaders();
+        const fulfill = (response) =>
+          route.fulfill({
+            status: response.status,
+            headers: policy.allowJavaScript ? response.headers : noScriptHeaders(response.headers),
+            body: response.body,
+          });
+        // A routed redirect is fetched once, then rendered at its actual URL. The synthetic
+        // landing navigation consumes those exact bytes, including a response to an approved POST.
+        if (
+          this.redirectLanding?.url.split('#')[0] === url &&
+          request.isNavigationRequest() &&
+          frame === this.page?.mainFrame()
+        ) {
+          const landing = this.redirectLanding;
+          this.redirectLanding = null;
+          await policy.assertUrl(url);
+          return await fulfill(landing.response);
+        }
         let response;
         for (let hop = 0; hop < 5; hop++) {
           const { addresses } = await policy.resolveUrl(url);
@@ -386,21 +404,22 @@ export class CdpBrowser {
           });
           const location = response.headers.location;
           if (response.status < 300 || response.status >= 400 || !location) {
-            // Chrome keeps the requested URL for a fulfilled redirect chain: remember the final,
-            // policy-checked URL so goto() can land there (relative links, reported URL).
+            // Do not parse the final document under the initial URL or execute it twice.
+            // Downloads have no document to relocate and retain their normal download event.
             if (
               url !== request.url() &&
               request.isNavigationRequest() &&
-              frame === this.page?.mainFrame()
-            )
-              this.redirectedTo = url;
-            return await route.fulfill({
-              status: response.status,
-              headers: policy.allowJavaScript
-                ? response.headers
-                : noScriptHeaders(response.headers),
-              body: response.body,
-            });
+              frame === this.page?.mainFrame() &&
+              !/^\s*attachment\b/i.test(response.headers['content-disposition'] ?? '')
+            ) {
+              this.redirectLanding = { url, response };
+              return await route.fulfill({
+                status: 200,
+                headers: noScriptHeaders({ 'content-type': 'text/html' }),
+                body: '<!doctype html><title>Redirection</title>',
+              });
+            }
+            return await fulfill(response);
           }
           const next = new URL(location, url).href;
           await policy.assertUrl(next);
@@ -434,6 +453,7 @@ export class CdpBrowser {
   async reset() {
     const page = this.page;
     this.page = null;
+    this.redirectLanding = null;
     await page?.close().catch(() => {});
     await this.pageSession?.detach().catch(() => {});
     this.pageSession = null;
@@ -476,9 +496,15 @@ export class CdpBrowser {
     page.setDefaultTimeout(this.navigationTimeoutMs);
     await this.assertLanded(policy);
     this.blocked = null;
+    this.redirectLanding = null;
     const goto = async (url, landing = false) => {
-      this.redirectedTo = null;
       try {
+        // A fragment-only goto is a same-document navigation and would never consume the route.
+        if (landing && page.url().split('#')[0] === url.split('#')[0])
+          await page.goto('about:blank', {
+            waitUntil: 'domcontentloaded',
+            timeout: this.navigationTimeoutMs,
+          });
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.navigationTimeoutMs });
       } catch (e) {
         if (this.blocked) await this.reset();
@@ -487,10 +513,9 @@ export class CdpBrowser {
       }
       if (this.blocked) throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
       await this.assertLanded(policy);
-      // One extra routed navigation to the already-validated final URL of a redirect chain.
-      const target = this.redirectedTo;
-      this.redirectedTo = null;
-      if (target && !landing && page.url() !== target) await goto(target, true);
+      // The landing route renders the saved response without another HTTP request.
+      const target = this.redirectLanding?.url;
+      if (target && !landing) await goto(target, true);
     };
     switch (id) {
       case 'browser.navigate':
@@ -534,6 +559,7 @@ export class CdpBrowser {
           throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
         }
         await this.assertLanded(policy);
+        if (this.redirectLanding) await goto(this.redirectLanding.url, true);
         return { url: page.url(), title: await page.title() };
       case 'browser.type':
         await page.locator(args.selector).first().fill(args.text, { timeout: 10000 });
@@ -667,6 +693,7 @@ export class CdpBrowser {
     this.browser = null;
     await this.ownerConnection?.close().catch(() => {});
     this.ownerConnection = null;
+    this.redirectLanding = null;
     this.page = null;
     this.#authorization = null;
     this.#boundPolicy = null;

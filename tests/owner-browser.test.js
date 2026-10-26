@@ -247,15 +247,18 @@ test(
     await gateway.call('browser.navigate', { url: fixture.origin });
     await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
     assert.equal(fixture.posts(), 0);
-    // A page script cannot use a normal read/navigation to bypass the outbound-write gate.
+    // Long after any agent action, the page's own same-site API call loads the page: allowed,
+    // without approval (Seek's apply form stayed on "Loading" when these were blocked).
+    await new Promise((r) => setTimeout(r, 8100));
     await provider.page.evaluate(() =>
-      fetch('/', { method: 'POST', body: 'FICTIF scripted' }).catch(() => {}),
+      fetch('/', { method: 'POST', body: 'FICTIF page API' }).catch(() => {}),
     );
-    assert.equal(fixture.posts(), 0);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(fixture.posts(), 1);
     approved = true;
     await gateway.call('browser.click', { selector: '#send' });
-    assert.equal(fixture.posts(), 1);
-    // Refused click, then approved click: the scripted POST is blocked without asking.
+    assert.equal(fixture.posts(), 2);
+    // Only the two agent clicks asked for approval.
     assert.equal(requests, 2);
   },
 );

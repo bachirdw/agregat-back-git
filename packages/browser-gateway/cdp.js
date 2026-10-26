@@ -53,6 +53,20 @@ export function isGraphqlRead(body) {
     return false;
   }
 }
+// Same registrable site (au.seek.com ~ www.seek.com ; example.com.au keeps three labels).
+const site = (host) => {
+  const labels = host.toLowerCase().split('.');
+  const second = labels.at(-2) ?? '';
+  const keep = labels.at(-1)?.length === 2 && /^(com|net|org|gov|edu|co|ac)$/.test(second) ? 3 : 2;
+  return labels.slice(-keep).join('.');
+};
+export function sameSite(a, b) {
+  try {
+    return site(new URL(a).hostname) === site(new URL(b).hostname);
+  } catch {
+    return false;
+  }
+}
 // Keeping the user's existing login alive (token refresh, OAuth) is not sending anything.
 export function isAuthRefresh(url) {
   const { hostname, pathname } = new URL(url);
@@ -405,10 +419,19 @@ export class CdpBrowser {
         const body = request.postData() ?? '';
         // Read-only GraphQL queries (SPA data loading) and session upkeep are not sends.
         if (isGraphqlRead(body) || isAuthRefresh(request.url())) return route.continue();
-        // Outside an agent click, page scripts (telemetry, trackers, scripted POSTs) may not
-        // write: blocked silently instead of flooding the user with approval requests.
-        if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS)
-          return route.abort('blockedbyclient');
+        // Outside an agent click or typing, the page's own API calls load the page (allowed);
+        // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
+        if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS) {
+          let pageUrl = '';
+          try {
+            pageUrl = request.frame().page().url();
+          } catch {
+            /* no page: treated as third party */
+          }
+          return sameSite(request.url(), pageUrl)
+            ? route.continue()
+            : route.abort('blockedbyclient');
+        }
         const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
@@ -667,6 +690,8 @@ export class CdpBrowser {
         return { url: page.url(), title: await page.title() };
       case 'browser.type':
         await page.locator(args.selector).first().fill(args.text, { timeout: 10000 });
+        // A page script may submit right after typing: that POST still needs approval.
+        this.lastClickEnd = Date.now();
         return { url: page.url(), typed: args.text.length };
       case 'browser.upload':
         await page

@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Usage: .manager/run-until-done.sh <id> [not-before "YYYY-MM-DD HH:MM"]
-# Lance le sprint <id> ; si Codex atteint sa limite d'usage, attend 30 min puis relance une session NEUVE
+# Lance le sprint <id> ; si Codex atteint sa limite d'usage, attend LIMIT_WAIT s (défaut 5 h) puis relance une session NEUVE
 # qui repart du rapport (passation), jusqu'à 24 tentatives. Toute autre fin est rendue telle quelle.
 set -u
 cd /Users/diaw/Downloads/agregat-back
@@ -15,10 +15,10 @@ echo "$(date '+%F %T') start $ID"
 OUT=$(.manager/run-sprint.sh "$ID"); echo "$OUT"
 LOG=${OUT##*LOG=}
 TID=$(thread "$LOG")
-for attempt in $(seq 1 24); do
+for attempt in $(seq 1 4); do
   limited "$LOG" || break
-  echo "$(date '+%F %T') limite d'usage ($LOG), attente 30 min (tentative $attempt), session $TID"
-  sleep 1800
+  echo "$(date '+%F %T') limite d'usage ($LOG), attente ${LIMIT_WAIT:-18000} s (tentative $attempt), session $TID"
+  sleep ${LIMIT_WAIT:-18000}
   # Session NEUVE à chaque reprise (contexte court) : elle repart du rapport, qui sert de passation.
   OUT=$(.manager/run-sprint.sh "$ID")
   echo "$OUT"; LOG=${OUT##*LOG=}

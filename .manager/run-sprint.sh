@@ -1,13 +1,13 @@
 #!/bin/zsh
 # Usage: .manager/run-sprint.sh <NN> [resume-session-id "message"]
-# Lance (ou reprend) une session Codex gpt-6.1-sol pour un sprint, journal JSONL complet dans .manager/logs/.
+# Lance (ou reprend) une session Codex (MODEL, défaut gpt-6-sol : gpt-6.1-sol épuise la limite trop vite) pour un sprint, journal JSONL complet dans .manager/logs/.
 set -u
 cd /Users/diaw/Downloads/agregat-back
 [ -f .manager/secrets.env ] && { set -a; source .manager/secrets.env; set +a; }
 N=$1
 TS=$(date +%Y%m%d-%H%M%S)
 LOG=.manager/logs/$N-$TS.jsonl
-COMMON=(-m gpt-6.1-sol -c model_reasoning_effort=\"${EFFORT:-medium}\" -c sandbox_workspace_write.network_access=true)
+COMMON=(-m ${MODEL:-gpt-6-sol} -c model_reasoning_effort=\"${EFFORT:-medium}\" -c sandbox_workspace_write.network_access=true)
 if [ $# -ge 3 ]; then
   codex exec resume "${COMMON[@]}" --json -o .manager/logs/$N-$TS.last.md "$2" "$3" < /dev/null > "$LOG" 2>&1
 else

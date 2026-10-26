@@ -30,3 +30,11 @@
 1. Le relais Playwriter ou l'extension bloque-t-il les événements `Input.dispatchMouseEvent` vers les cibles cachées ? Il faut une correction du relais ou un onglet réellement visible, puis refaire la preuve locale avant toute utilisation sur un site réel.
 2. Souhaite-t-on que `browser.click` échoue explicitement si aucun événement `click` n'est reçu après le repli forcé ? Le protocole actuel ne confirme que l'envoi de l'action Playwright, pas son effet sur la page.
 - 23:50 — Commit local `30d220e` : points 1–4, tests et preuves, sans push. `git status --short` après commit : seul le fichier antérieur non suivi `audit-seek-01-evidence/manager-recheck.txt` reste ; aucun fichier de ce sprint en attente. Rapport complété avec les identifiants exacts des deux commits.
+
+## Contrôle du manager (Claude) — 26/10, 23:58
+- Suite relancée par le manager sur `eb53548` : 379 réussis / 0 échec / 1 ignoré, check et format verts (`manager-recheck.txt`). Preuve réelle relue : clic forcé en onglet caché sans effet, clic DOM = 1.
+- Défaut 1 (CRITIQUE) : le repli renvoie `clickMode: forced-hidden-tab` comme un succès alors qu'aucun clic n'a atteint la page → erreur silencieuse.
+- Défaut 2 : `isSensitiveRequest` juge sensibles des LECTURES GraphQL par leur nom (`GetApplyStatus`) → demandes d'accord en pleine navigation, hors clic.
+- Méthode : quatre points regroupés dans `30d220e` au lieu d'un commit par point.
+- Point 3 (radio dans une carte `[role=button]`) et point 4 (indicateurs précis) : VALIDÉS à la relecture.
+- VERDICT : À CORRIGER → `.manager/briefs/seek-apply-03.md`.

@@ -53,6 +53,14 @@ export function isGraphqlRead(body) {
     return false;
   }
 }
+// Keeping the user's existing login alive (token refresh, OAuth) is not sending anything.
+export function isAuthRefresh(url) {
+  const { hostname, pathname } = new URL(url);
+  return (
+    /^(login|auth|identity|accounts|sso|id)\./.test(hostname) ||
+    /\/(oauth2?|token|authorize|refresh)(\/|$)/i.test(pathname)
+  );
+}
 // Approval preview: session tokens masked, size bounded.
 export function previewBody(body) {
   const masked = body
@@ -395,8 +403,8 @@ export class CdpBrowser {
         const host = new URL(request.url()).hostname;
         if (/(^|\.)linkedin\.com$/.test(host)) return route.abort('blockedbyclient');
         const body = request.postData() ?? '';
-        // Read-only GraphQL queries (SPA data loading) are not sends.
-        if (isGraphqlRead(body)) return route.continue();
+        // Read-only GraphQL queries (SPA data loading) and session upkeep are not sends.
+        if (isGraphqlRead(body) || isAuthRefresh(request.url())) return route.continue();
         // Outside an agent click, page scripts (telemetry, trackers, scripted POSTs) may not
         // write: blocked silently instead of flooding the user with approval requests.
         if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS)

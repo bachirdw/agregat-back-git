@@ -81,3 +81,10 @@ test('mode agent core : exécution faux ACP sans modèle, provenance réelle imp
     await app.close();
   }
 });
+test('résultat agent : après une reprise de session, le dernier bloc JSON est la réponse', () => {
+  const old = '```json\n{"simulated":false,"summary":"ANCIEN tour FICTIF","evidence":[]}\n```';
+  const fresh = '```json\n{"simulated":false,"summary":"NOUVEAU tour FICTIF","evidence":[]}\n```';
+  const result = parseAgentResult(`${old}\n${fresh}`);
+  assert.equal(result.ok, true);
+  assert.equal(result.value.summary, 'NOUVEAU tour FICTIF');
+});

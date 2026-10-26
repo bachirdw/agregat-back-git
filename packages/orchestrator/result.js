@@ -8,7 +8,8 @@ const resultSchema = z
 export function parseAgentResult(text) {
   const raw = String(text ?? '').trim();
   const excerpt = raw.replace(/\s+/g, ' ').slice(0, 300) || '(réponse vide)';
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  // A resumed session replays earlier turns before the new answer: the LAST fenced block wins.
+  const fenced = [...raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].at(-1);
   const candidate = fenced ? fenced[1].trim() : raw;
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');

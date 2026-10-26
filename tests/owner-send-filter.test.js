@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isGraphqlRead, previewBody } from '../packages/browser-gateway/cdp.js';
+import { isAuthRefresh, isGraphqlRead, previewBody } from '../packages/browser-gateway/cdp.js';
 
 test('GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi', () => {
   assert.equal(isGraphqlRead('{"query":"query Job { job(id: 1) { title } }"}'), true);
@@ -16,4 +16,11 @@ test('Aperçu d’envoi : jetons masqués et taille bornée', () => {
   assert.doesNotMatch(out, /eyJ|abc/);
   assert.match(out, /"name":"FICTIF"/);
   assert.match(previewBody('x'.repeat(5000)), /… \[tronqué\]$/);
+});
+test('Session : le renouvellement de connexion n’est pas un envoi', () => {
+  assert.equal(isAuthRefresh('https://login.seek.com/oauth/token'), true);
+  assert.equal(isAuthRefresh('https://www.example.test/api/oauth2/authorize'), true);
+  assert.equal(isAuthRefresh('https://au.seek.com/graphql'), false);
+  assert.equal(isAuthRefresh('https://lcto.aips-sol.com/v1/events'), false);
+  assert.equal(isAuthRefresh('https://au.seek.com/apply/submit'), false);
 });

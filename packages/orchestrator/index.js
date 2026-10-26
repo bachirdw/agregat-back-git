@@ -1,3 +1,4 @@
+import { CareerWorkspace } from '../career-ops/workspace.js';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -24,7 +25,9 @@ export const inputSchema = z
   .object({
     prompt: z.string().trim().min(1).max(8000),
     agent: z.enum(['auto', ...agentIds]).default('fixture'),
-    pack: z.enum(['auto', 'core', 'najah']).default('auto'),
+    pack: z.enum(['auto', 'core', 'najah', 'career-ops']).default('auto'),
+    workspace: z.enum(['career-ops']).optional(),
+    attachments: z.array(z.string().uuid()).max(8).default([]),
     skills: z.array(z.string()).max(8).default([]),
     model: z.string().max(200).default(''),
     budgetCents: z.number().int().min(0).max(100000).default(0),
@@ -41,12 +44,14 @@ export class Orchestrator {
       dataDir = resolve(ROOT, '.data'),
       live = false,
       timeoutMs = 180000,
+      career = new CareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
     } = {},
   ) {
     Object.assign(this, { store, skills, dataDir, live: ownerMode || live, timeoutMs, ownerMode });
     this.active = new Map();
     this.permissions = new Map();
+    this.career = career;
     // Read access to durable step state; each workflow run drives its own engine instance.
     this.workflows = new WorkflowEngine({ store, executors: {} });
     this.approvalTokens = new Map(); // runId -> random token, memory only
@@ -173,6 +178,8 @@ export class Orchestrator {
   async plan(input, { resume = false } = {}) {
     const v = inputSchema.parse(input);
     if (this.ownerMode && input.agent === undefined) v.agent = 'auto';
+    if (v.attachments.length) this.career.attachments(v.attachments);
+    if (v.workspace) this.career.path();
     const browserWorkflow =
       this.ownerMode &&
       v.pack !== 'najah' &&
@@ -348,7 +355,11 @@ export class Orchestrator {
     )
       throw new Error('Session non reprenable');
     const id = randomUUID(),
-      cwd = previous?.cwd ?? resolve(this.dataDir, 'workspaces', id);
+      cwd =
+        previous?.cwd ??
+        (plan.input.workspace === 'career-ops'
+          ? this.career.path()
+          : resolve(this.dataDir, 'workspaces', id));
     mkdirSync(cwd, { recursive: true, mode: 0o700 });
     const run = {
       id,
@@ -502,6 +513,7 @@ export class Orchestrator {
         });
       const prompt = JSON.stringify({
         objective: run.prompt,
+        attachments: run.attachments?.length ? this.career.attachments(run.attachments) : [],
         skills: plan.skills,
         browserWorkflow: plan.browserWorkflow,
         workflow: plan.pack.workflow,

@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { CareerWorkspace, MAX_FILE_BYTES } from '../../packages/career-ops/workspace.js';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,11 +64,12 @@ export function createApp({
   live = process.env.AGENT_PLATFORM_LIVE === '1',
   timeoutMs,
   ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
+  career = new CareerWorkspace(),
   webDir = process.env.AGENT_PLATFORM_WEB_DIR || null,
 } = {}) {
   const store = new Store(resolve(dataDir, 'platform.sqlite'));
   const skills = new SkillRegistry(store, skillDefinitions, { dataDir });
-  const engine = new Orchestrator(store, skills, { dataDir, live, timeoutMs, ownerMode });
+  const engine = new Orchestrator(store, skills, { dataDir, live, timeoutMs, ownerMode, career });
   const files = {
     '/': ['index.html', 'text/html'],
     '/app.js': ['app.js', 'text/javascript'],
@@ -205,6 +207,28 @@ export function createApp({
               .map(({ finish, ...p }) => p),
           });
       }
+      if (req.method === 'GET' && path === '/api/career/profile')
+        return json(res, 200, { profile: career.profile() });
+      if (req.method === 'POST' && path === '/api/files') {
+        if (req.headers['x-platform-request'] !== '1')
+          return json(res, 403, { error: 'En-tête applicatif requis' });
+        let size = 0;
+        const chunks = [];
+        for await (const chunk of req) {
+          size += chunk.length;
+          if (size > MAX_FILE_BYTES) return json(res, 413, { error: 'Fichier trop volumineux' });
+          chunks.push(chunk);
+        }
+        return json(
+          res,
+          201,
+          await career.upload(
+            Buffer.concat(chunks),
+            req.headers['x-file-name'],
+            req.headers['content-type'],
+          ),
+        );
+      }
       if (req.method !== 'POST') return json(res, 404, { error: 'Route introuvable' });
       if (
         req.headers['x-platform-request'] !== '1' ||
@@ -226,6 +250,10 @@ export function createApp({
         throw new Error('Corps JSON UTF-8 invalide');
       }
       const body = JSON.parse(raw || '{}');
+      if (path === '/api/career/profile') {
+        career.profile(body.profile);
+        return json(res, 200, { ok: true });
+      }
       if (path === '/api/plan') {
         const p = await engine.plan(body);
         return json(res, 200, {

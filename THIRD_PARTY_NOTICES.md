@@ -27,3 +27,11 @@ projet) : il est cité pour l'attribution uniquement, pas comme nom de produit.
 - Registre des sponsors (gov.uk, Home Office) : Open Government Licence v3.0.
 - Remotive API : citer Remotive et renvoyer vers l'URL de l'offre ; ne pas republier vers des sites tiers.
 - Arbeitnow API : API publique gratuite ; offres citées avec leur URL d'origine.
+
+## Intégration externe career-ops
+
+Relay intègre l’espace de travail du projet https://github.com/career-ops-hq/career-ops,
+commit `2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af`. Code MIT ; marque réservée à son auteur,
+citée pour compatibilité et attribution. La licence complète est conservée dans le clone externe.
+
+> MIT License — Copyright (c) 2026 Santiago Fernández de Valderrama.

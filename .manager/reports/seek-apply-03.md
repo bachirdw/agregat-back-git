@@ -44,3 +44,11 @@
 - 00:22 — Suite complète après complément `dom-form-final-suite.txt` : phase sans Chrome **rouge** 261 réussis / 1 échec / 1 ignoré. Échec dans le test existant `career-integration.test.js:244` : état `running` au lieu de `completed` après l’attente, sans lien avec le seul changement de test Chrome. Phase Chrome encore en cours. Ne pas commiter avant diagnostic, test ciblé et suite complète verte. `dom-form-final-check.txt` et `dom-form-final-format.txt` code 0.
 - 00:25 — Suite `dom-form-final-suite.txt` terminée code 1 : phase sans Chrome 261/1/1, Chrome 120/0/0. Échec unique du test career-ops existant après sa boucle maximale de 6 s sous charge (état encore `running`). Relance isolée `career-flake-targeted.txt` code 0, test réussi en 3,8 s ; hypothèse de latence intermittente confirmée sur cette relance, sans preuve d’une cause précise. Aucun test retiré ni assertion affaiblie. Nouvelle suite complète sur code inchangé avant commit.
 - 00:30 — Relance complète `dom-form-recheck-suite.txt` code 0 sur état stable : phase sans Chrome 262/0/1, Chrome 120/0/0, total **382 réussis / 0 échec / 1 ignoré**. `dom-form-final-check.txt` et `dom-form-final-format.txt` code 0 ; `git diff --check` code 0. Le test career-ops a réussi dans cette relance sans correction de code. Complément de couverture prêt pour commit local, sans push.
+
+## Contrôle du manager (Claude) — 27/10, 00:40
+- Suite relancée par le manager sur `2dc1808` : 382 réussis / 0 échec / 1 ignoré, check et format verts (`manager-recheck.txt`). Preuve locale réelle relue : `hidden`, `dom-hidden-tab`, compteur 1, refus = 1 demande et 0 POST.
+- Défaut : signal de clic par `console.debug` → faux « non délivré » sur un site qui neutralise la console → risque de double action.
+- Risque : `force` (souris CDP) tenté avant le clic DOM en onglet caché → clic fantôme différé possible.
+- Preuve Seek mal étiquetée : « même site » calculé contre l'URL demandée et non la page réelle (`au.seek.com`) ; `/v1/send` était tiers pour le filtre (blocage silencieux attendu, pas un défaut du filtre).
+- `isSensitiveRequest` (lectures GraphQL exemptées) : VALIDÉ.
+- VERDICT : À CORRIGER → `.manager/briefs/seek-apply-04.md`.

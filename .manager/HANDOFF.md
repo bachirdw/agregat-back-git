@@ -3,6 +3,58 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
+## 00. Mise à jour du 26/10, 16:25 (Sydney) — À LIRE EN PREMIER (prime sur § 0)
+**Contexte** : l'utilisateur (seul, en local) teste career-ops de bout en bout pour sa propre recherche
+d'emploi (Sydney, AI/Software Engineer, Working Holiday Visa 417). Le manager (Claude) a codé lui-même toute la
+journée : Codex est limité (quota ChatGPT partagé), relancé seulement à la demande de l'utilisateur.
+
+**État** : back `1ce9694`, front `058a4c5`, tout commité ; dernier push GitHub = back `4373716`, front `9dbbf46`
+(≈ 42 commits back + ~8 front NON poussés). Suite back 353/354 (1 live ignoré), front 25/25, check/format verts.
+Serveur : `AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 sh scripts/start-career-ops.sh` (port 4310,
+mode propriétaire, Gemini `gemini-3.1-flash-lite` par API, délai run 15 min) ; front `npm run dev` (5173) dans
+`agregat-front` ; relais Playwriter 19988 (extension connectée au Chrome de l'utilisateur).
+
+**Fait aujourd'hui** (`git log 9590fa5..HEAD`) :
+- review-all-1 (Codex) : 6 défauts navigateur + défaut majeur owner-transport (`6864216`).
+- career-ops-01 (Codex, commité par le manager `cfabf57`) : pack career-ops, espace privé
+  `~/Downloads/agregat-career-ops` (cv.md, config/profile.yml, portals.yml : données perso, jamais dans le dépôt),
+  outils MCP career_*, email_send / linkedin_draft, envois approuvés un par un (classe `send`, même en propriétaire).
+- Manager : bouton « + » pièces jointes (front-02) ; fil de conversation career-ops (messages + réponses texte,
+  tours d'une même session, détails techniques repliés) ; activité agent en direct (propriétaire) ; réponse texte
+  libre acceptée ; réponse à l'agent = reprise de session ; `GET /api/career/runs/:id/input` ; Seek (provider
+  jobstreet) et recherche Google (LinkedIn/Indeed via `site:`) ; 60 tours Gemini ; PDF CV/lettre mis en forme
+  (Markdown→HTML échappé) ; test live-run instable corrigé ; redirection de chemin ; crash SSE (write after end) ;
+  dernier bloc JSON = réponse après reprise.
+- Filtre d'envoi propriétaire (`cdp.js` `ownerSendGuard`) : POST tiers de fond bloqués sans demande ; API même site
+  autorisée (sinon le formulaire Seek reste « Loading ») ; lectures GraphQL et renouvellement de connexion
+  autorisés ; accord demandé dans les 8 s après un clic/saisie de l'agent ; jetons masqués dans l'aperçu.
+
+**Résultats réels** : CV déposé/converti ; profile.yml créé (intake) ; scan Seek 1 015 offres ; 10 offres évaluées
+(Lookahead, Google, Airwallex…) ; CV adapté + lettre Lookahead (`output/*.md`, PDF `output/CV-Lookahead.pdf`,
+`output/Cover-Letter-Lookahead.pdf`). Sonde manager : le formulaire Seek `/job/95484078/apply` se charge en ≈ 5 s,
+utilisateur connecté. **Aucune candidature envoyée.**
+
+**Problème en cours (point d'arrêt)** : l'agent n'avance pas sur le formulaire Seek.
+1. `browser_snapshot` pris trop tôt (« alert Loading ») → à faire dans `cdp.js` (`case 'browser.snapshot'`, ~l.648) :
+   attendre la fin de chargement (networkidle borné ~8 s, ou disparition d'un `alert "Loading"`), avec test.
+2. Gemini Flash-Lite abandonne après une capture, et la session réutilisée (`c6aa578f`) rejoue un énorme historique
+   → proposer une NOUVELLE mission (session neuve) pour postuler, et/ou un modèle plus capable pour les formulaires
+   (annoncés : `gemini-3-flash-preview`, `gemini-3.8-flash`, `gemini-2.5-pro`… ; défaut fixé par `GEMINI_MODEL` dans
+   `scripts/start-career-ops.sh`) — coût plus élevé : prévenir l'utilisateur.
+3. Corrections du CV jamais faites (liens LinkedIn/GitHub génériques, titre « Staff… », « p99 latencies » dans la
+   lettre) : à demander avant de postuler.
+
+**Budget Gemini** : ≈ 1,4 $ (journal `.manager/api-usage.md`, dernières missions Lookahead non relevées),
+plafond opérationnel relevé à 5 $ (CLAUDE.md).
+
+**Reste (hors urgence)** : review-all-2 et -3, sprint-10 (sponsoring NL/IE), review-10 (relecture du mode
+propriétaire et du travail du manager) — briefs prêts, `.manager/run-until-done.sh <id>` (session neuve à chaque
+reprise, économie de contexte) ; push GitHub à la demande de l'utilisateur.
+
+**Pièges** : redémarrer le serveur coupe la mission en cours ; avec le pack career-ops ne cocher QUE le Skill
+career-ops ; une seule mission career-ops à la fois ; Bash/Edit parfois bloqués par le classifieur (transitoire) ;
+ne jamais afficher `.manager/secrets.env`.
+
 ## 0. Mise à jour docs-01 — 26/10/2026 — À LIRE EN PREMIER
 
 - Reprise : rapport docs-01 initialement absent, arbre Git propre sur `a299199`. Brief documentaire

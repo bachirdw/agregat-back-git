@@ -5,7 +5,7 @@
 - 12:42 — Début : AGENTS.md, brief, MISSION/PLAN et fin du rapport review-all lus. Aucune passation review-all-1 existante. `git status --short` vide ; HEAD e246399. Correction 6864216 déjà présente, à ne pas refaire. Inventaire du seul périmètre demandé. `npm test` initial lancé, preuve `review-all-1-evidence/baseline-test.log` (résultat en attente). Aucun appel modèle, aucun navigateur utilisateur.
 
 ## État
-En cours : audit des quatre gateways/registres/politiques et de `apps/api/server.js`. Aucun constat final avant reproduction.
+Terminé : périmètre du brief relu, six défauts confirmés et corrigés. Voir le bilan final et les preuves ci-dessous.
 - 12:42 — `npm run check` et `npm run format:check` verts (baseline-check/format.log). Erreur de procédure : baseline `npm test` démarrée sans escalade ; interruption dès identification de sa phase Chrome pour respecter le brief, aucun résultat vert revendiqué. `ps` confiné refusé (« operation not permitted ») ; inventaire puis arrêt ciblé des seuls PID 54492/55148/55149 avec escalade. Relance complète hors bac à sable ci-après. Lecture intégrale du périmètre terminée ; hypothèses à reproduire : redirections sur clic/POST, ressources temporaires de téléchargement, bornes des options de politique.
 - 12:44 — **Défaut majeur R1 confirmé** : `CdpBrowser.describe` lit l’attribut brut `type` et `closest('form')`. Un bouton `type="SUBMIT"`, un type invalide (soumission par défaut HTML) ou un bouton externe associé par `form=` échappe au caractère sensible ; `autoApprove: ['browser.click']` autorise alors une soumission sans décision humaine. Chrome isolé : test rouge réel `submit-red.log` (« Missing expected rejection »). Correctif : propriétés DOM effectives `el.type` et `el.form`, sans modifier le mode propriétaire intentionnel. Test ajouté dans browser-gateway.test.js, avant la lecture de ce fichier par la baseline en cours : celle-ci n’est donc plus une baseline immuable, son résultat sera décrit comme tel.
 - 12:44 — Incidents de lecture sans effet sur le code : glob zsh `tests/*mcp*` sans correspondance et `sed tests/security.test.js` inexistant ; reprise par `rg --files tests`. Tous les résultats longs restent dans les fichiers de preuve.
@@ -37,3 +37,30 @@ En cours : audit des quatre gateways/registres/politiques et de `apps/api/server
 - 14:00 — R6 (modéré) : cause confirmée par inspection et trois rouges sans navigateur (download-authorization-red.log) : browser.download ne positionne jamais writeInProgress, contrairement à browser.click ; la garde refuse donc le POST malgré accord. Tests FICTIFS couvrant succès, erreur du clic et timeout préparés hors dépôt pour préserver la validation R5 en cours. Correctif prévu : autorisation limitée au clic/événement, révoquée dans finally ; contre-épreuve Chrome en série après R5.
 
 - 14:01 — R5 validé avant commit : npm test vert, 224 hors Chrome (223 réussis, 1 ignoré), Chrome 91/91 ; check et format verts, diff sans erreurs. Preuves protocol-{test,check,format}.log.
+
+- 14:02 — R5 commité 21ee61b. R6 : tests définitifs ajoutés, unitaires 8 verts historiques + 3 rouges sur l’absence d’autorisation (download-authorization-final-red.log). Trois tests Chrome isolés lancés seuls, timeout global 30 s, refus humain puis accord puis nouveau refus ; directs et 303/307, contenu et nombre exact de requêtes vérifiés.
+
+- 14:02 — R6 : trois Chrome rouges en série avant correction (download-post-final-red.log), puis 3/3 verts après (download-post-green.log). POST direct et redirections 303/307 exécutés exactement une fois, octets exportés réels FICTIFS, refus ultérieur sans nouvel accès. Autorisation maintenant bornée par try/finally avant validation/copie du fichier ; unitaires 11/11 verts, dont erreurs et timeout.
+
+- 14:04 — Relecture ciblée terminée : aucune correction supplémentaire confirmée dans capability-registry, policy-engine/http.js et files.js, mcp-gateway/client.js, owner-transport.js ou apps/api/server.js. Mode propriétaire délibérément conservé ; aucun usage de Chrome utilisateur, aucune API payante, aucun envoi externe. Phase finale sans Chrome verte (227 tests, 226 réussis, 1 ignoré) ; Chrome en cours.
+
+- 14:05 — Validation finale R6 : `npm test` terminé avec code 0 (227 hors Chrome : 226 réussis, 1 ignoré ; Chrome 94/94), `npm run check` et `npm run format:check` verts. Preuves `review-all-1-evidence/download-post-{test,check,format}.log`. Aucun test supprimé ; aucune dépendance ajoutée.
+
+## Bilan final
+
+| ID / gravité | Trouvé (scénario et fichier:ligne) | Corrigé | Non corrigé / pourquoi |
+|---|---|---|---|
+| R1 majeur | Soumissions HTML effectives échappant à la confirmation : `packages/browser-gateway/cdp.js:481` | `dd08bdd`, type DOM et formulaire associé ; preuves `submit-red.log`, `submit-test.log` | Aucun |
+| R2 majeur | Réponse finale redemandée / URL finale fausse après navigation, clic ou POST : `packages/browser-gateway/cdp.js:381` | `cb5ffe6`, réponse conservée et consommée une fois au bon emplacement ; `redirect-red.log`, `redirect-green-3.log`, `redirect-test.log` | Aucun |
+| R3 modéré | Temporaires de téléchargement abandonnés après refus/erreur, même handle tardif : `packages/browser-gateway/cdp.js:630` | `e154f89`, nettoyage englobant ; `download-red-2.log`, `download-green.log`, `download-integration-green-3.log` | Aucun |
+| R4 modéré | Arguments MCP inconnus supprimés silencieusement, bornes annoncées fausses : `packages/mcp-gateway/server.js:105` | `240cd97`, schéma strict du registre ; `mcp-contract-red-2.log`, `mcp-contract-green.log`, `resume-test.log` | Aucun |
+| R5 mineur | Exception loopback acceptant `blob:http://…` avant contrôle du protocole : `packages/policy-engine/run-policy.js:115` | `21ee61b`, HTTP explicite seulement ; `local-protocol-final-red.log`, `local-protocol-green.log`, `protocol-test.log` | Aucun |
+| R6 modéré | Export POST approuvé bloqué par la garde réseau : `packages/browser-gateway/cdp.js:639` | Présent commit, autorisation limitée au clic/événement, révocation même en erreur ; `download-authorization-final-red.log`, `download-authorization-green.log`, `download-post-final-red.log`, `download-post-green.log` | Aucun |
+
+Toutes les preuves sont dans `.manager/reports/review-all-1-evidence/`. Total : **6 trouvés, 6 corrigés, 0 non corrigé**. Le défaut `6864216`, antérieur à ce brief, n'est pas recompté.
+
+État **opérationnel vérifié** : correctifs testés avec Chrome isolé hors bac à sable, transport MCP stdio réel et faux objets CDP explicitement FICTIFS pour les erreurs. Suite finale : **320 réussis, 1 ignoré, 0 échec** (321 tests), syntaxe et format verts. Les scénarios E2E utilisent des sites locaux fictifs ; aucun modèle ni service payant, aucune candidature ni message réel. Relais utilisateur réel non sollicité, conformément au périmètre de test imposé. Les tests ferment leurs serveurs et navigateurs.
+
+Points manager : aucun blocage ni travail restant dans ce brief ; les parties 2/3 de la relecture globale et le brief career-ops restent hors périmètre. Aucun push ni réécriture d'historique.
+
+- 14:05 — Contrôle de fermeture : aucun processus de test ciblé ni Chrome avec profil Playwright restant (`final-processes.log`, 0 ligne). Rapport final complété ; diff sans erreur. Commit local R6 ci-après, aucun push.

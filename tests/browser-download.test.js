@@ -93,3 +93,52 @@ for (const scenario of [
     else if (scenario !== 'success') assert.deepEqual(readdirSync(join(root, 'downloads')), []);
   });
 }
+
+for (const scenario of ['success', 'click-error', 'event-timeout']) {
+  test(`autorisation de téléchargement FICTIF : ${scenario}`, async (t) => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-download-auth-'));
+    const source = join(root, 'source');
+    writeFileSync(source, 'FICTIF');
+    const provider = new CdpBrowser({ launch: {} });
+    let authorized;
+    const download = {
+      url: () => 'https://downloads.fictif.test/file',
+      suggestedFilename: () => 'fictif.txt',
+      path: async () => source,
+      delete: async () => {},
+    };
+    const page = {
+      url: () => 'about:blank',
+      close: async () => {},
+      setDefaultTimeout: () => {},
+      waitForEvent: async () => {
+        if (scenario === 'event-timeout') throw new Error('FICTIF délai');
+        return download;
+      },
+      locator: () => ({
+        first: () => ({
+          click: async () => {
+            authorized = provider.writeInProgress;
+            if (scenario === 'click-error') throw new Error('FICTIF clic');
+          },
+        }),
+      }),
+    };
+    provider.page = page;
+    provider.ensure = async () => page;
+    t.after(async () => {
+      await provider.close();
+      rmSync(root, { recursive: true, force: true });
+    });
+    const policy = new RunPolicy({
+      workspace: root,
+      allowedDomains: ['downloads.fictif.test'],
+      resolveHost: async () => ['1.1.1.1'],
+    });
+    const result = provider.perform('browser.download', { selector: '#fictif' }, policy);
+    if (scenario === 'success') await result;
+    else await assert.rejects(result, /FICTIF/);
+    assert.equal(authorized, true, 'écriture autorisée pendant le clic approuvé');
+    assert.equal(provider.writeInProgress, false, 'autorisation révoquée après succès ou erreur');
+  });
+}

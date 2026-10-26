@@ -2,7 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -1694,3 +1702,82 @@ test(
     assert.deepEqual(readdirSync(join(workspace, 'downloads')), []);
   },
 );
+
+for (const redirect of [0, 303, 307]) {
+  test(
+    `Chrome : téléchargement POST approuvé une fois, redirection ${redirect}`,
+    { skip: !hasChrome },
+    async (t) => {
+      const workspace = temporary();
+      const requests = [];
+      const server = http.createServer((req, res) => {
+        if (req.url === '/report' || req.url === '/file') {
+          requests.push(`${req.method} ${req.url}`);
+          if (req.url === '/report' && redirect) {
+            res.writeHead(redirect, { location: '/file' });
+            return res.end();
+          }
+          res.writeHead(200, {
+            'content-type': 'text/plain',
+            'content-disposition': 'attachment; filename="fictif.txt"',
+          });
+          return res.end('FICTIF export');
+        }
+        res.setHeader('content-type', 'text/html');
+        res.end(
+          '<form method="post" action="/report"><button id="report">Exporter</button></form>',
+        );
+      });
+      const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+      t.after(async () => {
+        await provider.close();
+        server.closeAllConnections();
+        await new Promise((r) => server.close(r));
+        rmSync(workspace, { recursive: true, force: true });
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const origin = `http://127.0.0.1:${server.address().port}`;
+      let approved = false;
+      const approvals = [];
+      const gateway = new BrowserGateway({
+        provider,
+        policy: new RunPolicy({ workspace, capabilities: ALL, allowLocalOrigins: [origin] }),
+        autoApprove: ['browser.download'],
+        approve: async (request) => {
+          approvals.push(request);
+          return approved;
+        },
+      });
+      await gateway.call('browser.navigate', { url: origin });
+      const wait = provider.page.waitForEvent.bind(provider.page);
+      provider.page.waitForEvent = (name, options) => wait(name, { ...options, timeout: 2000 });
+      await assert.rejects(
+        gateway.call('browser.download', { selector: '#report' }),
+        /Action refusée/,
+      );
+      assert.deepEqual(requests, []);
+      approved = true;
+      const result = await gateway.call('browser.download', { selector: '#report' });
+      assert.equal(result.file, 'fictif.txt');
+      assert.equal(
+        readFileSync(join(workspace, 'downloads', result.file), 'utf8'),
+        'FICTIF export',
+      );
+      assert.deepEqual(
+        requests,
+        redirect
+          ? ['POST /report', `${redirect === 303 ? 'GET' : 'POST'} /file`]
+          : ['POST /report'],
+      );
+      assert.equal(provider.writeInProgress, false);
+      approved = false;
+      await assert.rejects(
+        gateway.call('browser.download', { selector: '#report' }),
+        /Action refusée/,
+      );
+      assert.equal(approvals.length, 3);
+      assert.ok(approvals.every((request) => request.sensitive));
+      assert.equal(requests.filter((request) => request === 'POST /report').length, 1);
+    },
+  );
+}

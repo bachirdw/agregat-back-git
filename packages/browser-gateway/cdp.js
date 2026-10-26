@@ -636,10 +636,17 @@ export class CdpBrowser {
           return value;
         });
         try {
-          await Promise.all([
-            incoming,
-            page.locator(args.selector).first().click({ timeout: 10000 }),
-          ]);
+          // The gateway has already approved this element, including form submissions.
+          // Permit its POST only until the click and download event have completed.
+          this.writeInProgress = true;
+          try {
+            await Promise.all([
+              incoming,
+              page.locator(args.selector).first().click({ timeout: 10000 }),
+            ]);
+          } finally {
+            this.writeInProgress = false;
+          }
           await policy.assertUrl(download.url()).catch((e) => {
             throw new Error(`Téléchargement refusé : ${e.message}`);
           });

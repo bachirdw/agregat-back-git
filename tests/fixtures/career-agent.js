@@ -54,12 +54,14 @@ const app = agent({ name: 'career-FICTIF' })
           sessionUpdate: 'agent_message_chunk',
           content: {
             type: 'text',
-            text: JSON.stringify({
-              simulated: true,
-              summary: request.objective + cv.text,
-              privateProfile: cv.text,
-              evidence: [{ text: cv.text }],
-            }),
+            text: request.objective.includes('TEXTE_LIBRE')
+              ? 'Questions FICTIVES : quels postes visez-vous ?'
+              : JSON.stringify({
+                  simulated: true,
+                  summary: request.objective + cv.text,
+                  privateProfile: cv.text,
+                  evidence: [{ text: cv.text }],
+                }),
           },
         },
       });

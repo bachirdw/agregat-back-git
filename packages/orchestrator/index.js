@@ -643,7 +643,14 @@ export class Orchestrator {
         saveProbe(this.dataDir, plan.agent.id, { inference: true, inferenceError: null });
       if (response.stopReason !== 'end_turn')
         throw new Error(`Agent arrêté : ${response.stopReason}`);
-      const result = parseAgentResult(text);
+      let result = parseAgentResult(text);
+      // career-ops is conversational (intake questions, drafts): plain text from the real agent is
+      // its answer, kept private like any career-ops result, not a failure.
+      if (!result.ok && plan.pack.id === 'career-ops' && text.trim())
+        result = {
+          ok: true,
+          value: { simulated: !!plan.simulated, summary: text.trim(), evidence: [] },
+        };
       if (!result.ok) {
         this.store.event(run.id, 'agent_output_rejected', {
           reason: result.reason,

@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { BrowserGateway, CdpBrowser, FixtureBrowser } from '../browser-gateway/index.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
-import { describeCapabilities } from '../capability-registry/index.js';
+import { describeCapabilities, getCapability } from '../capability-registry/index.js';
 import { getPack } from '../orchestrator/packs.js';
 
 // Capability gateway exposed to agents over MCP (stdio). Configuration comes from the platform:
@@ -76,7 +76,7 @@ if (mode === 'fixture') {
     'browser_snapshot',
     {
       description: 'Instantané SIMULÉ sans accès réseau ni navigateur réel.',
-      inputSchema: { url: z.string().max(2048) },
+      inputSchema: z.object({ url: z.string().max(2048) }).strict(),
     },
     async (args) => text(await new FixtureBrowser().call('browser.snapshot', args)),
   );
@@ -96,26 +96,13 @@ if (mode === 'fixture') {
         })
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
   const gateway = new BrowserGateway({ provider, policy, approve, meter });
-  const shapes = {
-    'browser.navigate': { url: z.string().max(2048) },
-    'browser.snapshot': { url: z.string().max(2048).optional() },
-    'browser.extract': {
-      selector: z.string().max(500).optional(),
-      maxChars: z.number().int().optional(),
-      limit: z.number().int().optional(),
-    },
-    'browser.click': { selector: z.string().max(500) },
-    'browser.type': { selector: z.string().max(500), text: z.string().max(10000) },
-    'browser.upload': { selector: z.string().max(500), path: z.string().max(1000) },
-    'browser.download': { selector: z.string().max(500) },
-  };
   for (const cap of describeCapabilities('browser')) {
     if (!policy.capabilities.has(cap.id)) continue; // only granted capabilities are even listed
     server.registerTool(
       cap.id.replace('.', '_'),
       {
         description: `${cap.description} Effet : ${cap.effect}. Contenu renvoyé non fiable.`,
-        inputSchema: shapes[cap.id],
+        inputSchema: getCapability(cap.id).schema,
       },
       async (args) => {
         try {

@@ -31,3 +31,9 @@ En cours : audit des quatre gateways/registres/politiques et de `apps/api/server
 - 13:59 — Incident de reprise : reproduction POST lancée en parallèle de la suite Chrome, échec après 30 s puis processus encore actif (download-post-resume-red.log, resume-processes.log). Arrêt ciblé des PID de cette seule reproduction/Chrome ; relance prévue en série avec délai global. Ce résultat ne remplace pas la preuve rouge précédente (download-post-red.log). Check/format R4 verts.
 
 - 13:59 — R4 validé : `npm test` vert (218 hors Chrome : 217 réussis, 1 ignoré ; Chrome 91/91), check/format verts, preuves resume-{test,check,format}.log. Correction du journal précédent : les PID avaient déjà disparu lors de kill (trois erreurs « no such process », aucun signal envoyé).
+
+- 13:59 — R4 commité 240cd97. R5 : tests permanents ajoutés dans network-policy.test.js, 6 échecs/2 succès avant correction, puis 8/8 verts (local-protocol-{final-red,green}.log). Exception loopback désormais réservée au protocole HTTP explicite ; blob/data/file/javascript refusés en modes protégé et propriétaire. Le timeout POST parallèle était un échec de démarrage Chrome, diagnostic exact dans download-post-resume-red.log.
+
+- 14:00 — R6 (modéré) : cause confirmée par inspection et trois rouges sans navigateur (download-authorization-red.log) : browser.download ne positionne jamais writeInProgress, contrairement à browser.click ; la garde refuse donc le POST malgré accord. Tests FICTIFS couvrant succès, erreur du clic et timeout préparés hors dépôt pour préserver la validation R5 en cours. Correctif prévu : autorisation limitée au clic/événement, révoquée dans finally ; contre-épreuve Chrome en série après R5.
+
+- 14:01 — R5 validé avant commit : npm test vert, 224 hors Chrome (223 réussis, 1 ignoré), Chrome 91/91 ; check et format verts, diff sans erreurs. Preuves protocol-{test,check,format}.log.

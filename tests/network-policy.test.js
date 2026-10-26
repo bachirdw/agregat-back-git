@@ -60,3 +60,16 @@ test('origines locales : uniquement HTTP loopback explicite, pas d’origine nul
     assert.throws(() => new RunPolicy({ allowLocalOrigins: [raw] }));
   assert.doesNotThrow(() => new RunPolicy({ allowLocalOrigins: ['http://127.0.0.1:9'] }));
 });
+
+for (const ownerMode of [false, true]) {
+  for (const origin of ['http://127.0.0.1:9', 'http://localhost:9', 'http://[::1]:9']) {
+    test(`origine locale FICTIVE ${origin}, owner=${ownerMode} : exception HTTP sans blob`, async () => {
+      const policy = new RunPolicy({ ownerMode, allowLocalOrigins: [origin] });
+      assert.equal(policy.checkUrlShape(origin + '/path').local, true);
+      assert.throws(() => policy.checkUrlShape(`blob:${origin}/FICTIF`), /Protocole/);
+      await assert.rejects(policy.assertUrl(`blob:${origin}/FICTIF`), /Protocole/);
+      for (const url of ['data:text/plain,FICTIF', 'file:///FICTIF', 'javascript:void(0)'])
+        assert.throws(() => policy.checkUrlShape(url), /Protocole/);
+    });
+  }
+}

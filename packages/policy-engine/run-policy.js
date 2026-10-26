@@ -112,7 +112,8 @@ export class RunPolicy {
       throw new Error('URL invalide');
     }
     if (u.username || u.password) throw new Error('Identifiants dans l’URL refusés');
-    if (this.allowLocalOrigins.has(u.origin)) return { url: u, local: true };
+    if (u.protocol === 'http:' && this.allowLocalOrigins.has(u.origin))
+      return { url: u, local: true };
     if (!(this.ownerMode ? ['http:', 'https:'] : ['https:']).includes(u.protocol))
       throw new Error(`Protocole refusé : ${u.protocol}`);
     if (!this.ownerMode && u.port && u.port !== '443') throw new Error('Port non standard refusé');

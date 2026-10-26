@@ -16,7 +16,7 @@ Claude supervise ; Codex (`gpt-6.1-sol`, raisonnement `xhigh`) code. Les règles
 ## Garde-fous
 - Bac à sable `workspace-write` + réseau, escalades soumises à la revue automatique (`--approve-for-me`).
 - Aucun e-mail, candidature, publication, création de compte ou lecture d'identifiants.
-- Budget API : 10 $ maximum au total (plafond opérationnel 2 $ / 200 tours Gemini), journal `.manager/api-usage.md`.
+- Budget API : 10 $ maximum au total (plafond opérationnel 5 $ (relevé de 2 $ par l’utilisateur le 26/10)), journal `.manager/api-usage.md`.
 - Baseline de retour arrière : commit `9b4542e`.
 
 ## Vérification

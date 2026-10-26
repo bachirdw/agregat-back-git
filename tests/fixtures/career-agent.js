@@ -11,8 +11,27 @@ const app = agent({ name: 'career-FICTIF' })
     agentCapabilities: {},
   }))
   .onRequest(methods.agent.session.new, (ctx) => {
-    session = { ...ctx.params, sessionId: randomUUID() };
-    return { sessionId: session.sessionId };
+    session = { ...ctx.params, sessionId: randomUUID(), model: process.env.GEMINI_MODEL };
+    return {
+      sessionId: session.sessionId,
+      configOptions: [
+        {
+          id: 'model',
+          name: 'Modèle',
+          category: 'model',
+          type: 'select',
+          currentValue: process.env.GEMINI_MODEL,
+          options: ['gemini-3.1-flash-lite', 'gemini-FICTIF-capable'].map((value) => ({
+            value,
+            name: value,
+          })),
+        },
+      ],
+    };
+  })
+  .onRequest(methods.agent.session.setConfigOption, (ctx) => {
+    if (ctx.params.configId === 'model') session.model = ctx.params.value;
+    return { configOptions: [] };
   })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
     const request = JSON.parse(ctx.params.prompt[0].text);
@@ -56,12 +75,14 @@ const app = agent({ name: 'career-FICTIF' })
             type: 'text',
             text: request.objective.includes('TEXTE_LIBRE')
               ? 'Questions FICTIVES : quels postes visez-vous ?'
-              : JSON.stringify({
-                  simulated: true,
-                  summary: request.objective + cv.text,
-                  privateProfile: cv.text,
-                  evidence: [{ text: cv.text }],
-                }),
+              : request.objective.includes('MODELE_FICTIF')
+                ? `Modèle FICTIF : env=${process.env.GEMINI_MODEL} session=${session.model}`
+                : JSON.stringify({
+                    simulated: true,
+                    summary: request.objective + cv.text,
+                    privateProfile: cv.text,
+                    evidence: [{ text: cv.text }],
+                  }),
           },
         },
       });

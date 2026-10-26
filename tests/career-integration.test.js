@@ -300,3 +300,54 @@ test('Réponse en texte libre (questions intake) : mission réussie, texte en r�
   assert.match(result.summary, /Questions FICTIVES/);
   assert.equal(result.simulated, true, 'un agent fictif reste étiqueté simulé');
 });
+
+test('Modèle choisi dans l’interface : appliqué à la mission career-ops (env et session ACP)', async (t) => {
+  const { career, app } = fixture(t, true);
+  reviewCareer(career, app.skills);
+  const attachment = await career.upload(Buffer.from('CV FICTIF'), 'CV.md', 'text/markdown');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const run = await (
+    await fetch(base + '/api/runs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+      body: JSON.stringify({
+        prompt: 'postule MODELE_FICTIF',
+        agent: 'fixture',
+        pack: 'career-ops',
+        model: 'gemini-FICTIF-capable',
+        attachments: [attachment.id],
+      }),
+    })
+  ).json();
+  for (let i = 0; i < 300 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
+  assert.equal(app.store.get(run.id).model, 'gemini-FICTIF-capable');
+  const result = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
+  assert.match(result.summary, /env=gemini-FICTIF-capable session=gemini-FICTIF-capable/);
+});
+
+test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt seulement sur blocage nommé', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  for (const rule of [
+    /JUSQU'AU BOUT/,
+    /refais browser_snapshot après CHAQUE clic/,
+    /Une capture n'est jamais une fin/,
+    /loading:true/,
+    /accord de l'utilisateur/,
+    /ne l'invente jamais/,
+    /l'étape, le champ et la cause exacte/,
+  ])
+    assert.match(CAREER_INSTRUCTIONS, rule);
+});

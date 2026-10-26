@@ -29,3 +29,9 @@
   - Vert : 0 accord pendant le remplissage ; refus → 0 envoi ; accord → exactement 1 envoi et 1 seule demande ; 0 POST statistique reçu (le GET pixel arrive : serveur joignable) ; ni CSRF ni jeton dans les demandes. Suite 366/0/1, check et format verts.
 - Limites assumées : un site dont le bouton final s'appelle exactement « Continue » enverrait sans accord ; un envoi final en XHR vers un AUTRE site est bloqué (visible via `blockedThirdPartyPosts`) au lieu d'être proposé.
 - Le serveur 4310 tourne encore avec l'ancien code : à redémarrer avant toute mission réelle.
+
+## Étape C (manager Claude) — 26/10 soir
+- Point 4, modèle par mission : AUCUN défaut. Le modèle choisi passe par `run.model` → `GEMINI_MODEL` + `selectModel` (session ACP), et la reprise (réponse à l'agent) réutilise `old.model`. Ajout d'un test de bout en bout (API → faux ACP qui annonce deux modèles) : env et session reçoivent `gemini-FICTIF-capable`. Le faux agent `tests/fixtures/career-agent.js` annonce maintenant un sélecteur de modèle.
+- Point 3, persévérance : `CAREER_INSTRUCTIONS` réécrit pour candidater — boucle snapshot → remplir → Continue → re-snapshot après chaque clic, capture jamais finale (loading:true → jusqu'à 3 nouvelles captures), clic final soumis à l'accord, arrêt seulement sur blocage nommé (étape, champ, cause), questions employeur sans réponse posées, jamais inventées. Test de présence des règles.
+- Suite 368/0/1, check et format verts. Défaut de modèle inchangé (`GEMINI_MODEL` du script).
+- Reste : mission réelle Seek (serveur 4310 à redémarrer, corrections du CV à valider par l'utilisateur), point 5 (relecture `ownerSendGuard` hors ce qui a été revu en B2).

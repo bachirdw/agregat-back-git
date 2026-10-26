@@ -83,9 +83,11 @@ export class BrowserGateway {
         throw new Error('Fichier trop volumineux');
       args.path = real;
     }
+    const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
     const sending =
       ['browser.click', 'browser.download'].includes(capabilityId) &&
       !!element &&
+      !step &&
       (element.inForm ||
         this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     const linkedIn = pageBefore && /(^|\.)linkedin\.com$/.test(new URL(pageBefore).hostname);
@@ -138,7 +140,7 @@ export class BrowserGateway {
     await this.meter(cap.meter, 1, capabilityId);
     const output = await this.provider.perform(
       capabilityId,
-      { ...args, ...(sending ? { sendApproved: true } : {}) },
+      { ...args, ...(sending ? { sendApproved: true } : {}), ...(step ? { formStep: true } : {}) },
       this.policy,
     );
     return {

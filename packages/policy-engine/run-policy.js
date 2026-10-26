@@ -6,6 +6,23 @@ import { relative, resolve, isAbsolute } from 'node:path';
 export const SENSITIVE_WORDS =
   /\b(submit|apply|send|pay|buy|purchase|order|checkout|confirm|delete|sign ?up|register|postuler|candidater|envoyer|payer|acheter|commander|confirmer|valider|supprimer|s['’]inscrire)\b/i;
 
+// Moving between the steps of a multi-step form, or filling it, is not a send.
+export const STEP_WORDS =
+  /^\s*(continue|continuer|next|suivant|previous|précédent|back|retour|save and continue)\s*$/i;
+const FIELD_INPUTS = new Set([
+  'radio',
+  'checkbox',
+  'text',
+  'email',
+  'tel',
+  'number',
+  'search',
+  'url',
+  'date',
+  'month',
+  'range',
+]);
+
 export function isPrivateAddress(address) {
   const family = isIP(address);
   if (!family) return true;
@@ -153,6 +170,13 @@ export class RunPolicy {
     return SENSITIVE_WORDS.test(
       [d.text, d.ariaLabel, d.value, d.formAction].filter(Boolean).join(' '),
     );
+  }
+  isFormStep(d = {}) {
+    const label = [d.text, d.ariaLabel].filter(Boolean).join(' ');
+    if (SENSITIVE_WORDS.test(`${label} ${d.formAction ?? ''}`)) return false;
+    if (['label', 'select', 'option', 'textarea'].includes(d.tag)) return true;
+    if (d.tag === 'input') return FIELD_INPUTS.has(d.inputType);
+    return ['button', 'a'].includes(d.tag) && STEP_WORDS.test(label);
   }
   workspacePath(p) {
     if (!this.workspace) throw new Error('Aucun dossier de run pour les fichiers');

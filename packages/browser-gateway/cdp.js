@@ -461,19 +461,25 @@ export class CdpBrowser {
         const body = request.postData() ?? '';
         // Read-only GraphQL queries (SPA data loading) and session upkeep are not sends.
         if (isGraphqlRead(body) || isAuthRefresh(request.url())) return route.continue();
-        // Outside an agent click or typing, the page's own API calls load the page (allowed);
-        // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
-        if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS) {
-          let pageUrl = '';
-          try {
-            pageUrl = request.frame().page().url();
-          } catch {
-            /* no page: treated as third party */
-          }
-          return sameSite(request.url(), pageUrl)
-            ? route.continue()
-            : route.abort('blockedbyclient');
+        let pageUrl = '';
+        try {
+          pageUrl = request.frame().page().url();
+        } catch {
+          /* no page: treated as third party */
         }
+        const firstParty = sameSite(request.url(), pageUrl);
+        // Outside an agent click, the page's own API calls load the page (allowed);
+        // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
+        if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS)
+          return firstParty ? route.continue() : route.abort('blockedbyclient');
+        // After a click, background third-party fetches stay silent and never consume the grant;
+        // only a navigation (form posted to another site) can be a cross-site send.
+        if (!firstParty && !request.isNavigationRequest()) {
+          this.blockedThirdParty?.add(new URL(request.url()).host);
+          return route.abort('blockedbyclient');
+        }
+        // Continue/Next or choosing an option: the page saves its own step (no approval).
+        if (firstParty && this.formStep) return route.continue();
         const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
@@ -726,6 +732,8 @@ export class CdpBrowser {
       }
       case 'browser.click':
         this.sendGrant = args.sendApproved === true;
+        this.formStep = args.formStep === true;
+        this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         try {
           await page.locator(args.selector).first().click({ timeout: this.navigationTimeoutMs });
@@ -741,11 +749,17 @@ export class CdpBrowser {
         }
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);
-        return { url: page.url(), title: await page.title() };
+        return {
+          url: page.url(),
+          title: await page.title(),
+          // Lets the agent explain a submit that silently went nowhere (cross-site XHR).
+          ...(this.blockedThirdParty.size
+            ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }
+            : {}),
+        };
       case 'browser.type':
+        // Filling a field is not a send; same-site autosave stays automatic.
         await page.locator(args.selector).first().fill(args.text, { timeout: 10000 });
-        // A page script may submit right after typing: that POST still needs approval.
-        this.lastClickEnd = Date.now();
         return { url: page.url(), typed: args.text.length };
       case 'browser.upload':
         await page
@@ -822,6 +836,7 @@ export class CdpBrowser {
           // The gateway has already approved this element, including form submissions.
           // Permit its POST only until the click and download event have completed.
           this.sendGrant = args.sendApproved === true;
+          this.formStep = false;
           this.writeInProgress = true;
           try {
             await Promise.all([

@@ -222,3 +222,38 @@ test('ACP propriétaire Codex : workspace-write absent → refus explicite, aucu
     runtime.close();
   }
 });
+
+test('propriétaire : étapes de formulaire automatiques, envoi final toujours soumis à accord', () => {
+  const policy = new RunPolicy({ ownerMode: true, capabilities: capabilityIds });
+  const button = (text, extra = {}) => ({
+    tag: 'button',
+    buttonType: 'submit',
+    inForm: true,
+    text,
+    ...extra,
+  });
+  for (const d of [
+    button('Continue'),
+    button(' Next '),
+    button('Suivant'),
+    button('Back'),
+    { tag: 'input', inputType: 'radio', inForm: true },
+    { tag: 'input', inputType: 'checkbox', inForm: true },
+    { tag: 'label', inForm: true, text: "Don't include a cover letter" },
+    { tag: 'select', inForm: true },
+  ])
+    assert.equal(policy.isFormStep(d), true, JSON.stringify(d));
+  for (const d of [
+    button('Submit application'),
+    button('Apply now'),
+    button('Continue to submit'),
+    button('Continue', { formAction: '/job/1/apply' }),
+    button('Envoyer'),
+    button('Save'),
+    { tag: 'input', inputType: 'submit', inForm: true },
+    { tag: 'input', inputType: 'button', inForm: true },
+    { tag: 'label', inForm: true, text: 'Confirm and send' },
+    { tag: 'div', inForm: true, text: 'Continue' },
+  ])
+    assert.equal(policy.isFormStep(d), false, JSON.stringify(d));
+});

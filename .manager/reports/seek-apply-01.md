@@ -19,3 +19,13 @@
 - Limites : loading=false signifie absence des indicateurs reconnus, pas garantie universelle de disponibilité métier ; iframe et indicateurs propriétaires hors détection. Les étapes B et suivantes restent hors périmètre. Aucun accord supplémentaire demandé.
 
 - 18:45 Sydney : reprise après interruption avec contexte incomplet : suite relancée inutilement avant constat du commit 416524d et des preuves existantes. Sortie isolée dans recheck.txt ; baseline originale préservée. Aucun changement de code.
+
+## Étape B (manager Claude, Codex à court de quota) — 26/10 soir
+- B0 : `recheck.txt` supprimé (361/0/1 relu) ; rapport A + preuve réelle commités (`1b8753d`).
+- B1 `4ae9e7a` : régression de 416524d corrigée — `extract` retrouve un budget total de 10 s (≥ 2 s après l'attente de chargement) pour un élément tardif SANS indicateur ; `ariaSnapshot` 5 s. Test « élément tardif » rouge (TimeoutError à 1,5 s, `b1-red.txt`) → vert. Suite 364/0/1.
+- B2 : test Chrome isolé « formulaire multi-étapes FICTIF » (gateway + CdpBrowser, pas de faux ACP : on vise le filtre directement) : chargement différé, upload, radio, saisie avec autosave, 2 × Continue, Submit avec faux jeton/CSRF, statistiques POST vers une autre origine toutes les 300 ms.
+  - Rouge (`b2-red.txt`) : DÉFAUT RÉEL — le gateway traitait tout clic dans un `<form>` comme un envoi (radio, Continue → demande d'accord) ; et dans les 8 s après un clic, chaque POST tiers de statistiques demandait un accord et pouvait consommer l'accord du vrai envoi.
+  - Correction : `RunPolicy.isFormStep` (champs, options, libellés, boutons « Continue/Next/Suivant/Back » exacts, jamais si un mot sensible figure dans le libellé ou l'action du formulaire) → pas d'accord, et le POST même site de l'étape passe. Dans la fenêtre après clic, POST tiers hors navigation = bloqués en silence, sans consommer l'accord, et listés dans `blockedThirdPartyPosts` du résultat du clic. La saisie n'ouvre plus de fenêtre d'accord (autosave même site automatique).
+  - Vert : 0 accord pendant le remplissage ; refus → 0 envoi ; accord → exactement 1 envoi et 1 seule demande ; 0 POST statistique reçu (le GET pixel arrive : serveur joignable) ; ni CSRF ni jeton dans les demandes. Suite 366/0/1, check et format verts.
+- Limites assumées : un site dont le bouton final s'appelle exactement « Continue » enverrait sans accord ; un envoi final en XHR vers un AUTRE site est bloqué (visible via `blockedThirdPartyPosts`) au lieu d'être proposé.
+- Le serveur 4310 tourne encore avec l'ancien code : à redémarrer avant toute mission réelle.

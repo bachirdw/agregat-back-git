@@ -415,3 +415,125 @@ test(
     }
   },
 );
+
+// Seek-like multi-step application: deferred render, autosave, third-party stats, final submit.
+async function multiStepSite(t) {
+  const counts = { draft: 0, apply: 0, statsPost: 0, statsGet: 0 };
+  const stats = http.createServer((req, res) => {
+    if (req.method === 'POST') counts.statsPost++;
+    else counts.statsGet++;
+    res.end('');
+  });
+  await new Promise((r) => stats.listen(0, r));
+  const statsOrigin = `http://localhost:${stats.address().port}`;
+  const steps = [
+    `<form><h1>Choose documents</h1><input type="file" id="cv"><label><input type="radio" name="cl" id="nocl"> Don't include a cover letter</label><button type="submit" id="next">Continue</button></form>`,
+    `<form><h1>Answer employer questions</h1><select id="years"><option>1</option><option>3</option></select><label><input type="radio" name="rights" id="rights"> Working holiday</label><input id="why" oninput="save()"><button type="submit" id="next">Continue</button></form>`,
+    `<form><h1>Review and submit</h1><input type="hidden" name="csrf" value="FICTIF-csrf-123"><button type="submit" id="submit">Submit application</button></form>`,
+  ];
+  const site = http.createServer((req, res) => {
+    if (req.method === 'POST') {
+      if (req.url === '/api/draft') counts.draft++;
+      if (req.url === '/api/apply') counts.apply++;
+      res.end('{}');
+      return;
+    }
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.end(`<title>FICTIF Seek</title><div role="alert">Loading</div><script>
+      const steps = ${JSON.stringify(steps)};
+      let step = 0;
+      new Image().src = '${statsOrigin}/pixel';
+      setInterval(() => fetch('${statsOrigin}/collect', { method: 'POST', body: 'evt', mode: 'no-cors' }).catch(() => {}), 300);
+      const save = () => fetch('/api/draft', { method: 'POST', body: JSON.stringify({ step }) });
+      const render = () => {
+        document.body.innerHTML = steps[step];
+        document.querySelector('form').onsubmit = async (e) => {
+          e.preventDefault();
+          if (step < 2) {
+            await save();
+            step++;
+            render();
+            return;
+          }
+          await fetch('/api/apply', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: 'Bearer eyJFICTIF.eyJFICTIF.sig' },
+            body: JSON.stringify({ jobId: 'FICTIF-1', csrfToken: 'FICTIF-csrf-123', session: 'eyJFICTIF.eyJFICTIF.sig' }),
+          });
+          document.body.innerHTML = '<h1>Application sent</h1>';
+        };
+      };
+      setTimeout(render, 2000);
+    </script>`);
+  });
+  await new Promise((r) => site.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    for (const server of [site, stats]) server.closeAllConnections();
+    return Promise.all([site, stats].map((server) => new Promise((r) => server.close(r))));
+  });
+  return { origin: `http://127.0.0.1:${site.address().port}`, counts };
+}
+
+test(
+  'formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const fixture = await multiStepSite(t),
+      workspace = temporary();
+    writeFileSync(join(workspace, 'cv.pdf'), 'FICTIF CV');
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    let answer = false;
+    const approvals = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-multistep',
+        capabilities: capabilityIds,
+        workspace,
+        allowLocalOrigins: [fixture.origin],
+      }),
+      approve: async (request) => {
+        approvals.push(request);
+        return answer;
+      },
+    });
+    const fill = async () => {
+      await gateway.call('browser.navigate', { url: fixture.origin });
+      const first = await gateway.call('browser.snapshot', {});
+      assert.match(first.snapshot, /Choose documents/);
+      assert.equal(first.loading, false);
+      await gateway.call('browser.upload', { selector: '#cv', path: 'cv.pdf' });
+      await gateway.call('browser.click', { selector: '#nocl' });
+      await gateway.call('browser.click', { selector: '#next' });
+      assert.match((await gateway.call('browser.snapshot', {})).snapshot, /employer questions/);
+      await gateway.call('browser.click', { selector: '#rights' });
+      await gateway.call('browser.type', { selector: '#why', text: 'FICTIF motivation' });
+      await gateway.call('browser.click', { selector: '#next' });
+      assert.match((await gateway.call('browser.snapshot', {})).snapshot, /Review and submit/);
+      // Stats keep posting in the background; none of it may reach the approval queue.
+      await new Promise((r) => setTimeout(r, 1000));
+      assert.equal(approvals.length, 0, JSON.stringify(approvals.map((a) => a.capability)));
+    };
+
+    await fill();
+    await assert.rejects(gateway.call('browser.click', { selector: '#submit' }), /refusée/);
+    await new Promise((r) => setTimeout(r, 1500));
+    assert.equal(approvals.length, 1);
+    assert.equal(approvals[0].actionClass, 'send');
+    assert.equal(fixture.counts.apply, 0);
+
+    approvals.length = 0;
+    answer = true;
+    await fill();
+    await gateway.call('browser.click', { selector: '#submit' });
+    await new Promise((r) => setTimeout(r, 1500));
+    assert.equal(fixture.counts.apply, 1);
+    assert.equal(approvals.length, 1, JSON.stringify(approvals.map((a) => a.args?.url)));
+    assert.ok(fixture.counts.draft >= 4, `brouillons : ${fixture.counts.draft}`);
+    assert.ok(fixture.counts.statsGet > 0, 'le serveur de statistiques est joignable');
+    assert.equal(fixture.counts.statsPost, 0);
+    assert.doesNotMatch(JSON.stringify(approvals), /FICTIF-csrf-123|eyJFICTIF/);
+  },
+);

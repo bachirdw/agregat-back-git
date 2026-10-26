@@ -29,3 +29,4 @@
 ## Questions / suite pour le manager
 1. Le relais Playwriter ou l'extension bloque-t-il les événements `Input.dispatchMouseEvent` vers les cibles cachées ? Il faut une correction du relais ou un onglet réellement visible, puis refaire la preuve locale avant toute utilisation sur un site réel.
 2. Souhaite-t-on que `browser.click` échoue explicitement si aucun événement `click` n'est reçu après le repli forcé ? Le protocole actuel ne confirme que l'envoi de l'action Playwright, pas son effet sur la page.
+- 23:50 — Commit local `30d220e` : points 1–4, tests et preuves, sans push. `git status --short` après commit : seul le fichier antérieur non suivi `audit-seek-01-evidence/manager-recheck.txt` reste ; aucun fichier de ce sprint en attente. Rapport complété avec les identifiants exacts des deux commits.

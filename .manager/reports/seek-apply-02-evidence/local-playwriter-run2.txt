@@ -1,0 +1,1 @@
+{"fixture":"FICTIF local","origin":"127.0.0.1","connected":true,"visibility":"hidden","clickMode":"forced-hidden-tab","durationMs":3226,"count":null,"error":{"name":"Error","message":"Le clic n’a pas incrémenté le compteur local"}}

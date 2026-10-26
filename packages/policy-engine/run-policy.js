@@ -176,7 +176,7 @@ export class RunPolicy {
     if (SENSITIVE_WORDS.test(`${label} ${d.formAction ?? ''}`)) return false;
     if (['label', 'select', 'option', 'textarea'].includes(d.tag)) return true;
     if (d.tag === 'input') return FIELD_INPUTS.has(d.inputType);
-    return ['button', 'a'].includes(d.tag) && STEP_WORDS.test(label);
+    return (['button', 'a'].includes(d.tag) || d.role === 'button') && STEP_WORDS.test(label);
   }
   workspacePath(p) {
     if (!this.workspace) throw new Error('Aucun dossier de run pour les fichiers');

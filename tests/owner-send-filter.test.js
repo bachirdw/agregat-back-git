@@ -3,9 +3,37 @@ import assert from 'node:assert/strict';
 import {
   isAuthRefresh,
   isGraphqlRead,
+  isSensitiveRequest,
   previewBody,
   sameSite,
 } from '../packages/browser-gateway/cdp.js';
+
+test('Envoi sensible : chemin et operationName, avec frontières de mots et lots GraphQL', () => {
+  const url = 'https://submit.example.test/graphql?operationName=SubmitApplication';
+  assert.equal(isSensitiveRequest(url, '{"operationName":"RequestResumeParsing"}'), false);
+  for (const name of ['SubmitApplication', 'ApplyToJob', 'confirmOrder', 'applyFilters'])
+    assert.equal(
+      isSensitiveRequest('https://example.test/graphql', JSON.stringify({ operationName: name })),
+      true,
+      name,
+    );
+  assert.equal(
+    isSensitiveRequest(
+      'https://example.test/graphql',
+      '[{"operationName":"ReadJob"},{"operationName":"SubmitApplication"}]',
+    ),
+    true,
+  );
+  assert.equal(isSensitiveRequest('https://example.test/job/1/apply', '{}'), true);
+  assert.equal(
+    isSensitiveRequest('https://example.test/graphql', '{"operationName":"Application"}'),
+    false,
+  );
+  assert.equal(isSensitiveRequest(url, '{}'), false, 'hôte et query string ignorés');
+  assert.equal(isSensitiveRequest('https://example.test/applyFilters', '{}'), true);
+  assert.equal(isSensitiveRequest('https://example.test/job/application', '{}'), false);
+  assert.equal(isSensitiveRequest('URL malformée', '{}'), false);
+});
 
 test('GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi', () => {
   assert.equal(isGraphqlRead('{"query":"query Job { job(id: 1) { title } }"}'), true);

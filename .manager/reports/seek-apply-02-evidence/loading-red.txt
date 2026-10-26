@@ -1,0 +1,85 @@
+(node:33647) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ chargement FICTIF : délai borné, indicateurs persistants et réseau continu
+  ✔ /busy (9565.256042ms)
+  ✔ /alert (8147.431542ms)
+  ✔ /progress (8071.564167ms)
+  ✔ /ready (1056.323ms)
+  ✖ /failed (8042.166958ms)
+  ✖ /error (8067.746542ms)
+  ✖ /impossible (8071.225541ms)
+  ✔ /loading-fr (8061.647167ms)
+✖ chargement FICTIF : délai borné, indicateurs persistants et réseau continu (59801.83375ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 5
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60214.64375
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:412:15
+✖ /failed (8042.166958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:421:16)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:412:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-browser.test.js:412:15
+✖ /error (8067.746542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:421:16)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:412:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-browser.test.js:412:15
+✖ /impossible (8071.225541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:421:16)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:412:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

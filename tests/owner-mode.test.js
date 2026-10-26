@@ -241,6 +241,7 @@ test('propriétaire : étapes de formulaire automatiques, envoi final toujours s
     { tag: 'input', inputType: 'checkbox', inForm: true },
     { tag: 'label', inForm: true, text: "Don't include a cover letter" },
     { tag: 'select', inForm: true },
+    { tag: 'div', role: 'button', inForm: true, text: 'Continue' },
   ])
     assert.equal(policy.isFormStep(d), true, JSON.stringify(d));
   for (const d of [

@@ -38,6 +38,142 @@ async function site(t) {
 }
 
 test(
+  'Chrome FICTIF : clic instable contrôlé et superposition refusée',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(`<title>FICTIF clic</title><style>
+      @keyframes move { from { transform: translateX(-20px) } to { transform: translateX(20px) } }
+      #moving { animation: move .12s linear infinite alternate; margin: 80px }
+      #cover { position: fixed; inset: 0; background: rgba(0,0,0,.1); z-index: 2; display: none }
+    </style><button id="moving" onclick="document.body.dataset.hits = (+document.body.dataset.hits || 0) + 1">FICTIF bouger</button>
+    <div id="cover"></div><button id="covered" style="position:absolute;top:200px;left:200px">FICTIF couvert</button>`);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({
+      launch: { executablePath: CHROME },
+      navigationTimeoutMs: 5000,
+    });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-click',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const clicked = await gateway.call('browser.click', { selector: '#moving' });
+    assert.equal(clicked.clickMode, 'forced-hidden-tab');
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    await provider.page.locator('#cover').evaluate((el) => {
+      el.style.display = 'block';
+    });
+    await assert.rejects(gateway.call('browser.click', { selector: '#covered' }), /masqué par div/);
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+  },
+);
+
+test(
+  'Chrome FICTIF : radio dans une carte role=button reste un champ',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        '<title>FICTIF cartes</title><form><div role="button">Continue <input id="choice" type="radio" name="choice"></div></form>',
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    let approvals = 0;
+    const policy = new RunPolicy({
+      ownerMode: true,
+      runId: 'FICTIF-card',
+      capabilities: capabilityIds,
+      allowLocalOrigins: [origin],
+    });
+    const gateway = new BrowserGateway({
+      provider,
+      policy,
+      approve: async () => {
+        approvals++;
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    assert.equal((await provider.describe('#choice')).tag, 'input');
+    await gateway.call('browser.click', { selector: '#choice' });
+    assert.equal(await provider.page.locator('#choice').isChecked(), true);
+    assert.equal(approvals, 0);
+  },
+);
+
+test(
+  'Chrome FICTIF : POST sensible hors clic refusé, autosave autorisé',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const counts = { draft: 0, send: 0 };
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') {
+        if (req.url === '/draft') counts.draft++;
+        if (req.url === '/graphql') counts.send++;
+        res.end('{}');
+        return;
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end(`<title>FICTIF autosave</title><script>
+      setTimeout(() => {
+        fetch('/draft', { method: 'POST', body: JSON.stringify({ operationName: 'SaveDraft' }) });
+        fetch('/graphql', { method: 'POST', body: JSON.stringify({ operationName: 'SubmitApplication' }) });
+      }, 100);
+    </script>`);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    let approvals = 0;
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-outside-click',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => {
+        approvals++;
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    await new Promise((r) => setTimeout(r, 1000));
+    assert.deepEqual(counts, { draft: 1, send: 0 });
+    assert.equal(approvals, 1);
+  },
+);
+
+test(
   'propriétaire Chrome réel : JS actif, préparation automatique et envoi approuvé',
   { skip: !existsSync(CHROME) },
   async (t) => {
@@ -78,7 +214,7 @@ test(
       'FICTIF',
     );
     await gateway.call('browser.type', { selector: '#query', text: 'FICTIF résultat recherché' });
-    await gateway.call('browser.click', { selector: '#go' });
+    assert.equal((await gateway.call('browser.click', { selector: '#go' })).clickMode, 'normal');
     assert.equal(
       (await gateway.call('browser.extract', { selector: 'p' })).text,
       'FICTIF résultat recherché',
@@ -324,11 +460,19 @@ test(
       const marker =
         req.url === '/busy'
           ? '<main aria-busy="true">FICTIF attente</main>'
-          : req.url === '/alert'
-            ? '<div role="alert">Loading</div>'
-            : req.url === '/progress'
-              ? '<div role="progressbar" aria-label="Loading"></div>'
-              : '<div role="alert" hidden>Loading</div><div aria-busy="true" hidden></div><p>FICTIF prêt</p><script>fetch("/pending")</script>';
+          : req.url === '/failed'
+            ? '<div role="alert">Loading failed</div>'
+            : req.url === '/error'
+              ? '<div role="alert">Error loading</div>'
+              : req.url === '/impossible'
+                ? '<div role="alert">Chargement impossible</div>'
+                : req.url === '/loading-fr'
+                  ? '<div role="alert">Chargement en cours</div>'
+                  : req.url === '/alert'
+                    ? '<div role="alert">Loading</div>'
+                    : req.url === '/progress'
+                      ? '<div role="progressbar" aria-label="Loading"></div>'
+                      : '<div role="alert" hidden>Loading</div><div aria-busy="true" hidden></div><p>FICTIF prêt</p><script>fetch("/pending")</script>';
       res.end(marker);
     });
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -351,7 +495,16 @@ test(
         throw new Error('Aucun accord attendu');
       },
     });
-    for (const path of ['/busy', '/alert', '/progress', '/ready']) {
+    for (const path of [
+      '/busy',
+      '/alert',
+      '/progress',
+      '/ready',
+      '/failed',
+      '/error',
+      '/impossible',
+      '/loading-fr',
+    ]) {
       await t.test(path, async () => {
         await gateway.call('browser.navigate', { url: origin + path });
         const start = Date.now();
@@ -360,10 +513,11 @@ test(
           path === '/busy' ? { selector: 'main', limit: 2 } : {},
         );
         const elapsed = Date.now() - start;
-        assert.equal(result.loading, path !== '/ready');
+        const notLoading = ['/ready', '/failed', '/error', '/impossible'].includes(path);
+        assert.equal(result.loading, !notLoading);
         assert.ok(elapsed < 10000, `Attente bornée : ${elapsed} ms`);
-        if (path === '/ready') {
-          assert.match(result.snapshot, /FICTIF prêt/);
+        if (notLoading) {
+          if (path === '/ready') assert.match(result.snapshot, /FICTIF prêt/);
           assert.ok(elapsed < 3000, `Repli réseau : ${elapsed} ms`);
         } else {
           assert.ok(elapsed >= 7500, `Budget utilisé : ${elapsed} ms`);
@@ -429,12 +583,12 @@ async function multiStepSite(t) {
   const steps = [
     `<form><h1>Choose documents</h1><input type="file" id="cv"><label><input type="radio" name="cl" id="nocl"> Don't include a cover letter</label><button type="submit" id="next"><span>Continue</span></button></form>`,
     `<form><h1>Answer employer questions</h1><select id="years"><option>1</option><option>3</option></select><label><input type="radio" name="rights" id="rights"> Working holiday</label><input id="why" oninput="save()"><button type="submit" id="next"><span>Continue</span></button></form>`,
-    `<form><h1>Review and submit</h1><input type="hidden" name="csrf" value="FICTIF-csrf-123"><button type="submit" id="submit">Submit application</button></form>`,
+    `<form><h1>Review and submit</h1><input type="hidden" name="csrf" value="FICTIF-csrf-123"><button type="submit" id="submit">Continue</button></form>`,
   ];
   const site = http.createServer((req, res) => {
     if (req.method === 'POST') {
       if (req.url === '/api/draft') counts.draft++;
-      if (req.url === '/api/apply') counts.apply++;
+      if (req.url === '/graphql') counts.apply++;
       res.end('{}');
       return;
     }
@@ -446,7 +600,7 @@ async function multiStepSite(t) {
       setInterval(() => fetch('${statsOrigin}/collect', { method: 'POST', body: 'evt', mode: 'no-cors' }).catch(() => {}), 300);
       setInterval(() => fetch('${statsOrigin}/token', { method: 'POST', body: 'FICTIF token', mode: 'no-cors' }).catch(() => {}), 300);
       setInterval(() => fetch('${statsOrigin}/graphql', { method: 'POST', body: JSON.stringify({ query: 'query Fictif { status }' }), mode: 'no-cors' }).catch(() => {}), 300);
-      const save = () => fetch('/api/draft', { method: 'POST', body: JSON.stringify({ step }) });
+      const save = () => fetch('/api/draft', { method: 'POST', body: JSON.stringify({ operationName: 'SaveDraft', step }) });
       const render = () => {
         document.body.innerHTML = steps[step];
         document.querySelector('form').onsubmit = async (e) => {
@@ -457,10 +611,10 @@ async function multiStepSite(t) {
             render();
             return;
           }
-          await fetch('/api/apply', {
+          await fetch('/graphql', {
             method: 'POST',
             headers: { 'content-type': 'application/json', authorization: 'Bearer eyJFICTIF.eyJFICTIF.sig' },
-            body: JSON.stringify({ jobId: 'FICTIF-1', csrfToken: 'FICTIF-csrf-123', session: 'eyJFICTIF.eyJFICTIF.sig' }),
+            body: JSON.stringify({ operationName: 'SubmitApplication', jobId: 'FICTIF-1', csrfToken: 'FICTIF-csrf-123', session: 'eyJFICTIF.eyJFICTIF.sig' }),
           });
           document.body.innerHTML = '<h1>Application sent</h1>';
         };
@@ -520,7 +674,7 @@ test(
     };
 
     await fill();
-    await assert.rejects(gateway.call('browser.click', { selector: '#submit' }), /refusée/);
+    await gateway.call('browser.click', { selector: '#submit' });
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(approvals.length, 1);
     assert.equal(approvals[0].actionClass, 'send');

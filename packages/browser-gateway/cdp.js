@@ -15,6 +15,7 @@ import { isIP } from 'node:net';
 
 import { ownerTransport } from './owner-transport.js';
 import { requestPinned } from '../policy-engine/http.js';
+import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
 
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
 // - endpoint: a CDP endpoint (Playwriter relay `http://127.0.0.1:19988`, or Chrome started with
@@ -34,7 +35,7 @@ function noScriptHeaders(headers) {
   return out;
 }
 
-// Owner mode: a POST only needs approval right after an agent click (form submit, apply…).
+// Owner mode: ordinary writes near a click may need approval; named sensitive sends always do.
 const CLICK_SEND_WINDOW_MS = 8000;
 export function isGraphqlRead(body) {
   try {
@@ -49,6 +50,32 @@ export function isGraphqlRead(body) {
           !/^\s*(mutation|subscription)\b/.test(op.query) &&
           !/\bmutation\s*[({]/.test(op.query),
       )
+    );
+  } catch {
+    return false;
+  }
+}
+// Split identifier boundaries before applying policy words: SubmitApplication and
+// applyFilters contain actions; Application alone does not. Ignore URL host/query.
+function hasSensitiveWord(value) {
+  return String(value)
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .split(/[^\p{L}\p{N}]+/u)
+    .some((word) => word && SENSITIVE_WORDS.test(word));
+}
+export function isSensitiveRequest(url, body) {
+  let path;
+  try {
+    path = decodeURIComponent(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+  if (hasSensitiveWord(path)) return true;
+  try {
+    const parsed = JSON.parse(body);
+    const ops = Array.isArray(parsed) ? parsed : [parsed];
+    return ops.some(
+      (op) => op && typeof op.operationName === 'string' && hasSensitiveWord(op.operationName),
     );
   } catch {
     return false;
@@ -111,11 +138,10 @@ async function waitForReadablePage(page) {
             !el.getClientRects().length
           )
             return false;
-          return (
-            el.getAttribute('aria-busy') === 'true' ||
-            /\bloading\b|chargement/i.test(
-              `${el.textContent} ${el.getAttribute('aria-label') ?? ''}`,
-            )
+          if (el.getAttribute('aria-busy') === 'true') return true;
+          const loading = /^(?:loading|chargement(?: en cours)?)(?:\.{3}|…)?$/i;
+          return [el.textContent, el.getAttribute('aria-label')].some((value) =>
+            loading.test(value?.trim() ?? ''),
           );
         });
       },
@@ -484,11 +510,16 @@ export class CdpBrowser {
         }
         const firstParty = sameSite(request.url(), pageUrl);
         // Reads and session upkeep are automatic only for this site's own endpoints.
-        if (firstParty && (isGraphqlRead(body) || isAuthRefresh(request.url())))
+        const sensitive = isSensitiveRequest(request.url(), body);
+        if (firstParty && !sensitive && (isGraphqlRead(body) || isAuthRefresh(request.url())))
           return route.continue();
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
-        if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS)
+        if (
+          !sensitive &&
+          !this.writeInProgress &&
+          Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS
+        )
           return firstParty ? route.continue() : route.abort('blockedbyclient');
         // After a click, background third-party fetches stay silent and never consume the grant;
         // only a navigation (form posted to another site) can be a cross-site send.
@@ -497,7 +528,7 @@ export class CdpBrowser {
           return route.abort('blockedbyclient');
         }
         // Continue/Next or choosing an option: the page saves its own step (no approval).
-        if (firstParty && this.formStep) return route.continue();
+        if (firstParty && this.formStep && !sensitive) return route.continue();
         const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
@@ -642,10 +673,12 @@ export class CdpBrowser {
     const handle = this.page.locator(selector).first();
     if (!(await handle.count())) return null;
     return handle.evaluate((el) => {
-      const control = el.closest('button, a, [role="button"]') ?? el;
+      const field = el.matches('input, select, textarea, option, label');
+      const control = field ? el : (el.closest('button, a, [role="button"]') ?? el);
       const form = control.form ?? control.closest('form');
       return {
         tag: control.tagName.toLowerCase(),
+        role: control.getAttribute('role'),
         inputType: control.tagName === 'INPUT' ? control.type : null,
         buttonType: control.tagName === 'BUTTON' ? control.type : null,
         inForm: !!form,
@@ -757,8 +790,34 @@ export class CdpBrowser {
         this.formStep = args.formStep === true;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
+        let clickMode = 'normal';
         try {
-          await page.locator(args.selector).first().click({ timeout: this.navigationTimeoutMs });
+          const target = page.locator(args.selector).first();
+          try {
+            await target.click({ timeout: Math.min(3000, this.navigationTimeoutMs) });
+          } catch (error) {
+            if (error.name !== 'TimeoutError') throw error;
+            if (!(await target.isVisible()) || !(await target.isEnabled()))
+              throw new Error('Clic impossible : élément invisible ou désactivé', { cause: error });
+            const hit = await target.evaluate((el) => {
+              el.scrollIntoView({ block: 'center', inline: 'center' });
+              const box = el.getBoundingClientRect();
+              const point = document.elementFromPoint(
+                box.left + box.width / 2,
+                box.top + box.height / 2,
+              );
+              return {
+                reachable: !!point && (point === el || el.contains(point)),
+                covering: point?.tagName.toLowerCase() ?? 'aucun élément',
+              };
+            });
+            if (!hit.reachable)
+              throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
+                cause: error,
+              });
+            await target.click({ force: true, timeout: this.navigationTimeoutMs });
+            clickMode = 'forced-hidden-tab';
+          }
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {
           this.writeInProgress = false;
@@ -774,6 +833,7 @@ export class CdpBrowser {
         return {
           url: page.url(),
           title: await page.title(),
+          clickMode,
           // Lets the agent explain a submit that silently went nowhere (cross-site XHR).
           ...(this.blockedThirdParty.size
             ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }

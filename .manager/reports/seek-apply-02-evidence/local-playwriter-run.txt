@@ -1,0 +1,1 @@
+{"fixture":"FICTIF local","origin":"127.0.0.1","connected":true,"visibility":"hidden","clickMode":"forced-hidden-tab","durationMs":3215,"count":null}

@@ -1,0 +1,13 @@
+✔ Envoi sensible : chemin et operationName, avec frontières de mots et lots GraphQL (1.284166ms)
+✔ GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi (0.155666ms)
+✔ Aperçu d’envoi : jetons masqués et taille bornée (0.296375ms)
+✔ Session : le renouvellement de connexion n’est pas un envoi (0.161ms)
+✔ Même site : API de la page oui, statistiques tierces non (3.663542ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.173084

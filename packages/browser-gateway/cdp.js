@@ -111,8 +111,28 @@ export function previewBody(body) {
     .replace(
       /("(?:[\w-]*(?:token|jwt|secret|password|cookie|session)[\w-]*)"\s*:\s*)"[^"]*"/gi,
       '$1"[masqué]"',
-    );
+    )
+    .replace(/(^|[&;])([^=&;]+)=([^&;]*)/g, (match, separator, key) => {
+      let name;
+      try {
+        name = decodeURIComponent(key.replaceAll('+', ' '));
+      } catch {
+        name = key;
+      }
+      return /token|jwt|secret|password|cookie|session|csrf|api.?key|authorization/i.test(name)
+        ? `${separator}${key}=[masqué]`
+        : match;
+    });
   return masked.length > 4000 ? masked.slice(0, 4000) + '… [tronqué]' : masked;
+}
+export function previewUrl(raw) {
+  const url = new URL(raw);
+  if (url.username) url.username = '[masqué]';
+  if (url.password) url.password = '[masqué]';
+  for (const key of url.searchParams.keys())
+    if (/token|jwt|secret|password|cookie|session|csrf|api.?key|authorization/i.test(key))
+      url.searchParams.set(key, '[masqué]');
+  return url.href;
 }
 
 // Readiness is advisory: background traffic must not prevent reading a usable page.
@@ -541,7 +561,11 @@ export class CdpBrowser {
             capability: 'browser.send',
             sensitive: true,
             actionClass: 'send',
-            args: { url: request.url(), method: request.method(), body: previewBody(body) },
+            args: {
+              url: previewUrl(request.url()),
+              method: request.method(),
+              body: previewBody(body),
+            },
           }));
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         return route.continue();

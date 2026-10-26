@@ -1,0 +1,37 @@
+✔ Envoi sensible : chemin et operationName, avec frontières de mots et lots GraphQL (1.367584ms)
+✔ GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi (0.157791ms)
+✔ GraphQL : les noms sensibles de lectures ne réclament aucun accord (0.098667ms)
+✖ Aperçu d’envoi : jetons masqués et taille bornée (0.867417ms)
+✔ Session : le renouvellement de connexion n’est pas un envoi (0.202125ms)
+✔ Même site : API de la page oui, statistiques tierces non (3.845791ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 78.584833
+
+✖ failing tests:
+
+test at tests/owner-send-filter.test.js:87:1
+✖ Aperçu d’envoi : jetons masqués et taille bornée (0.867417ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /abc123/. Input:
+
+  'https://example.test/send?access_token=abc123&job=FICTIF'
+
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-send-filter.test.js:99:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://example.test/send?access_token=abc123&job=FICTIF',
+    expected: /abc123/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

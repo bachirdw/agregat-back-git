@@ -5,6 +5,7 @@ import {
   isGraphqlRead,
   isSensitiveRequest,
   previewBody,
+  previewUrl,
   registrableSite,
   sameSite,
 } from '../packages/browser-gateway/cdp.js';
@@ -89,6 +90,13 @@ test('Aperçu d’envoi : jetons masqués et taille bornée', () => {
   assert.doesNotMatch(out, /eyJ|abc/);
   assert.match(out, /"name":"FICTIF"/);
   assert.match(previewBody('x'.repeat(5000)), /… \[tronqué\]$/);
+  const form = previewBody('name=FICTIF&password=secret123&access_token=abc123&sessionId=def456');
+  assert.match(form, /name=FICTIF/);
+  assert.doesNotMatch(form, /secret123|abc123|def456/);
+  const url = previewUrl('https://example.test/send?access_token=abc123&job=FICTIF');
+  assert.match(url, /^https:\/\/example\.test\/send\?/);
+  assert.match(url, /job=FICTIF/);
+  assert.doesNotMatch(url, /abc123/);
 });
 test('Session : le renouvellement de connexion n’est pas un envoi', () => {
   assert.equal(isAuthRefresh('https://login.seek.com/oauth/token'), true);

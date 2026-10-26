@@ -353,6 +353,57 @@ test(
 );
 
 test(
+  'Chrome FICTIF : URL et formulaire secrets masqués dans la demande d’envoi',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    let posts = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') {
+        posts++;
+        res.end('{}');
+        return;
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end(
+        `<button id="go" onclick="fetch('/send?access_token=FICTIF-url-secret', {method:'POST', body:'name=FICTIF&password=FICTIF-body-secret'}).catch(() => {})">FICTIF action</button>`,
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const approvals = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-secrets',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async (request) => {
+        approvals.push(request);
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.click', { selector: '#go' });
+    const deadline = Date.now() + 2000;
+    while (!approvals.length && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+    assert.equal(approvals.length, 1);
+    assert.equal(approvals[0].capability, 'browser.send');
+    assert.match(approvals[0].args.url, /\/send\?/);
+    assert.match(approvals[0].args.body, /name=FICTIF/);
+    assert.doesNotMatch(JSON.stringify(approvals[0]), /FICTIF-url-secret|FICTIF-body-secret/);
+    assert.equal(posts, 0);
+  },
+);
+
+test(
   'Chrome FICTIF : POST sensible hors clic refusé, autosave autorisé',
   { skip: !existsSync(CHROME) },
   async (t) => {

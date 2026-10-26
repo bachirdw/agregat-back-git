@@ -101,6 +101,20 @@ test('transport propriétaire : inventaire filtré, pas d’auto-attachement glo
     assert.match((await call(method, { targetId: 'USER' })).error.message, /périmètre/);
   assert.match((await call('Runtime.evaluate', {}, 'USER-SESSION')).error.message, /périmètre/);
   assert.match((await call('Browser.close')).error.message, /globale refusée/);
+  // FICTIF : a page session must not turn a browser-scoped Target command into a bypass.
+  for (const method of ['Target.getTargets', 'Target.setDiscoverTargets']) {
+    const before = fake.commands.length;
+    const response = await call(method, {}, 'own-session');
+    if (method === 'Target.getTargets')
+      assert.deepEqual(
+        response.result.targetInfos.map((i) => i.targetId),
+        ['owned'],
+      );
+    assert.equal(fake.commands.length, before, 'commande globale interceptée localement');
+  }
+  for (const method of ['Target.detachFromTarget', 'Target.sendMessageToTarget'])
+    assert.ok((await call(method, { sessionId: 'USER-SESSION' }, 'own-session')).error);
+
   await call('Runtime.enable', {}, 'own-session');
   assert.ok(
     fake.commands.some((m) => m.method === 'Runtime.enable' && m.sessionId === 'own-session'),

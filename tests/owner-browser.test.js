@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { chromium } from 'playwright-core';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../apps/api/server.js';
@@ -182,3 +183,36 @@ test('propriétaire : relais qui refuse newCDPSession ne bloque pas notre onglet
     await provider.close();
   }
 });
+
+// L’onglet « étranger » est lui-même FICTIF, dans un profil isolé créé par le test.
+test(
+  'propriétaire : transport CDP réel préserve un autre onglet du Chrome isolé',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const dir = temporary();
+    let context, provider;
+    t.after(async () => {
+      await provider?.close();
+      await context?.close();
+      rmSync(dir, { recursive: true, force: true });
+    });
+    context = await chromium.launchPersistentContext(dir, {
+      executablePath: CHROME,
+      headless: true,
+      args: ['--remote-debugging-port=0'],
+    });
+    const foreign = context.pages()[0];
+    await foreign.setContent('<title>FICTIF onglet étranger</title>');
+    const port = readFileSync(join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0];
+    provider = new CdpBrowser({ endpoint: `http://127.0.0.1:${port}`, startupTimeoutMs: 5000 });
+    const policy = new RunPolicy({ ownerMode: true, allowSharedContext: true, runId: 'FICTIF' });
+    await provider.prepare(policy);
+    const own = await provider.ensure(policy);
+    assert.equal(own.url(), 'about:blank');
+    assert.equal(await foreign.title(), 'FICTIF onglet étranger');
+    assert.equal(context.pages().length, 2);
+    await provider.close();
+    assert.equal(context.pages().length, 1);
+    assert.equal(await foreign.title(), 'FICTIF onglet étranger');
+  },
+);

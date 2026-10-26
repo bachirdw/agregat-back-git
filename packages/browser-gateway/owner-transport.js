@@ -151,17 +151,18 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
         }
         try {
           let result;
-          if (m.sessionId) {
-            if (!sessions.has(m.sessionId)) throw new Error('Session hors périmètre');
+          if (m.sessionId && !sessions.has(m.sessionId)) throw new Error('Session hors périmètre');
+          if (m.sessionId && !m.method.startsWith('Target.')) {
             if (m.method.startsWith('Browser.')) throw new Error('Commande globale refusée');
             if (m.params?.targetId && !targets.has(m.params.targetId))
               throw new Error('Cible hors périmètre');
             result = await rpc(m.method, m.params, m.sessionId);
           } else if (m.method === 'Target.setAutoAttach') {
-            send({
-              method: 'Target.attachedToTarget',
-              params: { sessionId: targetSession, targetInfo, waitingForDebugger: false },
-            });
+            if (!m.sessionId)
+              send({
+                method: 'Target.attachedToTarget',
+                params: { sessionId: targetSession, targetInfo, waitingForDebugger: false },
+              });
             result = {};
           } else if (m.method === 'Target.getTargets') result = { targetInfos: [targetInfo] };
           else if (m.method === 'Target.getTargetInfo') {

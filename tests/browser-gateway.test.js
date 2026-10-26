@@ -1646,3 +1646,51 @@ test(
     assert.deepEqual(readdirSync(join(ws, 'downloads')), ['offre.txt']);
   },
 );
+
+test(
+  'Chrome : fichier data refusé puis temporaire effectivement supprimé',
+  { skip: !hasChrome },
+  async (t) => {
+    const workspace = temporary();
+    const server = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html');
+      res.end('<a id="data" download="fictif.txt" href="data:text/plain,FICTIF">FICTIF</a>');
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(async () => {
+      await provider.close();
+      server.closeAllConnections();
+      await new Promise((r) => server.close(r));
+      rmSync(workspace, { recursive: true, force: true });
+    });
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        runId: 'FICTIF-data',
+        workspace,
+        allowLocalOrigins: [origin],
+        capabilities: ALL,
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    let temporaryPath;
+    provider.page.once('download', (download) => {
+      const dispose = download.delete.bind(download);
+      download.delete = async () => {
+        temporaryPath = await download.path();
+        await dispose();
+      };
+    });
+    await assert.rejects(
+      gateway.call('browser.download', { selector: '#data' }),
+      /Téléchargement refusé/,
+    );
+    assert.equal(typeof temporaryPath, 'string', 'temporaire réel capturé avant suppression');
+    assert.equal(existsSync(temporaryPath), false);
+    assert.equal(provider.page.isClosed(), false);
+    assert.deepEqual(readdirSync(join(workspace, 'downloads')), []);
+  },
+);

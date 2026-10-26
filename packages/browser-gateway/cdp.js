@@ -627,19 +627,27 @@ export class CdpBrowser {
           }
           throw new Error('Trop de redirections de téléchargement');
         }
-        const [download] = await Promise.all([
-          page.waitForEvent('download', { timeout: 15000 }),
-          page.locator(args.selector).first().click({ timeout: 10000 }),
-        ]);
-        await policy.assertUrl(download.url()).catch((e) => {
-          throw new Error(`Téléchargement refusé : ${e.message}`);
+        let download;
+        let finished = false;
+        const incoming = page.waitForEvent('download', { timeout: 15000 }).then(async (value) => {
+          // The click can reject before its download event arrives. Never orphan that late handle.
+          if (finished) await value.delete().catch(() => {});
+          else download = value;
+          return value;
         });
-        const name =
-          basename(download.suggestedFilename())
-            .replace(/[^\w.\- ]/g, '_')
-            .slice(0, 120) || 'fichier';
-        const target = resolve(dir, name);
         try {
+          await Promise.all([
+            incoming,
+            page.locator(args.selector).first().click({ timeout: 10000 }),
+          ]);
+          await policy.assertUrl(download.url()).catch((e) => {
+            throw new Error(`Téléchargement refusé : ${e.message}`);
+          });
+          const name =
+            basename(download.suggestedFilename())
+              .replace(/[^\w.\- ]/g, '_')
+              .slice(0, 120) || 'fichier';
+          const target = resolve(dir, name);
           const source = await download.path();
           if (statSync(source).size > policy.maxDownloadBytes)
             throw new Error('Téléchargement trop volumineux');
@@ -655,7 +663,8 @@ export class CdpBrowser {
           }
           return { url: page.url(), file: name, bytes: statSync(target).size };
         } finally {
-          await download.delete().catch(() => {});
+          finished = true;
+          await download?.delete().catch(() => {});
         }
       }
       default:

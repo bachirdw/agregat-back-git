@@ -21,6 +21,7 @@ import {
   selectAnnouncedCareerModel,
 } from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
+import { terminal } from '../packages/storage/index.js';
 
 function fixture(t, ownerMode = false) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-integrated-FICTIF-')));
@@ -268,8 +269,25 @@ test('Propriétaire local : les étapes de l’agent career-ops sont diffusées 
       }),
     })
   ).json();
-  for (let i = 0; i < 300 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
-    await new Promise((r) => setTimeout(r, 20));
+  // The ACP fixture can initialize slowly when the full suite runs in parallel.
+  // Subscribe before checking current state so a fast completion cannot be missed.
+  await new Promise((resolve, reject) => {
+    const onState = (event) => {
+      if (event.type === 'state' && terminal.has(event.data.state)) finish();
+    };
+    const timer = setTimeout(
+      () => finish(new Error(`FICTIF : run encore ${app.store.get(run.id)?.state} après 30 s`)),
+      30000,
+    );
+    const finish = (error) => {
+      clearTimeout(timer);
+      app.store.off(run.id, onState);
+      if (error) reject(error);
+      else resolve();
+    };
+    app.store.on(run.id, onState);
+    if (terminal.has(app.store.get(run.id)?.state)) finish();
+  });
   assert.equal(
     app.store.get(run.id).state,
     'completed',

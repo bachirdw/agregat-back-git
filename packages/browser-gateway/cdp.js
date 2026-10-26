@@ -65,6 +65,8 @@ function hasSensitiveWord(value) {
     .some((word) => word && SENSITIVE_WORDS.test(word));
 }
 export function isSensitiveRequest(url, body) {
+  // A GraphQL read stays a read even when its operation name contains an action word.
+  if (isGraphqlRead(body)) return false;
   let path;
   try {
     path = decodeURIComponent(new URL(url).pathname);

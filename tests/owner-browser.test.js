@@ -212,6 +212,65 @@ test(
 );
 
 test(
+  'Chrome FICTIF : lecture GraphQL au chargement automatique, mutation soumise à accord',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const posts = [];
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          posts.push(JSON.parse(body).operationName);
+          res.end('{}');
+        });
+        return;
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end(`<title>FICTIF GraphQL</title><script>
+      fetch('/graphql', {method:'POST', body:JSON.stringify({operationName:'GetApplyStatus',query:'query GetApplyStatus { status }'})});
+      function mutate() { fetch('/graphql', {method:'POST', body:JSON.stringify({operationName:'SubmitApplication',query:'mutation SubmitApplication { apply }'})}).catch(() => {}); }
+    </script><button id="mutate" onclick="mutate()">FICTIF action</button>`);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    let approvals = 0;
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-graphql',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      autoApprove: ['browser.click'],
+      approve: async () => {
+        approvals++;
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const waitFor = async (condition) => {
+      const deadline = Date.now() + 2000;
+      while (!condition() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+    };
+    await waitFor(() => posts.length === 1);
+    assert.deepEqual(posts, ['GetApplyStatus']);
+    assert.equal(approvals, 0);
+    await gateway.call('browser.click', { selector: '#mutate' });
+    await waitFor(() => approvals === 1);
+    assert.equal(approvals, 1);
+    assert.deepEqual(posts, ['GetApplyStatus']);
+  },
+);
+
+test(
   'Chrome FICTIF : POST sensible hors clic refusé, autosave autorisé',
   { skip: !existsSync(CHROME) },
   async (t) => {

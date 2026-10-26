@@ -43,6 +43,36 @@ test('GraphQL : une lecture passe, une mutation ou un POST quelconque reste un e
   assert.equal(isGraphqlRead('FICTIF scripted'), false);
   assert.equal(isGraphqlRead('[{"event":"component_displayed"}]'), false);
 });
+test('GraphQL : les noms sensibles de lectures ne réclament aucun accord', () => {
+  const endpoint = 'https://www.seek.com.au/graphql';
+  for (const name of ['GetApplyStatus', 'OrderSummary', 'SubmitApplication']) {
+    const body = JSON.stringify({ operationName: name, query: `query ${name} { status }` });
+    assert.equal(isGraphqlRead(body), true);
+    assert.equal(isSensitiveRequest(endpoint, body), false, name);
+  }
+  const mixed = JSON.stringify([
+    { operationName: 'GetApplyStatus', query: 'query GetApplyStatus { status }' },
+    { operationName: 'SubmitApplication', query: 'mutation SubmitApplication { apply }' },
+  ]);
+  assert.equal(isSensitiveRequest(endpoint, mixed), true);
+  assert.equal(
+    isSensitiveRequest(
+      endpoint,
+      JSON.stringify({
+        operationName: 'SubmitApplication',
+        query: 'mutation SubmitApplication { apply }',
+      }),
+    ),
+    true,
+  );
+  assert.equal(
+    isSensitiveRequest(
+      'https://example.test/api/apply',
+      JSON.stringify({ operationName: 'GetApplyStatus' }),
+    ),
+    true,
+  );
+});
 test('Aperçu d’envoi : jetons masqués et taille bornée', () => {
   const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJGSUNUSUYifQ.c2lnbmF0dXJlRklDVElG';
   const out = previewBody(`{"seekIdentityJwt":"${jwt}","sessionId":"abc","name":"FICTIF"}`);

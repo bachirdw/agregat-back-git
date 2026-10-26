@@ -11,6 +11,10 @@ const BROWSER = new Set([
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))
   .sort();
+// Node's per-test timeout can leave a worker or after hook running. Bound the whole phase too.
+const configuredTimeout = Number(process.env.AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS);
+const phaseTimeoutMs =
+  Number.isSafeInteger(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 240000;
 const phases = [
   {
     name: 'unitaires et intégration (parallèle)',
@@ -31,8 +35,10 @@ for (const p of phases) {
       '--test-timeout=120000',
       ...p.files.map((f) => 'tests/' + f),
     ],
-    { stdio: 'inherit' },
+    { stdio: 'inherit', timeout: phaseTimeoutMs, killSignal: 'SIGKILL' },
   );
+  if (r.error?.code === 'ETIMEDOUT') console.error(`Phase expirée après ${phaseTimeoutMs} ms`);
+  else if (r.error) console.error(`Runner de tests : ${r.error.message}`);
   if (r.status !== 0) failed = true;
 }
 process.exit(failed ? 1 : 0);

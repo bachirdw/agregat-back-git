@@ -1,0 +1,54 @@
+✖ runner : une phase bloquée expire sans attendre le délai de quinze minutes (2013.089834ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2059.14425
+
+✖ failing tests:
+
+test at tests/test-runner.test.js:8:1
+✖ runner : une phase bloquée expire sans attendre le délai de quinze minutes (2013.089834ms)
+  AssertionError [ERR_ASSERTION]: le runner lui-même doit sortir avant le délai externe
+  + actual - expected
+
+  + Error: spawnSync /usr/local/bin/node ETIMEDOUT
+  +     at Object.spawnSync (node:internal/child_process:1119:20)
+  +     at spawnSync (node:child_process:911:24)
+  +     at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/test-runner.test.js:17:20)
+  +     at Test.runInAsyncScope (node:async_hooks:228:14)
+  +     at Test.run (node:internal/test_runner/test:1118:25)
+  +     at Test.start (node:internal/test_runner/test:1015:17)
+  +     at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+  +   code: 'ETIMEDOUT',
+  +   errno: -60,
+  +   path: '/usr/local/bin/node',
+  +   spawnargs: [
+  +     '/Users/diaw/Downloads/agregat-back/scripts/run-tests.js'
+  +   ],
+  +   syscall: 'spawnSync /usr/local/bin/node'
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/test-runner.test.js:23:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: spawnSync /usr/local/bin/node ETIMEDOUT
+        at Object.spawnSync (node:internal/child_process:1119:20)
+        at spawnSync (node:child_process:911:24)
+        at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/test-runner.test.js:17:20)
+        at Test.runInAsyncScope (node:async_hooks:228:14)
+        at Test.run (node:internal/test_runner/test:1118:25)
+        at Test.start (node:internal/test_runner/test:1015:17)
+        at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17),
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

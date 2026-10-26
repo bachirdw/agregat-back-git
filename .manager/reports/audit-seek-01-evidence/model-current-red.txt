@@ -1,0 +1,25 @@
+✖ modèle courant non annoncé : refusé même sans changement de session (1.189459ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 153.003875
+
+✖ failing tests:
+
+test at tests/runtime.test.js:712:1
+✖ modèle courant non annoncé : refusé même sans changement de session (1.189459ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/runtime.test.js:718:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /non annoncé/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

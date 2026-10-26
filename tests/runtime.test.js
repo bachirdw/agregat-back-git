@@ -709,13 +709,13 @@ test('sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du
   }
 });
 
-test('modèle courant annoncé : accepté même absent des options de changement', async () => {
+test('modèle courant non annoncé : refusé même sans changement de session', async () => {
   const r = new AcpRuntime({ definition: { id: 'fixture', safeModes: [] }, cwd: temporary() });
-  r.models = { current: 'courant-vérifié-FICTIF', options: [{ id: 'autre-FICTIF' }] };
+  r.models = { current: 'gemini-3.1-flash-lite', options: [{ id: 'gemini-3.5-flash-lite' }] };
   r.request = () => {
     throw new Error('Aucun changement requis');
   };
-  assert.equal(await r.selectModel('courant-vérifié-FICTIF'), 'courant-vérifié-FICTIF');
+  await assert.rejects(r.selectModel('gemini-3.1-flash-lite'), /non annoncé/);
   await assert.rejects(r.selectModel('imaginaire-FICTIF'), /non annoncé/);
   r.close();
 });

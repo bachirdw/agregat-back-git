@@ -1,0 +1,12 @@
+(node:24363) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Modèle career-ops : choisit l’identifiant annoncé, refuse l’ancien alias absent (0.602167ms)
+✔ modèle courant non annoncé : refusé même sans changement de session (1.723333ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 376.650042

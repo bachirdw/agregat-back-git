@@ -15,7 +15,11 @@ import { randomUUID } from 'node:crypto';
 import { createApp } from '../apps/api/server.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { CareerTools, sourceSnapshot } from '../packages/career-ops/tools.js';
-import { reviewCareer, assertCareerReview } from '../packages/career-ops/integration.js';
+import {
+  reviewCareer,
+  assertCareerReview,
+  selectAnnouncedCareerModel,
+} from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 
 function fixture(t, ownerMode = false) {
@@ -43,6 +47,16 @@ const offer = () => ({
   score: 3,
   report: Object.fromEntries('ABCDEFGH'.split('').map((key) => [key, 'Évaluation FICTIVE'])),
   simulated: true,
+});
+
+test('Modèle career-ops : choisit l’identifiant annoncé, refuse l’ancien alias absent', () => {
+  const models = {
+    current: 'gemini-3.1-flash-lite',
+    options: [{ id: 'gemini-3.5-flash-lite' }, { id: 'gemini-3.8-flash' }],
+  };
+  assert.equal(selectAnnouncedCareerModel('', models), 'gemini-3.5-flash-lite');
+  assert.equal(selectAnnouncedCareerModel('gemini-3.8-flash', models), 'gemini-3.8-flash');
+  assert.throws(() => selectAnnouncedCareerModel('gemini-3.1-flash-lite', models), /non annoncé/);
 });
 
 test('Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés', (t) => {

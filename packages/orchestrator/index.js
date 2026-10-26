@@ -2,6 +2,7 @@ import {
   assertCareerReview,
   CAREER_MODEL,
   CAREER_INSTRUCTIONS,
+  selectAnnouncedCareerModel,
 } from '../career-ops/integration.js';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { CareerWorkspace } from '../career-ops/workspace.js';
@@ -223,7 +224,6 @@ export class Orchestrator {
         throw new Error('GEMINI_API_KEY requise pour career-ops (API uniquement)');
       if (v.agent !== 'fixture' && !['auto', 'gemini'].includes(v.agent))
         throw new Error('L’espace career-ops requiert Gemini');
-      if (v.agent !== 'fixture' && !v.model) v.model = CAREER_MODEL;
     }
     if (v.workspace) this.career.path();
     const browserWorkflow =
@@ -255,7 +255,7 @@ export class Orchestrator {
             : agents,
         requirements: requirementsFor({
           resume: !!resume,
-          model: pack.id === 'career-ops' && v.model === CAREER_MODEL ? '' : v.model,
+          model: pack.id === 'career-ops' ? '' : v.model,
         }),
         live: this.live,
         probes,
@@ -267,12 +267,9 @@ export class Orchestrator {
     if (!agent.simulated && !this.live)
       throw new Error('Mode réel désactivé. Démarrer avec AGENT_PLATFORM_LIVE=1.');
     const known = probes[id]?.models?.options;
-    if (
-      v.model &&
-      known &&
-      !(pack.id === 'career-ops' && v.model === CAREER_MODEL) &&
-      !known.some((m) => m.id === v.model)
-    )
+    if (pack.id === 'career-ops' && id !== 'fixture')
+      v.model = selectAnnouncedCareerModel(v.model, probes[id]?.models);
+    if (v.model && known && !known.some((m) => m.id === v.model))
       throw new Error('Modèle non annoncé par ' + agent.name + ' au dernier test');
     let workflow = null;
     let dagChosen = null;

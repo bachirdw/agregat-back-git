@@ -444,6 +444,8 @@ async function multiStepSite(t) {
       let step = 0;
       new Image().src = '${statsOrigin}/pixel';
       setInterval(() => fetch('${statsOrigin}/collect', { method: 'POST', body: 'evt', mode: 'no-cors' }).catch(() => {}), 300);
+      setInterval(() => fetch('${statsOrigin}/token', { method: 'POST', body: 'FICTIF token', mode: 'no-cors' }).catch(() => {}), 300);
+      setInterval(() => fetch('${statsOrigin}/graphql', { method: 'POST', body: JSON.stringify({ query: 'query Fictif { status }' }), mode: 'no-cors' }).catch(() => {}), 300);
       const save = () => fetch('/api/draft', { method: 'POST', body: JSON.stringify({ step }) });
       const render = () => {
         document.body.innerHTML = steps[step];

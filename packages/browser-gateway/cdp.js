@@ -476,8 +476,6 @@ export class CdpBrowser {
         const host = new URL(request.url()).hostname;
         if (/(^|\.)linkedin\.com$/.test(host)) return route.abort('blockedbyclient');
         const body = request.postData() ?? '';
-        // Read-only GraphQL queries (SPA data loading) and session upkeep are not sends.
-        if (isGraphqlRead(body) || isAuthRefresh(request.url())) return route.continue();
         let pageUrl = '';
         try {
           pageUrl = request.frame().page().url();
@@ -485,6 +483,9 @@ export class CdpBrowser {
           /* no page: treated as third party */
         }
         const firstParty = sameSite(request.url(), pageUrl);
+        // Reads and session upkeep are automatic only for this site's own endpoints.
+        if (firstParty && (isGraphqlRead(body) || isAuthRefresh(request.url())))
+          return route.continue();
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
         if (!this.writeInProgress && Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS)

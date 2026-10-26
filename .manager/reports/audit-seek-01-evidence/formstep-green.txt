@@ -1,0 +1,32 @@
+(node:26408) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final (5973.939416ms)
+✔ propriétaire FICTIF : un POST après Continue ne garde pas le privilège étape (2690.473084ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9070.348458
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:477:1
+✖ formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final (5973.939416ms)
+  AssertionError [ERR_ASSERTION]: ["browser.send"]
+  
+  1 !== 0
+  
+      at fill (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:517:14)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:520:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

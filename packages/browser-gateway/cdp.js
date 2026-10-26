@@ -11,6 +11,7 @@ import {
   constants,
 } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
+import { isIP } from 'node:net';
 
 import { ownerTransport } from './owner-transport.js';
 import { requestPinned } from '../policy-engine/http.js';
@@ -55,6 +56,7 @@ export function isGraphqlRead(body) {
 }
 // Same registrable site (au.seek.com ~ www.seek.com ; example.com.au keeps three labels).
 const site = (host) => {
+  if (isIP(host.replace(/^\[|\]$/g, ''))) return host.toLowerCase();
   const labels = host.toLowerCase().split('.');
   const second = labels.at(-2) ?? '';
   const keep = labels.at(-1)?.length === 2 && /^(com|net|org|gov|edu|co|ac)$/.test(second) ? 3 : 2;

@@ -1,0 +1,12 @@
+✔ GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi (0.44225ms)
+✔ Aperçu d’envoi : jetons masqués et taille bornée (0.325667ms)
+✔ Session : le renouvellement de connexion n’est pas un envoi (0.170042ms)
+✔ Même site : API de la page oui, statistiques tierces non (3.596792ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 66.120458

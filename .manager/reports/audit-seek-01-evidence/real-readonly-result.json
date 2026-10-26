@@ -1,0 +1,42 @@
+{
+  "url": "https://www.seek.com.au/job/95484078/apply",
+  "actions": [
+    "navigate",
+    "snapshot",
+    "click trial",
+    "bringToFront",
+    "click trial"
+  ],
+  "snapshotMs": 7491,
+  "loading": false,
+  "finalPath": "/job/95484078/apply",
+  "formVisible": true,
+  "genericLabels": [
+    "      - button \"Choose documents\"",
+    "- heading \"Resumé\" [level=3]",
+    "- heading \"Cover letter\" [level=3]",
+    "- button \"Continue\""
+  ],
+  "before": {
+    "state": {
+      "visibility": "hidden",
+      "focus": false
+    },
+    "trial": {
+      "success": false,
+      "ms": 20009,
+      "errorName": "TimeoutError"
+    }
+  },
+  "after": {
+    "state": {
+      "visibility": "hidden",
+      "focus": true
+    },
+    "trial": {
+      "success": false,
+      "ms": 20010,
+      "errorName": "TimeoutError"
+    }
+  }
+}

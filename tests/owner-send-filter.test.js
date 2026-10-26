@@ -35,4 +35,7 @@ test('Même site : API de la page oui, statistiques tierces non', () => {
   assert.equal(sameSite('https://api.seek.com.au/x', 'https://www.seek.com.au/job/1'), true);
   assert.equal(sameSite('https://lcto.aips-sol.com/v1/events', 'https://au.seek.com/job/1'), false);
   assert.equal(sameSite('https://evil.com.au/x', 'https://www.seek.com.au/job/1'), false);
+  assert.equal(sameSite('https://api.example.co.uk/x', 'https://www.example.co.uk/y'), true);
+  assert.equal(sameSite('http://127.0.0.1/x', 'http://192.0.0.1/y'), false);
+  assert.equal(sameSite('http://[::1]/x', 'http://[::2]/y'), false);
 });

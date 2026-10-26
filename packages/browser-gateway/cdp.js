@@ -796,12 +796,22 @@ export class CdpBrowser {
         let clickMode = 'normal';
         try {
           const target = page.locator(args.selector).first();
-          try {
-            await target.click({ timeout: Math.min(3000, this.navigationTimeoutMs) });
-          } catch (error) {
-            if (error.name !== 'TimeoutError') throw error;
+          let clickError = null;
+          if (await page.evaluate(() => document.visibilityState === 'hidden')) {
+            clickError = new Error('Onglet caché');
+          } else {
+            try {
+              await target.click({ timeout: Math.min(3000, this.navigationTimeoutMs) });
+            } catch (error) {
+              if (error.name !== 'TimeoutError') throw error;
+              clickError = error;
+            }
+          }
+          if (clickError) {
             if (!(await target.isVisible()) || !(await target.isEnabled()))
-              throw new Error('Clic impossible : élément invisible ou désactivé', { cause: error });
+              throw new Error('Clic impossible : élément invisible ou désactivé', {
+                cause: clickError,
+              });
             const hit = await target.evaluate((el) => {
               el.scrollIntoView({ block: 'center', inline: 'center' });
               const box = el.getBoundingClientRect();
@@ -816,7 +826,7 @@ export class CdpBrowser {
             });
             if (!hit.reachable)
               throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
-                cause: error,
+                cause: clickError,
               });
             const marker = `__gatewayClick_${randomUUID().replaceAll('-', '')}`;
             let navigated = false;
@@ -848,10 +858,12 @@ export class CdpBrowser {
                 window[key] = false;
                 window[`${key}Listener`] = listener;
               }, marker);
-              try {
-                await target.click({ force: true, timeout: this.navigationTimeoutMs });
-              } catch (forcedError) {
-                if (forcedError.name !== 'TimeoutError') throw forcedError;
+              if (!(await page.evaluate(() => document.visibilityState === 'hidden'))) {
+                try {
+                  await target.click({ force: true, timeout: this.navigationTimeoutMs });
+                } catch (forcedError) {
+                  if (forcedError.name !== 'TimeoutError') throw forcedError;
+                }
               }
               if (await observed()) clickMode = 'forced';
               else {

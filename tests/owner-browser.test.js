@@ -81,11 +81,44 @@ test(
     const silent = await gateway.call('browser.click', { selector: '#moving' });
     assert.equal(silent.clickMode, 'forced');
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
+    await provider.page.evaluate(() =>
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      }),
+    );
+    const realHiddenLocator = provider.page.locator.bind(provider.page);
+    let pointerClicks = 0;
+    provider.page.locator = (selector, options) => {
+      const locator = realHiddenLocator(selector, options);
+      if (selector !== '#moving') return locator;
+      return {
+        first: () => {
+          const target = locator.first();
+          return {
+            count: () => target.count(),
+            click: async () => {
+              pointerClicks++;
+              throw new Error('Aucun événement souris CDP autorisé en onglet caché');
+            },
+            isVisible: () => target.isVisible(),
+            isEnabled: () => target.isEnabled(),
+            evaluate: (...args) => target.evaluate(...args),
+          };
+        },
+      };
+    };
+    const hidden = await gateway.call('browser.click', { selector: '#moving' });
+    provider.page.locator = realHiddenLocator;
+    await provider.page.evaluate(() => delete document.visibilityState);
+    assert.equal(hidden.clickMode, 'dom-hidden-tab');
+    assert.equal(pointerClicks, 0);
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '3');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'block';
     });
     await assert.rejects(gateway.call('browser.click', { selector: '#covered' }), /masqué par div/);
-    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '3');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'none';
     });
@@ -119,7 +152,7 @@ test(
       /Clic non délivré à la page/,
     );
     provider.page.locator = realLocator;
-    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '3');
   },
 );
 

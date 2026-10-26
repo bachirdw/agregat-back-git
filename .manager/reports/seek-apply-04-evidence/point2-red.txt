@@ -1,0 +1,19 @@
+(node:57677) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Chrome FICTIF : clic instable contrôlé et superposition refusée (7028.000333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7455.981042
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:40:1
+✖ Chrome FICTIF : clic instable contrôlé et superposition refusée (7028.000333ms)
+  TypeError: handle.count is not a function
+      at CdpBrowser.describe (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:677:24)
+      at BrowserGateway.execute (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:70:37)

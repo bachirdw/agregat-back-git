@@ -1,0 +1,20 @@
+(node:57727) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Chrome FICTIF : clic instable contrôlé et superposition refusée (7322.061834ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7727.705958
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:40:1
+✖ Chrome FICTIF : clic instable contrôlé et superposition refusée (7322.061834ms)
+  Error: Aucun événement souris CDP autorisé en onglet caché
+      at Object.click (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:99:21)
+      at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:800:26)
+      at async BrowserGateway.execute (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:141:20)

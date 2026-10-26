@@ -145,6 +145,9 @@ test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refu
   assert.doesNotMatch(JSON.stringify(done), /DONNÉE_PRIVÉE/);
   assert.doesNotMatch(JSON.stringify(app.store.events(run.id)), /DONNÉE_PRIVÉE/);
   const privateResult = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
+  const privateInput = await (await fetch(base + `/api/career/runs/${run.id}/input`)).json();
+  assert.match(privateInput.prompt, /DONNÉE_PRIVÉE/);
+  assert.equal((await fetch(base + `/api/career/runs/${randomUUID()}/input`)).status, 404);
   assert.match(privateResult.summary, /DONNÉE_PRIVÉE/);
   const offers = await (await fetch(base + '/api/career/offers')).json();
   assert.equal(offers.opportunities.length, 1);

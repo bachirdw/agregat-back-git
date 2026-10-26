@@ -230,6 +230,21 @@ export function createApp({
           JSON.parse(readConfined(career.path(), `relay/runs/${run.id}-result.json`, 2000000)),
         );
       }
+      // The user's own private prompt for a career-ops turn, to rebuild the conversation thread.
+      const privateInput = path.match(/^\/api\/career\/runs\/([a-f0-9-]{36})\/input$/);
+      if (req.method === 'GET' && privateInput) {
+        const run = store.get(privateInput[1]);
+        if (!run || run.workspace !== 'career-ops')
+          return json(res, 404, { error: 'Message privé indisponible' });
+        try {
+          const input = JSON.parse(
+            readConfined(career.path(), `relay/runs/${run.id}-input.json`, 50000),
+          );
+          return json(res, 200, { prompt: String(input.prompt ?? '') });
+        } catch {
+          return json(res, 404, { error: 'Message privé indisponible' });
+        }
+      }
       if (req.method === 'GET' && path === '/api/career/pending')
         return json(res, 200, {
           pending: [...engine.permissions.values()]

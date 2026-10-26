@@ -1,0 +1,40 @@
+(node:22004) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ extract FICTIF : élément tardif sans indicateur de chargement
+  ✖ limit 1 (2416.296167ms)
+  ✖ limit 2 (2045.344ms)
+✖ extract FICTIF : élément tardif sans indicateur de chargement (4651.00675ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4947.989292
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:407:15
+✖ limit 1 (2416.296167ms)
+  locator.innerText: Timeout 1500ms exceeded.
+  Call log:
+  [2m  - waiting for locator('#late').first()[22m
+  
+      at CdpBrowser.perform (/private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/packages/browser-gateway/cdp.js:722:55)
+      at async BrowserGateway.execute (/private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/packages/browser-gateway/index.js:141:20) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for locator('#late').first()" ]
+  }
+
+test at tests/owner-browser.test.js:407:15
+✖ limit 2 (2045.344ms)
+  locator.waitFor: Timeout 1500ms exceeded.
+  Call log:
+  [2m  - waiting for locator('#late').first() to be visible[22m
+  
+      at CdpBrowser.perform (/private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/packages/browser-gateway/cdp.js:706:33)
+      at async BrowserGateway.execute (/private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/packages/browser-gateway/index.js:141:20) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for locator('#late').first() to be visible" ]
+  }

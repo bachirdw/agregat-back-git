@@ -1,0 +1,2 @@
+Preparing worktree (detached HEAD 1413b34)
+HEAD is now at 1413b34 Brief audit-seek-01 (audit indépendant de seek-apply-01) ; Codex sur gpt-6-sol, 5 h d'attente après limite

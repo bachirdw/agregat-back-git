@@ -1,0 +1,37 @@
+(node:22338) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final (4413.916542ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4835.713333
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:477:1
+✖ formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final (4413.916542ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /employer questions/. Input:
+  
+  '- heading "Choose documents" [level=1]\n' +
+    '- button "Choose File"\n' +
+    `- radio "Don't include a cover letter" [checked]\n` +
+    "- text: Don't include a cover letter\n" +
+    '- button "Continue"'
+  
+      at fill (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:510:14)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:520:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `- heading "Choose documents" [level=1]\n- button "Choose File"\n- radio "Don't include a cover letter" [checked]\n- text: Don't include a cover letter\n- button "Continue"`,
+    expected: /employer questions/,
+    operator: 'match',
+    diff: 'simple'
+  }

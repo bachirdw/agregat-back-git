@@ -427,8 +427,8 @@ async function multiStepSite(t) {
   await new Promise((r) => stats.listen(0, r));
   const statsOrigin = `http://localhost:${stats.address().port}`;
   const steps = [
-    `<form><h1>Choose documents</h1><input type="file" id="cv"><label><input type="radio" name="cl" id="nocl"> Don't include a cover letter</label><button type="submit" id="next">Continue</button></form>`,
-    `<form><h1>Answer employer questions</h1><select id="years"><option>1</option><option>3</option></select><label><input type="radio" name="rights" id="rights"> Working holiday</label><input id="why" oninput="save()"><button type="submit" id="next">Continue</button></form>`,
+    `<form><h1>Choose documents</h1><input type="file" id="cv"><label><input type="radio" name="cl" id="nocl"> Don't include a cover letter</label><button type="submit" id="next"><span>Continue</span></button></form>`,
+    `<form><h1>Answer employer questions</h1><select id="years"><option>1</option><option>3</option></select><label><input type="radio" name="rights" id="rights"> Working holiday</label><input id="why" oninput="save()"><button type="submit" id="next"><span>Continue</span></button></form>`,
     `<form><h1>Review and submit</h1><input type="hidden" name="csrf" value="FICTIF-csrf-123"><button type="submit" id="submit">Submit application</button></form>`,
   ];
   const site = http.createServer((req, res) => {
@@ -506,11 +506,11 @@ test(
       assert.equal(first.loading, false);
       await gateway.call('browser.upload', { selector: '#cv', path: 'cv.pdf' });
       await gateway.call('browser.click', { selector: '#nocl' });
-      await gateway.call('browser.click', { selector: '#next' });
+      await gateway.call('browser.click', { selector: '#next span' });
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /employer questions/);
       await gateway.call('browser.click', { selector: '#rights' });
       await gateway.call('browser.type', { selector: '#why', text: 'FICTIF motivation' });
-      await gateway.call('browser.click', { selector: '#next' });
+      await gateway.call('browser.click', { selector: '#next span' });
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /Review and submit/);
       // Stats keep posting in the background; none of it may reach the approval queue.
       await new Promise((r) => setTimeout(r, 1000));
@@ -565,5 +565,41 @@ test(
     await provider.context.close();
     const third = await gateway.call('browser.navigate', { url: fixture.origin });
     assert.equal(third.title, 'FICTIF JS actif');
+  },
+);
+
+test(
+  'propriétaire FICTIF : garde d’envoi réinstallée après reconnexion, refus sans POST',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const fixture = await site(t);
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const approvals = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-reconnect-guard',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [fixture.origin],
+      }),
+      approve: async (request) => {
+        approvals.push(request);
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: fixture.origin });
+    const oldContext = provider.context;
+    assert.equal(oldContext.listenerCount('page'), 1);
+    await oldContext.close();
+    await gateway.call('browser.navigate', { url: fixture.origin });
+    assert.notEqual(provider.context, oldContext);
+    assert.equal(oldContext.listenerCount('page'), 0);
+    assert.equal(provider.context.listenerCount('page'), 1);
+    await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
+    assert.equal(approvals.length, 1);
+    assert.equal(approvals[0].actionClass, 'send');
+    assert.equal(fixture.posts(), 0);
   },
 );

@@ -1,0 +1,56 @@
+(node:21981) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ chargement différé FICTIF : snapshot et extract attendent le formulaire
+  ✖ browser.snapshot (482.206709ms)
+  ✖ browser.extract (24.846125ms)
+✖ chargement différé FICTIF : snapshot et extract attendent le formulaire (677.740333ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1085.262125
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:297:15
+✖ browser.snapshot (482.206709ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /FICTIF Nom/. Input:
+  
+  '- alert: Loading\n- main:\n  - progressbar "Loading"'
+  
+      at TestContext.<anonymous> (file:///private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/tests/owner-browser.test.js:304:16)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async TestContext.<anonymous> (file:///private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/tests/owner-browser.test.js:297:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '- alert: Loading\n- main:\n  - progressbar "Loading"',
+    expected: /FICTIF Nom/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/owner-browser.test.js:297:15
+✖ browser.extract (24.846125ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /FICTIF Nom/. Input:
+  
+  'Loading'
+  
+      at TestContext.<anonymous> (file:///private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/tests/owner-browser.test.js:304:16)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async TestContext.<anonymous> (file:///private/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/audit-seek-01.YpK9nD/tests/owner-browser.test.js:297:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Loading',
+    expected: /FICTIF Nom/,
+    operator: 'match',
+    diff: 'simple'
+  }

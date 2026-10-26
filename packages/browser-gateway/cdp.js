@@ -638,20 +638,24 @@ export class CdpBrowser {
     if (!this.page) return null;
     const handle = this.page.locator(selector).first();
     if (!(await handle.count())) return null;
-    return handle.evaluate((el) => ({
-      tag: el.tagName.toLowerCase(),
-      inputType: el.tagName === 'INPUT' ? el.type : null,
-      buttonType: el.tagName === 'BUTTON' ? el.type : null,
-      inForm: !!el.form,
-      formAction: el.form?.getAttribute('action') ?? null,
-      text: (el.innerText ?? '').slice(0, 200),
-      ariaLabel: el.getAttribute('aria-label'),
-      // Values may contain passwords, card numbers or private data even on text inputs.
-      value: null,
-      href: el.getAttribute('href'),
-      target: el.getAttribute('target'),
-      autocomplete: el.getAttribute('autocomplete'),
-    }));
+    return handle.evaluate((el) => {
+      const control = el.closest('button, a, [role="button"]') ?? el;
+      const form = control.form ?? control.closest('form');
+      return {
+        tag: control.tagName.toLowerCase(),
+        inputType: control.tagName === 'INPUT' ? control.type : null,
+        buttonType: control.tagName === 'BUTTON' ? control.type : null,
+        inForm: !!form,
+        formAction: form?.getAttribute('action') ?? null,
+        text: (control.innerText ?? '').slice(0, 200),
+        ariaLabel: control.getAttribute('aria-label'),
+        // Values may contain passwords, card numbers or private data even on text inputs.
+        value: null,
+        href: control.getAttribute('href'),
+        target: control.getAttribute('target'),
+        autocomplete: control.getAttribute('autocomplete'),
+      };
+    });
   }
   async submissionPreview(selector) {
     if (!this.page) return null;

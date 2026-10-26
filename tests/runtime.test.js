@@ -708,3 +708,14 @@ test('sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du
     if (child && alive(child)) process.kill(child, 'SIGKILL');
   }
 });
+
+test('modèle courant annoncé : accepté même absent des options de changement', async () => {
+  const r = new AcpRuntime({ definition: { id: 'fixture', safeModes: [] }, cwd: temporary() });
+  r.models = { current: 'courant-vérifié-FICTIF', options: [{ id: 'autre-FICTIF' }] };
+  r.request = () => {
+    throw new Error('Aucun changement requis');
+  };
+  assert.equal(await r.selectModel('courant-vérifié-FICTIF'), 'courant-vérifié-FICTIF');
+  await assert.rejects(r.selectModel('imaginaire-FICTIF'), /non annoncé/);
+  r.close();
+});

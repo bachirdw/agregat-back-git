@@ -1,0 +1,41 @@
+id: career-ops
+name: Candidatures — compatible career-ops
+version: 0.1.0
+description: Espace privé, CV et profil, recherche et évaluation Gemini, brouillons et envois approuvés un par un.
+keywords:
+  [
+    career-ops,
+    trouve des offres,
+    évalue cette offre,
+    evalue cette offre,
+    postule,
+    candidature,
+    cv joint,
+  ]
+skills: []
+workflow:
+  id: career-agent
+  title: Accompagner la recherche et les candidatures
+  steps:
+    - tool: career_read
+      title: Lire le CV et le profil privés
+    - tool: jobs_search_live
+      title: Rechercher des offres sourcées
+    - tool: career_offer_save
+      title: Évaluer avec Gemini et enregistrer le rapport A–H
+    - tool: email_send
+      title: Préparer puis soumettre chaque envoi à validation
+policies:
+  network:
+    allowedHosts: [www.arbeitnow.com, remotive.com, www.gov.uk, assets.publishing.service.gov.uk]
+  browser:
+    capabilities:
+      [
+        browser.navigate,
+        browser.snapshot,
+        browser.extract,
+        browser.click,
+        browser.type,
+        browser.upload,
+        browser.download,
+      ]

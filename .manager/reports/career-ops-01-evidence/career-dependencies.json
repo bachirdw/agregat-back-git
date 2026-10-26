@@ -1,0 +1,27 @@
+[
+  {
+    "name": "@google/generative-ai",
+    "version": "0.24.1",
+    "license": "Apache-2.0"
+  },
+  {
+    "name": "dotenv",
+    "version": "18.0.9",
+    "license": "BSD-2-Clause"
+  },
+  {
+    "name": "js-yaml",
+    "version": "5.5.0",
+    "license": "MIT"
+  },
+  {
+    "name": "playwright",
+    "version": "1.64.1",
+    "license": "Apache-2.0"
+  },
+  {
+    "name": "undici",
+    "version": "6.29.1",
+    "license": "MIT"
+  }
+]

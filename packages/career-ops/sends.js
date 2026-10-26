@@ -1,7 +1,9 @@
+import { openSync, closeSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
-import { readConfined, writeConfined } from '../policy-engine/files.js';
+import { readConfined, writeConfined, safeDirectory } from '../policy-engine/files.js';
 
 const address = z
   .string()
@@ -127,7 +129,19 @@ export class EmailGateway {
       if (approved !== true || signal?.aborted) throw new Error('Envoi refusé ou annulé');
       await this.meter('tool_call', 1);
       if (signal?.aborted) throw new Error('Envoi annulé');
-      writeConfined(root, journal, JSON.stringify({ hash, state: 'uncertain' }));
+      safeDirectory(root, 'outbox');
+      let reservation;
+      try {
+        reservation = openSync(resolve(root, journal), 'wx', 0o600);
+      } catch (e) {
+        if (e.code === 'EEXIST') throw new Error('Identifiant déjà réservé par un autre envoi');
+        throw e;
+      }
+      try {
+        writeFileSync(reservation, JSON.stringify({ hash, state: 'uncertain' }));
+      } finally {
+        closeSync(reservation);
+      }
       const { from, ...config } = this.config;
       const transport = this.transportFactory(config);
       try {

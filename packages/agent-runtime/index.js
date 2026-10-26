@@ -263,7 +263,7 @@ export class AcpRuntime {
     return modeId;
   }
   async selectModel(value) {
-    if (!value) return this.models?.current ?? null;
+    if (!value || value === this.models?.current) return this.models?.current ?? null;
     if (!this.models.options.some((m) => m.id === value))
       throw new Error('Modèle non annoncé par le runtime ; laisser vide pour sa valeur par défaut');
     if (this.models.source === 'configOptions')

@@ -67,7 +67,7 @@ export class CareerWorkspace {
       throw new Error('Espace hors périmètre');
     return actual;
   }
-  async upload(bytes, rawName, type) {
+  async upload(bytes, rawName, type, { updateCv = true } = {}) {
     const root = this.path();
     if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX_FILE_BYTES)
       throw new Error('Taille de fichier invalide (maximum 10 Mo)');
@@ -104,7 +104,7 @@ export class CareerWorkspace {
     const item = { id, name, size: bytes.length, type };
     writeConfined(root, `inputs/${id}.md`, text);
     writeConfined(root, `inputs/${id}.json`, JSON.stringify(item));
-    writeConfined(root, 'cv.md', text);
+    if (updateCv) writeConfined(root, 'cv.md', text);
     return item;
   }
   attachments(ids) {

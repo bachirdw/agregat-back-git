@@ -355,12 +355,17 @@ export class CdpBrowser {
       // one-use grant; a scripted POST after an ordinary click cannot bypass the send queue.
       this.ownerSendGuard = async (route) => {
         const request = route.request();
+        try {
+          if (!this.#pages.has(request.frame().page())) return route.fallback();
+        } catch {
+          return route.abort('blockedbyclient');
+        }
         if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
         const host = new URL(request.url()).hostname;
         if (/(^|\.)linkedin\.com$/.test(host)) return route.abort('blockedbyclient');
         const body = request.postData() ?? '';
-        if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         const granted = this.sendGrant === true;
+        if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
         const approved =
           granted ||

@@ -31,3 +31,15 @@ Sans configuration, résultat `{sent:false, draft:UUID, composeUrl, manualSendOn
 le brouillon reste dans `drafts/` de l’espace externe et l’UI propose l’ouverture de Gmail
 prérempli. Les pièces jointes doivent y être ajoutées manuellement. Aucun message n’est envoyé
 par l’ouverture de cette URL.
+
+`GET /api/career/pending` → `{pending: [{id, runId, tool, options, actionClass, expiresAt}]}` :
+file globale des envois encore en mémoire, mêmes décisions ponctuelles via `/api/permissions/:id`.
+`GET /api/career/drafts` → `{drafts: [{id,to,subject,text,attachments,state}]}` ; état `draft`,
+`sent` ou `uncertain`. N’afficher l’ouverture Gmail que pour `draft` ; ne jamais relancer un état
+incertain automatiquement. Deux processus MCP concurrents ne peuvent réserver le même ID (création atomique).
+L’outil `career_document` transforme un document de `output/` en pièce jointe MD ou PDF locale,
+renvoie `{id,name,size,type}` utilisable dans `email_send` ; il préserve le `cv.md` source.
+
+L’outil `linkedin_draft` ouvre automatiquement le profil/conversation via la passerelle navigateur
+si elle est disponible ; sinon le lien reste utilisable manuellement. Le texte n’est jamais saisi
+dans LinkedIn par l’agent. L’interface affiche le brouillon et un bouton de copie.

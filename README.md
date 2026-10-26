@@ -53,7 +53,7 @@ sont également des opérations réelles, à exécuter séparément avec le budg
 
 Le serveur sélectionne les **CLI utilisateur hors node_modules**. Le chemin est fixé via `CODEX_PATH` / `CLAUDE_CODE_EXECUTABLE` pour les adaptateurs upstream. Aucun changement d'authentification n'est effectué. La détection n'est pas une garantie d'authentification : le handshake réel et le prompt restent décisifs.
 
-Codex est placé en mode ACP `read-only`, Claude en `default`, si ces modes sont annoncés ; sinon le run échoue. Les demandes de permission ACP sont affichées pour décision ponctuelle, expirent après 60 s et sont annulées avec le run. Les capacités fs/terminal du client sont désactivées. **Cela ne constitue pas une isolation OS** des outils natifs/hooks/configurations du CLI : n'exposer ce serveur ni à Internet ni à des utilisateurs/tâches non fiables. Aucun outil d'e-mail ou de candidature n'est fourni.
+Codex est placé en mode ACP `read-only`, Claude en `default`, si ces modes sont annoncés ; sinon le run échoue. Les demandes de permission ACP sont affichées pour décision ponctuelle, expirent après 60 s et sont annulées avec le run. Les capacités fs/terminal du client sont désactivées. **Cela ne constitue pas une isolation OS** des outils natifs/hooks/configurations du CLI : n'exposer ce serveur ni à Internet ni à des utilisateurs/tâches non fiables. Le pack compatible career-ops ajoute des envois SMTP et des soumissions navigateur avec accord ponctuel obligatoire (voir ci-dessous).
 
 Le champ modèle accepte uniquement un identifiant annoncé par la session (`configOptions` ou `models`, selon le runtime). Laisser vide pour le défaut fournisseur ; les options annoncées apparaissent dans les événements de session et le rapport `docs/research/live-probe.json`. Pas de modèle ou de prix inventé.
 
@@ -107,16 +107,16 @@ AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_BROWSER=playwri
 ```
 
 Active les exceptions locales décrites dans [ADR 008](docs/adr/008-local-owner-mode.md) : tous les domaines publics HTTP/HTTPS, JavaScript actif, clics, saisie et
-formulaires **sans approbation**, permissions ACP auto-approuvées, budget non bloquant (le ledger continue
+préparation de formulaires automatique ; **chaque envoi/soumission exige un accord ponctuel**, permissions ACP ordinaires auto-approuvées, budget non bloquant (le ledger continue
 d'enregistrer). Le navigateur est le Chrome de l'utilisateur via l'extension Playwriter, à travers un proxy CDP
 local qui ne laisse passer que les onglets créés par la plateforme (les onglets existants ne sont pas touchés) ;
 si l'établissement initial du proxy échoue, tente Chrome isolé et signale le repli dans les résultats.
-Ce repli ne partage pas les sessions utilisateur. Hors pack Najah, un workflow absent ou `auto` choisit
+Ce repli ne partage pas les sessions utilisateur. Hors packs Najah et career-ops, un workflow absent ou `auto` choisit
 le parcours `browser-agent` (session ACP, pas un DAG durable), quel que soit le texte du prompt. Refusé si le serveur n'écoute pas uniquement sur 127.0.0.1 ; bandeau visible dans l'interface.
 **Risque assumé** : une page web hostile peut tenter de détourner l'agent (injection de prompt), qui agit alors
 sans confirmation. Ne pas utiliser ce mode pour plusieurs utilisateurs.
 
-Les gardes réseau Chrome sont désactivées dans ce mode : les contrôles d'URL à l'entrée des outils ne
+Un contrôle des requêtes HTTP d’écriture est imposé dans les onglets contrôlés, indépendamment du mode propriétaire. Les gardes réseau générales restent relâchées dans ce mode : les contrôles d'URL à l'entrée des outils ne
 filtrent pas toutes les ressources, redirections, workers ou WebSockets d'une page. Les modes ACP deviennent
 plus permissifs parmi les modes annoncés (Codex `workspace-write`, Claude `bypassPermissions` en priorité,
 Gemini `yolo` en priorité, OpenCode `build`). Les prix plateforme sont neutralisés ; les coûts fournisseur
@@ -248,3 +248,75 @@ Données locales : `.data/platform.sqlite` (runs, événements, Skills, ledger),
 
 Les licences des dépendances restent celles de leurs auteurs ; voir [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Le code de ce prototype n'a pas reçu de licence publique au nom du propriétaire.
 # agr-gateur_agent_back
+
+
+## Candidatures compatibles career-ops
+
+Le clone complet du projet tiers reste dans `~/Downloads/agregat-career-ops` ; son code est MIT,
+sa marque est réservée. Relay est le nom du produit. Révision revue :
+`2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af`. Installation initiale :
+
+```sh
+git clone https://github.com/career-ops-hq/career-ops "$HOME/Downloads/agregat-career-ops"
+git -C "$HOME/Downloads/agregat-career-ops" checkout 2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af
+cd "$HOME/Downloads/agregat-career-ops"
+# Cette révision amont ne livre pas de lockfile : en créer un localement.
+npm install --package-lock-only --ignore-scripts
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --ignore-scripts
+npm run doctor
+```
+
+Le doctor signale les données personnelles à fournir (CV, profil, ciblage, portails) et Chromium absent.
+Relay utilise le Chrome système pour ses PDF et formulaires ; aucun téléchargement Chromium nécessaire.
+`pdftotext` est requis pour PDF ; `textutil` de macOS pour DOCX. Depuis le dépôt Relay :
+
+```sh
+node scripts/setup-career-ops.js  # quarantaine, revue technique du routeur connu, activation
+sh scripts/start-career-ops.sh   # http://127.0.0.1:4310
+```
+
+Le lanceur charge la clé Gemini de `.manager/secrets.env` sans l’afficher. Modèle validé :
+`gemini-3.1-flash-lite`. Le moins cher annoncé, 2.5 Flash-Lite, a renvoyé 404 au test minimal ;
+3.1 a réellement répondu. [Tarifs officiels Google](https://ai.google.dev/gemini-api/docs/pricing.md),
+vérifiés le 26/10/2026. Aucun appel de modèle au démarrage. Le mode carrière borne la session à 15 tours ;
+le budget fournisseur reste distinct du budget plateforme.
+
+Dans « Candidatures », déposer le CV (PDF/DOCX/MD/TXT), puis éditer le profil YAML si nécessaire.
+Choisir **Gemini**, pack **Candidatures**, puis demander par exemple « trouve des offres Python en Australie »
+ou « évalue cette offre [URL] ». Auto route également « postule ». Le CV est converti localement en
+`cv.md` ; les CV adaptés et lettres restent dans `output/` et peuvent devenir des PDF ou pièces jointes
+avec `career_document`, sans remplacer le CV original. Les modes amont sont disponibles dans le clone,
+mais les commandes de shell arbitraires, extensions et hooks ne sont pas exposés à l’agent.
+
+Un run réel envoie au modèle Gemini le CV/profil/offre nécessaires à son travail. SMTP transmet le texte
+et les pièces jointes **uniquement après “Approuver l’envoi” pour ce message** ; un formulaire est soumis
+après une décision distincte avec aperçu des champs et pièces jointes. Refus, expiration ou annulation
+empêchent l’action. Les confirmations restent imposées en mode propriétaire. Une transmission incertaine
+n’est jamais relancée automatiquement. Sans SMTP configuré, Relay conserve un brouillon et propose Gmail
+prérempli. LinkedIn : brouillon, ouverture du profil/conversation dans Chrome et copie du texte ;
+l’utilisateur effectue lui-même l’envoi, sans saisie ni clic automatisés par Relay.
+
+Variables SMTP saisies par l’utilisateur : `CAREER_SMTP_HOST`, `CAREER_SMTP_PORT`, `CAREER_SMTP_FROM`,
+`CAREER_SMTP_USER`, `CAREER_SMTP_PASSWORD`. TLS obligatoire hors serveur fictif `127.0.0.1`.
+Ne mettre aucune donnée personnelle dans le dépôt Relay : documents, profils, résultats détaillés et
+conversations Gemini résident dans le clone externe ; les aperçus privés ne sont pas persistés dans SQLite.
+
+Tests hors ligne (aucun modèle ni envoi réel) :
+
+```sh
+node --test tests/career-workspace.test.js tests/career-integration.test.js tests/career-sends.test.js
+node --test tests/e2e-ui.test.js  # Chrome isolé, CV et formulaires FICTIFS
+npm test && npm run check && npm run format:check
+```
+
+Le test réel manuel séparé `node --env-file-if-exists=.manager/secrets.env scripts/career-live-smoke.js`
+fait seulement handshake/session. `--api` ajoute un unique prompt REST de quelques mots, sortie ≤30 tokens,
+avec contrôle du cumul puis écriture dans `.manager/api-usage.md` (les tests courants ne l’exécutent jamais).
+Contrats : [pièces jointes](docs/api-attachments.md), [envois](docs/api-sends.md),
+[parcours et résultats privés](docs/api-career-ops.md).
+
+Validé : dépôt/conversion réels locaux, API Gemini minimale, session ACP, parcours UI/ACP/MCP avec faux agent,
+SMTP fictif et formulaires Chrome fictifs. Aucune candidature, aucun email ni message LinkedIn réel n’a été
+envoyé pour cette intégration. La qualité d’une recherche et d’une évaluation Gemini complète dépend du CV,
+du profil et des sources ; elle n’est pas prétendue validée par le smoke “OK”. Les portails privés,
+CAPTCHA et formats scannés sans texte nécessitent une intervention de l’utilisateur.

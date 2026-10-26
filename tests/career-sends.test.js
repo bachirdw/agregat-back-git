@@ -187,7 +187,8 @@ test('Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn blo
   provider.submissionPreview = async () => ({ fields: [randomUUID()] });
   await assert.rejects(gateway.call('browser.click', { selector: '#apply' }), /modifié/);
   provider.url = 'https://www.linkedin.com/in/fictif/';
-  await assert.rejects(gateway.call('browser.click', { selector: '#apply' }));
+  provider.pages[provider.url] = provider.pages[url];
+  await assert.rejects(gateway.call('browser.click', { selector: '#apply' }), /LinkedIn/);
   assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 1);
   assert.equal(linkedInDraft({ url: provider.url, text: 'Message FICTIF' }).manualSendOnly, true);
   for (const url of [
@@ -228,4 +229,71 @@ test('Pont : envoi obligatoire même propriétaire, aperçu absent du journal pe
   app.engine.active.get(id).abort.abort();
   assert.deepEqual(await second, { approved: false });
   assert.equal(app.engine.permissions.size, 0);
+});
+
+test('API propriétaire → deux MCP → SMTP FICTIF : refus puis course interprocessus, un seul message', async (t) => {
+  const { connectMcp } = await import('../packages/mcp-gateway/client.js');
+  const { getPack } = await import('../packages/orchestrator/packs.js');
+  const career = fixture(t),
+    { messages, config } = await smtp(t);
+  const app = createApp({ dataDir: join(career.root, 'platform'), career, ownerMode: true });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const run = {
+    id: randomUUID(),
+    state: 'running',
+    budgetCents: 0,
+    cwd: career.root,
+    workspace: 'career-ops',
+  };
+  app.store.create(run);
+  app.engine.active.set(run.id, { abort: new AbortController() });
+  const definition = app.engine.mcpServerFor(run, getPack('career-ops'));
+  definition.env.push(
+    ...Object.entries({
+      CAREER_SMTP_HOST: '127.0.0.1',
+      CAREER_SMTP_PORT: config.port,
+      CAREER_SMTP_FROM: config.from,
+    }).map(([name, value]) => ({ name, value: String(value) })),
+  );
+  const clients = await Promise.all([connectMcp(definition), connectMcp(definition)]);
+  t.after(async () => {
+    await Promise.all(clients.map((c) => c.close()));
+    app.engine.active.delete(run.id);
+    await app.close();
+  });
+  const draft = email();
+  const wait = async (count) => {
+    for (let i = 0; i < 500 && app.engine.permissions.size !== count; i++)
+      await new Promise((r) => setTimeout(r, 10));
+    assert.equal(app.engine.permissions.size, count);
+  };
+  const denied = clients[0].callTool({ name: 'email_send', arguments: draft });
+  await wait(1);
+  app.engine.decide([...app.engine.permissions.keys()][0], 'deny');
+  assert.equal((await denied).isError, true);
+  assert.equal(messages.length, 0);
+  const attempts = clients.map((client) =>
+    client.callTool({ name: 'email_send', arguments: draft }),
+  );
+  await wait(2);
+  const pending = await (
+    await fetch(`http://127.0.0.1:${app.server.address().port}/api/career/pending`)
+  ).json();
+  assert.equal(pending.pending.length, 2);
+  for (const request of pending.pending) {
+    const response = await fetch(
+      `http://127.0.0.1:${app.server.address().port}/api/permissions/${request.id}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+        body: JSON.stringify({ optionId: 'allow' }),
+      },
+    );
+    assert.equal(response.status, 200);
+  }
+  const results = await Promise.all(attempts);
+  assert.equal(results.filter((r) => r.isError).length, 1);
+  assert.equal(messages.length, 1);
+  assert.equal((await clients[0].callTool({ name: 'email_send', arguments: draft })).isError, true);
+  assert.equal(messages.length, 1);
 });

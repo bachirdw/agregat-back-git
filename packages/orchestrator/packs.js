@@ -37,7 +37,7 @@ const schema = z.object({
     ),
   }),
 });
-export const packs = ['core', 'najah'].map((id) => {
+export const packs = ['core', 'najah', 'career-ops'].map((id) => {
   const pack = schema.parse(
     parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8')),
   );
@@ -83,7 +83,15 @@ export function getDag(pack, id) {
 export function getPack(id, objective = '') {
   const p =
     id === 'auto'
-      ? (packs.find((p) => p.keywords.some((k) => objective.toLowerCase().includes(k))) ?? packs[0])
+      ? (packs.find(
+          (p) =>
+            p.id === 'career-ops' &&
+            /career-ops|trouve des offres|[ée]value cette offre|postule|candidature|cv joint/i.test(
+              objective,
+            ),
+        ) ??
+        packs.find((p) => p.keywords.some((k) => objective.toLowerCase().includes(k))) ??
+        packs[0])
       : packs.find((p) => p.id === id);
   if (!p) throw new Error('Domain Pack inconnu');
   return p;

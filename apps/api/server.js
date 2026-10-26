@@ -1,4 +1,7 @@
+import { readConfined } from '../../packages/policy-engine/files.js';
+import { linkedInDraft } from '../../packages/career-ops/sends.js';
 import http from 'node:http';
+import { CareerTools } from '../../packages/career-ops/tools.js';
 import { CareerWorkspace, MAX_FILE_BYTES } from '../../packages/career-ops/workspace.js';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -78,6 +81,12 @@ export function createApp({
   const json = (res, status, data) => {
     res.writeHead(status, { 'content-type': 'application/json' });
     res.end(JSON.stringify(data));
+  };
+  const assertCareerIdle = () => {
+    if ([...engine.active.keys()].some((id) => store.get(id)?.workspace === 'career-ops'))
+      throw new Error(
+        'Une mission privée est active ; terminer ou annuler avant de modifier ses entrées',
+      );
   };
   const server = http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -207,9 +216,42 @@ export function createApp({
               .map(({ finish, ...p }) => p),
           });
       }
+      const privateResult = path.match(/^\/api\/career\/runs\/([a-f0-9-]{36})\/result$/);
+      if (req.method === 'GET' && privateResult) {
+        const run = store.get(privateResult[1]);
+        if (!run || run.workspace !== 'career-ops' || run.state !== 'completed')
+          return json(res, 404, { error: 'Résultat privé indisponible' });
+        return json(
+          res,
+          200,
+          JSON.parse(readConfined(career.path(), `relay/runs/${run.id}-result.json`, 2000000)),
+        );
+      }
+      if (req.method === 'GET' && path === '/api/career/pending')
+        return json(res, 200, {
+          pending: [...engine.permissions.values()]
+            .filter((p) => p.actionClass === 'send')
+            .map(({ finish, ...p }) => p),
+        });
+      if (req.method === 'GET' && path === '/api/career/offers')
+        return json(res, 200, { opportunities: new CareerTools(career).offers() });
+      if (req.method === 'GET' && path === '/api/career/drafts')
+        return json(res, 200, { drafts: new CareerTools(career).drafts() });
+      if (req.method === 'GET' && path === '/api/career/linkedin') {
+        let draft = null;
+        try {
+          draft = linkedInDraft(
+            JSON.parse(readConfined(career.path(), 'relay/linkedin.json', 100000)),
+          );
+        } catch (e) {
+          if (e.code !== 'ENOENT') throw e;
+        }
+        return json(res, 200, { draft });
+      }
       if (req.method === 'GET' && path === '/api/career/profile')
         return json(res, 200, { profile: career.profile() });
       if (req.method === 'POST' && path === '/api/files') {
+        assertCareerIdle();
         if (req.headers['x-platform-request'] !== '1')
           return json(res, 403, { error: 'En-tête applicatif requis' });
         let size = 0;
@@ -239,7 +281,7 @@ export function createApp({
       let size = 0;
       for await (const chunk of req) {
         size += chunk.length;
-        if (size > (ownerMode && path.startsWith('/api/internal/evidence/') ? 300000 : 32768))
+        if (size > (/^\/api\/internal\/(evidence|approvals)\//.test(path) ? 300000 : 32768))
           throw new Error('Requête trop volumineuse');
         chunks.push(chunk);
       }
@@ -251,6 +293,7 @@ export function createApp({
       }
       const body = JSON.parse(raw || '{}');
       if (path === '/api/career/profile') {
+        assertCareerIdle();
         career.profile(body.profile);
         return json(res, 200, { ok: true });
       }
@@ -287,6 +330,8 @@ export function createApp({
               agent: old.agent,
               pack: old.pack,
               skills: old.skills,
+              attachments: old.attachments ?? [],
+              ...(old.workspace ? { workspace: old.workspace } : {}),
               model: old.model,
               budgetCents: old.budgetCents,
             },
@@ -341,7 +386,7 @@ export function createApp({
           engine.active.get(id).abort.signal.aborted
         )
           throw new Error('Journal navigateur non autorisé');
-        store.event(id, 'browser_evidence', body);
+        if (store.get(id)?.workspace !== 'career-ops') store.event(id, 'browser_evidence', body);
         return json(res, 200, { ok: true });
       }
       const usage = path.match(/^\/api\/internal\/usage\/([a-f0-9-]{36})$/);

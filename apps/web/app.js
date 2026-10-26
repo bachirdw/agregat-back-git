@@ -1,4 +1,6 @@
 const $ = (id) => document.getElementById(id);
+let attachmentIds = [],
+  uploadingCv = false;
 let catalog,
   planned,
   current,
@@ -44,7 +46,9 @@ async function api(path, body) {
   return data;
 }
 function input() {
+  if (uploadingCv) throw new Error('Attendez la fin du dépôt du CV');
   return {
+    ...(attachmentIds.length ? { attachments: [...attachmentIds], workspace: 'career-ops' } : {}),
     prompt: $('prompt').value,
     agent: $('agent').value,
     pack: $('pack').value,
@@ -439,6 +443,16 @@ function usageTable(usage, ledger) {
 }
 function renderResult(run) {
   $('result').replaceChildren();
+  if (run.workspace === 'career-ops' && run.state === 'completed')
+    api('/career/runs/' + run.id + '/result')
+      .then((result) => {
+        if (current !== run.id) return;
+        document.getElementById('career-private-summary')?.remove();
+        const summary = element('p', result.summary);
+        summary.id = 'career-private-summary';
+        $('result').prepend(summary);
+      })
+      .catch(error);
   if (run.error) $('result').append(element('p', run.error));
   if (run.result) {
     const prov = run.result.provenance;
@@ -562,7 +576,10 @@ async function openRun(id) {
       if (e.type === 'state') {
         $('run-state').textContent = labels[e.data.state] ?? e.data.state;
       }
-      if (e.type === 'permission') permission(e.data);
+      if (e.type === 'permission') {
+        permission(e.data);
+        refreshCareerPending().catch(error);
+      }
       if (e.type === 'budget_exceeded') error(new Error(e.data.reason + ' : exécution arrêtée'));
       if (e.type === 'workflow' && !workflowSteps.length) {
         workflowSteps = e.data.steps;
@@ -582,6 +599,7 @@ async function openRun(id) {
         const latest = await api('/runs/' + id);
         if (!isCurrent()) return;
         renderResult(latest);
+        if (latest.workspace === 'career-ops') await refreshCareer();
         await history();
       } catch (e) {
         if (isCurrent()) error(e);
@@ -637,3 +655,175 @@ for (const id of ['prompt', 'agent', 'pack', 'model', 'mode-select', 'workflow-s
     modeNote();
   });
 load().catch(error);
+
+function careerMode() {
+  $('pack').value = 'career-ops';
+  $('mode-select').value = 'agent';
+  if (catalog?.live) $('agent').value = 'gemini';
+  invalidate();
+  modeNote();
+}
+$('career-file').onchange = async () => {
+  const file = $('career-file').files[0];
+  if (!file) return;
+  invalidate();
+  uploadingCv = true;
+  $('career-upload-status').textContent = 'Conversion locale du CV…';
+  try {
+    if (!file.size || file.size > 10 * 1024 * 1024) throw new Error('CV vide ou supérieur à 10 Mo');
+    const extension = file.name.split('.').pop().toLowerCase();
+    const types = {
+      pdf: 'application/pdf',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      md: 'text/markdown',
+      txt: 'text/plain',
+    };
+    if (!types[extension]) throw new Error('Format du CV refusé');
+    const response = await fetch('/api/files', {
+      method: 'POST',
+      headers: {
+        'x-platform-request': '1',
+        'x-file-name': encodeURIComponent(file.name),
+        'content-type': types[extension],
+      },
+      body: file,
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    attachmentIds = [result.id];
+    $('career-upload-status').textContent =
+      `${result.name} joint et converti localement en cv.md (${result.size} octets).`;
+    careerMode();
+  } catch (e) {
+    $('career-upload-status').textContent = 'Le dépôt a échoué.';
+    error(e);
+  } finally {
+    uploadingCv = false;
+  }
+};
+$('career-clear').onclick = () => {
+  attachmentIds = [];
+  $('career-file').value = '';
+  $('career-upload-status').textContent =
+    'Aucun CV joint à cette mission. Le CV enregistré reste dans votre espace privé.';
+  invalidate();
+};
+$('career-profile-load').onclick = async () => {
+  try {
+    $('career-profile').value = (await api('/career/profile')).profile;
+  } catch (e) {
+    error(e);
+  }
+};
+$('career-profile-save').onclick = async () => {
+  try {
+    await api('/career/profile', { profile: $('career-profile').value });
+    $('career-profile-status').textContent = 'Profil enregistré dans votre espace privé.';
+    invalidate();
+  } catch (e) {
+    error(e);
+  }
+};
+function externalLink(url, label) {
+  const link = element('a', label);
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  return link;
+}
+async function refreshCareer() {
+  await refreshCareerPending();
+  const [offers, drafts, linkedin] = await Promise.all([
+    api('/career/offers'),
+    api('/career/drafts'),
+    api('/career/linkedin'),
+  ]);
+  $('career-offers').replaceChildren(element('h3', 'Offres trouvées et évaluées'));
+  if (!offers.opportunities.length)
+    $('career-offers').append(element('p', 'Aucune offre enregistrée.'));
+  for (const offer of offers.opportunities) {
+    const row = element('article', undefined, 'opportunity');
+    row.append(
+      element('h4', `${offer.title} · ${offer.company}`),
+      element(
+        'p',
+        `${offer.score === null ? 'Non évaluée' : offer.score + '/5'} · ${offer.simulated ? 'Données fictives' : 'Source publique citée'}`,
+      ),
+    );
+    row.append(externalLink(offer.url, 'Consulter la source'), element('p', offer.source));
+    if (offer.report) {
+      const details = element('details');
+      details.append(element('summary', 'Rapport A–H'));
+      for (const [key, text] of Object.entries(offer.report))
+        details.append(element('h4', key), element('p', text));
+      row.append(details);
+    }
+    $('career-offers').append(row);
+  }
+  $('career-drafts').replaceChildren(element('h3', 'Brouillons d’email'));
+  for (const draft of drafts.drafts) {
+    const row = element('details');
+    row.append(element('summary', `${draft.subject} → ${draft.to}`), element('pre', draft.text));
+    const url =
+      'https://mail.google.com/mail/?' +
+      new URLSearchParams({
+        view: 'cm',
+        fs: '1',
+        to: draft.to,
+        su: draft.subject,
+        body: draft.text,
+      });
+    if (draft.state === 'draft')
+      row.append(externalLink(url, 'Ouvrir la rédaction Gmail (envoi manuel)'));
+    row.append(
+      element('p', `État SMTP : ${draft.state}`),
+      element(
+        'p',
+        'Les envois SMTP attendent leur approbation dans la mission. Vérifiez le suivi avant de renvoyer un brouillon.',
+      ),
+    );
+    $('career-drafts').append(row);
+  }
+  $('career-linkedin').replaceChildren(element('h3', 'LinkedIn · envoi manuel'));
+  if (linkedin.draft) {
+    const draft = linkedin.draft;
+    $('career-linkedin').append(
+      element('pre', draft.text),
+      externalLink(draft.url, 'Ouvrir le profil ou la conversation dans Chrome'),
+    );
+    const copy = element('button', 'Copier le texte', 'secondary');
+    copy.type = 'button';
+    copy.onclick = () => navigator.clipboard.writeText(draft.text).catch(error);
+    $('career-linkedin').append(copy);
+  }
+}
+$('career-refresh').onclick = () => refreshCareer().catch(error);
+
+async function refreshCareerPending() {
+  const queue = await api('/career/pending');
+  $('career-pending').replaceChildren(element('h3', 'Envois en attente de votre accord'));
+  if (!queue.pending.length) $('career-pending').append(element('p', 'Aucun envoi en attente.'));
+  for (const item of queue.pending) {
+    const row = element('article', undefined, 'permission');
+    row.append(
+      element('strong', item.tool?.title ?? 'Envoi'),
+      element('pre', JSON.stringify(item.tool?.rawInput ?? {}, null, 2)),
+    );
+    for (const option of item.options) {
+      const button = element('button', option.name, 'secondary');
+      button.type = 'button';
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          await api('/permissions/' + item.id, { optionId: option.optionId });
+          row.remove();
+        } catch (e) {
+          error(e);
+          button.disabled = false;
+        }
+      };
+      row.append(button);
+    }
+    $('career-pending').append(row);
+  }
+}

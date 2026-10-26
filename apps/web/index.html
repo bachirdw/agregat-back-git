@@ -17,7 +17,8 @@
       </div>
       <nav>
         <a href="#mission" class="selected">◫ &nbsp; Nouvelle mission</a
-        ><a href="#history">◷ &nbsp; Historique</a><a href="#skills">▧ &nbsp; Skills</a>
+        ><a href="#career">▤ &nbsp; Candidatures</a><a href="#history">◷ &nbsp; Historique</a
+        ><a href="#skills">▧ &nbsp; Skills</a>
       </nav>
       <div class="sidebar-bottom">
         <span class="status-dot"></span> Companion local<small>Vos agents. Vos connexions.</small
@@ -36,6 +37,46 @@
       </section>
       <div class="layout">
         <section>
+          <section class="panel composer" id="career">
+            <h2>Candidatures · espace privé</h2>
+            <p>
+              Joignez votre CV, puis demandez une recherche ou une évaluation. Chaque envoi attend
+              votre accord ; LinkedIn reste manuel.
+            </p>
+            <label
+              >CV (PDF, DOCX, Markdown ou texte, 10 Mo maximum)
+              <input id="career-file" type="file" accept=".pdf,.docx,.md,.txt" />
+            </label>
+            <p id="career-upload-status" role="status">Aucun CV joint à cette mission.</p>
+            <button type="button" id="career-clear" class="secondary">
+              Retirer la pièce jointe de la mission
+            </button>
+            <details>
+              <summary>Profil et ciblage</summary>
+              <button type="button" id="career-profile-load" class="secondary">
+                Charger le profil
+              </button>
+              <label
+                >Profil YAML privé<textarea
+                  id="career-profile"
+                  maxlength="24000"
+                  placeholder="language:
+  output: fr"
+                ></textarea>
+              </label>
+              <button type="button" id="career-profile-save" class="secondary">
+                Enregistrer le profil
+              </button>
+              <p id="career-profile-status" role="status"></p>
+            </details>
+            <button type="button" id="career-refresh" class="secondary">
+              Actualiser offres et brouillons
+            </button>
+            <div id="career-pending" aria-live="polite"></div>
+            <div id="career-offers" aria-live="polite"></div>
+            <div id="career-drafts"></div>
+            <div id="career-linkedin"></div>
+          </section>
           <form id="mission-form" class="panel composer">
             <div class="section-title">
               <h2>Votre prochaine mission</h2>

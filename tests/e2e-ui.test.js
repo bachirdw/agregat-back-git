@@ -10,9 +10,9 @@ const CHROME =
   process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const temporary = () => mkdtempSync(join(tmpdir(), 'relay-e2e-'));
 
-async function open(t) {
+async function open(t, options = {}) {
   const { chromium } = await import('playwright-core');
-  const app = createApp({ dataDir: temporary() });
+  const app = createApp({ dataDir: temporary(), ...options });
   let browser;
   t.after(async () => {
     try {
@@ -177,5 +177,133 @@ test(
     assert.equal(await page.locator('#plan-panel').isHidden(), true);
     assert.equal(app.store.list().length, 0);
     assert.deepEqual(errors, []);
+  },
+);
+
+test(
+  'E2E candidature FICTIVE : CV, profil, ACP/MCP, notes A–H, LinkedIn manuel et file d’envoi',
+  { skip: !existsSync(CHROME) && 'Chrome absent' },
+  async (t) => {
+    const { realpathSync, mkdirSync, writeFileSync, readFileSync, rmSync } = await import(
+      'node:fs'
+    );
+    const { resolve } = await import('node:path');
+    const { randomUUID } = await import('node:crypto');
+    const { CareerWorkspace } = await import('../packages/career-ops/workspace.js');
+    const { reviewCareer } = await import('../packages/career-ops/integration.js');
+    const root = realpathSync(temporary());
+    mkdirSync(join(root, '.agents/skills/career-ops'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents/skills/career-ops/SKILL.md'),
+      '---\nname: career-ops\ndescription: Test FICTIF\nlicense: MIT\n---\n# FICTIF\n',
+    );
+    const career = new CareerWorkspace({ root, roots: [root] });
+    const { app, page, errors } = await open(t, { career });
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    reviewCareer(career, app.skills);
+    const plan = app.engine.plan.bind(app.engine);
+    app.engine.plan = async (...args) => {
+      const result = await plan(...args);
+      result.agent = { ...result.agent, args: [resolve('tests/fixtures/career-agent.js')] };
+      return result;
+    };
+    await page.locator('#career-file').setInputFiles({
+      name: 'CV FICTIF.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from('# CV FICTIF é <script>window.FICTIF=1</script>'),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#career-upload-status').textContent.includes('converti'),
+    );
+    assert.equal(await page.locator('#pack').inputValue(), 'career-ops');
+    assert.equal(await page.locator('#mode-select').inputValue(), 'agent');
+    await page.locator('#career details summary').first().click();
+    await page.locator('#career-profile').fill('language:\n  output: fr\nname: Candidat FICTIF');
+    await page.locator('#career-profile-save').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#career-profile-status').textContent.includes('enregistré'),
+    );
+    assert.match(readFileSync(join(root, 'config/profile.yml'), 'utf8'), /FICTIF/);
+    await page.locator('#prompt').fill('évalue cette offre FICTIVE');
+    await page.locator('#plan-button').click();
+    await page.locator('#launch').click();
+    await page.waitForFunction(
+      () => document.querySelector('#run-state').textContent === 'Terminée',
+      { timeout: 20000 },
+    );
+    await page.waitForFunction(() =>
+      document.querySelector('#career-offers').textContent.includes('4/5'),
+    );
+    assert.match(await page.locator('#career-offers').textContent(), /Rapport A–H/);
+    assert.equal(await page.evaluate(() => window.FICTIF), undefined);
+    assert.match(
+      await page.locator('#career-linkedin a').getAttribute('href'),
+      /^https:\/\/www.linkedin.com\/in\/fictif/,
+    );
+    assert.equal(await page.locator('#career-linkedin button').textContent(), 'Copier le texte');
+    const id = randomUUID();
+    app.store.create({ id, state: 'running', budgetCents: 0 });
+    app.engine.active.set(id, { abort: new AbortController() });
+    app.engine.approvalTokens.set(id, 'FICTIF');
+    const pending = app.engine.gatewayApproval(id, 'FICTIF', {
+      capability: 'email.send',
+      actionClass: 'send',
+      args: { to: 'fictif@example.test', text: 'APERÇU FICTIF' },
+    });
+    await page.locator('#career-refresh').click();
+    await page.locator('#career-pending button', { hasText: 'Approuver l’envoi' }).click();
+    assert.deepEqual(await pending, { approved: true });
+    app.engine.active.delete(id);
+    assert.deepEqual(errors, []);
+  },
+);
+
+test(
+  'PDF FICTIF local et DOCX importé : conversion réelle, pièce jointe adaptée et CV source intact',
+  { skip: !existsSync(CHROME) && 'Chrome absent' },
+  async (t) => {
+    const { CareerWorkspace } = await import('../packages/career-ops/workspace.js');
+    const { attachDocument } = await import('../packages/career-ops/documents.js');
+    const { realpathSync, mkdirSync, writeFileSync, readFileSync, rmSync } = await import(
+      'node:fs'
+    );
+    const { execFileSync } = await import('node:child_process');
+    const root = realpathSync(temporary());
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const career = new CareerWorkspace({ root, roots: [root] });
+    await career.upload(Buffer.from('# CV SOURCE FICTIF'), 'original.md', 'text/markdown');
+    mkdirSync(join(root, 'output'));
+    writeFileSync(
+      join(root, 'output/adapted.md'),
+      '# CV ADAPTED FICTIF\nPython SQL\n<script>FICTIF texte uniquement</script>',
+    );
+    const attached = await attachDocument(career, {
+      path: 'output/adapted.md',
+      format: 'pdf',
+      name: 'CV FICTIF',
+    });
+    assert.equal(attached.type, 'application/pdf');
+    assert.match(
+      readFileSync(career.attachments([attached.id])[0].markdownPath, 'utf8'),
+      /ADAPTED FICTIF/,
+    );
+    assert.match(readFileSync(join(root, 'cv.md'), 'utf8'), /SOURCE FICTIF/);
+    await assert.rejects(attachDocument(career, { path: '../cv.md' }), /output/);
+    if (existsSync('/usr/bin/textutil')) {
+      writeFileSync(join(root, 'source.txt'), 'CV DOCX FICTIF é');
+      execFileSync('/usr/bin/textutil', [
+        '-convert',
+        'docx',
+        '-output',
+        join(root, 'cv.docx'),
+        join(root, 'source.txt'),
+      ]);
+      await career.upload(
+        readFileSync(join(root, 'cv.docx')),
+        'CV.docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      );
+      assert.match(readFileSync(join(root, 'cv.md'), 'utf8'), /DOCX FICTIF é/);
+    }
   },
 );

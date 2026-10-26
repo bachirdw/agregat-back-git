@@ -1,3 +1,5 @@
+import { CareerWorkspace } from '../career-ops/workspace.js';
+import { registerCareerTools } from '../career-ops/tools.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -71,6 +73,7 @@ server.registerTool = (name, definition, handler) =>
     }
   });
 
+let browserGateway = null;
 if (mode === 'fixture') {
   server.registerTool(
     'browser_snapshot',
@@ -96,6 +99,7 @@ if (mode === 'fixture') {
         })
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
   const gateway = new BrowserGateway({ provider, policy, approve, meter });
+  browserGateway = gateway;
   for (const cap of describeCapabilities('browser')) {
     if (!policy.capabilities.has(cap.id)) continue; // only granted capabilities are even listed
     server.registerTool(
@@ -140,6 +144,18 @@ server.registerTool(
   },
   async ({ text: value }) => text({ text: value, verified: false }),
 );
+if (pack.id === 'career-ops') {
+  const root = process.env.RELAY_CAREER_WORKSPACE;
+  if (!root) throw new Error('Espace career-ops requis');
+  registerCareerTools(server, {
+    career: new CareerWorkspace({ root, roots: [root] }),
+    approve,
+    meter,
+    openProfile: browserGateway
+      ? (url) => browserGateway.call('browser.navigate', { url })
+      : undefined,
+  });
+}
 if (pack.id !== 'core') {
   const plugin = await import(new URL(`../../domain-packs/${pack.id}/index.js`, import.meta.url));
   plugin.register(server);

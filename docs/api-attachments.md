@@ -42,3 +42,8 @@ une conversion OCR préalable par l’utilisateur. Les utilitaires manquants pro
 `GET /api/career/profile` → `{profile: string}` (YAML, vide avant configuration).
 `POST /api/career/profile` avec `{profile: string}` → `{ok: true}` ; maximum 24 000 octets,
 objet YAML requis, alias interdits. Stockage dans `config/profile.yml`, jamais dans le dépôt applicatif.
+
+Les pièces jointes orientent le run vers le pack compatible career-ops et son espace privé. Le mode
+`agent` est imposé pour ce pack ; les autres Skills ne peuvent pas y être exportés. Son Skill tiers
+passe par le registre (quarantaine, revue technique liée à une empreinte, activation) ; toute
+modification du routeur natif ou des paramètres de confinement bloque les nouveaux runs.

@@ -819,15 +819,22 @@ export class CdpBrowser {
                 cause: error,
               });
             const marker = `__gatewayClick_${randomUUID().replaceAll('-', '')}`;
-            let delivered = false;
-            const onConsole = (message) => {
-              if (message.type() === 'debug' && message.text() === marker) delivered = true;
+            let navigated = false;
+            const onNavigation = (frame) => {
+              if (frame === page.mainFrame()) navigated = true;
             };
-            page.on('console', onConsole);
+            page.on('framenavigated', onNavigation);
             const observed = async () => {
               const deadline = Date.now() + 1000;
               do {
-                if (delivered) return true;
+                if (navigated) return true;
+                try {
+                  if (await page.evaluate((key) => window[key] === true, marker)) return true;
+                } catch {
+                  // The click may have replaced the document before the flag could be read.
+                  // An uncertain result must never cause a second, possibly final, click.
+                  return true;
+                }
                 if (Date.now() >= deadline) return false;
                 await new Promise((resolve) => setTimeout(resolve, 20));
               } while (true);
@@ -835,10 +842,11 @@ export class CdpBrowser {
             try {
               await target.evaluate((el, key) => {
                 const listener = (event) => {
-                  if (event.composedPath().includes(el)) console.debug(key);
+                  if (event.composedPath().includes(el)) window[key] = true;
                 };
                 window.addEventListener('click', listener, true);
-                window[key] = listener;
+                window[key] = false;
+                window[`${key}Listener`] = listener;
               }, marker);
               try {
                 await target.click({ force: true, timeout: this.navigationTimeoutMs });
@@ -856,12 +864,13 @@ export class CdpBrowser {
                 clickMode = 'dom-hidden-tab';
               }
             } finally {
-              page.off('console', onConsole);
+              page.off('framenavigated', onNavigation);
               await target
                 .evaluate((_el, key) => {
-                  const listener = window[key];
+                  const listener = window[`${key}Listener`];
                   if (listener) {
                     window.removeEventListener('click', listener, true);
+                    delete window[`${key}Listener`];
                     delete window[key];
                   }
                 }, marker)

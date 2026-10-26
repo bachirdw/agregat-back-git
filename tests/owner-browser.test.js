@@ -75,11 +75,17 @@ test(
     const clicked = await gateway.call('browser.click', { selector: '#moving' });
     assert.equal(clicked.clickMode, 'forced');
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    await provider.page.evaluate(() => {
+      console.debug = () => {};
+    });
+    const silent = await gateway.call('browser.click', { selector: '#moving' });
+    assert.equal(silent.clickMode, 'forced');
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'block';
     });
     await assert.rejects(gateway.call('browser.click', { selector: '#covered' }), /masqué par div/);
-    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'none';
     });
@@ -113,7 +119,7 @@ test(
       /Clic non délivré à la page/,
     );
     provider.page.locator = realLocator;
-    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
   },
 );
 

@@ -153,7 +153,7 @@ test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refu
   assert.equal(run.cwd, root);
   assert.equal(run.mode, 'agent');
   assert.doesNotMatch(JSON.stringify(run), /DONNÉE_PRIVÉE/);
-  for (let i = 0; i < 300 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
+  for (let i = 0; i < 1500 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
     await new Promise((r) => setTimeout(r, 20));
   const done = app.store.get(run.id);
   assert.equal(done.state, 'completed', done.error);
@@ -325,7 +325,7 @@ test('Réponse en texte libre (questions intake) : mission réussie, texte en r�
       }),
     })
   ).json();
-  for (let i = 0; i < 300 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
+  for (let i = 0; i < 1500 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
     await new Promise((r) => setTimeout(r, 20));
   assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
   const result = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
@@ -362,7 +362,7 @@ test('Modèle choisi dans l’interface : appliqué à la mission career-ops (en
       }),
     })
   ).json();
-  for (let i = 0; i < 300 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
+  for (let i = 0; i < 1500 && !['completed', 'failed'].includes(app.store.get(run.id).state); i++)
     await new Promise((r) => setTimeout(r, 20));
   assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
   assert.equal(app.store.get(run.id).model, 'gemini-FICTIF-capable');

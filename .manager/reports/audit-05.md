@@ -71,3 +71,18 @@
 - **Incomplet dans ce bac à sable** : phase Chrome de `npm test` rouge (75 échecs dus au lancement `SIGABRT`/`kill EPERM`) ; contrôle du manager hors bac à sable requis.
 - **Prévu / à arbitrer** : contrôle cumulatif dans `live-probe.js`, découplage career-ops du cœur, extension géographique de Najah et validation commerciale.
 - Aucun fichier de la bibliothèque career-ops ni du clone de référence n'a été modifié. Aucun serveur, envoi, candidature ou appel payant lancé.
+
+## Contrôle du manager (Claude) — 28/10, 05:46
+- Diff relu (`6e03af3`) : `publishedAt()` renvoie `null` sur une date source invalide au lieu de lever et de perdre
+  tout le lot ; changement minimal. Pas d'appel réel, pas de modification de career-ops (bibliothèque).
+- Vrai test : `najah-live.test.js` sur l'ancien `live.js` → 1 échec ; corrigé → vert.
+- Copie figée `1f5539c`, 05:43:00 → 05:44:38, Chrome réel : fichiers `api*`, `najah*`, `career*`, `live*`, `platform`,
+  `e2e*`, `security*`, `owner-mode`, `server*` → 102/104. Les 2 échecs (`career-integration.test.js:300,336`, état
+  `running` au lieu de `completed`) sont des **tests fragiles** : budget d'attente fixe de 6 s (300 × 20 ms), dépassé
+  sous charge (Codex lançait sa suite en parallèle) ; ce sont les mêmes échecs que pendant la veille. Fichier seul :
+  13/13. **Corrigé par le manager** : budget porté à 30 s pour les 3 boucles du fichier (sortie dès l'état final),
+  13/13, prettier vert.
+- Profondeur : ~3 700 lignes lues d'après le journal (API, Najah, career-ops côté plateforme, scripts).
+
+**Verdict** : audit-05 VALIDÉ. Restent ouverts : `scripts/live-probe.js` sans contrôle de plafond avant appel
+(n° 2, élevée — à régler avant tout usage de `LIVE_PROMPT=1`), couplage career-ops de l'orchestrateur (n° 3).

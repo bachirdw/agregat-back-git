@@ -19,6 +19,9 @@ reportée, suppression libre de notre code, une étape à la fois).
   absent du snapshot : sélecteur ou sélecteur de fichier Playwright `files.ts`) ; message zod « Invalid input »
   remplacé par un message français sur `type`/`upload` ; actions `fill`/`press`/`selectOption`/`check`/
   `setInputFiles` en onglet caché avec effet observé (amendement 3).
+- **Audit indépendant de l'étape 1** (`reports/audit-reuse-01a-claude.md`, `e2add40`) : aucun défaut grave ; constats
+  affectés à `reuse-01b` (n° 1–4, 6–8, 11a ; le n° 8 casse les refs à chaque `replaceState`, important pour Seek)
+  et `reuse-01c` (n° 5, 10–13). À arbitrer plus tard (sécurité reportée) : n° 9, 14, 15.
 - **Utilisateur à distance** : ne pas l'interrompre pour des détails ; Codex doit toujours avancer ; questions en
   texte libre, jamais bloquantes (mémoire `never-block-codex-on-questions`).
 

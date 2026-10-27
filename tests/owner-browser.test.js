@@ -593,19 +593,27 @@ test(
       (await gateway.call('browser.extract', { selector: 'li', limit: 20, maxChars: 6 })).text,
       'FICTIF',
     );
-    await gateway.call('browser.type', { selector: '#query', text: 'FICTIF résultat recherché' });
+    await gateway.call('browser.type', {
+      ref: await refFor(gateway, '#query'),
+      text: 'FICTIF résultat recherché',
+    });
     assert.equal((await clickRef(gateway, '#go')).clickMode, 'mouse');
     assert.equal(
       (await gateway.call('browser.extract', { selector: 'p' })).text,
       'FICTIF résultat recherché',
     );
     writeFileSync(join(workspace, 'upload.txt'), 'FICTIF fichier');
-    await gateway.call('browser.upload', { selector: '#file', path: 'upload.txt' });
+    await gateway.call('browser.upload', {
+      ref: await refFor(gateway, '#file'),
+      path: 'upload.txt',
+    });
     assert.equal(
       await provider.page.locator('#file').evaluate((el) => el.files[0].name),
       'upload.txt',
     );
-    const download = await gateway.call('browser.download', { selector: '#download' });
+    const download = await gateway.call('browser.download', {
+      ref: await refFor(gateway, '#download'),
+    });
     assert.equal(
       readFileSync(join(workspace, 'downloads', download.file), 'utf8'),
       'FICTIF téléchargement',
@@ -1093,12 +1101,15 @@ test(
       const first = await gateway.call('browser.snapshot', {});
       assert.match(first.snapshot, /Choose documents/);
       assert.equal(first.loading, false);
-      await gateway.call('browser.upload', { selector: '#cv', path: 'cv.pdf' });
+      await gateway.call('browser.upload', { ref: await refFor(gateway, '#cv'), path: 'cv.pdf' });
       await clickRef(gateway, '#nocl');
       await clickRef(gateway, '#next');
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /employer questions/);
       await clickRef(gateway, '#rights');
-      await gateway.call('browser.type', { selector: '#why', text: 'FICTIF motivation' });
+      await gateway.call('browser.type', {
+        ref: await refFor(gateway, '#why'),
+        text: 'FICTIF motivation',
+      });
       await clickRef(gateway, '#next');
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /Review and submit/);
       // Stats keep posting in the background; none of it may reach the approval queue.

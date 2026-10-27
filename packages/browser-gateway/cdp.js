@@ -52,9 +52,23 @@ export function isGraphqlRead(body) {
     return false;
   }
 }
-function refMissing(ref) {
-  return new Error(`Référence ${ref} introuvable dans la page actuelle : reprends un snapshot.`);
+function refMissing(ref, cause) {
+  return new Error(`Référence ${ref} introuvable dans la page actuelle : reprends un snapshot.`, {
+    cause,
+  });
 }
+// Refs are read only from the snapshot structure: quoted names and text after `: ` are page
+// content, and a page could print a fake `[ref=eN]` there.
+export function snapshotRefs(snapshot) {
+  const refs = new Set();
+  for (const line of snapshot.split('\n')) {
+    const head = line.replace(/"(?:[^"\\]|\\.)*"/g, '""').split(': ')[0];
+    const ref = head.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    if (ref) refs.add(ref);
+  }
+  return refs;
+}
+
 // Split identifier boundaries before applying policy words: SubmitApplication and
 // applyFilters contain actions; Application alone does not. Ignore URL host/query.
 function hasSensitiveWord(value) {
@@ -701,7 +715,7 @@ export class CdpBrowser {
   async targetLocator(target) {
     if (typeof target === 'string') return this.page.locator(target).first();
     const { ref } = target;
-    const missing = () => refMissing(ref);
+    const missing = (cause) => refMissing(ref, cause);
     // Playwright alone refuses a ref from an older document or a detached node; a same-document
     // URL rewrite (SPA router, analytics replaceState) keeps the nodes and therefore the refs.
     if (!this.page || !this.snapshotRefs?.has(ref)) throw missing();
@@ -714,9 +728,10 @@ export class CdpBrowser {
       if (
         error.message?.includes(`No element matching aria-ref=${ref}`) ||
         error.message?.includes(`Unable to generate locator for aria-ref=${ref}`) ||
-        error.message?.includes(`Invalid frame in aria-ref selector "aria-ref=${ref}"`)
+        error.message?.includes(`Invalid frame in aria-ref selector "aria-ref=${ref}"`) ||
+        error.message?.includes('Frame was detached')
       )
-        throw missing();
+        throw missing(error);
       throw error;
     }
   }
@@ -726,7 +741,6 @@ export class CdpBrowser {
       return null;
     }
     const handle = await this.targetLocator(target);
-    if (!(await handle.count())) return null;
     return handle.evaluate((el) => {
       const field = el.matches('input, select, textarea, option, label');
       const control = field ? el : (el.closest('button, a, [role="button"]') ?? el);
@@ -780,20 +794,26 @@ export class CdpBrowser {
     const hit = await target.evaluate((el) => {
       el.scrollIntoView({ block: 'center', inline: 'center' });
       const box = el.getBoundingClientRect();
-      const point = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      // Playwriter draws its toolbar and ghost cursor over the agent tab: not page content, and
+      // the DOM action targets the element itself, so they never block it.
+      const point = document
+        .elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+        .find((n) => !n.closest('[data-playwriter-toolbar], #__playwriter_ghost_cursor__'));
       return {
         reachable: !!point && (point === el || el.contains(point)),
         covering: point?.tagName.toLowerCase() ?? 'aucun élément',
+        // Only the main document's load is awaited; a frame navigation is not.
         mayNavigate:
-          (el instanceof HTMLAnchorElement &&
+          window === window.top &&
+          ((el instanceof HTMLAnchorElement &&
             /^https?:$/.test(el.protocol) &&
             !el.hasAttribute('download') &&
             (!el.target || el.target === '_self') &&
             el.href.split('#')[0] !== location.href.split('#')[0]) ||
-          ((el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
-            (el.type === 'submit' || el.type === 'image') &&
-            !!el.form &&
-            (!el.form.target || el.form.target === '_self')),
+            ((el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
+              (el.type === 'submit' || el.type === 'image') &&
+              !!el.form &&
+              (!el.form.target || el.form.target === '_self'))),
       };
     });
     if (!hit.reachable)
@@ -913,9 +933,7 @@ export class CdpBrowser {
         if (args.url) await goto(args.url);
         const loading = await waitForReadablePage(page);
         const snapshot = await page.ariaSnapshot({ mode: 'ai', timeout: 5000 });
-        this.snapshotRefs = new Set(
-          [...snapshot.matchAll(/\[ref=((?:f\d+)?e\d+)\]/g)].map((match) => match[1]),
-        );
+        this.snapshotRefs = snapshotRefs(snapshot);
         return {
           url: page.url(),
           title: await page.title(),
@@ -1096,17 +1114,86 @@ export class CdpBrowser {
         await this.assertLanded(policy);
         return { url: page.url(), selected };
       }
-      case 'browser.type':
+      case 'browser.type': {
         // Filling a field is not a send; same-site autosave stays automatic.
-        await (
-          await this.targetLocator(args.ref ? { ref: args.ref } : args.selector)
-        ).fill(args.text, { timeout: 10000 });
-        return { url: page.url(), typed: args.text.length };
-      case 'browser.upload':
-        await (
-          await this.targetLocator(args.ref ? { ref: args.ref } : args.selector)
-        ).setInputFiles(args.filePayload ?? args.path, { timeout: 10000 });
-        return { url: page.url(), uploaded: basename(args.path) };
+        // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
+        const target = await this.targetLocator({ ref: args.ref });
+        await target.fill(args.text, { timeout: 10000 });
+        const after = await target.evaluate((el) => ({
+          value: 'value' in el ? String(el.value) : el.textContent,
+          secret: el.type === 'password',
+        }));
+        if (args.text && !after.value)
+          throw new Error('Saisie sans effet : champ vide après saisie');
+        return {
+          url: page.url(),
+          typed: args.text.length,
+          // A mask may reformat the text (phone, date): show it, except for a secret field.
+          ...(after.value !== args.text && !after.secret
+            ? { value: after.value.slice(0, 200) }
+            : {}),
+        };
+      }
+      case 'browser.press': {
+        const target = await this.targetLocator({ ref: args.ref });
+        const hidden = await page.evaluate(() => document.visibilityState === 'hidden');
+        if (!hidden) {
+          await target.press(args.key, { timeout: Math.min(3000, this.navigationTimeoutMs) });
+          return { url: page.url(), key: args.key, mode: 'keyboard', hidden };
+        }
+        // A hidden tab drops CDP keyboard input silently: dispatch DOM events for page scripts.
+        // Browser default actions (text edit, focus move, implicit submission) are not reproduced,
+        // which is why the registry allows no Enter, Space or Tab.
+        const handled = await target.evaluate((el, key) => {
+          el.focus();
+          const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
+          const down = new KeyboardEvent('keydown', init);
+          el.dispatchEvent(down);
+          el.dispatchEvent(new KeyboardEvent('keyup', init));
+          return down.defaultPrevented;
+        }, args.key);
+        return { url: page.url(), key: args.key, mode: 'dom', hidden, handled };
+      }
+      case 'browser.upload': {
+        const target = await this.targetLocator({ ref: args.ref });
+        const files = args.filePayload ?? args.path;
+        const kind = await target.evaluate((el) => ({
+          fileInput: el instanceof HTMLInputElement && el.type === 'file',
+          submits:
+            (el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
+            (el.type === 'submit' || el.type === 'image') &&
+            !!el.form,
+        }));
+        let field = target;
+        if (!kind.fileInput) {
+          // Upload buttons open a file chooser; a submit button would send the form instead.
+          if (kind.submits)
+            throw new Error(
+              'Upload refusé : ce bouton soumet le formulaire ; choisis le champ ou le bouton « Joindre »',
+            );
+          const chooser = page.waitForEvent('filechooser', {
+            timeout: Math.min(5000, this.navigationTimeoutMs),
+          });
+          chooser.catch(() => {});
+          await this.#domClick(target, page, null);
+          let opened;
+          try {
+            opened = await chooser;
+          } catch (error) {
+            throw new Error('Aucun sélecteur de fichier ouvert par cet élément', { cause: error });
+          }
+          await opened.setFiles(files, { timeout: 10000 });
+          field = opened.element();
+        } else await target.setInputFiles(files, { timeout: 10000 });
+        const names = await field.evaluate((el) => Array.from(el.files ?? [], (f) => f.name));
+        const expected = typeof files === 'string' ? basename(files) : files.name;
+        if (!names.includes(expected)) throw new Error('Fichier absent du champ après upload');
+        return {
+          url: page.url(),
+          uploaded: basename(args.path),
+          via: kind.fileInput ? 'input' : 'chooser',
+        };
+      }
       case 'browser.download': {
         const root = realpathSync(policy.workspace);
         const dir = resolve(root, 'downloads');
@@ -1119,7 +1206,7 @@ export class CdpBrowser {
         // chrome.debugger forbids download-directory settings. Fetch ordinary download links
         // with the context's HTTP client instead, preserving its session without global settings.
         if (this.ownerConnection) {
-          const href = await page.locator(args.selector).first().getAttribute('href');
+          const href = await (await this.targetLocator({ ref: args.ref })).getAttribute('href');
           if (!href)
             throw new Error('Playwriter : un lien HTTP/HTTPS est requis pour le téléchargement');
           let url = new URL(href, page.url()).href;
@@ -1164,6 +1251,8 @@ export class CdpBrowser {
           }
           throw new Error('Trop de redirections de téléchargement');
         }
+        // Resolve before waiting for the event: a stale ref must not leave a pending wait.
+        const link = await this.targetLocator({ ref: args.ref });
         let download;
         let finished = false;
         const incoming = page.waitForEvent('download', { timeout: 15000 }).then(async (value) => {
@@ -1179,10 +1268,7 @@ export class CdpBrowser {
           this.formStep = false;
           this.writeInProgress = true;
           try {
-            await Promise.all([
-              incoming,
-              page.locator(args.selector).first().click({ timeout: 10000 }),
-            ]);
+            await Promise.all([incoming, link.click({ timeout: 10000 })]);
           } finally {
             this.writeInProgress = false;
           }

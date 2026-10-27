@@ -52,17 +52,18 @@ for (const scenario of [
               release = r;
             })
           : download,
-      locator: () => ({
-        first: () => ({
-          click: async () => {
-            if (scenario.endsWith('click-error')) throw new Error('FICTIF clic refusé');
-          },
-        }),
+      getByRef: () => ({
+        normalize: async () => {},
+        count: async () => 1,
+        click: async () => {
+          if (scenario.endsWith('click-error')) throw new Error('FICTIF clic refusé');
+        },
       }),
     };
     const provider = new CdpBrowser({ launch: {} });
     provider.page = page;
     provider.ensure = async () => page;
+    provider.snapshotRefs = new Set(['e1']);
     t.after(async () => {
       await provider.close();
       rmSync(root, { recursive: true, force: true });
@@ -73,7 +74,7 @@ for (const scenario of [
       resolveHost: async () => ['1.1.1.1'],
       maxDownloadBytes: scenario === 'oversized' ? 1 : 100,
     });
-    const result = provider.perform('browser.download', { selector: '#fictif' }, policy);
+    const result = provider.perform('browser.download', { ref: 'e1' }, policy);
     if (scenario === 'success') {
       assert.equal((await result).bytes, 6);
       assert.equal(readFileSync(join(root, 'downloads', 'fictif.txt'), 'utf8'), 'FICTIF');
@@ -115,17 +116,18 @@ for (const scenario of ['success', 'click-error', 'event-timeout']) {
         if (scenario === 'event-timeout') throw new Error('FICTIF délai');
         return download;
       },
-      locator: () => ({
-        first: () => ({
-          click: async () => {
-            authorized = provider.writeInProgress;
-            if (scenario === 'click-error') throw new Error('FICTIF clic');
-          },
-        }),
+      getByRef: () => ({
+        normalize: async () => {},
+        count: async () => 1,
+        click: async () => {
+          authorized = provider.writeInProgress;
+          if (scenario === 'click-error') throw new Error('FICTIF clic');
+        },
       }),
     };
     provider.page = page;
     provider.ensure = async () => page;
+    provider.snapshotRefs = new Set(['e1']);
     t.after(async () => {
       await provider.close();
       rmSync(root, { recursive: true, force: true });
@@ -135,7 +137,7 @@ for (const scenario of ['success', 'click-error', 'event-timeout']) {
       allowedDomains: ['downloads.fictif.test'],
       resolveHost: async () => ['1.1.1.1'],
     });
-    const result = provider.perform('browser.download', { selector: '#fictif' }, policy);
+    const result = provider.perform('browser.download', { ref: 'e1' }, policy);
     if (scenario === 'success') await result;
     else await assert.rejects(result, /FICTIF/);
     assert.equal(authorized, true, 'écriture autorisée pendant le clic approuvé');

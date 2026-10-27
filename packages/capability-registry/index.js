@@ -12,9 +12,6 @@ const ref = z
     /^(?:f\d+)?e\d+$/,
     'Référence invalide : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot',
   );
-const oneTarget = 'Fournir exactement une référence ref ou un sélecteur selector';
-const targetBase = z.object({ ref: ref.optional(), selector: selector.optional() });
-const target = targetBase.refine(({ ref, selector }) => !!ref !== !!selector, oneTarget);
 export const capabilities = [
   {
     id: 'browser.navigate',
@@ -48,7 +45,11 @@ export const capabilities = [
         maxChars: z.number().int().min(1).max(50000).default(20000),
       })
       .strict()
-      .refine(({ ref, selector }) => !(ref && selector), 'Fournir ref ou selector, pas les deux'),
+      .refine(({ ref, selector }) => !(ref && selector), 'Fournir ref ou selector, pas les deux')
+      .refine(
+        ({ ref, limit }) => !(ref && limit > 1),
+        'limit > 1 exige un sélecteur CSS : une ref désigne un seul élément',
+      ),
   },
   {
     id: 'browser.click',
@@ -97,11 +98,25 @@ export const capabilities = [
     effect: 'write',
     meter: 'browser_action',
     description:
-      'Saisir du texte dans la référence ref du snapshot ; les champs secrets sont sensibles et jamais journalisés. Sélecteur CSS historique accepté.',
-    schema: targetBase
-      .extend({ text: z.string().max(10000) })
-      .strict()
-      .refine(({ ref, selector }) => !!ref !== !!selector, oneTarget),
+      'Saisir du texte dans le champ ref du snapshot (remplace son contenu) ; value est renvoyé si le site reformate la saisie. Les champs secrets sont sensibles et jamais journalisés.',
+    schema: z.object({ ref, text: z.string().max(10000) }).strict(),
+  },
+  {
+    id: 'browser.press',
+    domain: 'browser',
+    effect: 'write',
+    meter: 'browser_action',
+    description:
+      'Envoyer une touche de navigation (flèches, Échap, Début, Fin) à l’élément ref, par exemple dans une liste d’autocomplétion. Pour valider, clique le bouton ; pour écrire, utilise browser_type.',
+    schema: z
+      .object({
+        ref,
+        key: z.enum(['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Escape', 'Home', 'End'], {
+          error:
+            'Touche non autorisée : ArrowDown, ArrowUp, ArrowLeft, ArrowRight, Escape, Home ou End',
+        }),
+      })
+      .strict(),
   },
   {
     id: 'browser.upload',
@@ -109,19 +124,16 @@ export const capabilities = [
     effect: 'sensitive',
     meter: 'browser_action',
     description:
-      'Joindre un fichier du dossier du run au champ identifié par ref du snapshot. Sélecteur CSS historique accepté.',
-    schema: targetBase
-      .extend({ path: z.string().min(1).max(1000) })
-      .strict()
-      .refine(({ ref, selector }) => !!ref !== !!selector, oneTarget),
+      'Joindre un fichier du dossier du run : ref du champ fichier, ou du bouton « Joindre » qui ouvre le sélecteur de fichier (jamais un bouton d’envoi).',
+    schema: z.object({ ref, path: z.string().min(1).max(1000) }).strict(),
   },
   {
     id: 'browser.download',
     domain: 'browser',
     effect: 'write',
     meter: 'browser_action',
-    description: 'Télécharger le fichier déclenché par un élément dans le dossier du run.',
-    schema: z.object({ selector }).strict(),
+    description: 'Télécharger dans le dossier du run le fichier du lien ref du snapshot.',
+    schema: z.object({ ref }).strict(),
   },
 ];
 export const capabilityIds = capabilities.map((c) => c.id);

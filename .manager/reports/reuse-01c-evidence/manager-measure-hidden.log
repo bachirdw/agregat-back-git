@@ -1,0 +1,10 @@
+{"step":"extension/status","connected":true}
+{"step":"visibility","visibilityState":"hidden"}
+{"name":"fill","ms":85,"error":null,"result":"FICTIF","events":"input:t"}
+{"name":"pressSequentially","ms":17,"error":null,"result":"","events":"change:t"}
+{"name":"press Backspace","ms":9,"error":null,"result":"","events":""}
+{"name":"press Enter","ms":13,"error":null,"result":"voir événements","events":""}
+{"name":"selectOption","ms":11,"error":null,"result":"b","events":"input:s change:s"}
+{"name":"setChecked","ms":3005,"error":"locator.setChecked: Timeout 3000ms exceeded.","result":false,"events":""}
+{"name":"setInputFiles","ms":45,"error":null,"result":"fictif.txt","events":"input:fi change:fi"}
+{"name":"filechooser + clic DOM","ms":30,"error":null,"result":"fictif.txt","events":"input:hid change:hid"}

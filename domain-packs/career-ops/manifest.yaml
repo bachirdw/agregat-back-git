@@ -35,7 +35,10 @@ policies:
         browser.snapshot,
         browser.extract,
         browser.click,
+        browser.check,
+        browser.select,
         browser.type,
+        browser.press,
         browser.upload,
         browser.download,
       ]

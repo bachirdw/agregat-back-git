@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { testPhaseTimeoutMs } from './test-phase-timeout.js';
 const BROWSER = new Set([
   'browser-click-ref.test.js',
+  'browser-type-upload-ref.test.js',
   'browser-select-check.test.js',
   'browser-gateway.test.js',
   'approval-bridge.test.js',

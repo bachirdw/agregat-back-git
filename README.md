@@ -62,7 +62,8 @@ La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seule
 ## Navigateur (Browser Gateway)
 
 Les outils MCP navigateur fournis aux agents exposent des capacités typées (`browser_navigate`, `browser_snapshot`,
-`browser_extract`, `browser_click`, `browser_type`, `browser_upload`, `browser_download`) contrôlées par la
+`browser_extract`, `browser_click`, `browser_check`, `browser_select`, `browser_type`, `browser_press`,
+`browser_upload`, `browser_download`) contrôlées par la
 gateway : domaines autorisés du pack, HTTPS, anti-SSRF, redirections revérifiées, fichiers confinés au
 dossier du run. Toute action d'écriture demande une décision dans l'interface ; les actions sensibles
 (postuler, envoyer, payer, mot de passe, fichier) la demandent toujours. Aucun script arbitraire n'est exposé.

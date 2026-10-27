@@ -64,24 +64,25 @@ export class BrowserGateway {
     if (pageBefore && pageBefore !== 'about:blank') await this.policy.assertUrl(pageBefore);
     let element = null;
     let sensitive = cap.effect === 'sensitive';
-    const target = args.ref ? { ref: args.ref } : args.selector;
+    const target = { ref: args.ref };
     if (
       [
         'browser.click',
         'browser.check',
         'browser.select',
         'browser.type',
+        'browser.press',
         'browser.download',
         'browser.upload',
       ].includes(capabilityId)
     ) {
       element = await this.provider.describe(target);
-      if (!element) throw new Error(`Élément introuvable : ${args.ref ?? args.selector}`);
+      if (!element) throw new Error(`Élément introuvable : ${args.ref}`);
       sensitive ||= this.policy.isSensitiveElement(element);
     }
     if (capabilityId === 'browser.upload') {
-      const target = this.policy.workspacePath(args.path);
-      const real = realpathSync(target); // resolves symlinks: the real file must stay in the run folder
+      const file = this.policy.workspacePath(args.path);
+      const real = realpathSync(file); // resolves symlinks: the real file must stay in the run folder
       const root = realpathSync(this.policy.workspace);
       const rel = relative(root, real);
       if (rel.startsWith('..') || isAbsolute(rel))
@@ -115,10 +116,7 @@ export class BrowserGateway {
           // Typed text of secret fields is never shown or stored.
           args:
             capabilityId === 'browser.type'
-              ? {
-                  ...(args.ref ? { ref: args.ref } : { selector: args.selector }),
-                  textLength: args.text.length,
-                }
+              ? { ref: args.ref, textLength: args.text.length }
               : args,
           page: await this.provider.currentUrl?.(),
         });

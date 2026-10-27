@@ -96,7 +96,7 @@ test('propriétaire : envoi approuvé et saisie automatique ; garde des argument
   });
   await gateway.call('browser.navigate', { url });
   await clickRef(gateway, '#send');
-  await gateway.call('browser.type', { selector: '#password', text: 'FICTIF' });
+  await gateway.call('browser.type', { ref: await refFor(gateway, '#password'), text: 'FICTIF' });
   const result = await gateway.call('browser.extract');
   assert.equal(result.untrusted, true);
   assert.match(result.text, /FICTIF/);
@@ -104,7 +104,7 @@ test('propriétaire : envoi approuvé et saisie automatique ; garde des argument
   assert.equal(metered, 4);
   await assert.rejects(clickRef(gateway, ''));
   await assert.rejects(
-    gateway.call('browser.upload', { selector: '#send', path: '../secret' }),
+    gateway.call('browser.upload', { ref: await refFor(gateway, '#send'), path: '../secret' }),
     /dossier/,
   );
 });

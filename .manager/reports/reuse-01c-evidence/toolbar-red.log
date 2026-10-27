@@ -1,0 +1,20 @@
+✖ Chrome FICTIF : saisie, touche et fichiers par ref, onglet caché SIMULÉ (3773.482541ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3897.210042
+
+✖ failing tests:
+
+test at tests/browser-type-upload-ref.test.js:41:1
+✖ Chrome FICTIF : saisie, touche et fichiers par ref, onglet caché SIMULÉ (3773.482541ms)
+  Error: Clic impossible : élément masqué par div
+      at #domClick (file:///private/tmp/claude-501/-Users-diaw-Downloads-agregat-back/62314d27-478e-4cd9-88a7-f1034dbdd55d/scratchpad/wt-red/packages/browser-gateway/cdp.js:818:13)
+      at async CdpBrowser.perform (file:///private/tmp/claude-501/-Users-diaw-Downloads-agregat-back/62314d27-478e-4cd9-88a7-f1034dbdd55d/scratchpad/wt-red/packages/browser-gateway/cdp.js:1176:11)
+      at async BrowserGateway.execute (file:///private/tmp/claude-501/-Users-diaw-Downloads-agregat-back/62314d27-478e-4cd9-88a7-f1034dbdd55d/scratchpad/wt-red/packages/browser-gateway/index.js:147:20) {
+    [cause]: null
+  }

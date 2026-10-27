@@ -47,6 +47,7 @@ test('registre : contrats stables, schémas stricts, effets déclarés', () => {
     'browser.check',
     'browser.select',
     'browser.type',
+    'browser.press',
     'browser.upload',
     'browser.download',
   ]);
@@ -240,7 +241,7 @@ test('gateway : clic approuvé exécuté ; texte saisi jamais transmis à l’ap
   const { gw, approvals } = fixtureGateway({ decision: true });
   await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
   assert.equal((await clickRef(gw, '#apply')).done, 'browser.click');
-  await gw.call('browser.type', { selector: '#pw', text: 'motdepasse-secret' });
+  await gw.call('browser.type', { ref: await refFor(gw, '#pw'), text: 'motdepasse-secret' });
   assert.ok(!JSON.stringify(approvals).includes('motdepasse-secret'));
   assert.equal(approvals.at(-1).args.textLength, 17);
   assert.equal(approvals.at(-1).sensitive, true);
@@ -275,17 +276,17 @@ test('gateway : upload hors dossier et lien symbolique refusés', async () => {
   const { gw, ws } = fixtureGateway({ decision: true });
   await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
   await assert.rejects(
-    gw.call('browser.upload', { selector: '#file', path: '/etc/hosts' }),
+    gw.call('browser.upload', { ref: await refFor(gw, '#file'), path: '/etc/hosts' }),
     /hors du dossier/,
   );
   symlinkSync('/etc/hosts', join(ws, 'lien'));
   await assert.rejects(
-    gw.call('browser.upload', { selector: '#file', path: 'lien' }),
+    gw.call('browser.upload', { ref: await refFor(gw, '#file'), path: 'lien' }),
     /Lien symbolique/,
   );
   writeFileSync(join(ws, 'cv.txt'), 'cv');
   assert.equal(
-    (await gw.call('browser.upload', { selector: '#file', path: 'cv.txt' })).done,
+    (await gw.call('browser.upload', { ref: await refFor(gw, '#file'), path: 'cv.txt' })).done,
     'browser.upload',
   );
 });
@@ -425,7 +426,7 @@ test(
     trace('navigate:start');
     await gw.call('browser.navigate', { url: origin + '/' });
     trace('navigate:done;type:start');
-    const out = await gw.call('browser.type', { selector: '#pw', text: 'secret-123' });
+    const out = await gw.call('browser.type', { ref: await refFor(gw, '#pw'), text: 'secret-123' });
     trace('type:done');
     assert.equal(out.typed, 10);
     assert.equal(approvals[0].sensitive, true);
@@ -453,11 +454,14 @@ test(
   async (t) => {
     const { gw, origin, ws } = await realGateway(t, { decision: true, maxDownloadBytes: 1000 });
     await gw.call('browser.navigate', { url: origin + '/' });
-    const out = await gw.call('browser.download', { selector: '#dl' });
+    const out = await gw.call('browser.download', { ref: await refFor(gw, '#dl') });
     assert.equal(out.file, 'offre.txt');
-    await assert.rejects(gw.call('browser.download', { selector: '#dl' }), /EEXIST/);
+    await assert.rejects(gw.call('browser.download', { ref: await refFor(gw, '#dl') }), /EEXIST/);
     assert.deepEqual(readdirSync(join(ws, 'downloads')), ['offre.txt']);
-    await assert.rejects(gw.call('browser.download', { selector: '#big' }), /trop volumineux/);
+    await assert.rejects(
+      gw.call('browser.download', { ref: await refFor(gw, '#big') }),
+      /trop volumineux/,
+    );
     assert.deepEqual(readdirSync(join(ws, 'downloads')), ['offre.txt']);
   },
 );
@@ -643,7 +647,7 @@ test('Chrome : téléchargement refuse un dossier symlink', { skip: !hasChrome }
   await gw.call('browser.navigate', { url: origin });
   const outside = temporary();
   symlinkSync(outside, join(ws, 'downloads'));
-  await assert.rejects(gw.call('browser.download', { selector: '#dl' }), /non sûr/);
+  await assert.rejects(gw.call('browser.download', { ref: await refFor(gw, '#dl') }), /non sûr/);
   assert.deepEqual(readdirSync(outside), []);
 });
 
@@ -655,7 +659,7 @@ test('gateway : upload revalidé après consentement et appels sérialisés', as
     symlinkSync('/etc/hosts', join(ws, 'other'));
     return true;
   };
-  const out = await gw.call('browser.upload', { selector: '#file', path: 'cv.txt' });
+  const out = await gw.call('browser.upload', { ref: await refFor(gw, '#file'), path: 'cv.txt' });
   assert.equal(out.done, 'browser.upload');
   const { gw: other, ws: otherWs } = fixtureGateway({ decision: true });
   await other.call('browser.navigate', { url: 'https://jobs.example.com/' });
@@ -666,7 +670,7 @@ test('gateway : upload revalidé après consentement et appels sérialisés', as
     return true;
   };
   await assert.rejects(
-    other.call('browser.upload', { selector: '#file', path: 'cv.txt' }),
+    other.call('browser.upload', { ref: await refFor(other, '#file'), path: 'cv.txt' }),
     /modifié/,
   );
   let active = 0,
@@ -1661,7 +1665,7 @@ test(
   async (t) => {
     const { gw, origin, ws } = await realGateway(t, { decision: true });
     await gw.call('browser.navigate', { url: origin });
-    const result = await gw.call('browser.download', { selector: '#redirect-dl' });
+    const result = await gw.call('browser.download', { ref: await refFor(gw, '#redirect-dl') });
     assert.equal(result.file, 'offre.txt');
     assert.ok(result.bytes > 0);
     assert.deepEqual(readdirSync(join(ws, 'downloads')), ['offre.txt']);
@@ -1706,7 +1710,7 @@ test(
       };
     });
     await assert.rejects(
-      gateway.call('browser.download', { selector: '#data' }),
+      gateway.call('browser.download', { ref: await refFor(gateway, '#data') }),
       /Téléchargement refusé/,
     );
     assert.equal(typeof temporaryPath, 'string', 'temporaire réel capturé avant suppression');
@@ -1765,12 +1769,14 @@ for (const redirect of [0, 303, 307]) {
       const wait = provider.page.waitForEvent.bind(provider.page);
       provider.page.waitForEvent = (name, options) => wait(name, { ...options, timeout: 2000 });
       await assert.rejects(
-        gateway.call('browser.download', { selector: '#report' }),
+        gateway.call('browser.download', { ref: await refFor(gateway, '#report') }),
         /Action refusée/,
       );
       assert.deepEqual(requests, []);
       approved = true;
-      const result = await gateway.call('browser.download', { selector: '#report' });
+      const result = await gateway.call('browser.download', {
+        ref: await refFor(gateway, '#report'),
+      });
       assert.equal(result.file, 'fictif.txt');
       assert.equal(
         readFileSync(join(workspace, 'downloads', result.file), 'utf8'),
@@ -1785,7 +1791,7 @@ for (const redirect of [0, 303, 307]) {
       assert.equal(provider.writeInProgress, false);
       approved = false;
       await assert.rejects(
-        gateway.call('browser.download', { selector: '#report' }),
+        gateway.call('browser.download', { ref: await refFor(gateway, '#report') }),
         /Action refusée/,
       );
       assert.equal(approvals.length, 3);

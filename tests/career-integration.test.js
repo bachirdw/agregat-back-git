@@ -60,6 +60,19 @@ test('Modèle career-ops : choisit l’identifiant annoncé, refuse l’ancien a
   assert.throws(() => selectAnnouncedCareerModel('gemini-3.1-flash-lite', models), /non annoncé/);
 });
 
+test('Plan career-ops : rapport A–G et accord explicite avant tout envoi', () => {
+  const steps = getPack('career-ops').workflow.steps;
+  assert.match(
+    steps.find((step) => step.tool === 'career_offer_save').title,
+    /rapport A–G \(H si la note vaut 5\)/,
+  );
+  assert.match(steps.find((step) => step.tool === 'email_send').title, /aucun envoi sans accord/i);
+  assert.doesNotMatch(
+    steps.find((step) => step.tool === 'email_send').title,
+    /soumettre chaque envoi/i,
+  );
+});
+
 test('Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés', (t) => {
   const { root, tools } = fixture(t);
   tools.write('cv.md', 'CV FICTIF');

@@ -22,9 +22,9 @@ workflow:
     - tool: jobs_search_live
       title: Rechercher des offres sourcées
     - tool: career_offer_save
-      title: Évaluer avec Gemini et enregistrer le rapport A–H
+      title: Évaluer avec Gemini et enregistrer le rapport A–G (H si la note vaut 5)
     - tool: email_send
-      title: Préparer puis soumettre chaque envoi à validation
+      title: Préparer un envoi (aucun envoi sans accord)
 policies:
   network:
     allowedHosts: [www.arbeitnow.com, remotive.com, www.gov.uk, assets.publishing.service.gov.uk]

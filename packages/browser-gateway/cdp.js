@@ -709,8 +709,14 @@ export class CdpBrowser {
       await locator.normalize();
       if (!(await locator.count())) throw missing();
       return locator;
-    } catch {
-      throw missing();
+    } catch (error) {
+      if (
+        error.message?.includes(`No element matching aria-ref=${ref}`) ||
+        error.message?.includes(`Unable to generate locator for aria-ref=${ref}`) ||
+        error.message?.includes(`Invalid frame in aria-ref selector "aria-ref=${ref}"`)
+      )
+        throw missing();
+      throw error;
     }
   }
   trackSnapshotNavigation(page) {

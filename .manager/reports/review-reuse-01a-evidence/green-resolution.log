@@ -1,0 +1,11 @@
+✔ référence : une panne de résolution conserve sa cause réelle (0.880167ms)
+✔ référence : une cible absente demande un nouveau snapshot (0.175208ms)
+✔ référence : erreur Playwright de cible disparue traduite en français (0.151291ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 136.565917

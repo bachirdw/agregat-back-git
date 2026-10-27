@@ -92,6 +92,15 @@ test(
       '2',
     );
     await provider.page.evaluate(() => delete document.visibilityState);
+    await provider.page.locator('iframe').evaluate((el) => {
+      el.srcdoc = '<button onclick="document.body.dataset.hits = 1">Nouveau</button>';
+    });
+    await provider.page.frameLocator('iframe').getByRole('button', { name: 'Nouveau' }).waitFor();
+    await assert.rejects(gateway.call('browser.click', { ref: frame }), /reprends un snapshot/);
+    assert.equal(
+      await provider.page.frameLocator('iframe').locator('body').getAttribute('data-hits'),
+      null,
+    );
     await gateway.call('browser.navigate', { url: `${origin}/next` });
     await assert.rejects(
       gateway.call('browser.click', { ref: button }),
@@ -1005,7 +1014,7 @@ async function multiStepSite(t) {
     else counts.statsGet++;
     res.end('');
   });
-  await new Promise((r) => stats.listen(0, r));
+  await new Promise((r) => stats.listen(0, '127.0.0.1', r));
   const statsOrigin = `http://localhost:${stats.address().port}`;
   const steps = [
     `<form><h1>Choose documents</h1><input type="file" id="cv"><label><input type="radio" name="cl" id="nocl"> Don't include a cover letter</label><button type="submit" id="next"><span>Continue</span></button></form>`,
@@ -1054,6 +1063,7 @@ async function multiStepSite(t) {
     for (const server of [site, stats]) server.closeAllConnections();
     return Promise.all([site, stats].map((server) => new Promise((r) => server.close(r))));
   });
+  assert.equal(stats.address().address, '127.0.0.1');
   return { origin: `http://127.0.0.1:${site.address().port}`, counts };
 }
 

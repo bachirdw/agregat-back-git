@@ -13,7 +13,7 @@ reportée, suppression libre de notre code, une étape à la fois).
 - **Étape 1 `reuse-01a` VALIDÉE** (`6620808`, relecture `7148e17`, contrôle `4b1d2d2`) : snapshot
   `page.ariaSnapshot({mode:'ai'})`, actions par `ref` via `page.getByRef`. Copie figée 269/0/1 + Chrome 124/124.
 - **Étape 2 `reuse-01b`** (clic en onglet caché, suppression de `force`, `observed()`, `selector` du clic) :
-  chaîne `reuse-01b review-reuse-01b` programmée à **16:20** (limite Codex levée à 16:16), détachée
+  chaîne `reuse-01b review-reuse-01b` programmée à **17:05** (limite Codex levée vers 17:00 selon l’utilisateur), détachée
   (`.manager/logs/chain-reuse-01b.nohup`). Fin = `.manager/logs/chain.done`.
 - **À reporter en `reuse-01c`** : supprimer `selector` de `browser.type` ; décider l'upload (champ fichier souvent
   absent du snapshot : sélecteur ou sélecteur de fichier Playwright `files.ts`) ; message zod « Invalid input »

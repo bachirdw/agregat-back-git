@@ -39,7 +39,13 @@ séquence clavier DOM) suivie de la vérification de l'effet.
 6. Instructions côté plateforme (`packages/orchestrator/index.js`, `packages/career-ops/integration.js`, code de la
    plateforme, pas la bibliothèque) : mentionner `browser_select`, `browser_check`, `browser_press`. Ne touche à
    AUCUN fichier de la bibliothèque career-ops ni de son Skill.
-7. Supprime tout code devenu mort ; bilan exact `git diff --stat` et lignes supprimées / ajoutées.
+7. Constats de `reports/audit-reuse-01a-claude.md` affectés à cette étape : n° 5 (erreurs de ref disparue en
+   course traduites avec `{ cause }`, pour saisie/upload/choix), n° 10 (ensemble des refs construit depuis la
+   dernière `[ref=…]` de chaque ligne, pas sur le texte entier), n° 11 b–f (doublons : `count()` redondant,
+   `targetOf(args)` unique, `target` masqué dans l'upload), n° 12 (tests d'accord par ref : saisie sans texte dans
+   l'accord, aperçu d'envoi par ref, « élément modifié pendant l'approbation » par ref, `extract` par ref),
+   n° 13 (messages zod français, `extract` refuse `ref` + `limit > 1`). Statut de chacun dans le rapport.
+8. Supprime tout code devenu mort ; bilan exact `git diff --stat` et lignes supprimées / ajoutées.
 
 ## Tests (rouges avant, verts après)
 Chrome isolé, pages locales fictives, plus SIMULATION d'onglet caché (comme `reuse-01b`, nommée ainsi) : chaque

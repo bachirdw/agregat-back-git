@@ -30,6 +30,25 @@ Le Chrome isolé ne reproduit pas cet état : tout test « caché » en Chrome i
    `FixturePageProvider` indexées par ref). `type`, `upload`, `extract`, `download` gardent `selector` à cette étape
    (étape 3). Les gardes d'accord, d'aperçu d'envoi, de page modifiée et de ref périmée restent identiques.
 
+## Constats de l'audit `reports/audit-reuse-01a-claude.md` à corriger dans cette étape
+Lis ce rapport (relecture indépendante de `7148e17`). Traite ici les numéros qui touchent au clic et à la durée de
+vie des refs ; chacun avec un test rouge→vert, et le statut (corrigé / infirmé, avec preuve) dans ton rapport :
+- **n° 8 et 3 (important pour Seek)** : notre écouteur `framenavigated` et le contrôle `snapshotUrl` invalident
+  toutes les refs à chaque `replaceState`/`pushState`/ancre (Playwright émet `framenavigated` pour les navigations
+  du même document : `coreBundle.js:24552-24564`). Or Playwright refuse déjà seul une ref d'un ancien document (frame
+  principale renumérotée, `:24546-24548`) ou d'un nœud détaché. **Supprime** cette couche (et le garde
+  `typeof page.on`, n° 11a). Tests : `replaceState`/`pushState` entre snapshot et clic → clic accepté, compteur 1 ;
+  navigation vers un nouveau document → ancienne ref refusée ; 2e snapshot du même document → ref inchangée
+  acceptée, nœud retiré refusé. `goto` peut continuer à vider l'ensemble des refs.
+- **n° 1** : après l'action, plus aucun appel lié au locator de la cible (si le clic retire l'élément, Playwright
+  attend 20 s). Test : bouton qui se retire au clic → réponse sans attente (durée bornée dans le test).
+- **n° 7** : résoudre la cible avant d'armer `writeInProgress`/`sendGrant`/`formStep` ; `lastClickEnd` seulement
+  après une vraie tentative de clic.
+- **n° 6** : `ariaSnapshot` borné (`timeout: 5000`, comme l'ancienne capture) et résolution de ref bornée.
+- **n° 4** : ref sans page (après `reset`) → même message français « … reprends un snapshot ».
+- **n° 2** (pour le clic) : le test de schéma vérifie le motif de chaque rejet et l'absence d'action.
+Les autres numéros vont à `reuse-01c` ou attendent un arbitrage du manager : n'y touche pas.
+
 ## Tests (rouges avant, verts après), Chrome isolé, pages locales fictives
 - Page qui fait `history.replaceState` toutes les 100 ms + bouton à compteur, onglet caché SIMULÉ : avant, succès
   déclaré et compteur 0 (preuve rouge à journaliser) ; après, compteur 1, `clickMode: 'dom'`, `hidden: true`.

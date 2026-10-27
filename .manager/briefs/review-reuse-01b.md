@@ -13,7 +13,9 @@ ta conclusion est acquise (avant la vérification finale), pour qu'une coupure n
    d'envoi contourné par le chemin DOM, `clickMode`/`hidden` inexacts, test « caché » non nommé SIMULATION.
 3. Code mort ou doublon laissé (`force`, `observed`, marqueur global, `selector` du clic) : supprime-le.
 4. Tests : chaque comportement nouveau a-t-il un test qui échouerait sans le code ? Ajoute ceux qui manquent.
-5. Rejoue la preuve Playwriter sur page locale fictive (préalable `extension/status` `connected:true`), avec
+5. Constats de `reports/audit-reuse-01a-claude.md` affectés à cette étape (n° 1, 2, 3, 4, 6, 7, 8, 11a) : chacun
+   est-il corrigé avec un test qui échouerait sans la correction, ou infirmé avec preuve ?
+6. Rejoue la preuve Playwriter sur page locale fictive (préalable `extension/status` `connected:true`), avec
    `visibilityState === 'hidden'` vérifié et durées notées.
 Avant chaque commit et à la fin : suite complète, `npm run check`, `npm run format:check`.
 

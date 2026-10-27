@@ -65,6 +65,17 @@ export class BrowserGateway {
     let element = null;
     let sensitive = cap.effect === 'sensitive';
     const target = { ref: args.ref };
+    // A form fill acts on several elements: each one is described, approved and re-checked.
+    const fields = capabilityId === 'browser.fillForm' ? args.fields : null;
+    if (fields) {
+      element = [];
+      for (const field of fields) {
+        const described = await this.provider.describe({ ref: field.ref });
+        if (!described) throw new Error(`Élément introuvable : ${field.ref}`);
+        element.push(described);
+        sensitive ||= this.policy.isSensitiveElement(described);
+      }
+    }
     if (
       [
         'browser.click',
@@ -117,17 +128,27 @@ export class BrowserGateway {
           args:
             capabilityId === 'browser.type'
               ? { ref: args.ref, textLength: args.text.length }
-              : args,
+              : fields
+                ? {
+                    fields: fields.map(({ text, ...field }) =>
+                      text === undefined ? field : { ...field, textLength: text.length },
+                    ),
+                  }
+                : args,
           page: await this.provider.currentUrl?.(),
         });
         if (approved !== true)
           throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
       }
     }
+    const current = !element
+      ? null
+      : fields
+        ? await Promise.all(fields.map((field) => this.provider.describe({ ref: field.ref })))
+        : await this.provider.describe(target);
     if (
       element &&
-      (!isDeepStrictEqual(element, await this.provider.describe(target)) ||
-        pageBefore !== (await this.provider.currentUrl?.()))
+      (!isDeepStrictEqual(element, current) || pageBefore !== (await this.provider.currentUrl?.()))
     )
       throw new Error('Élément ou page modifié pendant l’approbation');
     if (sending && !isDeepStrictEqual(preview, await this.provider.submissionPreview?.(target)))
@@ -146,7 +167,20 @@ export class BrowserGateway {
     await this.meter(cap.meter, 1, capabilityId);
     const output = await this.provider.perform(
       capabilityId,
-      { ...args, ...(sending ? { sendApproved: true } : {}), ...(step ? { formStep: true } : {}) },
+      fields
+        ? {
+            // Provider contract: one value per field, typed by kind (radio is always checked).
+            fields: fields.map(({ ref, kind, text, checked, values }) => ({
+              ref,
+              kind,
+              value: { text, checkbox: checked, radio: true, select: values }[kind],
+            })),
+          }
+        : {
+            ...args,
+            ...(sending ? { sendApproved: true } : {}),
+            ...(step ? { formStep: true } : {}),
+          },
       this.policy,
     );
     return {

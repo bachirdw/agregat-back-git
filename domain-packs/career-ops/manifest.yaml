@@ -35,6 +35,7 @@ policies:
         browser.snapshot,
         browser.extract,
         browser.click,
+        browser.fillForm,
         browser.check,
         browser.select,
         browser.type,

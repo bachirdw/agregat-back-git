@@ -27,7 +27,10 @@ Gemini CLI et OpenCode dans un dossier dédié) se déclarent dans `.data/agents
 absolus) :
 
 ```json
-{ "cliDirs": ["/chemin/absolu/vers/node_modules/.bin"], "paths": { "gemini": "/chemin/absolu/gemini" } }
+{
+  "cliDirs": ["/chemin/absolu/vers/node_modules/.bin"],
+  "paths": { "gemini": "/chemin/absolu/gemini" }
+}
 ```
 
 `AGENT_PLATFORM_CLI_DIRS=/dir1:/dir2` est équivalent. Chaque agent reçoit un **environnement en liste blanche**
@@ -62,7 +65,7 @@ La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seule
 ## Navigateur (Browser Gateway)
 
 Les outils MCP navigateur fournis aux agents exposent des capacités typées (`browser_navigate`, `browser_snapshot`,
-`browser_extract`, `browser_click`, `browser_check`, `browser_select`, `browser_type`, `browser_press`,
+`browser_extract`, `browser_click`, `browser_fillForm`, `browser_check`, `browser_select`, `browser_type`, `browser_press`,
 `browser_upload`, `browser_download`) contrôlées par la
 gateway : domaines autorisés du pack, HTTPS, anti-SSRF, redirections revérifiées, fichiers confinés au
 dossier du run. Toute action d'écriture demande une décision dans l'interface ; les actions sensibles
@@ -133,8 +136,8 @@ partiels (deux titres). Aucune inférence renouvelée par docs-01. Tests : `test
 
 ## Aperçu
 
-| Plan proposé automatiquement | Offres réelles citées et vérifiées | Brouillon en attente de relecture |
-|---|---|---|
+| Plan proposé automatiquement                     | Offres réelles citées et vérifiées                  | Brouillon en attente de relecture                        |
+| ------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------- |
 | ![Plan](docs/screenshots/plan-workflow-auto.png) | ![Najah](docs/screenshots/najah-offres-reelles.png) | ![Brouillon](docs/screenshots/brouillon-approbation.png) |
 
 Captures générées par `node scripts/screenshots.js` (Chrome headless, données réelles enregistrées le 25/10/2026,
@@ -142,24 +145,24 @@ analyse par le démonstrateur sans modèle).
 
 ## Fonctionnalités et limites (état au 26 octobre 2026)
 
-| Fonction | État | Preuve |
-|---|---|---|
-| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel** | Parcours démonstrateur et approbations : `tests/e2e-ui.test.js` ; sélection/modèles côté API et runtime : `tests/api-agents.test.js`, `tests/runtime.test.js` |
-| Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles) | **Opérationnel** | `tests/runtime.test.js` et sondes historiques |
-| Codex · Claude · Gemini CLI · OpenCode | Sessions réelles documentées pour les 4 ; accès et inférence fournisseur à revérifier selon disponibilité/conditions | `docs/research/live-probe.json`, `docs/validation.md` (historiques ; aucune inférence au sprint 09) |
-| Mode Auto par exigences et capacités | **Opérationnel** | `tests/runtime.test.js`, `tests/api-agents.test.js` |
-| Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent) | **Opérationnel** | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` ; agents fictifs, essai Gemini historique |
-| Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié | **Opérationnel en rejeu hors ligne** ; disponibilité des sources en ligne non revérifiée | `tests/najah-live.test.js`, `tests/najah-evals.test.js` ; runs réseau historiques |
-| Najah — sponsoring multi-pays NL/IE | **PRÉVU**, aucune implémentation livrée | `domain-packs/najah/live.js` ne contient que UK ; sprint-10/review-10 absents |
-| Najah — démonstrateur fictif | **Simulé** (données marquées FICTIVES) | Tests |
-| Najah — brouillon de lettre avec relecture humaine | **Opérationnel**, aucun envoi possible | Tests API + E2E |
-| Registre de Skills (quarantaine, revue, versions, export natif, import local) | **Opérationnel** | `tests/skill-registry.test.js` : cycle local complet et refus de chemins/empreintes non sûrs |
-| Import GitHub de Skills | **Implémenté**, validation réseau historique | `tests/skill-registry.test.js` teste les rejets ; import career-ops historique, aucun clone distant renouvelé par la revue |
-| Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement | **Opérationnel dans le périmètre MCP de confiance** ; canal humain non isolé | `tests/browser-gateway.test.js`, `tests/approval-bridge.test.js` : Chrome réel, déconnexion CDP, courses, consentements et limite native ; revue indépendante : 64/64 essais sous charge |
-| Browser Gateway via l'extension Playwriter | Mode sécurisé **INCOMPLET** (incompatible, refus sûr) ; propriétaire **OPÉRATIONNEL** sur preuve historique partielle, sans isolation réseau du provider | [Rapport](.manager/reports/playwriter-01.md), ADR 006 |
-| MCP stdio plateforme ; MCP externes arbitraires | Plateforme **opérationnelle** ; externes **non intégrés** | `tests/platform.test.js`, `tests/approval-bridge.test.js` |
-| Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt | **Opérationnel** (prix à 0, aucun tarif inventé) | `tests/billing.test.js`, ADR 007 |
-| Companion cloud, mode Managed, comptes, abonnements, multi-utilisateurs | **Prévu** | |
+| Fonction                                                                                               | État                                                                                                                                                     | Preuve                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel**                                                                                                                                         | Parcours démonstrateur et approbations : `tests/e2e-ui.test.js` ; sélection/modèles côté API et runtime : `tests/api-agents.test.js`, `tests/runtime.test.js`                            |
+| Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles)                           | **Opérationnel**                                                                                                                                         | `tests/runtime.test.js` et sondes historiques                                                                                                                                            |
+| Codex · Claude · Gemini CLI · OpenCode                                                                 | Sessions réelles documentées pour les 4 ; accès et inférence fournisseur à revérifier selon disponibilité/conditions                                     | `docs/research/live-probe.json`, `docs/validation.md` (historiques ; aucune inférence au sprint 09)                                                                                      |
+| Mode Auto par exigences et capacités                                                                   | **Opérationnel**                                                                                                                                         | `tests/runtime.test.js`, `tests/api-agents.test.js`                                                                                                                                      |
+| Moteur de workflows DAG durable (parallèle, approbations, reprise, multi-agent)                        | **Opérationnel**                                                                                                                                         | `tests/workflow-engine.test.js`, `tests/workflow-run.test.js`, `tests/workflow-resume.test.js` ; agents fictifs, essai Gemini historique                                                 |
+| Najah — sources réelles (Arbeitnow, Remotive), registre UK des sponsors, classement vérifié            | **Opérationnel en rejeu hors ligne** ; disponibilité des sources en ligne non revérifiée                                                                 | `tests/najah-live.test.js`, `tests/najah-evals.test.js` ; runs réseau historiques                                                                                                        |
+| Najah — sponsoring multi-pays NL/IE                                                                    | **PRÉVU**, aucune implémentation livrée                                                                                                                  | `domain-packs/najah/live.js` ne contient que UK ; sprint-10/review-10 absents                                                                                                            |
+| Najah — démonstrateur fictif                                                                           | **Simulé** (données marquées FICTIVES)                                                                                                                   | Tests                                                                                                                                                                                    |
+| Najah — brouillon de lettre avec relecture humaine                                                     | **Opérationnel**, aucun envoi possible                                                                                                                   | Tests API + E2E                                                                                                                                                                          |
+| Registre de Skills (quarantaine, revue, versions, export natif, import local)                          | **Opérationnel**                                                                                                                                         | `tests/skill-registry.test.js` : cycle local complet et refus de chemins/empreintes non sûrs                                                                                             |
+| Import GitHub de Skills                                                                                | **Implémenté**, validation réseau historique                                                                                                             | `tests/skill-registry.test.js` teste les rejets ; import career-ops historique, aucun clone distant renouvelé par la revue                                                               |
+| Browser Gateway : Chrome isolé et CDP, contexte partagé sur consentement                               | **Opérationnel dans le périmètre MCP de confiance** ; canal humain non isolé                                                                             | `tests/browser-gateway.test.js`, `tests/approval-bridge.test.js` : Chrome réel, déconnexion CDP, courses, consentements et limite native ; revue indépendante : 64/64 essais sous charge |
+| Browser Gateway via l'extension Playwriter                                                             | Mode sécurisé **INCOMPLET** (incompatible, refus sûr) ; propriétaire **OPÉRATIONNEL** sur preuve historique partielle, sans isolation réseau du provider | [Rapport](.manager/reports/playwriter-01.md), ADR 006                                                                                                                                    |
+| MCP stdio plateforme ; MCP externes arbitraires                                                        | Plateforme **opérationnelle** ; externes **non intégrés**                                                                                                | `tests/platform.test.js`, `tests/approval-bridge.test.js`                                                                                                                                |
+| Usage & facturation : mètres, ledger chaîné, budgets, plafond mensuel, arrêt                           | **Opérationnel** (prix à 0, aucun tarif inventé)                                                                                                         | `tests/billing.test.js`, ADR 007                                                                                                                                                         |
+| Companion cloud, mode Managed, comptes, abonnements, multi-utilisateurs                                | **Prévu**                                                                                                                                                |                                                                                                                                                                                          |
 
 Les Skills se trouvent sous `domain-packs/*/skills/*/SKILL.md`. Seuls les contenus embarqués et revus sont installables directement ; les Skills tiers passent par la quarantaine et une revue humaine. L'installation ne lance aucun script. Pour ajouter un pack : déclarer manifest (Skills, `dag`/`dags`, `policies`), plugin d'outils/validation, puis l'ajouter à la liste de packs approuvés dans `packages/orchestrator/packs.js`. Ne jamais charger du code de pack à partir d'une URL fournie par l'utilisateur.
 
@@ -192,7 +195,11 @@ mensuel ; il conserve les compteurs, sans protéger le budget fournisseur.
 Grille tarifaire dans `.data/pricing.json` (à 0 par défaut, aucun prix inventé) :
 
 ```json
-{ "currency": "EUR", "centsPerUnit": { "tool_call": 0, "data_search": 0, "browser_action": 0 }, "monthlyCapCents": null }
+{
+  "currency": "EUR",
+  "centsPerUnit": { "tool_call": 0, "data_search": 0, "browser_action": 0 },
+  "monthlyCapCents": null
+}
 ```
 
 Chaque plan affiche une estimation indicative (les appels dynamiques des agents peuvent la dépasser) ; un lancement au-dessus du budget est refusé ; un dépassement en
@@ -248,8 +255,8 @@ Données locales : `.data/platform.sqlite` (runs, événements, Skills, ledger),
 - [Conditions BYOA par fournisseur et limites commerciales](docs/adr/005-byoa-provider-terms.md)
 
 Les licences des dépendances restent celles de leurs auteurs ; voir [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Le code de ce prototype n'a pas reçu de licence publique au nom du propriétaire.
-# agr-gateur_agent_back
 
+# agr-gateur_agent_back
 
 ## Candidatures compatibles career-ops
 

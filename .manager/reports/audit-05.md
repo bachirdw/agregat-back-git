@@ -15,6 +15,10 @@
 
 - 05:41 — `git add -A && git commit …` a échoué avant l’indexation : `fatal: Unable to create .git/index.lock: Operation not permitted`. `git status --short` confirme trois fichiers modifiés/non suivis et aucun verrou existant. Nouvelle tentative avec autorisation de sortie du bac à sable pour écrire dans `.git`.
 
+- 05:41 — Commit local réussi avec sortie du bac à sable : `6e03af3 [audit-05] Préserver les offres Najah aux dates invalides et consigner l’audit` (3 fichiers, 103 insertions, 2 suppressions). Aucun push.
+
+- 05:42 — Vérifications avant commit du rapport : suite non Chrome code 0, 302 tests, 301 réussis, 1 ignoré (`report-commit-test.log`) ; `npm run check` et `npm run format:check` codes 0 (`report-commit-check.log`, `report-commit-format.log`) ; `git diff --check` sans erreur.
+
 ## Écarts au plan
 
 | Exigence (source) | État réel | Preuve | Gravité |
@@ -30,7 +34,7 @@
 
 | N° | Fichier:ligne | Gravité | Défaut | Scénario | Corrigé ou proposé |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `domain-packs/najah/live.js:75,94` avant correction | moyenne | Date source invalide : `toISOString()` levait et faisait perdre tout le lot. | Une offre publique à date mal formée parmi d'autres valides. | corrigé dans le commit audit-05, test rouge→vert (`najah-red.log`, `najah-green.log`) |
+| 1 | `domain-packs/najah/live.js:75,94` avant correction | moyenne | Date source invalide : `toISOString()` levait et faisait perdre tout le lot. | Une offre publique à date mal formée parmi d'autres valides. | corrigé dans `6e03af3`, test rouge→vert (`najah-red.log`, `najah-green.log`) |
 | 2 | `scripts/live-probe.js:41-43,60-73` | élevée | Le mode `LIVE_PROMPT=1` peut appeler Gemini sans lire le cumul avant l'appel ; le journal n'est ajouté que s'il existe et utilise un prix codé en dur. | L'opérateur lance le script alors que le plafond API est déjà atteint. | proposé : aligner sur le contrôle préalable de `scripts/career-live-smoke.js:46-56`, vérifier tarifs officiels et tester hors réseau ; aucun appel réel ici |
 | 3 | `packages/orchestrator/index.js` (références career-ops) | moyenne | Couplage sectoriel résiduel du cœur, contraire à l'indépendance du pack ; déjà signalé par `.manager/reuse-plan.md:109`. | Ajout d'un autre pack privé nécessitant des exceptions dans l'orchestrateur. | proposé : brief d'interface pack dédié, pas de refonte dans cet audit |
 

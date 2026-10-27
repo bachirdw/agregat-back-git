@@ -89,3 +89,18 @@
 ## État final
 
 Opérationnel pour les parcours vérifiés : conversation 26/26, front 45/45, E2E front 9/9, backend 136/136, check et format verts. Simulé pour les missions de preuve (agent factice, réseau désactivé). Deux défauts techniques corrigés dans le front (`131576a`) et trois corrections complémentaires (`bcf09fc`) ; rapport consigné dans ce dépôt. Aucun appel de modèle ou service payant. Les formes complètes ACP v2 et la comparaison exhaustive des 21 écrans restent non vérifiées. Aucun serveur de vérification encore actif.
+
+## Contrôle du manager (Claude) — 27/10, 23:50
+- Diff front relu (`fb66f55..bcf09fc`) : 2 commits `[audit-06]`, aucune nouvelle bibliothèque, aucune modification du back
+  ni de career-ops. Le masquage des réglages en reprise est justifié : `apps/api/server.js:344` reprend avec les paramètres
+  d'origine et le front n'envoie que `{prompt}`.
+- Copie figée `bcf09fc` (`git archive`, `node_modules` lié), 23:50:17 → 23:50:22 : vitest 45/45, `tsc` + build verts,
+  prettier vert.
+- Vrais tests : chaque correction retirée sur la copie fait échouer son test (`follow` → 1 échec ; vidage des pièces
+  jointes → 1 échec ; garde de l'upload tardif → 1 échec).
+- Captures relues (4 et 7) : réflexion repliée, « N actions · 1 en échec » en rouge, échec visible replié, Stop pendant
+  l'exécution, réponse finale seule. Le « En cours » de la barre latérale sur la capture 7 vient du script (son
+  EventSource simulé n'émet jamais `end`) ; l'application rafraîchit la liste sur `end` (`src/App.tsx:231-236`).
+- Aucun serveur de test restant (4321, 5175).
+
+**Verdict** : audit-06 VALIDÉ. Reste ouvert : `README.md:55` (documentation), formes complètes ACP v2 non traitées.

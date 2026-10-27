@@ -181,6 +181,7 @@ export class CdpBrowser {
   #boundPolicy = null;
   #closed = false;
   #pages = new WeakSet();
+  #trackedPages = new WeakSet();
   #opening = null;
   #closing = null;
   // Grants live only in this provider instance. Neither RunPolicy JSON nor an agent tool call
@@ -676,6 +677,8 @@ export class CdpBrowser {
   async reset() {
     const page = this.page;
     this.page = null;
+    this.snapshotRefs = null;
+    this.snapshotUrl = null;
     this.redirectLanding = null;
     await page?.close().catch(() => {});
     await this.pageSession?.detach().catch(() => {});
@@ -695,9 +698,35 @@ export class CdpBrowser {
   async currentUrl() {
     return this.page?.url() ?? null;
   }
-  async describe(selector) {
+  async targetLocator(target) {
+    if (typeof target === 'string') return this.page.locator(target).first();
+    const { ref } = target;
+    const missing = () =>
+      new Error(`Référence ${ref} introuvable dans la page actuelle : reprends un snapshot.`);
+    if (this.snapshotUrl !== this.page.url() || !this.snapshotRefs?.has(ref)) throw missing();
+    try {
+      const locator = this.page.getByRef(ref);
+      await locator.normalize();
+      if (!(await locator.count())) throw missing();
+      return locator;
+    } catch {
+      throw missing();
+    }
+  }
+  trackSnapshotNavigation(page) {
+    if (typeof page.on !== 'function') return; // Minimal fixture pages do not emit navigation.
+    if (this.#trackedPages.has(page)) return;
+    this.#trackedPages.add(page);
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) {
+        this.snapshotRefs = null;
+        this.snapshotUrl = null;
+      }
+    });
+  }
+  async describe(target) {
     if (!this.page) return null;
-    const handle = this.page.locator(selector).first();
+    const handle = await this.targetLocator(target);
     if (!(await handle.count())) return null;
     return handle.evaluate((el) => {
       const field = el.matches('input, select, textarea, option, label');
@@ -720,38 +749,40 @@ export class CdpBrowser {
       };
     });
   }
-  async submissionPreview(selector) {
+  async submissionPreview(target) {
     if (!this.page) return null;
-    const fields = await this.page
-      .locator(selector)
-      .first()
-      .evaluate((el) => {
-        const form = el.form || el.closest('form');
-        return {
-          action: form?.action ?? null,
-          method: form?.method ?? null,
-          fields: Array.from(form?.elements ?? []).map((f) => ({
-            name: f.name || f.id,
-            type: f.type,
-            value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
-            checked: f.checked,
-            files: Array.from(f.files ?? []).map((x) => ({
-              name: x.name,
-              size: x.size,
-              type: x.type,
-            })),
+    const fields = await (
+      await this.targetLocator(target)
+    ).evaluate((el) => {
+      const form = el.form || el.closest('form');
+      return {
+        action: form?.action ?? null,
+        method: form?.method ?? null,
+        fields: Array.from(form?.elements ?? []).map((f) => ({
+          name: f.name || f.id,
+          type: f.type,
+          value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
+          checked: f.checked,
+          files: Array.from(f.files ?? []).map((x) => ({
+            name: x.name,
+            size: x.size,
+            type: x.type,
           })),
-        };
-      });
+        })),
+      };
+    });
     return { page: this.page.url(), title: await this.page.title(), ...fields };
   }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
+    this.trackSnapshotNavigation(page);
     page.setDefaultTimeout(this.navigationTimeoutMs);
     await this.assertLanded(policy);
     this.blocked = null;
     this.redirectLanding = null;
     const goto = async (url, landing = false) => {
+      this.snapshotRefs = null;
+      this.snapshotUrl = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])
@@ -778,10 +809,15 @@ export class CdpBrowser {
       case 'browser.snapshot': {
         if (args.url) await goto(args.url);
         const loading = await waitForReadablePage(page);
+        const snapshot = await page.ariaSnapshot({ mode: 'ai' });
+        this.snapshotRefs = new Set(
+          [...snapshot.matchAll(/\[ref=((?:f\d+)?e\d+)\]/g)].map((match) => match[1]),
+        );
+        this.snapshotUrl = page.url();
         return {
           url: page.url(),
           title: await page.title(),
-          snapshot: await page.locator('body').ariaSnapshot({ timeout: 5000 }),
+          snapshot,
           loading,
         };
       }
@@ -791,7 +827,9 @@ export class CdpBrowser {
         const loading = await waitForReadablePage(page);
         const readTimeout = () => Math.max(2000, readDeadline - Date.now());
         if ((args.limit ?? 1) > 1) {
-          const matches = page.locator(args.selector);
+          const matches = args.ref
+            ? await this.targetLocator({ ref: args.ref })
+            : page.locator(args.selector ?? 'body');
           await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
           const count = Math.min(await matches.count(), args.limit);
           const texts = [];
@@ -808,7 +846,9 @@ export class CdpBrowser {
           url: page.url(),
           loading,
           text: (
-            await page.locator(args.selector).first().innerText({ timeout: readTimeout() })
+            await (
+              await this.targetLocator(args.ref ? { ref: args.ref } : (args.selector ?? 'body'))
+            ).innerText({ timeout: readTimeout() })
           ).slice(0, args.maxChars),
         };
       }
@@ -819,7 +859,7 @@ export class CdpBrowser {
         this.writeInProgress = true;
         let clickMode = 'normal';
         try {
-          const target = page.locator(args.selector).first();
+          const target = await this.targetLocator(args.ref ? { ref: args.ref } : args.selector);
           let clickError = null;
           if (await page.evaluate(() => document.visibilityState === 'hidden')) {
             clickError = new Error('Onglet caché');
@@ -863,7 +903,8 @@ export class CdpBrowser {
               do {
                 if (navigated) return true;
                 try {
-                  if (await page.evaluate((key) => window[key] === true, marker)) return true;
+                  if (await target.evaluate((_el, key) => window[key] === true, marker))
+                    return true;
                 } catch {
                   // The click may have replaced the document before the flag could be read.
                   // An uncertain result must never cause a second, possibly final, click.
@@ -936,13 +977,14 @@ export class CdpBrowser {
         };
       case 'browser.type':
         // Filling a field is not a send; same-site autosave stays automatic.
-        await page.locator(args.selector).first().fill(args.text, { timeout: 10000 });
+        await (
+          await this.targetLocator(args.ref ? { ref: args.ref } : args.selector)
+        ).fill(args.text, { timeout: 10000 });
         return { url: page.url(), typed: args.text.length };
       case 'browser.upload':
-        await page
-          .locator(args.selector)
-          .first()
-          .setInputFiles(args.filePayload ?? args.path, { timeout: 10000 });
+        await (
+          await this.targetLocator(args.ref ? { ref: args.ref } : args.selector)
+        ).setInputFiles(args.filePayload ?? args.path, { timeout: 10000 });
         return { url: page.url(), uploaded: basename(args.path) };
       case 'browser.download': {
         const root = realpathSync(policy.workspace);

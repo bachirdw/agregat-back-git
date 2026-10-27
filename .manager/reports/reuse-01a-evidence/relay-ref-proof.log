@@ -1,0 +1,11 @@
+{"step":"extension/status","connected":true}
+{"step":"snapshot","visibilityState":"hidden","ref":"f2e2","hasFrameRef":true}
+file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:926
+                if (!(await observed())) throw new Error('Clic non délivré à la page');
+                                               ^
+
+Error: Clic non délivré à la page
+    at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:926:48)
+    at async BrowserGateway.execute (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:142:20)
+
+Node.js v24.14.1

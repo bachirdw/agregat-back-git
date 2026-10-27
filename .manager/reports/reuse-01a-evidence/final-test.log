@@ -1,0 +1,698 @@
+
+> agent-platform@0.1.0 test
+> node scripts/run-tests.js
+
+
+▶ unitaires et intégration (parallèle) : 33 fichier(s)
+(node:1044) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ résultat agent : JSON brut, clôturé, entouré de prose (1.959083ms)
+✔ résultat agent : refus en texte libre rapporté avec extrait (0.269875ms)
+✔ résultat agent : vide, JSON invalide, hors contrat (0.249459ms)
+✔ résultat agent : extrait borné à 300 caractères (0.133875ms)
+✔ provenance : runtime fait autorité et données Najah restent fictives (0.378083ms)
+✔ mode agent core : exécution faux ACP sans modèle, provenance réelle imposée (148.105083ms)
+✔ résultat agent : après une reprise de session, le dernier bloc JSON est la réponse (0.21925ms)
+(node:1045) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ publicAgents : ni commande, ni chemins, ni environnement ; résumé de sonde (1.699792ms)
+✔ catalogue HTTP : agents publics, sondes du dataDir (3727.380083ms)
+✔ plan Auto en démonstration : fixture, raisons et rejets visibles (3881.432083ms)
+✔ plan manuel : raisons « choisi manuellement » (3230.265333ms)
+✔ plan : agent réel refusé hors mode live (3262.929583ms)
+✔ plan : agent inconnu rejeté par le schéma (10.232708ms)
+✔ plan live : modèle non annoncé au dernier test refusé (6691.240042ms)
+✔ régression live : la permission exposée décrit l’outil demandé (8.754083ms)
+✔ régression live : Gemini reçoit la confiance de l’espace de run, pas les autres agents (0.994875ms)
+✔ erreurs de validation lisibles, pas de JSON zod brut (7.696041ms)
+(node:1046) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ API : Unicode FICTIF coupé à chaque octet de transport reste intact (226.143416ms)
+✔ API : UTF-8 invalide est refusé, sans remplacement silencieux du prompt (27.233917ms)
+✔ API : la limite porte sur les octets, avec refus avant planification (9.541709ms)
+✔ probe audit : pair muet arrêté, puis session fictive sans authentification ni prompt (20863.137083ms)
+(node:1065) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ tarifs : aucun prix inventé par défaut, BYOA jamais facturable, validation stricte (1.561542ms)
+✔ estimation : lignes par catégorie, externe BYOA inconnu et non refacturé (1.033084ms)
+✔ ledger chaîné : vérification, modification, suppression et ligne non chaînée détectées (16.243917ms)
+✔ résumé par mètre : facturable / non facturable séparés (0.241ms)
+✔ plafond mensuel : dépassement refusé sans écriture partielle (5.460083ms)
+✔ estimation au-dessus du budget : lancement refusé avant toute action (7475.411083ms)
+✔ plafond mensuel atteint pendant un workflow : exécution arrêtée, événement et raison visibles (3911.681125ms)
+✔ mesure depuis la gateway : jeton, mètres autorisés, 402 si budget dépassé (42.024834ms)
+✔ gateway de données : mesure refusée → aucune requête réseau (1.272875ms)
+✔ sécurité facturation : mètres propres, unités finies, BYOA gratuit même à la couche stockage (4.873167ms)
+✔ ledger : suppression de queue détectée après réouverture et écriture suivante refusée (7.313208ms)
+✔ agent : appels MCP facturés avant action et arrêt au budget, aucun double comptage du workflow (4436.769709ms)
+✔ estimation : les retries de lecture sont inclus, aucune relance automatique de write (0.283625ms)
+✔ ledger : compteur et identifiant v2 liés à l’empreinte ; suppression totale détectée (5.821834ms)
+✔ monnaie : un ledger non vide ne change pas de devise implicitement (5.3735ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (url-denied) (5.588084ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (filename-error) (1.661083ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (oversized) (1.357459ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (existing-file) (2.035458ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (path-error) (1.760125ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (click-error) (1.379625ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (late-click-error) (0.863167ms)
+✖ téléchargement FICTIF : nettoyage du temporaire (success) (0.864834ms)
+✖ autorisation de téléchargement FICTIF : success (1.190125ms)
+✖ autorisation de téléchargement FICTIF : click-error (2.973583ms)
+✖ autorisation de téléchargement FICTIF : event-timeout (1.184291ms)
+✔ fermeture avant la microtâche de lancement : aucun processus même fictif démarré (3.615417ms)
+✔ CV Markdown → HTML : titres, gras, listes ; HTML et liens neutralisés (2.19225ms)
+(node:1082) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Modèle career-ops : choisit l’identifiant annoncé, refuse l’ancien alias absent (1.769459ms)
+✔ Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés (20.61425ms)
+✔ Offres : note 1–5, A–H complet, provenance et données fictives obligatoires (22.075416ms)
+✔ Registre : quarantaine, revue liée au hash natif, mutation du Skill ou configuration bloque (32.815292ms)
+✔ Scripts : liste fermée, code modifié, arguments et secrets implicites refusés (69.432292ms)
+✔ Auto : trouve des offres, évalue cette offre et postule routés vers le pack privé (0.429667ms)
+✔ API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refusé, rien de privé dans SQLite (5009.408ms)
+✔ Espace privé actif : deuxième mission et modification du CV/profil refusées (3288.267375ms)
+✔ Lecture privée paginée et script annulé : sortie bornée, processus arrêté (10.49325ms)
+✔ Propriétaire local : les étapes de l’agent career-ops sont diffusées en direct (7046.057458ms)
+✔ Réponse en texte libre (questions intake) : mission réussie, texte en résultat privé (6862.438708ms)
+✔ Modèle choisi dans l’interface : appliqué à la mission career-ops (env et session ACP) (7899.74975ms)
+✔ Instructions career-ops : candidature menée jusqu’au clic final, arrêt seulement sur blocage nommé (0.855625ms)
+(node:1357) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SMTP FICTIF : refus = zéro, approbation = exactement un, répétition et reprise refusées (32.011875ms)
+✔ SMTP : double demande, annulation, budget et résultat incertain ne relancent jamais (8.245ms)
+✔ SMTP : sans configuration brouillon et URL Gmail, aucune approbation ni transmission (3.405875ms)
+✔ Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn bloqués (3.766459ms)
+✔ Pont : envoi obligatoire même propriétaire, aperçu absent du journal persistant, refus et annulation (11.600542ms)
+✔ API propriétaire → deux MCP → SMTP FICTIF : refus puis course interprocessus, un seul message (864.5405ms)
+(node:1368) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ CV FICTIF : conversion UTF-8, nom hostile assaini, identifiant persistant, aucune donnée dans le dépôt (7.942125ms)
+✔ CV : taille, MIME, extension, UTF-8 et signature invalides refusés (3.101792ms)
+✔ CV : convertisseur PDF local appelé, panne et sortie vide explicites (3.58925ms)
+✔ Espaces : absent, hors périmètre et liens symboliques refusés (1.106458ms)
+✔ Profil YAML privé : lecture, écriture, entrées invalides (4.322709ms)
+✔ API pièces jointes : binaire, protection POST, MIME, id inconnu, racine absente (42.448042ms)
+✔ live-run : délai atteint → annulation, aucun SSE infini, sortie en échec (153.161125ms)
+✔ live-run : titre ACP forgé ne vaut pas autorisation et failed ne vaut pas succès (1111.667042ms)
+✔ live-run : résultat completed FICTIF conserve un code de succès (164.794459ms)
+✔ live-run : délai invalide refusé avant de créer un run (139.194917ms)
+✔ live-run : même un journal terminal qui ne ferme pas est borné (181.933542ms)
+✔ MCP fixture : arguments inconnus refusés selon le contrat publié (571.799125ms)
+✔ MCP isolated : arguments inconnus refusés selon le contrat publié (887.826ms)
+✔ MCP : bornes et valeurs par défaut du registre exposées à l’agent (797.839458ms)
+✔ MCP fixture : arguments valides et résultat explicitement simulé (777.809ms)
+✔ MCP réel : entrées hors limites refusées avant le handler (857.091458ms)
+✔ évaluation Najah : data-engineer-berlin (18.015834ms)
+✔ évaluation Najah : python-remote (0.808792ms)
+✔ évaluation Najah : no-false-sponsor (0.635708ms)
+✔ évaluation Najah : unrelated-query (0.566291ms)
+(node:1383) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ mots-clés : mots vides retirés, langages conservés (2.600875ms)
+✔ normalisation des sources réelles enregistrées : provenance complète, sponsoring inconnu (1.769542ms)
+✔ CSV : guillemets, virgules dans les champs, CRLF (0.227209ms)
+✔ registre UK : noms normalisés, correspondance de nom ≠ identité confirmée, pas de faux positif (1.058791ms)
+✔ classement explicable et déterministe ; lieux FR/EN ; bonus visa seulement si demandé (25.695792ms)
+✔ vérification live : classement altéré, provenance manquante, sponsoring inventé refusés (3.796042ms)
+✔ gateway de données : hôtes autorisés, HTTPS, redirections revérifiées, taille, cache, mesure (19.080417ms)
+✔ rejeu : réponses réelles enregistrées, jamais de réseau, allowlist conservée (3.028875ms)
+✔ toolArguments : $from relie les sorties, valeur absente omise (0.378875ms)
+✔ DAG Najah réel complet via l’API, en rejeu hors ligne : recherche → registre → classement → vérification (6143.496125ms)
+✔ recherche : sources entrelacées, une source abondante n’évince pas les autres (2.511791ms)
+✔ sécurité cache : allowlist, format, taille et corruption revérifiés sur chaque lecture (3.888042ms)
+✔ sécurité réseau : deadline totale, annulation du corps et limite en rejeu (51.58925ms)
+✔ Najah : aucune source disponible ne devient pas un classement vérifié vide (0.375042ms)
+✔ politique réseau : IPv4 mappées en hexadécimal et réseaux réservés refusés (0.527667ms)
+✔ cache concurrent : publications atomiques et cache symbolique ignoré (16.17575ms)
+✔ transport : connexion sur IP validée sans seconde résolution, taille, compression et deadline (80.466708ms)
+✔ origines locales : uniquement HTTP loopback explicite, pas d’origine null ou distante (1.046333ms)
+✔ origine locale FICTIVE http://127.0.0.1:9, owner=false : exception HTTP sans blob (0.775167ms)
+✔ origine locale FICTIVE http://localhost:9, owner=false : exception HTTP sans blob (0.55125ms)
+✔ origine locale FICTIVE http://[::1]:9, owner=false : exception HTTP sans blob (0.481791ms)
+✔ origine locale FICTIVE http://127.0.0.1:9, owner=true : exception HTTP sans blob (0.2525ms)
+✔ origine locale FICTIVE http://localhost:9, owner=true : exception HTTP sans blob (0.202792ms)
+✔ origine locale FICTIVE http://[::1]:9, owner=true : exception HTTP sans blob (0.1595ms)
+(node:1389) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ interrupteur désactivé par défaut : domaines, JS, modes ACP et budget conservés (3944.231375ms)
+✔ propriétaire : tous domaines HTTP/HTTPS publics, JS actif, JSON fidèle ; réseaux privés refusés (2.095416ms)
+✔ propriétaire : refus synchrone de toute écoute sauf 127.0.0.1, bandeau et catalogue explicites (4233.03625ms)
+✔ propriétaire : envoi approuvé et saisie automatique ; garde des arguments et injections conservée (7.974125ms)
+✔ propriétaire : Auto et mode workflow auto choisissent le parcours navigateur général (8397.037875ms)
+✔ propriétaire : prix configurés neutralisés, budget zéro, ledger toujours vérifié (16.901834ms)
+✔ ACP propriétaire codex : sélection d’un mode réellement annoncé, jamais full access (201.608625ms)
+✔ ACP propriétaire claude : sélection d’un mode réellement annoncé, jamais full access (188.975209ms)
+✔ ACP propriétaire gemini : sélection d’un mode réellement annoncé, jamais full access (190.271167ms)
+✔ ACP propriétaire Codex : workspace-write absent → refus explicite, aucun mode inventé (189.39225ms)
+✔ propriétaire : étapes de formulaire automatiques, envoi final toujours soumis à accord (1.299125ms)
+✔ Envoi sensible : chemin et operationName, avec frontières de mots et lots GraphQL (4.095542ms)
+✔ GraphQL : une lecture passe, une mutation ou un POST quelconque reste un envoi (0.367709ms)
+✔ GraphQL : les noms sensibles de lectures ne réclament aucun accord (0.207125ms)
+✔ Aperçu d’envoi : jetons masqués et taille bornée (1.019292ms)
+✔ Session : le renouvellement de connexion n’est pas un envoi (0.348209ms)
+✔ Même site : API de la page oui, statistiques tierces non (9.678042ms)
+✔ transport propriétaire : inventaire filtré, pas d’auto-attachement global, aucune commande sur onglet utilisateur (126.543292ms)
+✔ transport propriétaire : relais muet, délai borné et fermeture sans onglet étranger (59.737417ms)
+✔ transport propriétaire : relais absent et métadonnées invalides refusés (3.572291ms)
+(node:1419) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gateway refuse écriture, exfiltration et URLs ambiguës (2.099333ms)
+✔ ledger refuse budget négatif/dépassement sans inscription partielle (9.698833ms)
+✔ historique durable et interruption au redémarrage (8.271209ms)
+✔ Skill non revu, désactivé et modifié rejeté (10.971042ms)
+✔ vrai MCP : découverte, classement et refus navigateur (813.588542ms)
+✔ API complète : plan → ACP → MCP → résultat, SSE replay et protections HTTP (18516.93975ms)
+✔ core reste indépendant de Najah (6098.335958ms)
+✔ annulation et délai maximal ne produisent pas de faux succès (9722.746708ms)
+✔ permissions ponctuelles : réponse valide, expiration logique et annulation (12.724834ms)
+✔ runtime : handshake réel et rejet de reprise non supportée (308.765166ms)
+﹣ Playwriter réel : incompatibilité sûre et onglets inchangés (0.829208ms) # SKIP
+✔ sonde reprise : historique rejoué exclu du tour courant (vrai ACP, faux agent) (173.180666ms)
+✔ sonde reprise : un refus mentionnant ORCHID ne prouve pas la mémoire (0.278417ms)
+✔ sonde reprise : texte surdimensionné borné et jamais validé (158.804417ms)
+✔ timeout réel : initialize sans réponse rejeté dans le délai (1573.688291ms)
+✔ timeout réel : session/new sans réponse (1747.207917ms)
+✔ timeout réel : prompt sans réponse, puis réponse tardive ignorée (3187.46275ms)
+✔ annulation par signal externe pendant le prompt (269.071167ms)
+✔ signal déjà annulé : aucune requête envoyée (173.774542ms)
+✔ crash de l’agent pendant une requête : erreur explicite immédiate (162.316833ms)
+✔ crash au démarrage (177.778375ms)
+✔ bruit non JSON sur stdout toléré (230.822958ms)
+✔ permission en attente puis annulation : pas de blocage (555.2225ms)
+✔ double cancel et close idempotents ; requête après fermeture refusée (243.682541ms)
+✔ auth requise : erreur de session explicite (206.312916ms)
+✔ environnement en liste blanche : la clé Gemini ne fuit pas vers un autre agent (212.625958ms)
+✔ environnement : la clé Gemini est transmise au seul profil qui la déclare (297.4375ms)
+✔ buildChildEnv : base, LC_*, profil, valeurs vides ignorées (0.267583ms)
+✔ redact masque valeurs connues et motifs de clés (0.153834ms)
+✔ mode sûr choisi parmi les modes annoncés (modes) (191.68725ms)
+✔ mode sûr via configOptions (style OpenCode) (204.032042ms)
+✔ mode sûr absent : refus de lancer (227.673458ms)
+✔ aucun mécanisme de mode annoncé pour un profil exigeant : refus (181.821166ms)
+✔ modèle via configOptions (204.313209ms)
+✔ modèle via models + session/set_model (style Gemini) (191.634875ms)
+✔ modèle non annoncé refusé ; vide garde le défaut (190.395667ms)
+✔ reprise : load refusé sans capacité, accepté avec (380.97975ms)
+✔ describe() n’expose ni environnement ni secrets (171.464666ms)
+✔ normalisation : sessionModels / sessionModes / capacités (0.339708ms)
+✔ routeur Auto : mode démo → fixture explicite (0.5275ms)
+✔ routeur Auto : préférence, rejets expliqués (0.230084ms)
+✔ routeur Auto : session refusée au dernier test → agent suivant (0.137375ms)
+✔ routeur Auto : exigence de modèle et de reprise (0.196ms)
+✔ routeur Auto : ordre explicite et transport MCP http (0.134875ms)
+✔ routeur Auto : aucun candidat → erreur, jamais de repli fixture silencieux (0.208458ms)
+✔ découverte : agents.json, chemins absolus exigés, node_modules exclu du PATH (2.205541ms)
+✔ détection : CLI factice Gemini sans option ACP → incompatible avec raison (576.974ms)
+✔ détection : CLI factice Gemini avec --acp → compatible (350.599666ms)
+✔ sondes : persistance atomique, fichier corrompu ignoré (3.418417ms)
+✔ reprise avec clé API : authenticate avant session/load, dossier isolé, clé jamais transmise (223.910042ms)
+✔ reprise sans clé API : pas d’authenticate, pas de dossier isolé (169.570208ms)
+✔ routeur Auto : dernier prompt refusé pour authentification → agent écarté, avec raison (0.248125ms)
+✔ sondes : fusion — une sonde de session n’efface pas le résultat d’inférence (1.482042ms)
+(node:1462) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sécurité : échec du mode sûr interdit ensuite le prompt et start après close (180.228333ms)
+✔ sécurité : secrets masqués dans événements, permissions, erreurs et SQLite (207.6085ms)
+✔ sécurité : secret du pont MCP ajouté à la liste de masquage, fermeture rejette un pair muet (479.395375ms)
+✔ sécurité : changement asynchrone vers un mode dangereux ferme le runtime (237.870334ms)
+✔ sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du parent (1928.677583ms)
+✔ modèle courant non annoncé : refusé même sans changement de session (2.036875ms)
+(node:1485) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ analyse : front matter, nom, description, empreinte stable (12.218208ms)
+✔ analyse : scripts, binaires, motifs dangereux et licence absente signalés (2.824375ms)
+✔ analyse : références à des fichiers non fournis (Skill non autonome) (2.356875ms)
+✔ analyse : lien symbolique, fichier trop gros, trop de fichiers refusés (64.622833ms)
+✔ cycle tiers : import en quarantaine → installation refusée → revue → actif → résolu (15.685875ms)
+✔ revue refusée, nom réservé, revue des intégrés impossible (14.057417ms)
+✔ intégrité : modification après revue → résolution refusée et intégrité fausse (10.898958ms)
+✔ versions : une nouvelle version repasse en quarantaine, historique conservé (13.080542ms)
+✔ export natif : .agents/skills pour Codex/Gemini/OpenCode, .claude/skills pour Claude, sans scripts (53.441917ms)
+✔ import Git : seules les URL GitHub HTTPS sont acceptées (12.391458ms)
+✔ import local depuis l’API : limité aux racines autorisées (1.224542ms)
+✔ Skills intégrés : comportement historique conservé (7.324416ms)
+✔ sécurité : racine symbolique et import API via parent symbolique refusés (1.56225ms)
+✔ sécurité Git : sous-dossier absolu, options, credentials, ports et URL décorées refusés avant clone (7.205125ms)
+✔ sécurité export : octets revérifiés après resolve et destinations sans liens symboliques (13.569875ms)
+✔ sécurité revue : consentement lié à l’empreinte effectivement présentée (12.790375ms)
+✔ analyse bornée : snapshot stable et arborescence trop profonde refusée (5.67025ms)
+✔ écriture confinée : remplacement d’un hardlink ne modifie pas sa cible extérieure (3.117709ms)
+✔ API de revue : empreinte obligatoire et version courante uniquement (51.320875ms)
+(node:1489) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SSE : un événement après la fin du flux ne fait pas planter le serveur (39.565417ms)
+✔ runner : la phase Chrome garde une marge distincte sous charge (0.886167ms)
+✔ runner : une phase bloquée expire sans attendre le délai de quinze minutes (164.131417ms)
+✔ E2E : échec de lancement ne laisse aucun serveur local empêchant la sortie (892.648833ms)
+✔ captures : échec de lancement ferme aussi l’API locale (957.153167ms)
+(node:1515) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dist optionnel : fichiers confinés, MIME, API et protections HTTP conservées (4571.721334ms)
+✔ UI : une réponse de plan après édition ne réactive pas un objectif périmé (9.871833ms)
+✔ UI : ouvrir B pendant le chargement de A garde seulement le flux et le résultat B (3.594584ms)
+✔ UI : un événement déjà en file de A ne peut pas fermer le flux B (2.370459ms)
+✔ UI : un Skill désactivé est retiré de la sélection envoyée au plan (2.246125ms)
+✔ UI : le plan courant peut toujours être lancé avec les champs affichés (49.484625ms)
+✔ UI : événements périmés ignorés, flux courant met encore à jour son état (2.710875ms)
+✔ UI : réponse terminale en retard ne remplace pas un autre run (2.03175ms)
+✔ UI legacy : compte à rebours visible et accord désactivé après expiration (2.327292ms)
+✔ UI legacy : liste privée des envois affiche aussi l’expiration (4.285208ms)
+(node:1568) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ définition : schéma, doublons, dépendances inconnues, cycles, ordre et niveaux (11.007333ms)
+✔ exécution séquentielle avec passage des sorties de dépendances (17.484083ms)
+✔ parallélisme réel borné par concurrency (fan-out / fan-in) (262.517417ms)
+✔ échec : dépendants ignorés, run en échec avec détail (14.980584ms)
+✔ étape optionnelle en échec : le workflow continue et réussit (11.762958ms)
+✔ tentatives : réussite après deux échecs, compteur persistant (12.508084ms)
+✔ tentatives épuisées → échec (10.356917ms)
+✔ délai d’étape : lecture en échec, écriture incertaine (jamais relancée seule) (413.615208ms)
+✔ approbation humaine : attente, approbation, suite du workflow (115.942292ms)
+✔ approbation refusée : dépendants ignorés (66.640375ms)
+✔ annulation : étapes en cours et en attente annulées, écriture en cours incertaine (65.023584ms)
+✔ sortie tardive d’une tentative abandonnée ignorée (génération) (134.043416ms)
+✔ reprise après crash : étapes terminées conservées, lecture relancée, écriture incertaine (115.899042ms)
+✔ exécuteur absent, sortie trop volumineuse, actions invalides (10.130708ms)
+✔ événements d’étape émis et persistés pour le streaming (7.747291ms)
+✔ écriture : toute erreur après lancement devient incertaine, sans relance automatique (51.788208ms)
+✔ annulation pendant la notification running : exécuteur non lancé (9.878542ms)
+(node:1583) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reprise après redémarrage du serveur : étapes réussies conservées, run terminé en place (11519.404584ms)
+✔ reprise refusée : run terminé, actif, ou mode agent (13082.88175ms)
+✔ brouillon de candidature : attente d’approbation, approbation via l’API, aucun envoi (5965.384417ms)
+✔ brouillon refusé à la relecture : workflow en échec, reprise possible (12394.491ms)
+✔ reprise concurrente : un seul contrôle et une seule exécution (29.32975ms)
+✔ redémarrage : les runs anciens au-delà de la liste UI sont tous interrompus (245.985958ms)
+✔ reprise : refus si la définition durable a été modifiée (7435.557875ms)
+(node:1589) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ DAG : sortie ACP cumulée trop volumineuse arrêtée même si le JSON final est petit (342.157125ms)
+✔ DAG : excès de notifications ACP arrête le run au lieu de perdre silencieusement la suite (790.432833ms)
+✔ DAG : fragments proches des limites restent acceptés et donnent un résultat vérifié (936.488292ms)
+✔ DAG : résultat final identique quand les étapes sont déclarées dans un autre ordre valide (322.376667ms)
+(node:1618) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ plan workflow : DAG Najah affiché avec agents, niveaux et étape optionnelle (5020.477333ms)
+✔ workflow Najah complet : outils MCP réels, agent, vérification indépendante, agrégat (7251.86075ms)
+✔ workflow général (core) : agent requis puis vérification de structure (7092.631875ms)
+✔ workflow : annulation pendant l’exécution → cancelled, étapes annulées (4604.513625ms)
+✔ workflow : pack sans DAG ou mode inconnu refusés (11.212083ms)
+✔ aggregateOutputs : priorité au résultat vérifié, résumé d’analyse, preuves concaténées (0.306333ms)
+✔ toolArguments : objectif par défaut et substitution sans évaluation (0.22975ms)
+✔ injection : une analyse qui modifie le classement ne passe pas la vérification (0.804458ms)
+✔ proposition automatique de workflow : mots-clés, exigence réseau, défaut expliqué (0.847542ms)
+✔ plan workflow « auto » : DAG proposé, raison visible, identifiant enregistré dans le run (4268.90925ms)
+✔ plan : permissions affichées calculées selon le workflow réel (13917.60675ms)
+✔ timeout d’étape pendant initialize : le processus ACP est fermé sans attendre le handshake (542.023375ms)
+✔ core réel (faux ACP) : le booléen généré ne transforme pas une analyse réelle en démonstrateur (142.3435ms)
+✔ agrégation répétée : conserve les provenances réelles/fictives de verify (0.227041ms)
+ℹ tests 267
+ℹ suites 0
+ℹ pass 255
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 93222.020834
+
+✖ failing tests:
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (url-denied) (5.588084ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (filename-error) (1.661083ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (oversized) (1.357459ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (existing-file) (2.035458ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (path-error) (1.760125ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (click-error) (1.379625ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (late-click-error) (0.863167ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /non autorisé|FICTIF|volumineux|EEXIST/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:81:7)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /non autorisé|FICTIF|volumineux|EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:20:3
+✖ téléchargement FICTIF : nettoyage du temporaire (success) (0.864834ms)
+  TypeError: page.on is not a function
+      at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+      at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:78:21)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)
+
+test at tests/browser-download.test.js:98:3
+✖ autorisation de téléchargement FICTIF : success (1.190125ms)
+  TypeError: page.on is not a function
+      at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+      at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:139:33)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)
+
+test at tests/browser-download.test.js:98:3
+✖ autorisation de téléchargement FICTIF : click-error (2.973583ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /FICTIF/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:140:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:140:10)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /FICTIF/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/browser-download.test.js:98:3
+✖ autorisation de téléchargement FICTIF : event-timeout (1.184291ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /FICTIF/. Input:
+  
+  'TypeError: page.on is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:140:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: page.on is not a function
+        at CdpBrowser.trackSnapshotNavigation (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:719:10)
+        at CdpBrowser.perform (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:777:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-download.test.js:140:10)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /FICTIF/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+▶ Chrome réel (série) : 4 fichier(s)
+(node:2020) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pont d’approbation : seules les capacités accordées sont listées (496.036833ms)
+✔ pont d’approbation : « Postuler » refusé dans l’interface → aucun envoi (3547.575ms)
+✔ pont d’approbation : « Postuler » autorisé une fois → un envoi (1892.139458ms)
+✔ pont d’approbation : jeton invalide ou run inactif refusés (28.589792ms)
+✔ pont : jeton lié au run et compteur refusé après abandon ou hors activité (6.554584ms)
+✔ permission : annulation locale résout immédiatement, conserve les autres demandes et ignore une réponse tardive (7.058875ms)
+✔ gateway réelle sans pont de mesure : action refusée avant lancement de Chrome (600.839541ms)
+✔ options navigateur via MCP : JavaScript deny, décision humaine enregistrée par run (698.425ms)
+✔ options navigateur via MCP : JavaScript allow, décision humaine enregistrée par run (1846.465417ms)
+✔ options navigateur : annuler pendant le consentement interdit le lancement (574.723208ms)
+✔ consentement MCP : arguments forgés et faux outil ne remplacent pas la décision (515.099375ms)
+✔ frontière humaine : Origin web refusée, appel natif local non authentifié accepté (limite connue) (22.119959ms)
+✔ registre : contrats stables, schémas stricts, effets déclarés (4.304625ms)
+✔ politique : https, domaines, sous-domaines, IP, ports, identifiants, local explicite (7.437042ms)
+✔ politique : résolution DNS vers réseau privé refusée (rebinding) (0.660791ms)
+✔ politique : détection des éléments sensibles (0.87875ms)
+✔ politique : chemins de fichiers confinés au dossier du run (0.584583ms)
+✔ politique : sérialisation pour le processus MCP (0.201666ms)
+✔ redaction : clés, numéros de carte, troncature (1.344667ms)
+✔ gateway : lecture sans approbation, contenu marqué non fiable, mesure (1.253875ms)
+✔ gateway : clic sensible refusé sans approbation humaine, même auto-approuvé (1.140167ms)
+✔ gateway : une référence sensible demande accord avec la description de l’élément (1.20325ms)
+✔ gateway : clic approuvé exécuté ; texte saisi jamais transmis à l’approbation (0.951625ms)
+✔ gateway : capacités non accordées, arguments hors contrat, élément absent (0.573125ms)
+✔ gateway : domaine interdit et redirection vers domaine interdit bloqués (0.370584ms)
+✔ gateway : upload hors dossier et lien symbolique refusés (1.997625ms)
+✔ CdpBrowser : endpoint distant refusé, configuration requise (0.214958ms)
+✔ Chrome réel isolé : navigation, instantané d’accessibilité, extraction (1741.742125ms)
+✔ Chrome réel : « Postuler » refusé → aucun envoi au serveur (928.781375ms)
+✔ Chrome réel : « Postuler » approuvé → un seul envoi (1030.469333ms)
+✔ Chrome réel : champ mot de passe sensible, saisie approuvée sans fuite du texte (1099.943042ms)
+✔ Chrome réel : redirection serveur vers domaine interdit bloquée (1318.603542ms)
+✔ Chrome réel : téléchargement dans le dossier du run, taille limitée (1333.860459ms)
+✔ Chrome partagé via CDP (comme le relais Playwriter) : onglets utilisateur intacts, navigateur jamais fermé (1720.707333ms)
+✔ Chrome : sous-ressources, iframe, popup et redirections en chaîne restent confinés (1479.95675ms)
+✔ gateway : un élément modifié pendant l’approbation ne reçoit pas le consentement précédent (0.702167ms)
+✔ Chrome : téléchargement refuse un dossier symlink (972.022625ms)
+✔ gateway : upload revalidé après consentement et appels sérialisés (26.405833ms)
+✔ Chrome : redirection 303 après formulaire ne répète pas le POST approuvé (1187.931625ms)
+✔ options navigateur : défaut sûr, booléens stricts et aller-retour JSON sans consentement (0.440458ms)
+✔ options navigateur : aucun lancement sans consentement, y compris JSON prétendument approuvé (0.402208ms)
+✔ options navigateur : consentement strict, non transférable et changement de politique refusé (0.351959ms)
+✔ Chrome : JavaScript désactivé par défaut, activé après consentement et réseau toujours filtré (1926.75675ms)
+✔ options navigateur : refus partiel, mutation et fermeture pendant le consentement restent fermés (0.474459ms)
+✔ Chrome isolé : contexte et page initiale font partie du lancement borné, sans newContext (0.466833ms)
+✔ Chrome isolé : délai du faux exécutable muet et nettoyage explicite de la fixture (1002.539541ms)
+✔ Chrome isolé : délai de démarrage strictement positif et entier (0.683583ms)
+✔ démarrage : fermer pendant le lancement ne ressuscite aucun contexte (3.653958ms)
+✔ démarrage : appels concurrents partagent un seul lancement (0.468875ms)
+✔ démarrage : erreur de garde conserve la cause et libère le contexte (0.343667ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (connection) (32.392084ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (context) (31.653583ms)
+✔ démarrage CDP : deadline et résultat tardif nettoyé (page) (31.37825ms)
+✔ démarrage : une mutation pendant le lancement refuse et nettoie le résultat (1.230459ms)
+CONTRE-ÉPREUVE scripts réseau : ["inline","external","handler","srcdoc","data","inline","jsurl","jsurl","blob","meta"]
+✔ CSP et routage seuls : documents réseau sans scripts, contre-épreuve JS active (7925.528791ms)
+PREUVE worker malgré routage/CSP : FICTIF SCRIPT EXECUTED
+✔ CSP seule : un service worker préexistant contourne le routage du document (1543.252375ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=false (2.09675ms)
+✔ relais FICTIF : refus avant navigation si protection session échoue, JS=true (0.585708ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=false (0.356125ms)
+✔ relais FICTIF : refus avant navigation si protection emulation échoue, JS=true (0.281ms)
+✔ relais FICTIF : refus avant navigation si protection network échoue, JS=false (0.234666ms)
+✔ relais FICTIF : refus avant navigation si protection network échoue, JS=true (0.280333ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=false (0.284917ms)
+✔ relais FICTIF : refus avant navigation si protection worker échoue, JS=true (0.2735ms)
+✔ relais FICTIF : contexte isolé indisponible, consentement proposé sans bascule silencieuse (0.379292ms)
+✔ relais FICTIF HTTP : précontrôle Playwriter sans connexion ni lecture des onglets (8.743458ms)
+✔ précontrôle CDP FICTIF : http-error, aucune connexion après échec (2.806083ms)
+✔ précontrôle CDP FICTIF : redirect, aucune connexion après échec (4.198208ms)
+✔ précontrôle CDP FICTIF : invalid-json, aucune connexion après échec (15.207167ms)
+✔ précontrôle CDP FICTIF : timeout, aucune connexion après échec (102.507083ms)
+✔ précontrôle CDP FICTIF : close, aucune connexion après échec (4.388792ms)
+✔ Chrome : redirection de chemin même origine, URL et liens relatifs de la cible (978.334ms)
+✔ Chrome : tout bouton de soumission effectif exige un consentement sensible (1036.702417ms)
+✔ Chrome : redirection navigate, réponse unique conservée et URL finale exacte (934.56625ms)
+✔ Chrome : redirection snapshot, réponse unique conservée et URL finale exacte (1401.3225ms)
+✔ Chrome : redirection fragment, réponse unique conservée et URL finale exacte (910.047084ms)
+✔ Chrome : redirection samePathFragment, réponse unique conservée et URL finale exacte (965.708792ms)
+✔ Chrome : redirection scripted, réponse unique conservée et URL finale exacte (966.04675ms)
+✔ Chrome : redirection link, réponse unique conservée et URL finale exacte (1048.652792ms)
+✔ Chrome : redirection form303, réponse unique conservée et URL finale exacte (1006.762375ms)
+✔ Chrome : redirection form307, réponse unique conservée et URL finale exacte (1001.879208ms)
+✔ Chrome : téléchargement redirigé conservé sans document intermédiaire (1113.533041ms)
+✔ Chrome : fichier data refusé puis temporaire effectivement supprimé (904.684458ms)
+✔ Chrome : téléchargement POST approuvé une fois, redirection 0 (1057.070458ms)
+✔ Chrome : téléchargement POST approuvé une fois, redirection 303 (1003.780875ms)
+✔ Chrome : téléchargement POST approuvé une fois, redirection 307 (1033.717042ms)
+(node:2518) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ E2E interface : workflow Najah, étapes en direct, résultats fictifs étiquetés, coût (12596.278375ms)
+✔ E2E interface : brouillon de candidature, approbation humaine dans l’interface (12519.696833ms)
+✔ E2E interface : estimation au-dessus du budget signalée puis lancement refusé (11467.306417ms)
+✔ E2E interface : saisie avant chargement du catalogue sans erreur (5080.286042ms)
+✔ E2E interface : édition pendant le calcul du plan conserve le plan invalidé (7265.448958ms)
+✔ E2E candidature FICTIVE : CV, profil, ACP/MCP, notes A–H, LinkedIn manuel et file d’envoi (10897.933584ms)
+✔ PDF FICTIF local et DOCX importé : conversion réelle, pièce jointe adaptée et CV source intact (1849.487666ms)
+(node:2793) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Chrome FICTIF : références du snapshot pour clic, saisie, fichier, iframe et navigation (3242.44325ms)
+✔ Chrome FICTIF : clic instable contrôlé et superposition refusée (13930.4065ms)
+✔ Chrome FICTIF : formulaire final instable demande accord et refuse le POST (5927.63275ms)
+✔ Chrome FICTIF : radio dans une carte role=button reste un champ (1131.534833ms)
+✔ Chrome FICTIF : lecture GraphQL au chargement automatique, mutation soumise à accord (945.728917ms)
+✔ Chrome FICTIF : URL et formulaire secrets masqués dans la demande d’envoi (887.294167ms)
+✔ Chrome FICTIF : POST sensible hors clic refusé, autosave autorisé (1771.423917ms)
+✔ propriétaire Chrome réel : JS actif, préparation automatique et envoi approuvé (1499.259166ms)
+✔ propriétaire API → faux ACP → MCP → Chrome : relais absent, bascule réelle, preuves observées et ledger (5651.461875ms)
+✔ propriétaire : relais qui refuse newCDPSession ne bloque pas notre onglet (0.694125ms)
+✔ propriétaire : transport CDP réel préserve un autre onglet du Chrome isolé (825.133375ms)
+✔ propriétaire Chrome FICTIF : zéro POST sans accord, puis une soumission après accord avec aperçu (9571.82775ms)
+✔ balise FICTIVE même site /v1/send hors clic : aucun accord demandé (1438.598375ms)
+▶ chargement différé FICTIF : snapshot et extract attendent le formulaire
+  ✔ browser.snapshot (3655.088042ms)
+  ✔ browser.extract (3100.888583ms)
+✔ chargement différé FICTIF : snapshot et extract attendent le formulaire (6985.206125ms)
+▶ chargement FICTIF : délai borné, indicateurs persistants et réseau continu
+  ✔ /busy (8884.91ms)
+  ✔ /alert (8191.712958ms)
+  ✔ /progress (8145.533792ms)
+  ✔ /ready (1372.033916ms)
+  ✔ /failed (542.678875ms)
+  ✔ /error (538.714042ms)
+  ✔ /impossible (536.649625ms)
+  ✔ /loading-fr (8036.894416ms)
+✔ chargement FICTIF : délai borné, indicateurs persistants et réseau continu (37097.982333ms)
+▶ extract FICTIF : élément tardif sans indicateur de chargement
+  ✔ limit 1 (4497.335834ms)
+  ✔ limit 2 (3356.583375ms)
+✔ extract FICTIF : élément tardif sans indicateur de chargement (8105.343292ms)
+✔ formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final (14869.73325ms)
+✔ propriétaire : onglet ou contexte fermé pendant une attente → rouvert au prochain appel (2761.680458ms)
+✔ propriétaire FICTIF : garde d’envoi réinstallée après reconnexion, refus sans POST (1520.9ms)
+ℹ tests 124
+ℹ suites 0
+ℹ pass 124
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 232790.520667

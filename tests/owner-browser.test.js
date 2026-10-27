@@ -12,6 +12,102 @@ import { capabilityIds } from '../packages/capability-registry/index.js';
 const CHROME =
   process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const temporary = () => mkdtempSync(join(tmpdir(), 'relay-owner-browser-'));
+test(
+  'Chrome FICTIF : références du snapshot pour clic, saisie, fichier, iframe et navigation',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      if (req.url === '/next') {
+        res.end(
+          '<title>FICTIF suite</title><button onclick="document.body.dataset.hits = 1">Suite</button>',
+        );
+        return;
+      }
+      res.end(`<title>FICTIF refs</title><button onclick="document.body.dataset.hits = (+document.body.dataset.hits || 0) + 1">Compter</button>
+      <label>Nom <input aria-label="Nom"></label><input type="file" aria-label="Pièce">
+      <iframe title="Cadre fictif" srcdoc='<button onclick="document.body.dataset.hits = (+document.body.dataset.hits || 0) + 1">Cadre</button>'></iframe>`);
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((resolve) => server.close(resolve));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const folder = temporary();
+    writeFileSync(join(folder, 'fictif.txt'), 'FICTIF');
+    t.after(() => rmSync(folder, { recursive: true, force: true }));
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-refs',
+        workspace: folder,
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const snapshot = (await gateway.call('browser.snapshot')).snapshot;
+    const ref = (line) =>
+      snapshot
+        .split('\n')
+        .find((part) => part.includes(line) && /\[ref=/.test(part))
+        ?.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.match(snapshot, /\[ref=e\d+\]/);
+    assert.match(snapshot, /\[ref=f\d+e\d+\]/);
+    const button = ref('Compter');
+    const name = ref('Nom');
+    const file = ref('Pièce');
+    const frame = ref('"Cadre"');
+    assert.ok(button && name && file && frame, snapshot);
+    assert.equal((await gateway.call('browser.extract', { ref: button })).text, 'Compter');
+    await gateway.call('browser.click', { ref: button });
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    await gateway.call('browser.type', { ref: name, text: 'FICTIF nom' });
+    assert.equal(await provider.page.locator('input[aria-label="Nom"]').inputValue(), 'FICTIF nom');
+    await gateway.call('browser.upload', { ref: file, path: 'fictif.txt' });
+    assert.equal(
+      await provider.page.locator('input[type=file]').evaluate((el) => el.files[0].name),
+      'fictif.txt',
+    );
+    await gateway.call('browser.click', { ref: frame });
+    assert.equal(
+      await provider.page.frameLocator('iframe').locator('body').getAttribute('data-hits'),
+      '1',
+    );
+    await provider.page.evaluate(() =>
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      }),
+    );
+    const hiddenClick = await gateway.call('browser.click', { ref: frame });
+    assert.equal(hiddenClick.clickMode, 'dom-hidden-tab');
+    assert.equal(
+      await provider.page.frameLocator('iframe').locator('body').getAttribute('data-hits'),
+      '2',
+    );
+    await provider.page.evaluate(() => delete document.visibilityState);
+    await gateway.call('browser.navigate', { url: `${origin}/next` });
+    await assert.rejects(
+      gateway.call('browser.click', { ref: button }),
+      /Référence .* introuvable .*reprends un snapshot/,
+    );
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), null);
+    const refreshed = (await gateway.call('browser.snapshot')).snapshot;
+    const nextRef = refreshed.match(/button "Suite" \[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(nextRef, refreshed);
+    await gateway.call('browser.click', { ref: nextRef });
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
+    await provider.page.reload();
+    await assert.rejects(gateway.call('browser.click', { ref: nextRef }), /reprends un snapshot/);
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), null);
+  },
+);
 async function site(t) {
   let posts = 0;
   const server = http.createServer((req, res) => {

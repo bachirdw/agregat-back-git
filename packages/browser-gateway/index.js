@@ -64,11 +64,12 @@ export class BrowserGateway {
     if (pageBefore && pageBefore !== 'about:blank') await this.policy.assertUrl(pageBefore);
     let element = null;
     let sensitive = cap.effect === 'sensitive';
+    const target = args.ref ? { ref: args.ref } : args.selector;
     if (
       ['browser.click', 'browser.type', 'browser.download', 'browser.upload'].includes(capabilityId)
     ) {
-      element = await this.provider.describe(args.selector);
-      if (!element) throw new Error(`Élément introuvable : ${args.selector}`);
+      element = await this.provider.describe(target);
+      if (!element) throw new Error(`Élément introuvable : ${args.ref ?? args.selector}`);
       sensitive ||= this.policy.isSensitiveElement(element);
     }
     if (capabilityId === 'browser.upload') {
@@ -95,7 +96,7 @@ export class BrowserGateway {
       throw new Error(
         'LinkedIn : écriture automatisée interdite ; ouvrir le profil et copier le brouillon manuellement',
       );
-    const preview = sending ? await this.provider.submissionPreview?.(args.selector) : null;
+    const preview = sending ? await this.provider.submissionPreview?.(target) : null;
     if (sending || (cap.effect !== 'read' && !this.policy.ownerMode)) {
       const needsHuman = sending || sensitive || !this.autoApprove.has(capabilityId);
       if (needsHuman) {
@@ -107,7 +108,10 @@ export class BrowserGateway {
           // Typed text of secret fields is never shown or stored.
           args:
             capabilityId === 'browser.type'
-              ? { selector: args.selector, textLength: args.text.length }
+              ? {
+                  ...(args.ref ? { ref: args.ref } : { selector: args.selector }),
+                  textLength: args.text.length,
+                }
               : args,
           page: await this.provider.currentUrl?.(),
         });
@@ -117,14 +121,11 @@ export class BrowserGateway {
     }
     if (
       element &&
-      (!isDeepStrictEqual(element, await this.provider.describe(args.selector)) ||
+      (!isDeepStrictEqual(element, await this.provider.describe(target)) ||
         pageBefore !== (await this.provider.currentUrl?.()))
     )
       throw new Error('Élément ou page modifié pendant l’approbation');
-    if (
-      sending &&
-      !isDeepStrictEqual(preview, await this.provider.submissionPreview?.(args.selector))
-    )
+    if (sending && !isDeepStrictEqual(preview, await this.provider.submissionPreview?.(target)))
       throw new Error('Formulaire modifié pendant l’approbation');
     if (capabilityId === 'browser.upload') {
       // Freeze the approved bytes; Playwright must not reopen a path that may have changed.
@@ -168,8 +169,8 @@ export class FixturePageProvider {
   async currentUrl() {
     return this.url;
   }
-  async describe(selector) {
-    return this.pages[this.url]?.elements?.[selector] ?? null;
+  async describe(target) {
+    return this.pages[this.url]?.elements?.[target?.ref ?? target] ?? null;
   }
   async perform(id, args, policy) {
     if (id === 'browser.navigate' || (id === 'browser.snapshot' && args.url)) {

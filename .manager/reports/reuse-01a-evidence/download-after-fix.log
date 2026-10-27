@@ -1,0 +1,19 @@
+✔ téléchargement FICTIF : nettoyage du temporaire (url-denied) (13.560708ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (filename-error) (6.720458ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (oversized) (2.682083ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (existing-file) (2.83975ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (path-error) (2.706458ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (click-error) (1.939417ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (late-click-error) (10.406667ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (success) (2.443334ms)
+✔ autorisation de téléchargement FICTIF : success (2.870042ms)
+✔ autorisation de téléchargement FICTIF : click-error (2.2495ms)
+✔ autorisation de téléchargement FICTIF : event-timeout (1.626917ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 245.498834

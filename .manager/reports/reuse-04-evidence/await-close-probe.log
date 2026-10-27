@@ -1,0 +1,10 @@
+== timers normaux (code livré) ==
+sortie du script, état lu : dead
+== timers unref (ancien choix, rétabli le temps de la mesure) ==
+Warning: Detected unsettled top-level await at file:///Users/diaw/Downloads/agregat-back/.manager/reports/reuse-04-evidence/await-close-probe.mjs:21
+state = await runtime.close();
+        ^
+
+
+
+sortie du script, état lu : JAMAIS (promesse non résolue)

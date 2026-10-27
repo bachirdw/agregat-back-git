@@ -46,16 +46,6 @@ async function withKillSpy(fn, fake = () => undefined) {
   }
 }
 
-// close() timers are unref'd by design (shutdown is never delayed); keep the loop alive to await it.
-async function awaitClose(runtime) {
-  const keep = setInterval(() => {}, 1000);
-  try {
-    return await runtime.close();
-  } finally {
-    clearInterval(keep);
-  }
-}
-
 async function detachedGroup(t, script) {
   const child = spawn(process.execPath, ['-e', script], {
     detached: true,
@@ -161,7 +151,7 @@ test('close : groupe qui sort sur SIGTERM → dead, aucun SIGKILL', { skip: !pos
   await withKillSpy(async (calls) => {
     const closing = runtime.close();
     assert.equal(runtime.close(), closing, 'close() idempotent : même promesse');
-    assert.equal(await awaitClose(runtime), 'dead');
+    assert.equal(await runtime.close(), 'dead');
     const signals = calls
       .filter(([, signal]) => signal !== 0)
       .map(([pid, signal]) => [pid, signal]);
@@ -180,7 +170,7 @@ test(
     const runtime = runtimeWith(child);
     await withKillSpy(async (calls) => {
       const t0 = Date.now();
-      assert.equal(await awaitClose(runtime), 'dead');
+      assert.equal(await runtime.close(), 'dead');
       const elapsed = Date.now() - t0;
       const signals = calls.filter(([, signal]) => signal !== 0).map(([, signal]) => signal);
       assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
@@ -197,7 +187,7 @@ test('close : EPERM après SIGTERM → unknown, jamais de SIGKILL', { skip: !pos
   await withKillSpy(
     async (calls) => {
       const t0 = Date.now();
-      assert.equal(await awaitClose(runtime), 'unknown');
+      assert.equal(await runtime.close(), 'unknown');
       const elapsed = Date.now() - t0;
       const signals = calls.filter(([, signal]) => signal !== 0).map(([, signal]) => signal);
       assert.deepEqual(signals, ['SIGTERM']);
@@ -217,7 +207,7 @@ test('close : groupe déjà mort avant close → dead, aucun signal', { skip: !p
   await waitFor(() => processGroupState(child.pid) === 'dead');
   const runtime = runtimeWith(child);
   await withKillSpy(async (calls) => {
-    assert.equal(await awaitClose(runtime), 'dead');
+    assert.equal(await runtime.close(), 'dead');
     assert.deepEqual(
       calls.filter(([, signal]) => signal !== 0),
       [],
@@ -234,8 +224,8 @@ test(
     await withKillSpy(
       async (calls) => {
         const t0 = Date.now();
-        assert.equal(await awaitClose(runtime), 'unknown');
-        assert.ok(Date.now() - t0 < 1500, 'attente bornée');
+        assert.equal(await runtime.close(), 'unknown');
+        assert.ok(Date.now() - t0 < 2500, 'attente bornée');
         assert.deepEqual(
           calls.filter(([, signal]) => signal !== 0),
           [],

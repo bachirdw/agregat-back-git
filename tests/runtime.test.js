@@ -702,7 +702,11 @@ test('sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du
     );
   } finally {
     r.close();
-    if (child && isProcessAlive(child)) process.kill(child, 'SIGKILL');
+    try {
+      if (child && isProcessAlive(child)) process.kill(child, 'SIGKILL');
+    } catch {
+      /* EPERM: no longer our process. */
+    }
   }
 });
 
@@ -715,4 +719,28 @@ test('modèle courant non annoncé : refusé même sans changement de session', 
   await assert.rejects(r.selectModel('gemini-3.1-flash-lite'), /non annoncé/);
   await assert.rejects(r.selectModel('imaginaire-FICTIF'), /non annoncé/);
   r.close();
+});
+
+test('close : groupe mort à la sortie du leader → aucun signal, même si l’identifiant est réutilisé', async () => {
+  const r = fake({});
+  await r.start();
+  const pid = r.child.pid;
+  process.kill(-pid, 'SIGKILL');
+  await r.exited.catch(() => {});
+  const real = process.kill;
+  const signals = [];
+  // Same-user reuse of the group id: the probe now answers "alive".
+  process.kill = (target, signal = 'SIGTERM') => {
+    if (target === -pid) {
+      if (signal !== 0) signals.push(signal);
+      return true;
+    }
+    return real.call(process, target, signal);
+  };
+  try {
+    assert.equal(await r.close(), 'dead');
+  } finally {
+    process.kill = real;
+  }
+  assert.deepEqual(signals, []);
 });

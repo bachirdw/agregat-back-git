@@ -15,7 +15,8 @@ available under the Apache 2.0 license (https://github.com/puppeteer/puppeteer/b
 
 `packages/agent-runtime/process-liveness.js` est adapté de
 `openclaw/acpx@c0b9dfd:src/process-liveness.ts` (TypeScript → JavaScript ESM), sous licence MIT.
-Écarts : `isProcessAlive` renvoie vrai sur `EPERM` (processus existant d’un autre utilisateur), et
+Écarts : `isProcessAlive` renvoie vrai sur `EPERM` (processus existant d’un autre utilisateur), les deux
+fonctions exigent un entier sûr (`Number.isSafeInteger`), et
 `processGroupState` est un ajout de la plateforme. Licence d’acpx :
 
 ```

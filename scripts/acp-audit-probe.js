@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import { client, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
+import { stopProcessGroup } from '../packages/agent-runtime/index.js';
 
 const binaries = process.argv.slice(2);
 if (binaries.length !== 2 || binaries.some((p) => !p.startsWith('/'))) {
@@ -106,17 +107,8 @@ for (const [index, id] of ['gemini', 'opencode'].entries()) {
   } finally {
     connection?.close();
     if (child?.pid) {
-      const kill = (signal) => {
-        try {
-          process.kill(-child.pid, signal);
-        } catch {
-          // Process group already gone.
-        }
-      };
-      kill('SIGTERM');
-      const timer = setTimeout(() => kill('SIGKILL'), 1000);
-      report.exit = await exited;
-      clearTimeout(timer);
+      report.stop = await stopProcessGroup(child);
+      if (report.stop === 'dead') report.exit = await exited;
     }
   }
 }

@@ -133,6 +133,8 @@ export class AcpRuntime {
     this.exited = new Promise((_, reject) => {
       this.child.once('exit', (code, signal) => {
         this.exitInfo = { code, signal };
+        // A group already empty at exit is never signalled later: its id may be reused meanwhile.
+        this.groupGone = processGroupState(this.child.pid) === 'dead';
         const error = new AgentExitError(code, signal, this.diagnostic);
         this.connection?.close(error);
         reject(error);
@@ -310,7 +312,7 @@ export class AcpRuntime {
     this.ready = false;
     this.lifecycle.abort();
     this.connection?.close();
-    this.closing = stopProcess(this.child);
+    this.closing = this.groupGone ? Promise.resolve('dead') : stopProcessGroup(this.child);
     return this.closing;
   }
 }
@@ -318,8 +320,9 @@ export class AcpRuntime {
 const TERM_GRACE_MS = 1500;
 const KILL_WAIT_MS = 1000;
 const PROBE_MS = 100;
-// Timers are unref'd: closing never delays the platform's own exit.
-const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref());
+// Timers stay ref'd: an awaited close() always settles and SIGKILL is not lost if the host is exiting
+// (bounded: at most 3.5 s, only for a group that ignores SIGTERM).
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Polls until the group is dead or the delay is over; returns the last state seen.
 // macOS answers EPERM for a group holding only unreaped zombies, so 'unknown' may still turn 'dead'.
@@ -333,7 +336,8 @@ async function settleGroup(pgid, ms) {
   return state;
 }
 
-async function stopProcess(child) {
+// Stops a child spawned detached (its own process group); also used by scripts/acp-audit-probe.js.
+export async function stopProcessGroup(child) {
   if (!child?.pid) return 'none';
   if (process.platform === 'win32') {
     // No POSIX group: signal the child itself and trust its exit event.

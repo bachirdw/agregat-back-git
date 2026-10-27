@@ -1,0 +1,19 @@
+✔ liveness : pid invalide ou le nôtre, jamais vivant ni mort à coup sûr (0.455375ms)
+✔ liveness : vrai processus enfant vivant, puis mort à coup sûr après exit (2.8775ms)
+✔ liveness : groupe détaché vivant, puis mort après SIGKILL du groupe (2.298625ms)
+✔ liveness : EPERM = vivant mais pas à nous, jamais « mort » (0.189208ms)
+✔ liveness : sous Windows, pas de groupe POSIX, état inconnu (0.345ms)
+✔ close : runtime sans processus → none (0.485625ms)
+✔ close : groupe qui sort sur SIGTERM → dead, aucun SIGKILL (103.60525ms)
+✔ close : groupe qui ignore SIGTERM, petit-enfant compris → SIGKILL, dead (1691.294875ms)
+✔ close : EPERM après SIGTERM → unknown, jamais de SIGKILL (1607.625625ms)
+✔ close : groupe déjà mort avant close → dead, aucun signal (5.058333ms)
+✔ close : groupe étranger dès le départ (EPERM) → unknown, aucun signal (1025.963167ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4560.968084

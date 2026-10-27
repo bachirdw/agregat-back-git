@@ -1,0 +1,28 @@
+✖ close : groupe mort à la sortie du leader → aucun signal, même si l’identifiant est réutilisé (2629.563333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2820.09675
+
+✖ failing tests:
+
+test at tests/runtime.test.js:720:1
+✖ close : groupe mort à la sortie du leader → aucun signal, même si l’identifiant est réutilisé (2629.563333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'alive' !== 'dead'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/runtime.test.js:737:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'alive',
+    expected: 'dead',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

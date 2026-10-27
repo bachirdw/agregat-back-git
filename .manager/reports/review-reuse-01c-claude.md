@@ -47,7 +47,7 @@ dépend seulement du comportement du site ou de Chrome) ; **probable** ; **à v�
 - Garde « élément modifié pendant l'approbation » : la liste de la gateway inclut bien `check`, `select`, `press` ; testée pour `check` et `select` avec un nombre de lectures exact.
 - Instructions (orchestrateur, `CAREER_INSTRUCTIONS`, manifeste) alignées sur les nouvelles capacités ; aucun fichier de la bibliothèque career-ops touché.
 
-## Tri du manager (Claude) — 27/10, 19:20, avant passation
-- **Priorité 1, à corriger avant toute autre chose (n° 1, 2, 5)** : ce n'est pas de la « sécurité reportée », c'est l'interdit de l'utilisateur « rien ne s'envoie sans mon accord » et la garde du plan (« ne jamais affaiblir les accords humains ni le filtre d'envoi »). Tout clic DOM (`#domClick`, appelé par click, check, upload par bouton) doit ouvrir la même fenêtre d'envoi que `browser.click` (`writeInProgress`, `sendGrant`, `lastClickEnd`), et `upload`/`check`/`select`/`press` doivent passer par le calcul `sending`/aperçu du gateway quand l'élément (ou son ancêtre bouton) est un élément d'envoi. Tests rouges : les scénarios exécutés par le relecteur (« Submit application » via upload → 0 accord aujourd'hui).
-- **Ensuite** : n° 3 (saisie vide en onglet caché : vider par setter DOM + `input`), n° 4 (preuve d'upload par événement `change` plutôt que relecture tardive, jamais de nouvel essai automatique).
-- **Basse** (n° 6–15) : à traiter dans la foulée si peu coûteux, sinon noter ; ne pas bloquer l'étape 4.
+## Tri du manager (Claude) — 27/10, 19:35 (remplace le tri de 19:20, retiré à la demande de l'utilisateur)
+- **Reportés (sécurité, consigne de l'utilisateur)** : n° 1, 2 (volet envoi), 5, 7. Aucune correction dans cette étape.
+- **Corrigés (technique, d'après le plan et les sources Playwright)** : n° 3, 4, 6, 9, 10 (libellé), 11, 12, 13, 14, 15
+  et n° 8 en partie ; détail dans `reuse-01c.md`, § « Contrôle du manager ».

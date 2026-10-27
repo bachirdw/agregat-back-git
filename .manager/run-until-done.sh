@@ -28,8 +28,15 @@ for attempt in $(seq 1 4); do
       T=$(( R + 120 ))
     }
   fi
-  echo "$(date '+%F %T') reprise prévue à $(date -r $T '+%H:%M')"
-  while [ $(date +%s) -lt $T ]; do sleep 60; done
+  # Dated form: "try again at Nov 2nd, 2026 5:55 PM".
+  AD=$(grep -o 'try again at [A-Z][a-z]* [0-9]*[a-z]*, [0-9]* [0-9]*:[0-9]* [AP]M' "$LOG" | tail -1 | cut -d' ' -f4- | sed -E 's/([0-9])(st|nd|rd|th),/\1/')
+  if [ -n "$AD" ]; then
+    R=$(date -j -f "%b %d %Y %I:%M %p" "$AD" +%s 2>/dev/null) && T=$(( R + 120 ))
+  fi
+  echo "$(date '+%F %T') reprise prévue le $(date -r $T '+%F %H:%M') (touch .manager/logs/resume-now pour reprendre tout de suite)"
+  rm -f .manager/logs/resume-now
+  while [ $(date +%s) -lt $T ] && [ ! -f .manager/logs/resume-now ]; do sleep 60; done
+  rm -f .manager/logs/resume-now
   # Session NEUVE à chaque reprise (contexte court) : elle repart du rapport, qui sert de passation.
   OUT=$(.manager/run-sprint.sh "$ID")
   echo "$OUT"; LOG=${OUT##*LOG=}

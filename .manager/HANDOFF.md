@@ -3,6 +3,23 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
+## 00000. Nuit du 27→28/10 — AUDIT COMPLET PAR CODEX, supervisé par Claude (À LIRE EN PREMIER)
+Demande de l'utilisateur (27/10, ~22h, parti se coucher) : Codex relit et teste TOUT le code par parties, compare
+aux sources (agent-repos, GitHub), vérifie le respect du plan initial ; Claude supervise chaque étape ; **rapport
+des écarts projet ↔ plan initial demain matin** (`reports/GAP-REPORT.md`).
+- Chaîne détachée lancée à 22:18 : `run-chain.sh audit-06 audit-01 audit-02 audit-03 audit-04 audit-05 gap-report`
+  (règles communes `briefs/_audit-common.md` ; journal `logs/chain-night.log`, fin = `logs/chain.done`).
+  `caffeinate -w <pid chaîne>` empêche la veille. Modèle `gpt-6-sol`.
+- `audit-06` = front : d'abord finir la vérification visuelle de l'affichage « conversation » (codé par Claude :
+  front `32dfe8f`…`2dde273`, cahier des charges `agregat-front/.manager/briefs/conversation.md`, script
+  `conversation-evidence/verify.mjs` qui échouait à sa 1re étape), puis audit du front.
+- Contrôle manager après chaque étape : diff, tests relancés (copie figée), consigné « Contrôle du manager » dans
+  `reports/audit-NN.md`. Si la session Claude s'est arrêtée : relire les rapports et contrôler a posteriori.
+- Outillage corrigé : attente de limite sur l'horloge (`run-until-done.sh`), Codex a accès au front
+  (`run-sprint.sh`), `agregat-front/.manager/run.sh` sur `gpt-6-sol`.
+- Serveur 4310 redémarré par l'utilisateur à 21:50:57 (code `9894ec7`). Aucune mission Gemini lancée (point 4 du
+  plan d'affichage non retenu) ; sécurité (point 5) non retenue : reportée.
+
 ## 0000. Point d'étape du 27/10, 20:55 (Sydney) — À LIRE EN PREMIER (complète § 000)
 **Plan de réutilisation (périmètre réduit) TERMINÉ** : étapes 1 à 5 validées. Étape 5 codée et contrôlée par la
 session Claude (Codex indisponible) — `reports/reuse-04.md` (verdict VALIDÉ, copie figée `5b45990` : 288 + 1

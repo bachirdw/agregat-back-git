@@ -3,7 +3,46 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 00. Mise à jour du 26/10, 16:25 (Sydney) — À LIRE EN PREMIER (prime sur § 0)
+## 000. Passation du 27/10, 11:15 (Sydney) — À LIRE EN PREMIER (prime sur § 00 et § 0)
+**Rôles** : le manager (Claude) écrit les briefs et contrôle chaque étape (diff, tests relancés en copie figée,
+preuves) ; Codex code, modèle `gpt-6-sol` (jamais `gpt-6.1-sol` : il épuise la limite), lancé en chaîne détachée
+`.manager/run-chain.sh <id>…`, 5 h d'attente puis session neuve si la limite d'usage est atteinte.
+
+**État** : back `f325042` + travail NON commité de `review-code-01` (`apps/web/app.js`, `tests/web-state.test.js` :
+compte à rebours d'expiration des accords) — seule cette session y touche. Front `6bc2d43`. Contrôle manager sur
+`8eae3e1` : 385 réussis / 0 échec / 1 ignoré, check et format verts. Aucun push depuis back `4373716`, front `9dbbf46`.
+
+**Fait depuis § 00** (détails dans `.manager/reports/<id>.md`, section « Contrôle du manager ») :
+- `seek-apply-01…04`, `audit-seek-01` : snapshot après chargement (`416524d`) ; formulaires multi-étapes sans
+  accord à chaque étape (`36a137d`, `isFormStep`) ; statistiques tierces bloquées en silence ; requêtes sensibles ;
+  lectures GraphQL exemptées, mutations bloquées (`59343b2`) ; repli de clic DOM en onglet caché avec drapeau
+  (`713029c`, `d242115`) ; balises de mesure ; modèle Gemini annoncé (`58b5596`, `20eb739`) ; onglet fermé rouvert
+  (`5961e05`).
+- `review-code-01` (relecture complète, en cours) : `59343b2`, `9e08df7` validés ; `8eae3e1` à corriger (limite
+  par phase de tests). Constats ouverts : GET de sous-ressources privées en mode propriétaire (haute, proposé),
+  fragments de CV persistés en SQLite (moyenne), couplage career-ops dans le cœur (architecture).
+- `.manager/PLAN-reuse.md` (`f325042`) : remplacer notre code maison par du code open source éprouvé ; 29 dépôts
+  clonés dans `/Users/diaw/Downloads/agent-repos/` (lecture seule, accessibles à Codex par `--add-dir`).
+
+**Règles nouvelles** : INTERDIT de modifier la bibliothèque career-ops et son Skill (`AGENTS.md`, 27/10). Gemini :
+≈ 3,90 $ consommés sur le plafond de 5 $ → aucune mission Gemini sans accord explicite de l'utilisateur. Ne jamais
+redémarrer le serveur 4310 (lancé par l'utilisateur) ni le relais Playwriter 19988.
+
+**Réutilisation open source en deux agents (demande de l'utilisateur, 27/10)** :
+1. `reuse-00` = **agent de repérage** : allers-retours entre les dépôts et notre code, puis plan d'implémentation
+   exact `.manager/reuse-plan.md` (quel code, d'où, vers quel fichier, quels tests). Lecture seule.
+2. **Porte de validation** : le manager vérifie le plan (références, licences, routes), puis l'utilisateur le
+   valide. Le manager inscrit alors « VALIDÉ par l'utilisateur le … » en tête de `.manager/reuse-plan.md`.
+3. `reuse-01…` = **agent codeur**, session distincte, seulement après cette mention.
+
+**File Codex** : `reuse-00` → reprise de `review-code-01` (limites par phase, `app.js`) → arrêt pour validation.
+`seek-apply-05` est suspendu : son défaut (clic déclaré délivré sans clic en onglet caché) est intégré au plan de
+réutilisation, qui dira où il est corrigé.
+
+**En attente de l'utilisateur** : question Lookahead (voyage) non répondue ; règle réseau des sous-ressources
+privées ; persistance des fragments de CV ; validation du plan de réutilisation.
+
+## 00. Mise à jour du 26/10, 16:25 (Sydney) — remplacée par § 000
 **Contexte** : l'utilisateur (seul, en local) teste career-ops de bout en bout pour sa propre recherche
 d'emploi (Sydney, AI/Software Engineer, Working Holiday Visa 417). Le manager (Claude) a codé lui-même toute la
 journée : Codex est limité (quota ChatGPT partagé), relancé seulement à la demande de l'utilisateur.

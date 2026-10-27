@@ -1,5 +1,8 @@
 # seek-apply-05 — Un clic n'est « délivré » que par un signal postérieur à l'action (par Codex)
 
+> **SUSPENDU le 27/10 (demande de l'utilisateur)** : ce défaut est intégré au plan de réutilisation
+> (`.manager/reuse-plan.md`, produit par `reuse-00`). Ne pas exécuter ce brief tel quel.
+
 Lis `AGENTS.md`, la fin de `.manager/reports/seek-apply-04.md` et, s'il existe, le tableau de constats de
 `.manager/reports/review-code-01.md` (ne refais pas ce que la relecture a déjà corrigé ; si elle a déjà traité ce
 défaut, prouve-le et arrête-toi). Rapport `.manager/reports/seek-apply-05.md`, preuves

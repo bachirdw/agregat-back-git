@@ -37,6 +37,15 @@ historique d'un commit). Ne jamais modifier ces clones (lecture seule). Licences
 | babelcloud__playwriter-browser-mcp, osanoai__multicli | **aucune licence** | TS | **étude seulement, aucune copie** |
 | career-ops-hq__career-ops | MIT | — | **INTERDIT de modifier** (AGENTS.md) ; c'est un Domain Pack, pas une source |
 
+## Deux agents et une porte de validation (demande de l'utilisateur, 27/10)
+1. **Agent de repérage** (`reuse-00`, lecture seule) : fait les allers-retours dépôts ↔ plateforme et écrit
+   `.manager/reuse-plan.md` : pour chaque brief, notre code à remplacer, la source exacte, les fichiers cibles,
+   les tests rouges, les étapes de commit. Il peut déléguer la lecture à 3 sous-agents Codex au plus.
+2. **Porte** : le manager vérifie le plan (références ouvertes, licences, routes, sécurité), puis l'utilisateur le
+   valide ; le manager inscrit « VALIDÉ par l'utilisateur le … » en tête du plan.
+3. **Agent codeur** (`reuse-01…`, session distincte) : exécute le plan validé, un brief à la fois, contrôlé par le
+   manager entre chaque brief. Tout écart au plan est noté dans le rapport et soumis au manager.
+
 ## Méthode « aller-retour » (obligatoire pour chaque remplacement)
 1. **Contrat d'abord** : lister le comportement à garder du module (sécurité, accords, filtre d'envoi, traçabilité)
    et s'assurer qu'il est couvert par des tests qui passent AVANT de toucher au code.

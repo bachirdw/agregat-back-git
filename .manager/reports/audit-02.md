@@ -64,3 +64,16 @@
 - **Simulé** : upload vérifié via `FixturePageProvider` et accord fictif ; aucune candidature ni site réel.
 - **Incomplet** : validation Chrome renouvelée impossible dans ce bac à sable (`SIGABRT`, `kill EPERM`) ; `npm test` initial a aussi expiré et présenté des échecs temporels hors périmètre (`api-agents`, `career-integration`, `live-scripts`, `platform`, `workflow-resume`). Rejeu sans Chrome vert. Les écarts de sécurité restent reportés.
 - **Prévu** : rejeu Chrome isolé / Playwriter sur page FICTIVE locale dans un environnement capable de lancer Chrome ; arbitrage d’annulation des actions en vol.
+
+## Contrôle du manager (Claude) — 28/10, 01:29
+- Diff relu (`cd9ad10`) : confinement `rel === '..' || rel.startsWith('..' + sep)` dans `RunPolicy.workspacePath` et
+  aux deux contrôles d'upload de la passerelle ; un nom intérieur `..keep` n'est plus refusé, une vraie sortie (`..`,
+  `../x`, absolu) l'est toujours. Aucun point de sécurité reporté touché (n° 2 et 3 seulement listés), career-ops intact.
+- Vrai test : `policy-files.test.js` sur l'ancien code → 2/2 rouges ; corrigé → 2/2 verts.
+- **Validation Chrome que Codex n'a pas pu faire** (son bac à sable fait avorter Chrome) : copie figée `ff007ac`, 17
+  fichiers navigateur, politique, propriétaire, accords et réseau, Chrome réel, 01:25:41 → 01:29:11 : **181/181**.
+  Les échecs « temporels » de son `npm test` initial (00:04–01:20) tombent dans la fenêtre de veille du Mac (voir
+  `audit-01.md`, incident) ; les mêmes fichiers sont verts au contrôle d'audit-01 une fois la machine réveillée.
+
+**Verdict** : audit-02 VALIDÉ. Restent ouverts : sécurité d'envoi reportée (n° 2, 3), révocation des actions
+navigateur en vol à l'annulation (ADR 004:20-22).

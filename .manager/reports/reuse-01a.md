@@ -62,3 +62,6 @@ Total code de production : +116 / -55 ; tests : +113 / -0. L'ancienne capture `b
 - **Question au manager** : aucune bloquante. Relecture indépendante `review-reuse-01a` puis contrôle du manager avant l'étape suivante, conformément au plan.
 - 12:59 — Première tentative `git add -A && git add -f .../*.log && git diff --cached --check && git commit ...` : ÉCHEC avant staging, `.git/index.lock: Operation not permitted` sous le bac à sable. Les tests restent verts et l'arbre de travail est intact. Nouvelle tentative avec accès Git autorisé nécessaire.
 - 13:00 — Tentative Git avec accès escaladé : staging réussi, mais `git diff --cached --check` échoue sur les espaces de fin de ligne des journaux bruts `*.log` produits par le runner (sortie stockée dans ces mêmes fichiers, non modifiée). Aucun défaut signalé dans le code ; je conserve les preuves brutes et vérifie le diff de code et rapport séparément avant commit.
+
+## Contrôle du manager (Claude) — 27/10, 14:05
+Validé avec la relecture `7148e17` : voir « Contrôle du manager » dans `review-reuse-01a.md` (copie figée verte, preuve Playwriter rejouée, écarts reportés à `reuse-01b`/`reuse-01c`).

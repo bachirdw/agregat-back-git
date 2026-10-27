@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   symlinkSync,
+  chmodSync,
   writeFileSync,
   appendFileSync,
   realpathSync,
@@ -49,6 +50,18 @@ test('analyse : front matter, nom, description, empreinte stable', () => {
     { 'SKILL.md': '---\nname: [\n---\n' },
   ])
     assert.throws(() => scanSkillDir(skillDir(bad)));
+});
+
+test('format Agent Skills : nom sans tirets consécutifs et description bornée', () => {
+  assert.throws(() => scanSkillDir(skillDir({ 'SKILL.md': SKILL('double--dash') })), /name/);
+  assert.throws(() => scanSkillDir(skillDir({ 'SKILL.md': SKILL('trailing-') })), /name/);
+  assert.throws(
+    () =>
+      scanSkillDir(
+        skillDir({ 'SKILL.md': SKILL().replace("Évaluer une offre d'emploi.", 'x'.repeat(1025)) }),
+      ),
+    /description/,
+  );
 });
 
 test('analyse : scripts, binaires, motifs dangereux et licence absente signalés', () => {
@@ -221,6 +234,21 @@ test('export natif : .agents/skills pour Codex/Gemini/OpenCode, .claude/skills p
   }
 });
 
+test('export natif : agent inconnu refusé sans écrire dans le workspace', () => {
+  const { reg, store } = registry();
+  try {
+    reg.install('opportunity-analysis');
+    const workspace = temporary();
+    assert.throws(
+      () => reg.exportTo(workspace, 'agent-inconnu', ['opportunity-analysis']),
+      /Agent inconnu/,
+    );
+    assert.ok(!existsSync(join(workspace, '.agents')));
+  } finally {
+    store.close();
+  }
+});
+
 test('import Git : seules les URL GitHub HTTPS sont acceptées', async () => {
   const { reg, store } = registry();
   try {
@@ -290,6 +318,28 @@ test('sécurité Git : sous-dossier absolu, options, credentials, ports et URL d
         reg.importGit(url, { git: '/usr/bin/true', ...options }),
         /refus|invalide/i,
       );
+  } finally {
+    store.close();
+  }
+});
+
+test('sécurité Git : un sous-dossier ne traverse pas un lien symbolique du clone', async () => {
+  const { reg, store } = registry();
+  const outside = temporary();
+  mkdirSync(join(outside, 'skill'));
+  writeFileSync(join(outside, 'skill', 'SKILL.md'), SKILL('linked-skill'));
+  const fakeGit = join(temporary(), 'fake-git');
+  writeFileSync(
+    fakeGit,
+    `#!/usr/bin/env node\nimport { mkdirSync, symlinkSync } from 'node:fs';\nimport { join } from 'node:path';\nconst args = process.argv.slice(2);\nif (args.includes('clone')) { const repo = args.at(-1); mkdirSync(repo, { recursive: true }); symlinkSync(${JSON.stringify(outside)}, join(repo, 'linked')); } else process.stdout.write('fictif-sha\\n');\n`,
+  );
+  chmodSync(fakeGit, 0o700);
+  try {
+    await assert.rejects(
+      reg.importGit('https://github.com/FICTIF/FICTIF', { git: fakeGit, subdir: 'linked/skill' }),
+      /symbolique/,
+    );
+    assert.equal(store.skill('linked-skill'), null);
   } finally {
     store.close();
   }

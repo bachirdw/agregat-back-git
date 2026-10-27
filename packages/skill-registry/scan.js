@@ -63,10 +63,17 @@ export function parseFrontMatter(content) {
   } catch {
     throw new Error('Front matter YAML invalide');
   }
-  if (typeof meta?.name !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(meta.name))
+  if (
+    typeof meta?.name !== 'string' ||
+    !/^(?!.*--)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(meta.name)
+  )
     throw new Error('name invalide (minuscules, chiffres, tirets)');
-  if (typeof meta.description !== 'string' || !meta.description.trim())
-    throw new Error('description requise');
+  if (
+    typeof meta.description !== 'string' ||
+    !meta.description.trim() ||
+    Array.from(meta.description).length > 1024
+  )
+    throw new Error('description requise (1–1024 caractères)');
   return meta;
 }
 

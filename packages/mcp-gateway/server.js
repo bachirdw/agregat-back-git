@@ -63,15 +63,24 @@ async function meter(dimension, units = 1) {
 // including tools registered by a domain pack, before their handlers run.
 const register = server.registerTool.bind(server);
 server.registerTool = (name, definition, handler) =>
-  register(name, definition, async (args, extra) => {
-    try {
-      if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
-        await meter('tool_call', 1);
-      return await handler(args, extra);
-    } catch (e) {
-      return failure(e);
-    }
-  });
+  register(
+    name,
+    {
+      ...definition,
+      inputSchema: definition.inputSchema?.safeParse
+        ? definition.inputSchema
+        : z.object(definition.inputSchema ?? {}).strict(),
+    },
+    async (args, extra) => {
+      try {
+        if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
+          await meter('tool_call', 1);
+        return await handler(args, extra);
+      } catch (e) {
+        return failure(e);
+      }
+    },
+  );
 
 let browserGateway = null;
 if (mode === 'fixture') {

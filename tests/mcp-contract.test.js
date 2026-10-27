@@ -3,10 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { connectMcp } from '../packages/mcp-gateway/client.js';
 
-async function fixture(t, mode) {
+async function fixture(t, mode, pack = 'core') {
   const client = await connectMcp({
     command: process.execPath,
-    args: [fileURLToPath(new URL('../packages/mcp-gateway/server.js', import.meta.url)), 'core'],
+    args: [fileURLToPath(new URL('../packages/mcp-gateway/server.js', import.meta.url)), pack],
     env: [
       { name: 'RELAY_BROWSER', value: mode },
       {
@@ -21,6 +21,19 @@ async function fixture(t, mode) {
   t.after(() => client.close());
   return client;
 }
+test('MCP : les outils à schéma brut refusent aussi les arguments inconnus', async (t) => {
+  for (const [pack, name, args] of [
+    ['core', 'evidence_echo', { text: 'FICTIF', script: 'FICTIF' }],
+    ['najah', 'opportunities_search', { query: 'FICTIF', script: 'FICTIF' }],
+  ]) {
+    const client = await fixture(t, 'fixture', pack);
+    const tool = (await client.listTools()).tools.find((entry) => entry.name === name);
+    assert.equal(tool.inputSchema.additionalProperties, false, name);
+    const response = await client.callTool({ name, arguments: args });
+    assert.equal(response.isError, true, name);
+    assert.match(response.content[0].text, /unrecognized|validation/i);
+  }
+});
 for (const mode of ['fixture', 'isolated']) {
   test(`MCP ${mode} : arguments inconnus refusés selon le contrat publié`, async (t) => {
     const client = await fixture(t, mode);

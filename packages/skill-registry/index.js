@@ -211,7 +211,8 @@ export class SkillRegistry {
       const { stdout: sha } = await exec(git, ['-C', join(tmp, 'repo'), 'rev-parse', 'HEAD'], {
         env,
       });
-      return this.importLocal(resolve(tmp, 'repo', subdir), {
+      const skillDir = safeDirectory(join(tmp, 'repo'), subdir);
+      return this.importLocal(skillDir, {
         source: { type: 'git', url: u.href, ref, subdir, sha: sha.trim() },
       });
     } finally {
@@ -295,7 +296,8 @@ export class SkillRegistry {
   // Native discovery: write the resolved skills where each agent looks for project skills.
   // Only text files are exported; scripts and binaries never leave the registry.
   exportTo(workspace, agentId, ids) {
-    const dirs = AGENT_SKILL_DIRS[agentId] ?? ['.agents/skills'];
+    if (!Object.hasOwn(AGENT_SKILL_DIRS, agentId)) throw new Error('Agent inconnu');
+    const dirs = AGENT_SKILL_DIRS[agentId];
     const written = [];
     for (const s of this.resolve(ids)) {
       const source = s.origin === 'bundled' ? dirname(this.bundled(s.id).path) : s.dir;

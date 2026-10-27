@@ -59,7 +59,7 @@ garde d'envoi) ; case par le chemin DOM (`reuse-01c1`) ; fichiers par `setInputF
 - Le chemin DOM ignore la barre Playwriter par son attribut actuel (`data-playwriter-toolbar`, version 0.7.0) ;
   à revérifier si Playwriter change.
 
-## Contrôle du manager (Claude) — 27/10, 19:55
+## Contrôle du manager (Claude) — 27/10, 19:41
 
 **Relecture** : `review-reuse-01c-claude.md` (agent Claude économe, lecture seule), 15 constats.
 **Tri (consigne de l'utilisateur : technique d'abord, sécurité plus tard)** : n° 1, 2 (volet envoi), 5, 7 reportés ;

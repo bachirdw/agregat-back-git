@@ -68,3 +68,25 @@
 - **État final** : corrections opérationnelles sur faux ACP ; reprise fournisseur réelle non renouvelée ; lancement Windows `.cmd` incomplet. Preuves : `npm-test-final.log` (293 + 136 tests réussis, 1 ignoré, 0 échec), `check-final.log` et `format-final.log` verts. Aucun test payant ni mission réelle.
 - Manager : valider sur Windows le lancement des shims `.cmd` avant de promettre cette compatibilité ; renouveler séparément la preuve de reprise avec les versions fournisseurs réellement installées, sans appel payant dans cet audit.
 - Question pour l'utilisateur : aucune décision nécessaire pour les corrections livrées. La compatibilité Windows et les validations fournisseurs réelles restent à planifier hors de cet audit.
+
+## Contrôle du manager (Claude) — 28/10, 01:25
+- Diff relu (`d6e3eae`) : `discovery.js` (fichier et non dossier, sondes `--version`/`--help` sur l'environnement en
+  liste blanche du profil, sortie et erreur masquées), `router.js` (en Auto, reprise, modèle imposé ou MCP non stdio
+  exigent désormais une sonde qui les annonce ; `mcpTransport` vaut `stdio` par défaut, donc sans effet sur les
+  missions ordinaires ni sur career-ops, dont le modèle est vide), `index.js` (toute valeur MCP d'au moins 8 caractères
+  masquée). Aucune modification de career-ops. Les corrections de masquage relèvent de la vérification demandée par
+  le brief (« redaction des secrets ») ; les points d'envoi reportés n° 1, 2, 5, 7 n'ont pas été touchés.
+- Vrais tests (copie `red-a01`, `--test-reporter=tap`) : sans le correctif `discovery` → 3 échecs ; sans `router` →
+  1 ; sans `index` → 1 ; avec tous les correctifs → `runtime.test.js` 51/51.
+- Suite sur copie figée `d6e3eae` (00:18:06 → 01:19:25) : check et format verts ; 4 + 4 échecs, **tous causés par la
+  veille du Mac** (dépassements de 120 s mesurés à ~900 s, alignés sur les cycles de veille du journal `pmset`).
+  Relance des 7 fichiers en échec une fois la machine réveillée : 18/18 (01:20:50 → 01:21:07) et 113/113
+  (01:21:12 → 01:24:31).
+- **Incident de la nuit** : à 00:04:57, le Mac (écran rabattu, sur secteur) est entré en veille « Dark Wake Thermal
+  Emergency », puis a alterné ~15 min de veille et ~45 s de réveil jusqu'à 01:20. `caffeinate -i` n'empêche pas la
+  veille écran rabattu. Correctif à 01:20:38 : `caffeinate -s -i -w <chaîne>` (assertion temporaire, aucun réglage
+  modifié), réveil complet à 01:20:33. Le manager ne lance plus de suite complète en parallèle de celles de Codex
+  (charge 24 observée, cause probable de la surchauffe). audit-02 a tourné pendant cette fenêtre : ses dépassements de
+  délai sont à rejuger.
+
+**Verdict** : audit-01 VALIDÉ. Restent ouverts : lancement Windows `.cmd`, reprise fournisseur réelle non renouvelée.

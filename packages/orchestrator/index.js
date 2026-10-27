@@ -211,12 +211,14 @@ export class Orchestrator {
   }
   async plan(input, { resume = false } = {}) {
     const v = inputSchema.parse(input);
+    let incompatibleCareerAgent = null;
     if (this.ownerMode && input.agent === undefined) v.agent = 'auto';
     if (v.attachments.length) this.career.attachments(v.attachments);
     if (
       v.workspace ||
       v.attachments.length ||
       v.pack === 'career-ops' ||
+      v.skills.includes('career-ops') ||
       (v.pack === 'auto' && getPack('auto', v.prompt).id === 'career-ops')
     ) {
       v.pack = 'career-ops';
@@ -226,10 +228,15 @@ export class Orchestrator {
       if (v.skills.some((id) => id !== 'career-ops'))
         throw new Error('L’espace privé charge uniquement le Skill career-ops revu');
       assertCareerReview(this.career, this.skills);
+      if (v.agent !== 'fixture' && !['auto', 'gemini'].includes(v.agent)) {
+        incompatibleCareerAgent = v.agent;
+        v.agent = 'auto';
+        v.model = '';
+      }
       if (v.agent !== 'fixture' && !process.env.GEMINI_API_KEY)
-        throw new Error('GEMINI_API_KEY requise pour career-ops (API uniquement)');
-      if (v.agent !== 'fixture' && !['auto', 'gemini'].includes(v.agent))
-        throw new Error('L’espace career-ops requiert Gemini');
+        throw new Error(
+          `${incompatibleCareerAgent ? `L’agent ${incompatibleCareerAgent} ne peut pas servir career-ops. Gemini proposé : ` : ''}GEMINI_API_KEY requise pour career-ops (API uniquement)`,
+        );
     }
     if (v.workspace) this.career.path();
     const browserWorkflow =
@@ -266,6 +273,10 @@ export class Orchestrator {
         live: this.live,
         probes,
       });
+    if (incompatibleCareerAgent && routing)
+      routing.reasons.unshift(
+        `L’agent ${incompatibleCareerAgent} choisi ne peut pas servir career-ops ; Gemini est proposé pour ce plan avant votre accord.`,
+      );
     const id = routing?.id ?? v.agent;
     const agent = agents.find((a) => a.id === id);
     if (!agent?.installed) throw new Error('Agent non détecté sur cette machine');
@@ -673,7 +684,9 @@ export class Orchestrator {
           !observed.some((e) => e.capability === 'browser.navigate') ||
           !observed.some((e) => ['browser.extract', 'browser.snapshot'].includes(e.capability))
         )
-          throw new Error('Navigation non prouvée : aucun parcours navigateur observé');
+          throw new Error(
+            'Navigation non prouvée : aucune page ouverte par browser.navigate puis observée par browser.snapshot ou browser.extract. Ce parcours est exigé pour vérifier une mission du pack navigateur.',
+          );
         value.evidence = observed;
         value.provenance.data = 'navigateur réel';
       }

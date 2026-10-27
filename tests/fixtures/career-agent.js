@@ -49,6 +49,14 @@ const app = agent({ name: 'career-FICTIF' })
         return JSON.parse(r.content[0].text);
       };
       const cv = await call('career_read', { path: 'cv.md' });
+      let controlEvidence = '';
+      if (request.objective.includes('CONTROLES_FICTIFS')) {
+        const gap = await call('career_script', {
+          command: 'jd-skill-gap',
+          path: 'jds/offre.md',
+        });
+        controlEvidence = JSON.parse(gap.text).gap.join(',');
+      }
       const id = randomUUID();
       await call('career_offer_save', {
         id,
@@ -79,7 +87,7 @@ const app = agent({ name: 'career-FICTIF' })
                 ? `Modèle FICTIF : env=${process.env.GEMINI_MODEL} session=${session.model}`
                 : JSON.stringify({
                     simulated: true,
-                    summary: request.objective + cv.text,
+                    summary: request.objective + cv.text + controlEvidence,
                     privateProfile: cv.text,
                     evidence: [{ text: cv.text }],
                   }),

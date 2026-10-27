@@ -81,10 +81,10 @@ test('Outils privés : lecture/écriture confinées, secrets et scripts refusés
   assert.throws(() => tools.write('output/cv.md', 'FICTIF'), /symbolique/);
 });
 test('Offres : note 1–5, A–H complet, provenance et données fictives obligatoires', (t) => {
-  const { tools } = fixture(t);
+  const { root, tools } = fixture(t);
   const good = offer();
   tools.saveOffer(good);
-  assert.deepEqual(tools.offers(), [good]);
+  assert.deepEqual(tools.offers(), [{ ...good, contractVersion: 2 }]);
   for (const bad of [
     { ...good, score: 6 },
     { ...good, report: { A: 'incomplet FICTIF' } },
@@ -95,6 +95,11 @@ test('Offres : note 1–5, A–H complet, provenance et données fictives obliga
     assert.throws(() => tools.saveOffer(bad));
   tools.saveOffer({ ...offer(), score: null, report: null });
   assert.equal(tools.offers().length, 2);
+  const legacy = offer();
+  legacy.report.H = 'Prochaine action FICTIVE historique';
+  writeFileSync(join(root, `relay/offers/${legacy.id}.json`), JSON.stringify(legacy));
+  assert.equal(tools.offers().find((x) => x.id === legacy.id).contractVersion, undefined);
+  assert.equal(tools.offers().find((x) => x.id === legacy.id).report.H, legacy.report.H);
 });
 test('Registre : quarantaine, revue liée au hash natif, mutation du Skill ou configuration bloque', (t) => {
   const { root, career, app } = fixture(t);
@@ -117,12 +122,129 @@ test('Scripts : liste fermée, code modifié, arguments et secrets implicites re
   writeFileSync(join(root, '.env'), 'FICTIF=non-secret');
   await assert.rejects(tools.script({ command: 'find', query: '' }), /configuration secrète/);
 });
+test('Contrôles CV FICTIFS : manque et fait inventé détectés, chemins et délais imposés', async (t) => {
+  const { root, tools } = fixture(t);
+  mkdirSync(join(root, 'relay'));
+  mkdirSync(join(root, 'jds'));
+  mkdirSync(join(root, 'output'));
+  writeFileSync(join(root, 'cv.md'), '# CV FICTIF\nSkills: Python\n');
+  writeFileSync(join(root, 'jds/fictive.md'), 'Offre FICTIVE : Python, Kubernetes');
+  writeFileSync(join(root, 'output/cv-fictif.md'), 'CV FICTIF : 999% de croissance inventée');
+  writeFileSync(
+    join(root, 'jd-skill-gap.mjs'),
+    'import { readFileSync } from "node:fs"; console.log(JSON.stringify({gap: readFileSync(process.argv[2], "utf8").includes("Kubernetes") ? ["Kubernetes"] : []}))',
+  );
+  writeFileSync(join(root, 'cv-title-check.mjs'), 'console.log(JSON.stringify({mismatches: []}))');
+  writeFileSync(
+    join(root, 'verify-cv-facts.mjs'),
+    'console.log(JSON.stringify({verdict:"block", invented:["999% FICTIF"]})); process.exitCode = 1',
+  );
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const gap = await tools.script({ command: 'jd-skill-gap', path: 'jds/fictive.md' });
+  assert.deepEqual(JSON.parse(gap.text).gap, ['Kubernetes']);
+  const facts = await tools.script({ command: 'verify-cv-facts', path: 'output/cv-fictif.md' });
+  assert.equal(facts.exitCode, 1);
+  assert.deepEqual(JSON.parse(facts.text).invented, ['999% FICTIF']);
+  await assert.rejects(tools.script({ command: 'shell', path: 'jds/fictive.md' }), /non autorisée/);
+  await assert.rejects(
+    tools.script({ command: 'jd-skill-gap', path: '../secret.md' }),
+    /périmètre|Chemin/,
+  );
+  await assert.rejects(
+    tools.script({ command: 'jd-skill-gap', path: 'output/cv-fictif.md' }),
+    /périmètre/,
+  );
+  writeFileSync(join(root, 'jd-skill-gap.mjs'), 'setInterval(() => {}, 1000)');
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const quick = new CareerTools(tools.career, { scriptTimeoutMs: 50 });
+  await assert.rejects(
+    quick.script({ command: 'jd-skill-gap', path: 'jds/fictive.md' }),
+    /expirée/,
+  );
+  const controller = new AbortController();
+  const cancelled = tools.script(
+    { command: 'jd-skill-gap', path: 'jds/fictive.md' },
+    controller.signal,
+  );
+  controller.abort();
+  await assert.rejects(cancelled, /annulée ou expirée/);
+  symlinkSync(join(root, 'cv.md'), join(root, 'jds/lien.md'));
+  await assert.rejects(
+    tools.script({ command: 'jd-skill-gap', path: 'jds/lien.md' }),
+    /ELOOP|symbolique/,
+  );
+});
+test('Contrôles CV FICTIFS : réseau et écriture hors espace bloqués', async (t) => {
+  const { root, tools } = fixture(t);
+  mkdirSync(join(root, 'relay'));
+  mkdirSync(join(root, 'jds'));
+  mkdirSync(join(root, 'output'));
+  writeFileSync(join(root, 'jds/offre.md'), 'Offre FICTIVE');
+  writeFileSync(join(root, 'jd-skill-gap.mjs'), 'await fetch("http://127.0.0.1:4321/fictif")');
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const deniedNetwork = await tools.script({ command: 'jd-skill-gap', path: 'jds/offre.md' });
+  assert.equal(deniedNetwork.exitCode, 1);
+  assert.match(deniedNetwork.text, /Réseau interdit/);
+  writeFileSync(
+    join(root, 'jd-skill-gap.mjs'),
+    'import { writeFileSync } from "node:fs"; writeFileSync("output/escape.txt", "FICTIF")',
+  );
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const deniedWrite = await tools.script({ command: 'jd-skill-gap', path: 'jds/offre.md' });
+  assert.equal(deniedWrite.exitCode, 1);
+  assert.match(deniedWrite.text, /ERR_ACCESS_DENIED/);
+});
 test('Auto : trouve des offres, évalue cette offre et postule routés vers le pack privé', () => {
   for (const prompt of ['trouve des offres', 'évalue cette offre', 'postule'])
     assert.equal(getPack('auto', prompt).id, 'career-ops');
 });
+test('Auto propriétaire : profil et fichiers career-ops utilisent le pack privé avant le navigateur', async (t) => {
+  const { career, app } = fixture(t, true);
+  reviewCareer(career, app.skills);
+  for (const prompt of [
+    'Crée mon fichier modes/_profile.md avec career_read puis career_write',
+    'Prépare un CV pour cette offre avec jd-skill-gap.mjs',
+  ]) {
+    const plan = await app.engine.plan({ prompt, agent: 'fixture', pack: 'auto' });
+    assert.equal(plan.pack.id, 'career-ops');
+    assert.equal(plan.agent.id, 'fixture');
+    assert.equal(plan.browserWorkflow, false);
+  }
+  const selected = await app.engine.plan({
+    prompt: 'Bonjour FICTIF',
+    agent: 'fixture',
+    skills: ['career-ops'],
+  });
+  assert.equal(selected.pack.id, 'career-ops');
+});
+test('Agent explicitement incompatible : Gemini proposé clairement dans le plan', async (t) => {
+  const { career, app } = fixture(t, true);
+  reviewCareer(career, app.skills);
+  const old = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = 'FICTIF-cle-de-test-sans-appel';
+  try {
+    const plan = await app.engine.plan({
+      prompt: 'Crée modes/_profile.md FICTIF',
+      agent: 'codex',
+      pack: 'auto',
+    });
+    assert.equal(plan.pack.id, 'career-ops');
+    assert.equal(plan.agent.id, 'gemini');
+    assert.equal(plan.input.agent, 'gemini');
+    assert.match(plan.routing.reasons.join(' '), /codex.*Gemini/i);
+  } finally {
+    if (old === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = old;
+  }
+});
 test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refusé, rien de privé dans SQLite', async (t) => {
   const { root, career, app } = fixture(t);
+  mkdirSync(join(root, 'jds'));
+  writeFileSync(join(root, 'jds/offre.md'), 'Offre FICTIVE Kubernetes');
+  writeFileSync(
+    join(root, 'jd-skill-gap.mjs'),
+    'console.log(JSON.stringify({gap:["Kubernetes FICTIF"]}))',
+  );
   reviewCareer(career, app.skills);
   const canary = 'DONNÉE_PRIVÉE_FICTIVE_é_123';
   const attachment = await career.upload(Buffer.from(canary), 'CV.md', 'text/markdown');
@@ -142,7 +264,7 @@ test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refu
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
     body: JSON.stringify({
-      prompt: 'évalue cette offre FICTIVE : ' + canary,
+      prompt: 'évalue cette offre FICTIVE CONTROLES_FICTIFS : ' + canary,
       agent: 'fixture',
       attachments: [attachment.id],
       mode: 'workflow',
@@ -164,6 +286,7 @@ test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refu
   assert.match(privateInput.prompt, /DONNÉE_PRIVÉE/);
   assert.equal((await fetch(base + `/api/career/runs/${randomUUID()}/input`)).status, 404);
   assert.match(privateResult.summary, /DONNÉE_PRIVÉE/);
+  assert.match(privateResult.summary, /Kubernetes FICTIF/);
   const offers = await (await fetch(base + '/api/career/offers')).json();
   assert.equal(offers.opportunities.length, 1);
   assert.equal(offers.opportunities[0].score, 4);
@@ -385,6 +508,19 @@ test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt
     /accord de l'utilisateur/,
     /ne l'invente jamais/,
     /l'étape, le champ et la cause exacte/,
+  ])
+    assert.match(CAREER_INSTRUCTIONS, rule);
+});
+test('Instructions CV et lettre : contrôles, manques, questions et aucune candidature', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  for (const rule of [
+    /jds\/<slug>\.md/,
+    /career_script jd-skill-gap/,
+    /career_script cv-title-check/,
+    /career_script verify-cv-facts/,
+    /modes\/cover\.md/,
+    /questions numérotées dans summary/,
+    /aucun envoi, aucune candidature/,
   ])
     assert.match(CAREER_INSTRUCTIONS, rule);
 });

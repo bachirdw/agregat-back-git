@@ -55,6 +55,7 @@ test('Le schéma MCP accepte une offre découverte sans UUID ni évaluation', as
     id,
     score: null,
     report: null,
+    contractVersion: 2,
   });
 });
 

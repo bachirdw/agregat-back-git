@@ -86,7 +86,7 @@ export function getPack(id, objective = '') {
       ? (packs.find(
           (p) =>
             p.id === 'career-ops' &&
-            /career-ops|trouve des offres|[ée]value cette offre|postule|candidature|cv joint/i.test(
+            /career-ops|career_(?:read|write|script|offer_save|document)|modes\/_profile\.md|jd-skill-gap|cv-title-check|verify-cv-facts|trouve des offres|[ée]value cette offre|postule|candidature|cv joint/i.test(
               objective,
             ),
         ) ??

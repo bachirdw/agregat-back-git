@@ -1,6 +1,7 @@
 import { attachDocument } from './documents.js';
 import { readdirSync, lstatSync, existsSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -10,6 +11,7 @@ import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { buildChildEnv } from '../agent-runtime/env.js';
 import { emailSchema, EmailGateway, linkedInDraft } from './sends.js';
 const exec = promisify(execFile);
+const noNetworkPreload = fileURLToPath(new URL('./no-network.cjs', import.meta.url));
 const sectionText = z.string().min(1).max(10000);
 const sections = z
   .object({
@@ -20,6 +22,7 @@ const sections = z
 export const offerSchema = z
   .object({
     id: z.string().uuid().optional(),
+    contractVersion: z.literal(2).optional(),
     title: z.string().min(1).max(300),
     company: z.string().min(1).max(300),
     url: z
@@ -61,8 +64,9 @@ const validatePath = (path, write = false) => {
   return path;
 };
 export class CareerTools {
-  constructor(career) {
+  constructor(career, { scriptTimeoutMs = 60000 } = {}) {
     this.career = career;
+    this.scriptTimeoutMs = scriptTimeoutMs;
   }
   read(path, { offset = 0, maxChars = 100000 } = {}) {
     if (
@@ -94,7 +98,7 @@ export class CareerTools {
     return { path, saved: true };
   }
   saveOffer(raw) {
-    const offer = { ...offerSchema.parse(raw), id: raw.id ?? randomUUID() };
+    const offer = { ...offerSchema.parse(raw), id: raw.id ?? randomUUID(), contractVersion: 2 };
     writeConfined(this.career.path(), `relay/offers/${offer.id}.json`, JSON.stringify(offer));
     if (offer.report)
       writeConfined(
@@ -141,11 +145,28 @@ export class CareerTools {
     writeConfined(this.career.path(), 'relay/linkedin.json', JSON.stringify(draft));
     return draft;
   }
-  // Only audited entry points, never shell text from a model. These two scripts do not send
-  // applications. A user .env or executable parser/plugin configuration is refused here.
-  async script({ command, query = '' }, signal) {
-    if (!['scan', 'find'].includes(command)) throw new Error('Commande career-ops non autorisée');
+  // Only audited entry points, never shell text from a model. The three CV checks are local,
+  // read-only and isolated from network/filesystem writes. User .env is refused here.
+  async script({ command, query = '', path = '' }, signal) {
+    const controls = {
+      'jd-skill-gap': { pattern: /^jds\/[\p{L}\p{N}_ .-]+\.md$/u, flags: [] },
+      'cv-title-check': { pattern: /^output\/[\p{L}\p{N}_ .-]+\.json$/u, flags: [] },
+      'verify-cv-facts': {
+        pattern: /^output\/[\p{L}\p{N}_ .-]+\.(?:md|html)$/u,
+        flags: ['--json'],
+      },
+    };
+    if (!['scan', 'find'].includes(command) && !controls[command])
+      throw new Error('Commande career-ops non autorisée');
     const root = this.career.path();
+    if (controls[command]) {
+      if (query || !controls[command].pattern.test(path))
+        throw new Error('Chemin de contrôle hors du périmètre career-ops');
+      validatePath(path);
+      readConfined(root, path, 2 * 1024 * 1024);
+    } else if (path) {
+      throw new Error('Chemin non attendu pour cette commande');
+    }
     if (existsSync(resolve(root, '.env')))
       throw new Error('Scripts isolés : déplacer la configuration secrète vers le lanceur Relay');
     const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
@@ -172,8 +193,21 @@ export class CareerTools {
       };
       validate(config);
     }
-    const args = command === 'scan' ? ['scan.mjs', '--quiet'] : ['find.mjs', '--json', query];
-    if (query.length > 500 || query.startsWith('-'))
+    const args = controls[command]
+      ? [
+          '--permission',
+          `--allow-fs-read=${root}`,
+          `--allow-fs-read=${noNetworkPreload}`,
+          '--require',
+          noNetworkPreload,
+          `${command}.mjs`,
+          path,
+          ...controls[command].flags,
+        ]
+      : command === 'scan'
+        ? ['scan.mjs', '--quiet']
+        : ['find.mjs', '--json', query];
+    if (!controls[command] && (query.length > 500 || query.startsWith('-')))
       throw new Error('Requête de recherche invalide');
     try {
       const result = await exec(process.execPath, args, {
@@ -183,11 +217,13 @@ export class CareerTools {
           CAREER_OPS_DATA_DIR: root,
         }),
         signal,
-        timeout: 60000,
+        timeout: this.scriptTimeoutMs,
         maxBuffer: 200000,
       });
-      return { text: result.stdout, untrusted: true };
-    } catch {
+      return { text: result.stdout, exitCode: 0, untrusted: true };
+    } catch (error) {
+      if (controls[command] && Number.isInteger(error.code) && !signal?.aborted)
+        return { text: error.stdout || error.stderr || '', exitCode: error.code, untrusted: true };
       throw new Error(
         'Commande career-ops échouée, annulée ou expirée ; consulter la configuration locale',
       );
@@ -292,9 +328,13 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    'Scanner les portails configurés (sans modèle) ou rechercher dans le suivi amont, via deux scripts revus seulement.',
+    'Scanner ou chercher, et contrôler les manques de l’offre, les titres et les faits d’un CV fictif ou privé via des scripts revus. Un exitCode non nul signale un contrôle échoué.',
     z
-      .object({ command: z.enum(['scan', 'find']), query: z.string().max(500).default('') })
+      .object({
+        command: z.enum(['scan', 'find', 'jd-skill-gap', 'cv-title-check', 'verify-cv-facts']),
+        query: z.string().max(500).default(''),
+        path: pathSchema.optional(),
+      })
       .strict(),
     (args, signal) => tools.script(args, signal),
   );

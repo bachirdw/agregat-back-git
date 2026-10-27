@@ -4,6 +4,14 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { testPhaseTimeoutMs } from '../scripts/test-phase-timeout.js';
+
+test('runner : la phase Chrome garde une marge distincte sous charge', () => {
+  assert.equal(testPhaseTimeoutMs('parallel', null), 240000);
+  assert.equal(testPhaseTimeoutMs('browser', null), 480000);
+  assert.equal(testPhaseTimeoutMs('browser', '100'), 100);
+  assert.equal(testPhaseTimeoutMs('browser', '-1'), 480000);
+});
 
 test('runner : une phase bloquée expire sans attendre le délai de quinze minutes', () => {
   const root = mkdtempSync(join(tmpdir(), 'relay-test-runner-'));

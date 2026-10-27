@@ -39,3 +39,24 @@
 ## Questions et suite
 
 À compléter.
+
+## Contrôle du manager (Claude) — 28/10, 07:17
+- 07:04 : Codex arrêté par sa limite d'usage (annoncée jusqu'au 2 novembre). Le guetteur a mal lu la date et
+  prévoyait une reprise à 12:04 ; chaîne arrêtée à 07:05. Travail repris, relu et terminé par le manager.
+- Diff relu. Suite complète hors bac à sable de 07:05 à 07:10 : 305 + 1 ignoré, Chrome 136/136, check et format
+  verts (`manager-*.log`). Back commité `ef22ed1` ; front `2fbfab9` (Codex), `3a4c70c` (libellés A–G, rouge
+  vérifié sur l'ancien `Career.tsx`), `554683d`.
+- n° 8 : la correction CSS de Codex était sans effet. La règle `@media (min-width: 761px) .home` l'écrasait, et le
+  composeur en position absolue chevauchait toujours (−151 px à 1360×900). Correctif `554683d` : sur l'accueil, le
+  composeur est dans le flux. Mesure `home-check.mjs` : OK à 5 tailles, de 375 à 1440 px, avec et sans long texte.
+- Réserves :
+  - les rapports enregistrés avant `ef22ed1` gardent un H qui signifiait « prochaine action » ; ils s'affichent
+    désormais sous « Réponses de candidature » ;
+  - `ajv` et `ajv-formats` sont utilisés par le test via le SDK MCP (dépendance transitive).
+- Serveur 4310 redémarré à 07:16:41 avec les correctifs (live et owner à true).
+- Nouveau constat (mission `35f072af`, 07:01) : agent Codex et Pack Auto. En mode propriétaire, Auto force toujours
+  `browser-agent` (`packages/orchestrator/index.js:235-243`). L'agent n'a donc pas reçu les outils career, puis la
+  vérification a échoué (« Navigation non prouvée »). **Proposé** : en Auto, router vers career-ops quand le prompt
+  cite career-ops ou ses fichiers, ou l'indiquer dans le plan avant l'envoi.
+
+**Verdict** : diag-01 VALIDÉ, à confirmer par une vraie mission de l'utilisateur.

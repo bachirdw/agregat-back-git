@@ -44,3 +44,10 @@ rapport à jour (passation), commite, et termine proprement — la session suiva
 
 ## Fin : dernier message ≤ 12 lignes
 ÉCARTS MAJEURS · DÉFAUTS CORRIGÉS (commits) · TESTS AJOUTÉS · RESTE / QUESTIONS.
+
+## Note du manager (28/10, 01:30)
+- Chrome avorte dans le bac à sable de Codex (`SIGABRT`, `kill EPERM`) : ne pas s'acharner. Lancer les tests sans
+  Chrome, signaler dans le rapport quels fichiers Chrome n'ont pas pu tourner ; le manager les relance hors bac à
+  sable pendant son contrôle.
+- Une veille du Mac a causé entre 00:04 et 01:20 des dépassements de délai (~900 s) : un délai dépassé n'est un défaut
+  que s'il se reproduit sur un fichier relancé seul.

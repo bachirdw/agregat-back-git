@@ -19,7 +19,32 @@ d'avoir de grosses bulles qui obstruent l'écran. Et la bulle de discussion, qua
 toujours de la même taille. Maintenant la bulle s'adapte au texte, et quand on glisse sur l'écran, comme Claude
 Code, elle se réduit pour qu'on puisse voir la conversation. »
 
-## Références de design
+## Référence principale : export Claude Design du 28/10 (fourni par l'utilisateur à 07:23)
+`design/conversation-agent.html` dans l'arbre de travail (copie de `~/Downloads/Conversation agent - Standalone.html`,
+page autonome « Conversation agent », démo en React). **C'est la cible : reproduis ses mouvements et sa mise en page
+dans notre front**, avec nos vraies données. Son contenu de démonstration est fictif : ne le reprends pas.
+Captures faites par le manager : `front-anim-01-evidence/design-*.png`, à 1360×900 et 375×812, états initial,
+plus tard, texte long et défilé. Ce qu'on y voit :
+- bulles utilisateur ajustées au texte, à droite ; réponses de l'agent en texte simple, sans bulle ;
+- actions regroupées « A exécuté N commandes · N erreurs · durée › », repliables (chevron animé
+  `transform .2s cubic-bezier(.2,.8,.2,1)`) ;
+- ligne d'état « Échec » ou « Terminé », avec coût, détails et « Reprendre » ;
+- zone de saisie d'une ligne, qui grandit avec le texte (`height:auto` puis `scrollHeight`) ;
+- défilement collé en bas tant que l'utilisateur est à moins de 40 px du bas ;
+- animations `rise` (4 px, opacité), `dotp` (points de réflexion) et `caret` (curseur pendant la frappe) ;
+- tout coupé sous `prefers-reduced-motion`.
+
+Lis son code (cherche `@keyframes`, `componentDidUpdate`, `onScroll`, `agentVals`) par plages : le fichier est un
+bundle de 133 ko.
+
+Écarts voulus par rapport à l'export :
+- la zone de saisie a une hauteur maximale d'environ 40 % de l'écran (dans l'export, elle grandit sans limite) ;
+- au défilement vers le haut, elle se réduit (demande de l'utilisateur) ;
+- nos pastilles Agent, Modèle, Pack… restent accessibles : sur l'accueil, en entier ; en conversation, repliées
+  dans la zone de saisie ouverte. L'export n'en a pas, mais l'utilisateur doit pouvoir choisir Gemini et le Pack
+  career-ops.
+
+## Références de design (secondaires)
 - `design/maquette.html` (Claude Design) et `design/screens/*.png` dans le front. Reprends leur vocabulaire de
   mouvement :
   - entrées : `animation: enter 280–360ms cubic-bezier(0.23,1,0.32,1)` ;
@@ -29,9 +54,6 @@ Code, elle se réduit pour qu'on puisse voir la conversation. »
 - Skills de design (lis-les et applique-les) : `~/Downloads/agregat-back/.claude/skills/apple-design/SKILL.md` et
   `.../emil-design-eng/SKILL.md`. Mouvement interruptible, `transform` et `opacity` seulement, pas d'animation sur ce
   qui est fréquent ou au clavier.
-- Si un export Claude Design **plus récent que le 25/10** apparaît dans `~/Downloads` (HTML « Maquette », « Claude
-  Design »…), il prime : note son nom et sa date dans le rapport. Sinon, la référence est le comportement décrit
-  ici, façon Claude Code et claude.ai.
 
 ## Ce qui doit marcher
 1. **Le composeur s'adapte au texte.**

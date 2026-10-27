@@ -21,13 +21,15 @@
 | Audit n° 2 : schéma refusé pour mauvaise raison | moyenne | Corrigé dans `reuse-01b` ; `browser-gateway.test.js` vérifie motif de chaque rejet et zéro action ; schéma `{ref}` seul. |
 | Audit n° 3, 4, 6, 7, 8, 11a, 13 partiel | basse à moyenne | Corrections du manager conservées ; tests de refs après `replaceState`/navigation, message sans page, capture bornée, accord et Zod maintenus verts dans la suite de référence et `owner-focused.log`. |
 
-**VERDICT acquis : VALIDÉ après les deux corrections de relecture.** Vérification finale complète et commit local restent à exécuter. Les n° 5, 9, 10, 11 b–f, 12, 13 (`extract`), 14 et 15 demeurent hors de ce brief selon l'arbitrage du manager.
+**VERDICT acquis : VALIDÉ après les deux corrections de relecture.** La suite finale est verte (`precommit-test-retry.log`) et le commit de code `5c8b3db` est créé. Les n° 5, 9, 10, 11 b–f, 12, 13 (`extract`), 14 et 15 demeurent hors de ce brief selon l'arbitrage du manager.
 
 - 18:14 — Première suite avant commit `precommit-test.log` : **échec**, code 1. Phase Chrome 126/126 ; phase parallèle 270 tests, 268 réussites, 1 annulé, 1 ignoré, 0 échec ordinaire. `tests/workflow-resume.test.js:207` a expiré après 120 s (durée affichée 736044 ms), puis phase expirée après 240 s ; cause non attribuée. Aucun changement à ce fichier ou au moteur workflow. Rejeu isolé puis suite figée requis avant commit. `precommit-check.log` et `precommit-format.log` sont verts.
 - 18:15 — Rejeu isolé `workflow-resume-isolated.log` code 0 : 7/7, cas précédemment expiré réussi en 4522 ms. Hypothèse d'une contention/interruption de l'environnement lors du passage parallèle, non prouvée ; aucun test ni délai modifié pour la masquer. Suite complète `precommit-test-retry.log` relancée sur l'arbre figé.
 - 18:20 — Suite complète `precommit-test-retry.log` **verte, code 0** : phase parallèle 270 tests, 269 réussites, 1 ignoré ; phase Chrome 126/126. Aucun test supprimé ni assertion de sécurité affaiblie. Vérification finale `check`, `format:check`, `git diff --check` et commit local à suivre.
 - 18:20 — `final-check.log` et `final-format.log` verts ; `git diff --check` vert. Première tentative de staging `git add -A` refusée par le bac à sable (`.git/index.lock: Operation not permitted`, code 128) ; aucun fichier stagé, demande d'autorisation d'écriture Git nécessaire. Le code et les tests restent inchangés.
 - 18:20 — Staging avec autorisation étendue réussi : 22 fichiers limités à `cdp.js`, au test de clic, au rapport et à ses preuves. `git diff --cached --check` hors logs vert ; les logs gardent les sorties brutes. Aucun secret ni fichier career-ops stagé. Commit local sans push à effectuer.
+- 18:21 — Commit local `5c8b3db [review-reuse-01b]` réussi, code 0, 22 fichiers, sans push ; `git status --short` vide. Le rapport et les preuves étaient inclus. Le présent ajout consigne le hash et sera clôturé par un commit documentaire après les trois gardes sur l'arbre final.
+- 18:26 — Vérification finale après le commit de code : `report-commit-test.log` code 0 (270 tests : 269 réussites, 1 ignoré ; Chrome 126/126), `report-commit-check.log` code 0, `report-commit-format.log` code 0. Aucune modification du code depuis `5c8b3db`. Clôture documentaire et deux journaux de preuve à committer localement, sans push.
 
 ## État et limites
 

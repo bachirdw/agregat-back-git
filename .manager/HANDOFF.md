@@ -4,6 +4,16 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
 ## 00000. Nuit du 27→28/10 — AUDIT COMPLET PAR CODEX, supervisé par Claude (À LIRE EN PREMIER)
+
+**Résultat (28/10, 05:50, relevé par `date`)** : chaîne terminée, six audits et la synthèse VALIDÉS par le manager.
+Rapport du matin : `.manager/reports/GAP-REPORT.md` (plan initial → état réel par module, défauts corrigés et
+ouverts, sécurité reportée, sources, 5 décisions pour l'utilisateur). Contrôles manager en fin de chaque
+`reports/audit-NN.md`. Commits utiles : back `d6e3eae`, `cd9ad10`, `d7e1fd2`, `a71595e`, `6e03af3` (correctifs
+Codex, tests rouge→vert vérifiés), `2b761b6` (attentes de `career-integration` 6 → 30 s), `14b3823` (attente de
+limite jusqu'à l'heure annoncée) ; front `131576a`, `bcf09fc`.
+Leçons : Chrome avorte dans le bac à sable Codex → le manager relance Chrome hors bac à sable ; `caffeinate -i` ne
+suffit pas écran rabattu → `caffeinate -s -i -w <chaîne>` ; ne pas lancer de suite complète en parallèle de Codex.
+Suite proposée : décisions 1 à 5 du GAP-REPORT, d'abord la règle d'accord pour tout effet d'envoi (bloque Seek).
 Demande de l'utilisateur (27/10, ~22h, parti se coucher) : Codex relit et teste TOUT le code par parties, compare
 aux sources (agent-repos, GitHub), vérifie le respect du plan initial ; Claude supervise chaque étape ; **rapport
 des écarts projet ↔ plan initial demain matin** (`reports/GAP-REPORT.md`).

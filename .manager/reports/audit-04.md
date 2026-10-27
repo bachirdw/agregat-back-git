@@ -63,3 +63,20 @@ Les journaux détaillés sont sous `.manager/reports/audit-04-evidence/` et sont
 - 05:35 — Garde avant commit relancée : `npm test` en cours (`precommit-resume-test.log`) ; `npm run check` sortie 0, « Syntaxe JavaScript valide » (`precommit-resume-check.log`) ; `npm run format:check` sortie 0, « All matched files use Prettier code style! » (`precommit-resume-format.log`).
 - 05:36 — `npm test` sortie **1** : phase sans Chrome 301 tests, 300 réussis, 0 échec, 1 ignoré ; phase Chrome 136 tests, 61 réussis, 75 échecs. Diagnostics `browserType.launchPersistentContext`, Chrome `SIGABRT` et `kill EPERM`, identiques aux gardes précédentes ; preuve `precommit-resume-test.log`. Les tests Chrome restent **incomplets dans ce bac à sable** et seront relancés hors bac à sable par le manager. Les quatre corrections techniques et les nouveaux tests sont **opérationnels sur la phase sans Chrome** ; aucune validation Chrome n'est revendiquée.
 - 05:36 — `git diff --check` sortie 0. Tentative de `git add` puis commit local : **échec sortie 128**, `.git/index.lock: Operation not permitted` ; aucun fichier n'a été stagé. Le bac à sable accorde lecture seule à `.git` ; tentative avec élévation de permission nécessaire.
+
+## Contrôle du manager (Claude) — 28/10, 05:39
+- Session coupée par la limite d'usage Codex à 01:40 ; l'attente fixe de 5 h du script a laissé la chaîne inactive
+  jusqu'à 05:34 (levée annoncée : 3:18). Script corrigé (`14b3823` : attente jusqu'à l'heure annoncée + 2 min), chaîne
+  relancée par le manager à 05:34:15 ; la nouvelle session a repris le travail non commité par passation.
+- Diff relu (`a71595e`) : schémas MCP bruts rendus stricts ; `exportTo` refuse un agent inconnu (`fixture` présent dans
+  `AGENT_SKILL_DIRS`, aucun appelant cassé) ; `importGit` confine `subdir` via `safeDirectory` ; nom de Skill conforme
+  au format Agent Skills et description ≤ 1 024 caractères. career-ops (bibliothèque) intact.
+- **Risque à surveiller** : les outils career-ops côté plateforme (`packages/career-ops/tools.js`, schémas bruts)
+  refusent désormais un argument inconnu au lieu de l'ignorer ; un vrai agent qui ajoute un champ parasite recevra
+  une erreur d'outil. À vérifier lors de la première vraie mission.
+- Vrais tests : sans correctif `server.js` → 1 échec ; `skill-registry/index.js` → 2 ; `scan.js` → 1.
+- Copie figée `a71595e`, 05:38:17 → 05:38:36 : fichiers `mcp*`, `skill*`, `billing`, `career*`, `najah*`, `usage`,
+  `api-agents` → 99/99.
+
+**Verdict** : audit-04 VALIDÉ. Reste ouvert : nettoyage des fichiers périmés à l'export des Skills (décision de
+propriété du dossier, n° 5).

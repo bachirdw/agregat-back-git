@@ -58,3 +58,38 @@ garde d'envoi) ; case par le chemin DOM (`reuse-01c1`) ; fichiers par `setInputF
   de focus par le navigateur. Une liste d'autocomplétion qui n'écoute que le clavier natif resterait inerte.
 - Le chemin DOM ignore la barre Playwriter par son attribut actuel (`data-playwriter-toolbar`, version 0.7.0) ;
   à revérifier si Playwriter change.
+
+## Contrôle du manager (Claude) — 27/10, 19:55
+
+**Relecture** : `review-reuse-01c-claude.md` (agent Claude économe, lecture seule), 15 constats.
+**Tri (consigne de l'utilisateur : technique d'abord, sécurité plus tard)** : n° 1, 2 (volet envoi), 5, 7 reportés ;
+**bloquants avant toute mission Seek réelle** (upload par bouton, check, select, press peuvent déclencher un envoi
+sans accord). Corrigés dans `1c5b0b0` :
+- n° 3 : `type` avec texte vide → setter natif + `input`/`change` (Playwright efface par la touche Delete, perdue en
+  onglet caché) ; « champ non vidé » sinon.
+- n° 4 : preuve d'upload par l'événement `change` vu par la page (écouteur posé avant `setFiles`), état final en
+  repli ; message « Fichier non reçu par la page ».
+- n° 6 : repli DOM de `check` seulement si aucun clic n'a été délivré (témoin `#clickWitness`, commun avec le clic).
+- n° 8 (en partie) : champ secret dont la page restaure la valeur → erreur, sans écho du texte.
+- n° 9 : `keyCode`/`which` sur les touches DOM ; description de `press` (pas d'action par défaut en onglet caché).
+- n° 10 (libellé) : un point atteint dans un `label` du contrôle compte comme atteignable (case stylée).
+  Shadow DOM et `role=checkbox` : non traités.
+- n° 11 : valeur exacte prioritaire sur le libellé d'une autre option ; `selectOption([{ value }])`.
+- n° 12 : messages zod français (`values` liste, `text`, `path`, `ref` requis).
+- n° 13 : branche morte d'`extract` supprimée, `#isHidden` unique. Repli `FixturePageProvider.describe` gardé.
+- n° 14 : assertion `/Au moins une option/` ; test `tests/browser-gateway.test.js` aligné sur le message français
+  (le refus est inchangé).
+- n° 15 : `filechooser` : seul un `TimeoutError` devient « Aucun sélecteur » ; `assertLanded` après upload ;
+  `href` du téléchargement propriétaire lu sur `closest('a')`. Upload refusé sur un lien ou un enfant de bouton
+  submit (même cible que `describe`).
+
+**Preuves** (`reuse-01c-evidence/`) :
+- Rouge sur l'ancien code figé `fc054cb` : `review-red-old-code.log` (8 constats ROUGES, Chrome simulé).
+- Suite complète sur copie figée `1c5b0b0` : 269 réussis + 1 ignoré, Chrome 134/134, check et format verts
+  (`manager-control-suite.log`). Dans l'arbre de travail, un passage a vu `e2e-ui` « saisie avant chargement du
+  catalogue » dépasser 120 s sous charge (3,8 s seul, vert en copie figée) : instabilité de charge connue, pas de lien.
+- Preuve réelle Playwriter (`relay-review-proof.mjs`), onglet `hidden` vérifié, page FICTIVE : nouveau code 5/5
+  VERT (`relay-review-proof.log`), ancien code 5/5 ROUGE (`relay-review-proof-old.log`) — dont n° 3, 9 et 11
+  annoncés réussis SANS effet ; 0 POST.
+
+**Verdict** : étape 3 VALIDÉE sur le plan technique ; volet envoi reporté et bloquant avant une mission réelle.

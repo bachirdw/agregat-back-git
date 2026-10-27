@@ -57,3 +57,6 @@ En cours. Coût API : 0 $.
 - 17:34 — Clôture administrative du rapport et ajout du journal de commit prévus dans un second commit local, après rejeu des trois gardes ; aucun changement de code depuis eb2afcf.
 - 17:34 — Tentative d'ajout au rapport avec un heredoc non cité : les backticks Markdown ont déclenché des commandes shell non voulues ; git add -A a été refusé par le bac à sable (.git/index.lock), .log était introuvable. Aucun staging ni changement de code ; ligne du rapport corrigée par apply_patch sans interpolation shell.
 - 17:40 — Gardes avant le commit documentaire : report-commit-test.log, exit 0 ; phase unitaire/intégration 270 tests, 269 réussites, 0 échec, 1 ignoré ; Chrome 126/126 réussites. report-commit-check.log : syntaxe valide ; report-commit-format.log : format conforme. Code inchangé depuis eb2afcf. Ajout du présent journal et des preuves de clôture, puis commit local de rapport ; aucun push.
+
+## Contrôle du manager (Claude) — 27/10, 18:35
+Validé avec la relecture `8265b18` : voir « Contrôle du manager » dans `review-reuse-01b.md`.

@@ -40,3 +40,10 @@
 ## État
 
 En cours. Coût API : 0 $.
+
+## Contrôle du manager (Claude) — 27/10, 18:35
+- **Diff relu** `d45f41c..8265b18` (10 fichiers, +452/−207 ; `cdp.js` +~120/−~60) : `force:true`, `observed()`, marqueur `window` et `framenavigated` comme preuve supprimés ; témoin du clic visible porté par un `JSHandle` (pas par le locator) ; onglet caché → chemin DOM immédiat (contrôles, séquence pointeur/souris, `el.click()`, preuve et annulation renvoyées par la même évaluation) ; clic incertain → erreur sans second clic ; `selector` retiré du clic, tests migrés vers `ref`. Gardes d'accord, d'aperçu d'envoi et de page modifiée inchangées.
+- **Tests sur copie figée `8265b18`** : 270 tests, 269 réussis, 1 ignoré, 0 échec ; Chrome 126/126 ; `check` et `format:check` verts (`manager-frozen-8265b18.log`).
+- **Preuves rejouées par le manager** via Playwriter, pages locales fictives, onglet `hidden` : 10/10 clics effectifs malgré `replaceState` toutes les 100 ms, médiane 67 ms (7148e17 : 10 succès annoncés, compteur 0, 1006 ms) ; case cochée, menu `mousedown`, lien suivi, tous `dom`/`hidden:true` ; bouton qui se retire : 62 ms (7148e17 : 11,1 s) (`manager-proof-click.log`, `manager-proof-detach.log`).
+- **Relevés mineurs, reportés à l'étape 3** : constante `target` du registre devenue inutilisée ; l'attente de navigation du chemin DOM écoute `domcontentloaded` de la page principale (lien ou formulaire dans une iframe : 1,5 s d'attente inutile).
+- **Verdict : étape 2 VALIDÉE.** Étape 3 découpée (limite Codex à ~13 %) : `reuse-01c1` (select/check) par Codex, le reste par le manager.

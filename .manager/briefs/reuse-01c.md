@@ -1,7 +1,5 @@
 # reuse-01c — Étape 3 : saisie, choix, cases et fichiers en onglet caché (amendement 3) — agent codeur (Codex)
 
-> Brouillon du manager écrit pendant `reuse-01b` ; à confirmer après le contrôle de `reuse-01b`.
-
 Lis `AGENTS.md`, `.manager/PLAN-reuse.md` (« Consignes de l'utilisateur pour le codage »), dans `.manager/reuse-plan.md`
 la section `reuse-01`/`reuse-02` et le « Contrôle du manager » final, puis la fin des rapports `reuse-01b.md` et
 `review-reuse-01b.md` (le chemin DOM du clic y est défini : réutilise-le, ne le duplique pas). Rapport
@@ -45,7 +43,11 @@ séquence clavier DOM) suivie de la vérification de l'effet.
    `targetOf(args)` unique, `target` masqué dans l'upload), n° 12 (tests d'accord par ref : saisie sans texte dans
    l'accord, aperçu d'envoi par ref, « élément modifié pendant l'approbation » par ref, `extract` par ref),
    n° 13 reste (`extract` refuse `ref` + `limit > 1` ; messages zod déjà en français, faits par le manager). Statut de chacun dans le rapport.
-8. Supprime tout code devenu mort ; bilan exact `git diff --stat` et lignes supprimées / ajoutées.
+8. Relevés du contrôle de `reuse-01b` : la constante `target` de `packages/capability-registry/index.js` n'est plus
+   utilisée (supprime-la avec `selector`) ; dans le chemin DOM du clic, l'attente de navigation écoute
+   `domcontentloaded` de la page principale, donc un lien ou un formulaire dans une iframe attend 1,5 s pour rien
+   (écouter le cadre de la cible). Réutilise ce chemin DOM pour `check` et pour le bouton d'upload, sans le copier.
+9. Supprime tout code devenu mort ; bilan exact `git diff --stat` et lignes supprimées / ajoutées.
 
 ## Tests (rouges avant, verts après)
 Chrome isolé, pages locales fictives, plus SIMULATION d'onglet caché (comme `reuse-01b`, nommée ainsi) : chaque

@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { ROOT } from '../orchestrator/packs.js';
+import { buildChildEnv, redact, secretValues } from './env.js';
 import { profiles } from './profiles.js';
 const exec = promisify(execFile);
 
@@ -23,7 +24,7 @@ export function loadAgentConfig(
 const executable = (p) => {
   try {
     accessSync(p, constants.X_OK);
-    return true;
+    return statSync(p).isFile();
   } catch {
     return false;
   }
@@ -53,8 +54,14 @@ async function inspect(profile, config, env) {
   const cliPath = findCli(profile.cli, config, env);
   if (!cliPath)
     return { ...profile, installed: false, compatible: false, readiness: 'non-détecté' };
+  const secrets = secretValues(env);
+  const childEnv = buildChildEnv(profile, env);
   try {
-    const { stdout } = await exec(cliPath, ['--version'], { timeout: 8000, maxBuffer: 65536 });
+    const { stdout } = await exec(cliPath, ['--version'], {
+      timeout: 8000,
+      maxBuffer: 65536,
+      env: childEnv,
+    });
     let command = cliPath,
       args = profile.args ?? [],
       compatible = true,
@@ -68,6 +75,7 @@ async function inspect(profile, config, env) {
       const { stdout: help } = await exec(cliPath, ['--help'], {
         timeout: 8000,
         maxBuffer: 1 << 20,
+        env: childEnv,
       });
       const flag = profile.acpFlags.find((f) => help.includes(f));
       compatible = !!flag;
@@ -82,7 +90,7 @@ async function inspect(profile, config, env) {
       installed: true,
       compatible,
       reason,
-      version: stdout.trim().split('\n')[0].slice(0, 120),
+      version: redact(stdout.trim().split('\n')[0], secrets).slice(0, 120),
       readiness: compatible ? 'handshake-requis' : 'adaptateur-manquant',
     };
   } catch (e) {
@@ -92,7 +100,7 @@ async function inspect(profile, config, env) {
       installed: true,
       compatible: false,
       readiness: 'version-illisible',
-      reason: String(e.message).slice(0, 200),
+      reason: redact(String(e.message), secrets).slice(0, 200),
     };
   }
 }

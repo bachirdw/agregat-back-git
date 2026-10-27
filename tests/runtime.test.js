@@ -417,6 +417,27 @@ test('routeur Auto : exigence de modèle et de reprise', () => {
   );
 });
 
+test('routeur Auto : capacité obligatoire inconnue ne prime pas sur une capacité prouvée', () => {
+  const probes = {
+    claude: {
+      session: true,
+      capabilities: { loadSession: true, mcp: { http: true } },
+      models: { options: [{ id: 'm2' }] },
+    },
+  };
+  for (const requirements of [
+    requirementsFor({ resume: true }),
+    requirementsFor({ model: 'm2' }),
+    requirementsFor({ mcpTransport: 'http' }),
+  ]) {
+    const result = chooseAgent({ agents, requirements, live: true, probes });
+    assert.equal(result.id, 'claude');
+    assert.ok(
+      result.rejected.some((r) => r.id === 'codex' && /non annoncée|non annoncé/.test(r.reason)),
+    );
+  }
+});
+
 test('routeur Auto : ordre explicite et transport MCP http', () => {
   const probes = {
     claude: { session: true, capabilities: { mcp: { http: true } } },
@@ -463,6 +484,12 @@ test('découverte : agents.json, chemins absolus exigés, node_modules exclu du 
   assert.deepEqual(loadAgentConfig(join(dir, 'absent.json')), { cliDirs: [], paths: {} });
 });
 
+test('découverte : un dossier exécutable ne constitue pas un CLI', () => {
+  const dir = temporary();
+  assert.equal(findCli('gemini', { cliDirs: [], paths: { gemini: dir } }, { PATH: '' }), null);
+  assert.equal(findCli('gemini', { cliDirs: [dir], paths: {} }, { PATH: '' }), null);
+});
+
 test('détection : CLI factice Gemini sans option ACP → incompatible avec raison', async () => {
   const dir = temporary();
   writeFileSync(
@@ -495,6 +522,46 @@ test('détection : CLI factice Gemini avec --acp → compatible', async () => {
   assert.equal(gemini.compatible, true);
   assert.deepEqual(gemini.args, ['--acp']);
   assert.equal(gemini.version, '0.65.0');
+});
+
+test('détection : sortie version et erreur CLI ne divulguent pas un secret', async () => {
+  const dir = temporary();
+  const secret = `FICTIF-TOKEN-${'x'.repeat(130)}`;
+  writeFileSync(
+    join(dir, 'gemini'),
+    `#!/bin/sh\nif [ "$1" = "--version" ]; then echo '${secret}'; else echo '  --acp'; fi\n`,
+  );
+  writeFileSync(join(dir, 'opencode'), `#!/bin/sh\necho '${secret}' >&2\nexit 1\n`);
+  chmodSync(join(dir, 'gemini'), 0o755);
+  chmodSync(join(dir, 'opencode'), 0o755);
+  const agents = await detectAgents({
+    config: { cliDirs: [dir], paths: {} },
+    env: { PATH: '', FICTIVE_TOKEN: secret },
+  });
+  assert.ok(!JSON.stringify(agents).includes(secret));
+  assert.match(agents.find((a) => a.id === 'gemini').version, /masqué/);
+  assert.match(agents.find((a) => a.id === 'opencode').reason, /masqué/);
+});
+
+test('détection : les sondes --version et --help utilisent la liste blanche du profil', async () => {
+  const dir = temporary();
+  writeFileSync(
+    join(dir, 'gemini'),
+    '#!/bin/sh\nif [ -n "$UNRELATED_DETECTION_SECRET" ]; then exit 11; fi\nif [ "$1" = "--version" ]; then echo 0.1.0; else echo "  --acp"; fi\n',
+  );
+  chmodSync(join(dir, 'gemini'), 0o755);
+  const previous = process.env.UNRELATED_DETECTION_SECRET;
+  process.env.UNRELATED_DETECTION_SECRET = 'FICTIF-DETECTION-SECRET-12345';
+  try {
+    const list = await detectAgents({
+      config: { cliDirs: [dir], paths: {} },
+      env: { ...process.env, PATH: '' },
+    });
+    assert.equal(list.find((a) => a.id === 'gemini').compatible, true);
+  } finally {
+    if (previous === undefined) delete process.env.UNRELATED_DETECTION_SECRET;
+    else process.env.UNRELATED_DETECTION_SECRET = previous;
+  }
 });
 
 test('sondes : persistance atomique, fichier corrompu ignoré', () => {
@@ -668,6 +735,18 @@ test('sécurité : secret du pont MCP ajouté à la liste de masquage, fermeture
   const pending = r.prompt('FICTIF');
   r.close();
   await assert.rejects(pending, /fermé|terminé|closed/);
+});
+
+test('sécurité : valeur opaque du pont MCP masquée même si son nom ne désigne pas un secret', async () => {
+  const secret = 'FICTIF-HEADER-OPAQUE-1234567890';
+  await withRuntime(fake({ eventText: secret }), async (r) => {
+    await r.start();
+    await r.session([
+      { name: 'fictif', command: 'fictif', args: [], env: [{ name: 'HEADER', value: secret }] },
+    ]);
+    await r.prompt('FICTIF');
+    assert.ok(!r.text().includes(secret));
+  });
 });
 
 test('sécurité : changement asynchrone vers un mode dangereux ferme le runtime', async () => {

@@ -219,9 +219,9 @@ export class AcpRuntime {
     this.ready = false;
     for (const server of mcpServers)
       this.secrets.push(
-        ...secretValues(
-          Object.fromEntries((server.env ?? []).map(({ name, value }) => [name, value])),
-        ),
+        ...(server.env ?? [])
+          .map(({ value }) => value)
+          .filter((value) => typeof value === 'string' && value.length >= 8),
       );
     if (previousId && !this.info.agentCapabilities?.loadSession)
       throw new Error('Reprise non supportée par cet agent');

@@ -33,18 +33,16 @@ export function chooseAgent({ agents, requirements, live, probes = {}, order = n
         id: a.id,
         reason: `Dernier prompt refusé (${probe.inferenceError ?? 'authentification'})`,
       });
-    else if (requirements.loadSession && probe && !probe.capabilities?.loadSession)
+    else if (requirements.loadSession && !probe?.capabilities?.loadSession)
       rejected.push({ id: a.id, reason: 'Reprise de session non annoncée' });
     else if (
       requirements.mcpTransport !== 'stdio' &&
-      probe &&
-      !probe.capabilities?.mcp?.[requirements.mcpTransport]
+      !probe?.capabilities?.mcp?.[requirements.mcpTransport]
     )
       rejected.push({ id: a.id, reason: `Transport MCP ${requirements.mcpTransport} non annoncé` });
     else if (
       requirements.model &&
-      probe &&
-      !probe.models?.options?.some((m) => m.id === requirements.model)
+      !probe?.models?.options?.some((m) => m.id === requirements.model)
     )
       rejected.push({ id: a.id, reason: `Modèle ${requirements.model} non annoncé` });
     else candidates.push(a);

@@ -25,9 +25,25 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
   sur ancien code et preuve Playwriter rouge→vert (`reports/reuse-01c.md` § Contrôle).
 - **Étape 4** (`d4e97d3` Codex, `72c6d64`/`cb3f05f`/`cbba7f0` manager) : `browser.fillForm`, un accord pour tout le
   formulaire ; preuve Playwriter 6 champs en 1 appel ; gain = 1 tour d'agent au lieu de 6.
-- **Étape 5 (reste)** : Codex écrit `packages/agent-runtime/process-liveness.js` (copie acpx MIT) ; le manager branche
-  ensuite `AcpRuntime.close()` (SIGKILL seulement si le groupe n'est pas mort à coup sûr, attente bornée, état
-  renvoyé), puis relecture Claude économe et contrôle.
+- **Étape 4 contrôlée** : suite sur copie figée `cbba7f0` verte (275 + 1 ignoré, Chrome 136/136, check/format) —
+  `reports/reuse-02-evidence/manager-control-suite.log` (écrit à 20:05, **pas encore commité** : Bash bloqué).
+- **Étape 5 — CODÉE PAR CLAUDE (décision de l'utilisateur, 27/10 ~20:10 : Codex indisponible)**. Le brief
+  `briefs/reuse-04a.md` sert de cahier des charges, mais c'est la session Claude qui code tout :
+  1. `packages/agent-runtime/process-liveness.js` : copie adaptée de `openclaw/acpx@c0b9dfd:src/process-liveness.ts`
+     (MIT, en-tête + ligne `THIRD_PARTY_NOTICES.md`) : `isProcessAlive`, `isProcessDefinitelyDead` (ESRCH seul =
+     mort ; EPERM = jamais mort), extension `processGroupState(pgid)` → `alive|dead|unknown` (win32 → `unknown`).
+  2. `AcpRuntime.close()` (`packages/agent-runtime/index.js:305`) : aujourd'hui SIGTERM puis SIGKILL aveugle au groupe
+     après 1,5 s. Cible : SIGTERM, sonde du groupe toutes les 100 ms (timers `unref`) pendant 1,5 s ; SIGKILL
+     **seulement si `alive`** (jamais sur `unknown`/EPERM : l'identifiant peut être réutilisé) ; attente bornée ~1 s ;
+     `close()` reste appelable sans `await` mais renvoie une promesse de l'état (`dead|unknown|none`). Win32 : garder
+     `child.kill` et l'événement `exit`.
+  3. Tests rouge→vert : `tests/process-liveness.test.js` (pids invalides, enfant réel vivant puis mort, groupe détaché,
+     EPERM simulé) et tests de `close()` avec `runtime.child` posé à la main (spawn détaché) : groupe qui sort sur
+     SIGTERM → aucun SIGKILL ; groupe qui ignore SIGTERM + petit-enfant → SIGKILL, `dead` ; EPERM → `unknown`, aucun
+     SIGKILL.
+  4. Relecture par agent Claude économe (sonnet, lecture seule) → `reports/review-reuse-04-claude.md`, corrections,
+     contrôle (suite en copie figée `git archive`) consigné dans `reports/reuse-04.md`.
+- La chaîne Codex `reuse-04a` (en attente de limite depuis 20:00) a été **arrêtée** ; aucun Codex ne tourne.
 - **Limite Codex** : ~13 % restants le 27/10 au soir (selon l'utilisateur) → partager le travail : quart à Codex,
   reste au manager, relecture par agent Claude économe. Départs différés : boucle sur l'horloge, jamais `sleep N`.
 - **À arbitrer plus tard (sécurité reportée par l'utilisateur)** : audit n° 9, 14, 15 (mot de passe dans le snapshot).

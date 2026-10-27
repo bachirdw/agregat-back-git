@@ -1,0 +1,6 @@
+Copie figée cbba7f0 (git archive), npm test / check / format:check — 27/10, terminée vers 20:05
+test=0
+check=0
+format=0
+Phase sans navigateur : tests 276, pass 275, fail 0, cancelled 0, skipped 1
+Phase Chrome : tests 136, pass 136, fail 0, cancelled 0, skipped 0

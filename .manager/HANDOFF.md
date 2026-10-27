@@ -3,7 +3,25 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 0000. Point d'étape du 27/10, 20:00 (Sydney) — À LIRE EN PREMIER (complète § 000)
+## 0000. Point d'étape du 27/10, 20:55 (Sydney) — À LIRE EN PREMIER (complète § 000)
+**Plan de réutilisation (périmètre réduit) TERMINÉ** : étapes 1 à 5 validées. Étape 5 codée et contrôlée par la
+session Claude (Codex indisponible) — `reports/reuse-04.md` (verdict VALIDÉ, copie figée `5b45990` : 288 + 1
+ignoré, Chrome 136/136, check/format verts). Commits du soir : `6ac412f` (passation), `1aa2b78` (étape 4 : constats
+n° 7, 8, 10 de sa relecture, horodatage estimé corrigé), `d102e04` `[reuse-04]`, `5b45990` `[review-reuse-04]`.
+- `packages/agent-runtime/process-liveness.js` (acpx MIT adapté) ; `AcpRuntime.close()` → promesse
+  `dead|alive|unknown|none`, SIGKILL seulement à un groupe `alive`, jamais sur EPERM, groupe vide à la sortie du
+  leader jamais resignalé ; `stopProcessGroup` exporté (aussi utilisé par `scripts/acp-audit-probe.js`).
+- **Piège macOS mesuré** : `kill(-pgid, 0)` répond EPERM tant que le leader tué n'est pas récolté (zombie) ; d'où
+  la sonde répétée jusqu'à `dead` ou la borne (`reuse-04-evidence/zombie-probe.log`).
+- **Décision** : timers de `close()` non `unref` (un `close()` attendu dans un script ne se résolvait jamais ;
+  preuve `await-close-probe.log`) ; coût borné 3,5 s, seulement pour un groupe qui ignore SIGTERM.
+- Ouverts, sans urgence : état d'arrêt non lu par l'orchestrateur/l'API ; Windows non exécuté ; étape 4 n° 6
+  (libellés dans l'accord, avec la sécurité).
+- **Toujours bloquant avant toute vraie mission Seek** (sécurité reportée par l'utilisateur) : points d'envoi
+  n° 1, 2, 5, 7 de l'étape 3 ; audit n° 9, 14, 15.
+- Suite possible (à décider par l'utilisateur) : sécurité reportée ; `reuse-03`, `05`, `06`, `07` closes sans code.
+
+### Point d'étape précédent (27/10, 20:00)
 **Plan de réutilisation VALIDÉ** (`.manager/reuse-plan.md`). Étapes, chacune relue puis contrôlée par le manager :
 `reuse-01a` ✅ → `reuse-01b` ✅ → `reuse-01c` ✅ (`c999369`) → `reuse-02` réduit ✅ (`fillForm`, `reports/reuse-02.md`)
 → `reuse-04` réduit (liveness acpx) : brief Codex `briefs/reuse-04a.md` prêt, à lancer après 22h (limite Codex). Consignes : `.manager/PLAN-reuse.md` § « Consignes de l'utilisateur ».

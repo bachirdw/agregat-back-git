@@ -31,13 +31,42 @@ Codex indisponible : la session Claude a codé (décision de l'utilisateur, 27/1
 - `AcpRuntime.close()` : idempotent (même promesse), appelable sans `await`, ne rejette jamais. POSIX : sonde ;
   `unknown` initial → attente ≤ 1 s (zombies) ; SIGTERM ; sonde 100 ms pendant 1,5 s ; SIGKILL **seulement si
   `alive`** ; attente ≤ 1 s ; état renvoyé `dead|alive|unknown|none`. Windows : `child.kill` + événement `exit`
-  (non testable ici). Timers `unref` (la fermeture ne retarde jamais la sortie de la plateforme).
+  (non testable ici). Timers normaux (choix initial `unref` abandonné après relecture, voir plus bas).
 - Écart au plan : l'état `alive` est renvoyé si le groupe survit à SIGKILL dans la borne (plutôt que de le masquer
   en `unknown`).
 
 ## Bilan des lignes
-Produit : +55/−10 (`index.js`), +35 (module). Tests : +249 (nouveau), +13/−23 (sondes maison retirées). Notice : +29.
+Après relecture (`1aa2b78..5b45990`) : produit +59/−10 (`index.js`), +35 (module), script d'audit +3/−11 (SIGKILL
+aveugle maison supprimé). Tests : `process-liveness` +239, `runtime` +38/−13, `workflow-run` +3/−10 (sondes
+maison retirées). Notice : +30 (relevé `git diff --numstat`).
+
+## Relecture indépendante — `review-reuse-04-claude.md` (agent Claude sonnet, lecture seule, fichier écrit à 20:43:10 selon `stat`)
+Aucun défaut haut. Tri et corrections (`5b45990`, commits `[review-reuse-04]`) :
+- **n° 1 (moyenne) corrigé** : un groupe déjà vide à la sortie du leader recevait SIGTERM puis SIGKILL si son
+  identifiant était réutilisé par un groupe du même utilisateur (EPERM ne protège que d'un autre utilisateur).
+  Test rouge à 20:44:13 (`red-reuse.log` : `alive`, 2 signaux) → état du groupe relevé à l'événement `exit` ;
+  vide → `close()` renvoie `dead` sans aucun signal. Reste possible : groupe vidé *après* la sortie du leader
+  (petits-enfants morts plus tard) puis identifiant réutilisé avant `close()` — fenêtre étroite, non couverte.
+- **n° 3 / n° 4 → changement de conception** : les attentes `unref` faisaient qu'un `close()` attendu dans un script
+  autonome ne se résolvait jamais (le script sortait avant) et que SIGKILL était perdu si l'hôte sortait.
+  Preuve `await-close-probe.mjs/.log` : `unref` → « JAMAIS (promesse non résolue) » ; timers normaux → `dead`.
+  Coût borné : 3,5 s au pire, seulement pour un groupe qui ignore SIGTERM. Constat honnête : sous `node:test`,
+  la version `unref` passait quand même (`red-unref.log`, le lanceur garde la boucle) ; l'aide `awaitClose` des
+  tests était donc inutile et a été retirée.
+- n° 2 corrigé (kill de nettoyage protégé contre EPERM) ; n° 5 corrigé (`scripts/acp-audit-probe.js` utilise
+  `stopProcessGroup`, exporté par le runtime) ; n° 6 corrigé (`isSafeInteger` documenté) ; n° 7 corrigé (borne
+  `< 2500`).
+- n° 4, volet restant : la promesse d'état n'est lue par aucun appelant de production (orchestrateur, API) ; elle
+  sert aux scripts et aux tests. Pas de régression ; à brancher si un journal d'arrêt devient utile.
 
 ## Limites
-- Windows non exécuté (simulation de `process.platform` pour la sonde seulement).
-- `scripts/acp-audit-probe.js` garde son propre SIGTERM/SIGKILL : script d'audit autonome, hors runtime, laissé tel quel.
+- Windows non exécuté (simulation de `process.platform` seulement).
+
+## Contrôle du manager (Claude) — 27/10, 20:54
+- Diff relu (`1aa2b78..5b45990`) : aucun SIGKILL possible sur `unknown` ; promesse sans rejet, bornée à 3,5 s ;
+  aucune modification de career-ops ; aucun processus de test restant (`ps`).
+- Rouge → vert : module absent, ancien `close()` (5 échecs), zombie macOS, réutilisation de groupe (n° 1).
+- Suite sur copie figée `5b45990` (`git archive`, `node_modules` lié) de 20:50:40 à 20:54:30 : 288 + 1 ignoré,
+  Chrome 136/136, check et format verts — `reuse-04-evidence/manager-control-suite.log`.
+
+**Verdict** : étape 5 VALIDÉE.

@@ -18,7 +18,8 @@ TID=$(thread "$LOG")
 for attempt in $(seq 1 4); do
   limited "$LOG" || break
   echo "$(date '+%F %T') limite d'usage ($LOG), attente ${LIMIT_WAIT:-18000} s (tentative $attempt), session $TID"
-  sleep ${LIMIT_WAIT:-18000}
+  # Clock loop, not one long sleep: sleep does not count time while the Mac is asleep.
+  T=$(( $(date +%s) + ${LIMIT_WAIT:-18000} )); while [ $(date +%s) -lt $T ]; do sleep 60; done
   # Session NEUVE à chaque reprise (contexte court) : elle repart du rapport, qui sert de passation.
   OUT=$(.manager/run-sprint.sh "$ID")
   echo "$OUT"; LOG=${OUT##*LOG=}

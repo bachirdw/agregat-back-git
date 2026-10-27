@@ -184,3 +184,58 @@ test(
     );
   },
 );
+
+test(
+  'Chrome FICTIF : fillForm efface un champ et garde un message d’erreur lisible',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((_request, response) => {
+      response.setHeader('content-type', 'text/html; charset=utf-8');
+      response.end(`<title>FICTIF erreurs</title>
+      <label>Ville <input id="city" value="Sydnee"></label>
+      <label>Bloqué <input id="stuck" oninput="this.value=''"></label>`);
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((resolve) => server.close(resolve));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({
+      launch: { executablePath: CHROME },
+      navigationTimeoutMs: 5000,
+    });
+    t.after(() => provider.close());
+    const policy = new RunPolicy({
+      ownerMode: true,
+      runId: 'FICTIF-fill-form-errors',
+      capabilities: capabilityIds,
+      allowLocalOrigins: [origin],
+    });
+    await provider.prepare(policy, async () => true);
+    await provider.perform('browser.navigate', { url: origin }, policy);
+    const snapshot = (await provider.perform('browser.snapshot', {}, policy)).snapshot;
+    const ref = (name) =>
+      snapshot
+        .split('\n')
+        .find((line) => line.includes(`"${name}"`) && line.includes('[ref='))
+        ?.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    // A one-letter text is not masked inside the French cause, and the progress comes first.
+    await assert.rejects(
+      provider.perform(
+        'browser.fillForm',
+        {
+          fields: [
+            { ref: ref('Ville'), kind: 'text', value: '' },
+            { ref: ref('Bloqué'), kind: 'text', value: 'a' },
+          ],
+        },
+        policy,
+      ),
+      (error) =>
+        error.message ===
+        `Champ 2 (${ref('Bloqué')}), déjà remplis : ${ref('Ville')} — Saisie sans effet : champ vide après saisie`,
+    );
+    assert.equal(await provider.page.locator('#city').inputValue(), '');
+  },
+);

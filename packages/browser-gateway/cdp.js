@@ -958,7 +958,7 @@ export class CdpBrowser {
     if (actual !== checked) throw new Error('État coché différent de l’état demandé');
     return { checked: actual, changed: true, clickMode, hidden };
   }
-  async #selectValues(page, ref, values) {
+  async #selectValues(ref, values) {
     const target = await this.targetLocator({ ref: ref });
     const options = await target.evaluate((el) => {
       if (!(el instanceof HTMLSelectElement)) return null;
@@ -995,7 +995,7 @@ export class CdpBrowser {
       throw new Error('Options sélectionnées différentes des options demandées');
     return { selected };
   }
-  async #fillText(page, ref, text) {
+  async #fillText(ref, text) {
     // Filling a field is not a send; same-site autosave stays automatic.
     // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
     const target = await this.targetLocator({ ref: ref });
@@ -1168,12 +1168,12 @@ export class CdpBrowser {
         return { url: page.url(), ...result };
       }
       case 'browser.select': {
-        const result = await this.#selectValues(page, args.ref, args.values);
+        const result = await this.#selectValues(args.ref, args.values);
         await this.assertLanded(policy);
         return { url: page.url(), ...result };
       }
       case 'browser.type': {
-        const result = await this.#fillText(page, args.ref, args.text);
+        const result = await this.#fillText(args.ref, args.text);
         return { url: page.url(), ...result };
       }
       // Adapté de microsoft/playwright@b8336b3:packages/playwright-core/src/tools/backend/form.ts — Apache-2.0
@@ -1185,7 +1185,7 @@ export class CdpBrowser {
             let result;
             switch (field.kind) {
               case 'text':
-                result = await this.#fillText(page, field.ref, field.value);
+                result = await this.#fillText(field.ref, field.value);
                 break;
               case 'checkbox':
               case 'radio':
@@ -1197,7 +1197,7 @@ export class CdpBrowser {
                 await this.assertLanded(policy);
                 break;
               case 'select':
-                result = await this.#selectValues(page, field.ref, field.value);
+                result = await this.#selectValues(field.ref, field.value);
                 await this.assertLanded(policy);
                 break;
               default:
@@ -1205,12 +1205,15 @@ export class CdpBrowser {
             }
             filled.push({ ref: field.ref, kind: field.kind, ...result });
           } catch (error) {
-            let cause = error.message ?? String(error);
-            if (field.kind === 'text' && field.value)
+            // First line only: Playwright appends a multi-line call log to its messages.
+            let cause = String(error.message ?? error).split('\n')[0];
+            // Masking a very short text would garble the message without protecting anything.
+            if (field.kind === 'text' && field.value.length >= 4)
               cause = cause.replaceAll(field.value, '[masqué]');
             const completed = filled.map(({ ref }) => ref).join(', ') || 'aucun';
             throw new Error(
-              `Champ ${index + 1} (${field.ref}) : ${cause} — déjà remplis : ${completed}`,
+              `Champ ${index + 1} (${field.ref}), déjà remplis : ${completed} — ${cause}`,
+              { cause: error },
             );
           }
         }

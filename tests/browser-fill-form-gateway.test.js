@@ -137,3 +137,20 @@ test('propriétaire FICTIF : fillForm automatique, sans accord', async () => {
   await gateway.call('browser.fillForm', { fields: FIELDS.slice(1) });
   assert.deepEqual([approvals.length, performed.length], [0, 1]);
 });
+
+test('contrat FICTIF : messages français pour les erreurs de forme et de longueur', () => {
+  const fill = getCapability('browser.fillForm').schema;
+  for (const [args, message] of [
+    [{ fields: [null] }, /Chaque champ doit être un objet/],
+    [
+      { fields: [{ ref: 'e1', kind: 'select', values: [1] }] },
+      /Chaque option doit être une chaîne/,
+    ],
+    [{ fields: [{ ref: 'e1', kind: 'text', text: 'x'.repeat(10001) }] }, /10 000 caractères/],
+  ])
+    assert.throws(() => fill.parse(args), message);
+  assert.throws(
+    () => getCapability('browser.type').schema.parse({ ref: 'e1', text: 'x'.repeat(10001) }),
+    /10 000 caractères/,
+  );
+});

@@ -105,21 +105,38 @@ export const capabilities = [
         fields: z
           .array(
             z
-              .object({
-                ref,
-                kind: z.enum(['text', 'checkbox', 'radio', 'select'], {
-                  error: 'kind doit valoir text, checkbox, radio ou select',
-                }),
-                text: z.string({ error: 'text doit être une chaîne' }).max(10000).optional(),
-                checked: z.boolean({ error: 'checked doit être un booléen' }).optional(),
-                values: z
-                  .array(z.string().min(1, 'Option vide interdite'), {
-                    error: 'values doit être une liste de chaînes',
-                  })
-                  .min(1, 'Au moins une option requise')
-                  .max(20, 'Maximum 20 options')
-                  .optional(),
-              })
+              .object(
+                {
+                  ref,
+                  kind: z.enum(['text', 'checkbox', 'radio', 'select'], {
+                    error: 'kind doit valoir text, checkbox, radio ou select',
+                  }),
+                  text: z
+                    .string({ error: 'text doit être une chaîne' })
+                    .max(10000, 'text : 10 000 caractères maximum')
+                    .optional(),
+                  checked: z.boolean({ error: 'checked doit être un booléen' }).optional(),
+                  values: z
+                    .array(
+                      z
+                        .string({ error: 'Chaque option doit être une chaîne' })
+                        .min(1, 'Option vide interdite'),
+                      {
+                        error: 'values doit être une liste de chaînes',
+                      },
+                    )
+                    .min(1, 'Au moins une option requise')
+                    .max(20, 'Maximum 20 options')
+                    .optional(),
+                },
+                {
+                  // Only the shape error: unknown keys keep zod's precise message.
+                  error: (issue) =>
+                    issue.code === 'invalid_type'
+                      ? 'Chaque champ doit être un objet { ref, kind, … }'
+                      : undefined,
+                },
+              )
               .strict()
               .superRefine((field, ctx) => {
                 // Flat fields keep the tool schema simple for every model; one value key per kind.
@@ -157,7 +174,9 @@ export const capabilities = [
     schema: z
       .object({
         ref,
-        text: z.string({ error: 'text requis (chaîne, vide pour effacer)' }).max(10000),
+        text: z
+          .string({ error: 'text requis (chaîne, vide pour effacer)' })
+          .max(10000, 'text : 10 000 caractères maximum'),
       })
       .strict(),
   },

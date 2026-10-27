@@ -35,7 +35,7 @@ séquence clavier DOM) suivie de la vérification de l'effet.
    garde-le pour l'upload seul, avec la preuve qu'il est nécessaire.
 4. `browser.download { ref }` : migre vers `ref` et supprime `selector`. `browser.extract` garde `selector` pour
    l'extraction multiple (seul usage réel : instruction de l'orchestrateur).
-5. Messages zod en français partout (aujourd'hui « Invalid input » sur `type`/`upload`).
+5. Messages zod en français pour toute nouvelle capacité (comme ceux de `click`/`type`/`upload`).
 6. Instructions côté plateforme (`packages/orchestrator/index.js`, `packages/career-ops/integration.js`, code de la
    plateforme, pas la bibliothèque) : mentionner `browser_select`, `browser_check`, `browser_press`. Ne touche à
    AUCUN fichier de la bibliothèque career-ops ni de son Skill.
@@ -44,7 +44,7 @@ séquence clavier DOM) suivie de la vérification de l'effet.
    dernière `[ref=…]` de chaque ligne, pas sur le texte entier), n° 11 b–f (doublons : `count()` redondant,
    `targetOf(args)` unique, `target` masqué dans l'upload), n° 12 (tests d'accord par ref : saisie sans texte dans
    l'accord, aperçu d'envoi par ref, « élément modifié pendant l'approbation » par ref, `extract` par ref),
-   n° 13 (messages zod français, `extract` refuse `ref` + `limit > 1`). Statut de chacun dans le rapport.
+   n° 13 reste (`extract` refuse `ref` + `limit > 1` ; messages zod déjà en français, faits par le manager). Statut de chacun dans le rapport.
 8. Supprime tout code devenu mort ; bilan exact `git diff --stat` et lignes supprimées / ajoutées.
 
 ## Tests (rouges avant, verts après)

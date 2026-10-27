@@ -53,6 +53,9 @@ export function isGraphqlRead(body) {
     return false;
   }
 }
+function refMissing(ref) {
+  return new Error(`Référence ${ref} introuvable dans la page actuelle : reprends un snapshot.`);
+}
 // Split identifier boundaries before applying policy words: SubmitApplication and
 // applyFilters contain actions; Application alone does not. Ignore URL host/query.
 function hasSensitiveWord(value) {
@@ -181,7 +184,6 @@ export class CdpBrowser {
   #boundPolicy = null;
   #closed = false;
   #pages = new WeakSet();
-  #trackedPages = new WeakSet();
   #opening = null;
   #closing = null;
   // Grants live only in this provider instance. Neither RunPolicy JSON nor an agent tool call
@@ -678,7 +680,6 @@ export class CdpBrowser {
     const page = this.page;
     this.page = null;
     this.snapshotRefs = null;
-    this.snapshotUrl = null;
     this.redirectLanding = null;
     await page?.close().catch(() => {});
     await this.pageSession?.detach().catch(() => {});
@@ -701,9 +702,10 @@ export class CdpBrowser {
   async targetLocator(target) {
     if (typeof target === 'string') return this.page.locator(target).first();
     const { ref } = target;
-    const missing = () =>
-      new Error(`Référence ${ref} introuvable dans la page actuelle : reprends un snapshot.`);
-    if (this.snapshotUrl !== this.page.url() || !this.snapshotRefs?.has(ref)) throw missing();
+    const missing = () => refMissing(ref);
+    // Playwright alone refuses a ref from an older document or a detached node; a same-document
+    // URL rewrite (SPA router, analytics replaceState) keeps the nodes and therefore the refs.
+    if (!this.page || !this.snapshotRefs?.has(ref)) throw missing();
     try {
       const locator = this.page.getByRef(ref);
       await locator.normalize();
@@ -719,19 +721,11 @@ export class CdpBrowser {
       throw error;
     }
   }
-  trackSnapshotNavigation(page) {
-    if (typeof page.on !== 'function') return; // Minimal fixture pages do not emit navigation.
-    if (this.#trackedPages.has(page)) return;
-    this.#trackedPages.add(page);
-    page.on('framenavigated', (frame) => {
-      if (frame === page.mainFrame()) {
-        this.snapshotRefs = null;
-        this.snapshotUrl = null;
-      }
-    });
-  }
   async describe(target) {
-    if (!this.page) return null;
+    if (!this.page) {
+      if (target?.ref) throw refMissing(target.ref);
+      return null;
+    }
     const handle = await this.targetLocator(target);
     if (!(await handle.count())) return null;
     return handle.evaluate((el) => {
@@ -781,14 +775,12 @@ export class CdpBrowser {
   }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
-    this.trackSnapshotNavigation(page);
     page.setDefaultTimeout(this.navigationTimeoutMs);
     await this.assertLanded(policy);
     this.blocked = null;
     this.redirectLanding = null;
     const goto = async (url, landing = false) => {
       this.snapshotRefs = null;
-      this.snapshotUrl = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])
@@ -815,11 +807,10 @@ export class CdpBrowser {
       case 'browser.snapshot': {
         if (args.url) await goto(args.url);
         const loading = await waitForReadablePage(page);
-        const snapshot = await page.ariaSnapshot({ mode: 'ai' });
+        const snapshot = await page.ariaSnapshot({ mode: 'ai', timeout: 5000 });
         this.snapshotRefs = new Set(
           [...snapshot.matchAll(/\[ref=((?:f\d+)?e\d+)\]/g)].map((match) => match[1]),
         );
-        this.snapshotUrl = page.url();
         return {
           url: page.url(),
           title: await page.title(),
@@ -859,13 +850,14 @@ export class CdpBrowser {
         };
       }
       case 'browser.click':
+        // Resolve first: a stale ref must not open the post-click send window.
+        const target = await this.targetLocator(args.ref ? { ref: args.ref } : args.selector);
         this.sendGrant = args.sendApproved === true;
         this.formStep = args.formStep === true;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'normal';
         try {
-          const target = await this.targetLocator(args.ref ? { ref: args.ref } : args.selector);
           let clickError = null;
           if (await page.evaluate(() => document.visibilityState === 'hidden')) {
             clickError = new Error('Onglet caché');

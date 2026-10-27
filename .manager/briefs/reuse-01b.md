@@ -31,21 +31,15 @@ Le Chrome isolé ne reproduit pas cet état : tout test « caché » en Chrome i
    (étape 3). Les gardes d'accord, d'aperçu d'envoi, de page modifiée et de ref périmée restent identiques.
 
 ## Constats de l'audit `reports/audit-reuse-01a-claude.md` à corriger dans cette étape
-Lis ce rapport (relecture indépendante de `7148e17`). Traite ici les numéros qui touchent au clic et à la durée de
-vie des refs ; chacun avec un test rouge→vert, et le statut (corrigé / infirmé, avec preuve) dans ton rapport :
-- **n° 8 et 3 (important pour Seek)** : notre écouteur `framenavigated` et le contrôle `snapshotUrl` invalident
-  toutes les refs à chaque `replaceState`/`pushState`/ancre (Playwright émet `framenavigated` pour les navigations
-  du même document : `coreBundle.js:24552-24564`). Or Playwright refuse déjà seul une ref d'un ancien document (frame
-  principale renumérotée, `:24546-24548`) ou d'un nœud détaché. **Supprime** cette couche (et le garde
-  `typeof page.on`, n° 11a). Tests : `replaceState`/`pushState` entre snapshot et clic → clic accepté, compteur 1 ;
-  navigation vers un nouveau document → ancienne ref refusée ; 2e snapshot du même document → ref inchangée
-  acceptée, nœud retiré refusé. `goto` peut continuer à vider l'ensemble des refs.
+Lis ce rapport (relecture indépendante de `7148e17`) et sa section « Corrections du manager ». **Déjà corrigés par
+le manager** avant ton départ (ne les refais pas, garde leurs tests verts) : n° 8, 3 et 11a (invalidation maison
+des refs supprimée : un `replaceState`/`pushState`/ancre garde les refs, Playwright refuse seul les refs d'un ancien
+document ou d'un nœud retiré ; test « réécriture d'URL sans rechargement »), n° 4 (ref sans page → message
+français), n° 6 pour la capture (`ariaSnapshot` borné à 5 s), n° 7 (cible résolue avant d'armer l'état
+d'écriture), n° 13 pour les messages zod. **À traiter ici**, chacun avec un test rouge→vert et son statut dans ton
+rapport :
 - **n° 1** : après l'action, plus aucun appel lié au locator de la cible (si le clic retire l'élément, Playwright
   attend 20 s). Test : bouton qui se retire au clic → réponse sans attente (durée bornée dans le test).
-- **n° 7** : résoudre la cible avant d'armer `writeInProgress`/`sendGrant`/`formStep` ; `lastClickEnd` seulement
-  après une vraie tentative de clic.
-- **n° 6** : `ariaSnapshot` borné (`timeout: 5000`, comme l'ancienne capture) et résolution de ref bornée.
-- **n° 4** : ref sans page (après `reset`) → même message français « … reprends un snapshot ».
 - **n° 2** (pour le clic) : le test de schéma vérifie le motif de chaque rejet et l'absence d'action.
 Les autres numéros vont à `reuse-01c` ou attendent un arbitrage du manager : n'y touche pas.
 

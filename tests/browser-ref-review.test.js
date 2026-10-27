@@ -4,7 +4,6 @@ import { CdpBrowser } from '../packages/browser-gateway/index.js';
 
 test('référence : une panne de résolution conserve sa cause réelle', async () => {
   const provider = new CdpBrowser({ launch: {} });
-  provider.snapshotUrl = 'https://fictif.test/';
   provider.snapshotRefs = new Set(['e1']);
   provider.page = {
     url: () => 'https://fictif.test/',
@@ -19,7 +18,6 @@ test('référence : une panne de résolution conserve sa cause réelle', async (
 
 test('référence : une cible absente demande un nouveau snapshot', async () => {
   const provider = new CdpBrowser({ launch: {} });
-  provider.snapshotUrl = 'https://fictif.test/';
   provider.snapshotRefs = new Set(['e1']);
   provider.page = {
     url: () => 'https://fictif.test/',
@@ -30,7 +28,6 @@ test('référence : une cible absente demande un nouveau snapshot', async () => 
 
 test('référence : erreur Playwright de cible disparue traduite en français', async () => {
   const provider = new CdpBrowser({ launch: {} });
-  provider.snapshotUrl = 'https://fictif.test/';
   provider.snapshotRefs = new Set(['e1']);
   provider.page = {
     url: () => 'https://fictif.test/',

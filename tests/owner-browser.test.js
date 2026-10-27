@@ -117,6 +117,59 @@ test(
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), null);
   },
 );
+test(
+  'Chrome FICTIF : une réécriture d’URL sans rechargement garde les références valides',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const server = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(`<title>FICTIF SPA</title><button onclick="document.body.dataset.hits = (+document.body.dataset.hits || 0) + 1">Compter</button>
+      <input aria-label="Ville"><button onclick="this.remove()">Fermer</button>`);
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((resolve) => server.close(resolve));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-spa-refs',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const snapshot = (await gateway.call('browser.snapshot')).snapshot;
+    const ref = (label) => snapshot.match(new RegExp(`${label} \\[ref=(e\\d+)\\]`))?.[1];
+    const [button, city, close] = [
+      ref('button "Compter"'),
+      ref('textbox "Ville"'),
+      ref('button "Fermer"'),
+    ];
+    assert.ok(button && city && close, snapshot);
+    // Routeurs SPA et paramètres d'analyse : même document, mêmes nœuds, donc mêmes références.
+    await provider.page.evaluate(() => history.replaceState(null, '', location.href));
+    await gateway.call('browser.click', { ref: button });
+    await provider.page.evaluate(() => history.pushState(null, '', '/etape-2?source=FICTIF'));
+    await gateway.call('browser.type', { ref: city, text: 'FICTIF Sydney' });
+    await provider.page.evaluate(() => {
+      location.hash = 'suite';
+    });
+    await gateway.call('browser.click', { ref: button });
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
+    assert.equal(await provider.page.getByLabel('Ville').inputValue(), 'FICTIF Sydney');
+    // Un nœud retiré reste refusé par Playwright lui-même, sans action sur un autre élément.
+    await provider.page.evaluate(() => document.querySelector('button:last-of-type').remove());
+    await assert.rejects(gateway.call('browser.click', { ref: close }), /reprends un snapshot/);
+    assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
+  },
+);
 async function site(t) {
   let posts = 0;
   const server = http.createServer((req, res) => {

@@ -6,12 +6,15 @@ import { z } from 'zod';
 // submit, pay, send or apply — always requires a human decision at the gateway.
 const url = z.string().min(1).max(2048);
 const selector = z.string().min(1).max(500);
-const ref = z.string().regex(/^(?:f\d+)?e\d+$/);
+const ref = z
+  .string()
+  .regex(
+    /^(?:f\d+)?e\d+$/,
+    'Référence invalide : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot',
+  );
+const oneTarget = 'Fournir exactement une référence ref ou un sélecteur selector';
 const targetBase = z.object({ ref: ref.optional(), selector: selector.optional() });
-const target = targetBase.refine(
-  ({ ref, selector }) => !!ref !== !!selector,
-  'Fournir exactement une référence ref ou un sélecteur selector',
-);
+const target = targetBase.refine(({ ref, selector }) => !!ref !== !!selector, oneTarget);
 export const capabilities = [
   {
     id: 'browser.navigate',
@@ -66,7 +69,7 @@ export const capabilities = [
     schema: targetBase
       .extend({ text: z.string().max(10000) })
       .strict()
-      .refine(({ ref, selector }) => !!ref !== !!selector),
+      .refine(({ ref, selector }) => !!ref !== !!selector, oneTarget),
   },
   {
     id: 'browser.upload',
@@ -78,7 +81,7 @@ export const capabilities = [
     schema: targetBase
       .extend({ path: z.string().min(1).max(1000) })
       .strict()
-      .refine(({ ref, selector }) => !!ref !== !!selector),
+      .refine(({ ref, selector }) => !!ref !== !!selector, oneTarget),
   },
   {
     id: 'browser.download',

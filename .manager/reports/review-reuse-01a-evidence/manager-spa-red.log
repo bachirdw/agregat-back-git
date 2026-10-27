@@ -1,0 +1,21 @@
+(node:19955) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Chrome FICTIF : une réécriture d’URL sans rechargement garde les références valides (7752.500042ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8228.787875
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:120:1
+✖ Chrome FICTIF : une réécriture d’URL sans rechargement garde les références valides (7752.500042ms)
+  Error: Référence e2 introuvable dans la page actuelle : reprends un snapshot.
+      at missing (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:705:7)
+      at CdpBrowser.targetLocator (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:706:85)
+      at CdpBrowser.describe (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/cdp.js:735:31)
+      at BrowserGateway.execute (file:///Users/diaw/Downloads/agregat-back/packages/browser-gateway/index.js:71:37)

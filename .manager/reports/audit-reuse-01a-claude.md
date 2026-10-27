@@ -67,3 +67,8 @@ Gravité : haute / moyenne / basse. Certitude : prouvé par lecture · prouvé (
 - **Désaccord** : « `selector` conservé, logique » — l'utilisateur demande de supprimer la compatibilité morte ; les 96 usages sont des tests, à migrer. Suppression : clic en `reuse-01b`, saisie/upload/download en `reuse-01c`.
 - **Affectation** : `reuse-01b` ← n° 1, 2 (clic), 3, 4, 6, 7, 8, 11a ; `reuse-01c` ← n° 5, 10, 11 b–f, 12, 13.
 - **À arbitrer plus tard (sécurité reportée par l'utilisateur)** : n° 9 (ref d'iframe réattribuée après rechargement : vérifier rôle+nom avant l'action ?), n° 14 (clic sur l'élément `iframe` lui-même en mode non propriétaire), n° 15 (valeurs des champs, mot de passe compris, présentes dans le snapshot — préexistant).
+
+## Corrections du manager (Claude) — 27/10, 15:55 (Codex à sa limite, à la demande de l'utilisateur)
+- n° 8, 3, 11a : invalidation maison supprimée (`#trackedPages`, `trackSnapshotNavigation`, `snapshotUrl`) ; Playwright refuse seul les refs d'un ancien document ou d'un nœud retiré. Test Chrome ajouté « une réécriture d'URL sans rechargement garde les références valides » : **rouge avant** (« Référence e2 introuvable » après `replaceState`), vert après ; le test existant (navigation, rechargement, iframe rechargée → ref refusée) reste vert.
+- n° 4 : ref sans page → `refMissing` (message français avec consigne). n° 6 (partiel) : `ariaSnapshot({ mode: 'ai', timeout: 5000 })`. n° 7 : cible du clic résolue avant d'armer `sendGrant`/`formStep`/`writeInProgress` ; `lastClickEnd` n'est plus posé sur une ref périmée. n° 13 (partiel) : messages zod français pour `ref`, `type`, `upload`.
+- Restent : n° 1 et 2 → `reuse-01b` ; n° 5, 10, 11 b–f, 12, 13 (`extract`) → `reuse-01c`.

@@ -46,7 +46,7 @@ historique d'un commit). Ne jamais modifier ces clones (lecture seule). Licences
 3. **Agent codeur** (`reuse-01…`, session distincte) : exécute le plan validé, un brief à la fois, contrôlé par le
    manager entre chaque brief. Tout écart au plan est noté dans le rapport et soumis au manager.
 
-## Consignes de l'utilisateur pour le codage (27/10, 12:00)
+## Consignes de l'utilisateur pour le codage (27/10, 12:30)
 - Priorité à la partie technique. Les décisions de sécurité ouvertes (GET de sous-ressources privées, fragments de
   CV en SQLite) sont reportées : n'y travaille pas.
 - **Supprime sans hésiter notre code maison** quand la version reprise couvre le besoin : pas de doublon, pas de

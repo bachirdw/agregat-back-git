@@ -329,6 +329,17 @@ test('exécuteur absent, sortie trop volumineuse, actions invalides', async () =
   }
 });
 
+test('sortie UTF-8 : la limite porte sur les octets persistés', async () => {
+  const { engine, store } = setup({ tool: async () => 'é'.repeat(120000) });
+  try {
+    const out = await run(engine, wf([tool('large')]));
+    assert.equal(out.state, 'failed');
+    assert.match(engine.row('run', 'large').error, /trop volumineuse/);
+  } finally {
+    store.close();
+  }
+});
+
 test('événements d’étape émis et persistés pour le streaming', async () => {
   const { engine, store } = setup({ tool: async () => 1 });
   try {

@@ -303,6 +303,11 @@ test('sécurité cache : allowlist, format, taille et corruption revérifiés su
   assert.equal(typeof raw.body, 'string');
   writeFileSync(data.cachePath(url), '{CACHE FICTIF CORROMPU');
   assert.equal((await data.get(url)).body.fictif.length, 200);
+  writeFileSync(
+    data.cachePath(url),
+    JSON.stringify({ version: 1, requestUrl: url, as: 'json', bytes: 5, result: null }),
+  );
+  assert.equal((await data.get(url)).body.fictif.length, 200);
   assert.ok(calls >= 3);
 });
 

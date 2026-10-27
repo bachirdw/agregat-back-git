@@ -264,7 +264,8 @@ export class WorkflowEngine {
         aborted,
       ]);
       const encoded = JSON.stringify(output ?? null);
-      if (encoded.length > MAX_OUTPUT) throw new Error(`Sortie de ${step.id} trop volumineuse`);
+      if (Buffer.byteLength(encoded) > MAX_OUTPUT)
+        throw new Error(`Sortie de ${step.id} trop volumineuse`);
       if (!this.current(runId, step.id, generation)) return;
       this.set(runId, step.id, {
         state: 'succeeded',

@@ -30,6 +30,9 @@ test(
       <button id="menu" onmousedown="document.body.dataset.menu = 1">Menu</button>
       <button id="disabled" disabled onclick="document.body.dataset.disabled = 1">Désactivé</button>
       <button id="covered" onclick="document.body.dataset.covered = 1">Couvert</button><div id="cover"></div>
+      <a id="canceled" href="/next" onclick="event.preventDefault(); document.body.dataset.canceled = 1">Lien annulé</a>
+      <a id="fragment" href="#section">Ancre</a>
+      <form onsubmit="event.preventDefault(); document.body.dataset.formCanceled = 1"><button>Formulaire annulé</button></form>
       <a id="link" href="/next">Lien</a>
       <script>setInterval(() => history.replaceState({}, '', location.href), 100)</script>`);
     });
@@ -71,6 +74,9 @@ test(
       'Menu',
       'Désactivé',
       'Couvert',
+      'Lien annulé',
+      'Ancre',
+      'Formulaire annulé',
       'Lien',
     ])
       assert.ok(ref(name), name);
@@ -92,6 +98,30 @@ test(
     const uncertain = await click('Normal');
     provider.targetLocator = originalTargetLocator;
     assert.equal(uncertain.clickMode, 'mouse');
+    assert.equal(await provider.page.locator('body').getAttribute('data-normal'), '2');
+    provider.targetLocator = async (...args) => {
+      const target = await originalTargetLocator(...args);
+      const evaluateHandle = target.evaluateHandle.bind(target);
+      target.evaluateHandle = async (...handleArgs) => {
+        const handle = await evaluateHandle(...handleArgs);
+        let reads = 0;
+        return {
+          evaluate: (...evaluateArgs) =>
+            ++reads === 1
+              ? Promise.reject(new Error('FICTIF lecture du témoin impossible'))
+              : handle.evaluate(...evaluateArgs),
+          dispose: () => handle.dispose(),
+        };
+      };
+      target.click = async () => {
+        const error = new Error('FICTIF délai avant livraison');
+        error.name = 'TimeoutError';
+        throw error;
+      };
+      return target;
+    };
+    await assert.rejects(click('Normal'), /Preuve du clic indisponible/);
+    provider.targetLocator = originalTargetLocator;
     assert.equal(await provider.page.locator('body').getAttribute('data-normal'), '2');
     const moving = await click('Mobile');
     assert.equal(moving.clickMode, 'dom');
@@ -147,6 +177,20 @@ test(
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'none';
     });
+    const canceledStart = Date.now();
+    const canceled = await click('Lien annulé');
+    assert.equal(canceled.clickMode, 'dom');
+    assert.equal(canceled.hidden, true);
+    assert.equal(await provider.page.locator('body').getAttribute('data-canceled'), '1');
+    assert.ok(Date.now() - canceledStart < 900, 'lien annulé sans attente de navigation fixe');
+    const fragmentStart = Date.now();
+    assert.equal((await click('Ancre')).clickMode, 'dom');
+    assert.match(provider.page.url(), /#section$/);
+    assert.ok(Date.now() - fragmentStart < 900, 'ancre sans attente de document');
+    const formStart = Date.now();
+    assert.equal((await click('Formulaire annulé')).clickMode, 'dom');
+    assert.equal(await provider.page.locator('body').getAttribute('data-form-canceled'), '1');
+    assert.ok(Date.now() - formStart < 900, 'formulaire annulé sans attente de navigation fixe');
     const linked = await click('Lien');
     assert.equal(linked.clickMode, 'dom');
     assert.equal(linked.hidden, true);

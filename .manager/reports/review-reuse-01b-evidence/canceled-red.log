@@ -1,0 +1,26 @@
+FICTIF onglet caché simulé : médiane de 10 clics 15 ms
+✖ Chrome FICTIF : clic par ref, onglet caché SIMULÉ, navigation et cible retirée (7539.768708ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7657.758375
+
+✖ failing tests:
+
+test at tests/browser-click-ref.test.js:13:1
+✖ Chrome FICTIF : clic par ref, onglet caché SIMULÉ, navigation et cible retirée (7539.768708ms)
+  AssertionError [ERR_ASSERTION]: lien annulé sans attente de navigation fixe
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/browser-click-ref.test.js:181:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

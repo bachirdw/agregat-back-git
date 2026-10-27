@@ -1,0 +1,45 @@
+(node:34876) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Chrome FICTIF : références du snapshot pour clic, saisie, fichier, iframe et navigation (2948.86675ms)
+✔ Chrome FICTIF : une réécriture d’URL sans rechargement garde les références valides (1373.917417ms)
+✔ Chrome FICTIF : clic instable contrôlé et superposition refusée (10847.379292ms)
+✔ Chrome FICTIF : formulaire final instable demande accord et refuse le POST (8979.748416ms)
+✔ Chrome FICTIF : radio dans une carte role=button reste un champ (1280.626792ms)
+✔ Chrome FICTIF : lecture GraphQL au chargement automatique, mutation soumise à accord (1408.92375ms)
+✔ Chrome FICTIF : URL et formulaire secrets masqués dans la demande d’envoi (1273.084542ms)
+✔ Chrome FICTIF : POST sensible hors clic refusé, autosave autorisé (1829.409375ms)
+✔ propriétaire Chrome réel : JS actif, préparation automatique et envoi approuvé (2177.451416ms)
+✔ propriétaire API → faux ACP → MCP → Chrome : relais absent, bascule réelle, preuves observées et ledger (6460.011375ms)
+✔ propriétaire : relais qui refuse newCDPSession ne bloque pas notre onglet (0.571208ms)
+✔ propriétaire : transport CDP réel préserve un autre onglet du Chrome isolé (930.91675ms)
+✔ propriétaire Chrome FICTIF : zéro POST sans accord, puis une soumission après accord avec aperçu (10636.866333ms)
+✔ balise FICTIVE même site /v1/send hors clic : aucun accord demandé (1707.18225ms)
+▶ chargement différé FICTIF : snapshot et extract attendent le formulaire
+  ✔ browser.snapshot (3598.154958ms)
+  ✔ browser.extract (3096.49875ms)
+✔ chargement différé FICTIF : snapshot et extract attendent le formulaire (6886.531167ms)
+▶ chargement FICTIF : délai borné, indicateurs persistants et réseau continu
+  ✔ /busy (8589.214416ms)
+  ✔ /alert (8074.687458ms)
+  ✔ /progress (8050.449458ms)
+  ✔ /ready (1050.563709ms)
+  ✔ /failed (543.144666ms)
+  ✔ /error (538.678375ms)
+  ✔ /impossible (541.399875ms)
+  ✔ /loading-fr (8032.429459ms)
+✔ chargement FICTIF : délai borné, indicateurs persistants et réseau continu (36057.483ms)
+▶ extract FICTIF : élément tardif sans indicateur de chargement
+  ✔ limit 1 (4400.856541ms)
+  ✔ limit 2 (3347.475375ms)
+✔ extract FICTIF : élément tardif sans indicateur de chargement (8058.553041ms)
+✔ formulaire multi-étapes FICTIF : étapes automatiques, statistiques bloquées, un seul accord final (25302.102083ms)
+✔ propriétaire : onglet ou contexte fermé pendant une attente → rouvert au prochain appel (3416.964709ms)
+✔ propriétaire FICTIF : garde d’envoi réinstallée après reconnexion, refus sans POST (2275.712041ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134337.709125

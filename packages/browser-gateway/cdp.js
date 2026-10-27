@@ -880,8 +880,17 @@ export class CdpBrowser {
             } catch (error) {
               if (error.name !== 'TimeoutError') throw error;
               // A timeout after delivery must never cause a second click.
-              if (!(await witness.evaluate((value) => value.delivered()).catch(() => true)))
-                clickError = error;
+              let delivered;
+              try {
+                delivered = await witness.evaluate((value) => value.delivered());
+              } catch (witnessError) {
+                // The outcome is uncertain. Retrying could double-click; claiming success
+                // would conceal a click that never reached the page.
+                throw new Error('Preuve du clic indisponible : action incertaine', {
+                  cause: witnessError,
+                });
+              }
+              if (!delivered) clickError = error;
             } finally {
               await witness.evaluate((value) => value.stop()).catch(() => {});
               await witness.dispose().catch(() => {});
@@ -903,10 +912,15 @@ export class CdpBrowser {
                 reachable: !!point && (point === el || el.contains(point)),
                 covering: point?.tagName.toLowerCase() ?? 'aucun élément',
                 mayNavigate:
-                  (el instanceof HTMLAnchorElement && !!el.href) ||
+                  (el instanceof HTMLAnchorElement &&
+                    /^https?:$/.test(el.protocol) &&
+                    !el.hasAttribute('download') &&
+                    (!el.target || el.target === '_self') &&
+                    el.href.split('#')[0] !== location.href.split('#')[0]) ||
                   ((el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
                     (el.type === 'submit' || el.type === 'image') &&
-                    !!el.form),
+                    !!el.form &&
+                    (!el.form.target || el.form.target === '_self')),
               };
             });
             if (!hit.reachable)
@@ -914,16 +928,17 @@ export class CdpBrowser {
                 cause: clickError,
               });
             // Completion wait only for native link/form activation; never used as click proof.
+            // An event listener can be removed immediately when the page cancels navigation.
+            let onNavigation;
             const navigation = hit.mayNavigate
-              ? page
-                  .waitForEvent('domcontentloaded', {
-                    timeout: Math.min(1500, this.navigationTimeoutMs),
-                  })
-                  .catch(() => null)
+              ? new Promise((resolve) => {
+                  onNavigation = resolve;
+                  page.on('domcontentloaded', onNavigation);
+                })
               : null;
-            let delivered;
+            let activation;
             try {
-              delivered = await target.evaluate((el) => {
+              activation = await target.evaluate((el) => {
                 const box = el.getBoundingClientRect();
                 const init = {
                   bubbles: true,
@@ -935,19 +950,33 @@ export class CdpBrowser {
                   buttons: 1,
                 };
                 let clicked = false;
+                let clickEvent;
+                let submitEvent;
+                const form = el.form;
                 const onClick = (event) => {
-                  if (event.composedPath().includes(el)) clicked = true;
+                  if (event.composedPath().includes(el)) {
+                    clicked = true;
+                    clickEvent = event;
+                  }
+                };
+                const onSubmit = (event) => {
+                  submitEvent = event;
                 };
                 el.addEventListener('click', onClick, true);
+                form?.addEventListener('submit', onSubmit, true);
                 try {
                   el.dispatchEvent(new PointerEvent('pointerdown', init));
                   el.dispatchEvent(new MouseEvent('mousedown', init));
                   el.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
                   el.dispatchEvent(new MouseEvent('mouseup', { ...init, buttons: 0 }));
                   el.click();
-                  return clicked;
+                  return {
+                    delivered: clicked,
+                    canceled: !!(clickEvent?.defaultPrevented || submitEvent?.defaultPrevented),
+                  };
                 } finally {
                   el.removeEventListener('click', onClick, true);
+                  form?.removeEventListener('submit', onSubmit, true);
                 }
               });
             } catch (error) {
@@ -959,11 +988,29 @@ export class CdpBrowser {
                 )
               )
                 throw error;
-              delivered = true;
+              activation = { delivered: true, canceled: false };
+            } finally {
+              if (onNavigation && !activation?.delivered)
+                page.off('domcontentloaded', onNavigation);
             }
-            if (!delivered) throw new Error('Clic non délivré à la page');
+            if (!activation.delivered) throw new Error('Clic non délivré à la page');
             clickMode = 'dom';
-            if (navigation) await navigation;
+            if (navigation) {
+              let timer;
+              try {
+                if (!activation.canceled)
+                  await Promise.race([
+                    navigation,
+                    new Promise(
+                      (resolve) =>
+                        (timer = setTimeout(resolve, Math.min(1500, this.navigationTimeoutMs))),
+                    ),
+                  ]);
+              } finally {
+                clearTimeout(timer);
+                page.off('domcontentloaded', onNavigation);
+              }
+            }
           }
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {

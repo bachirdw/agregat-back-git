@@ -1,0 +1,17 @@
+(node:37636) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reprise après redémarrage du serveur : étapes réussies conservées, run terminé en place (5139.693333ms)
+✔ reprise refusée : run terminé, actif, ou mode agent (5206.264042ms)
+✔ brouillon de candidature : attente d’approbation, approbation via l’API, aucun envoi (2672.881875ms)
+✔ brouillon refusé à la relecture : workflow en échec, reprise possible (4485.094167ms)
+✔ reprise concurrente : un seul contrôle et une seule exécution (17.145209ms)
+✔ redémarrage : les runs anciens au-delà de la liste UI sont tous interrompus (74.960958ms)
+✔ reprise : refus si la définition durable a été modifiée (4521.918292ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22586.653167

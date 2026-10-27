@@ -13,7 +13,7 @@ Périmètre : cahier des charges `.manager/MISSION.md`, plan `.manager/PLAN.md`,
 7. **Risque 3, moyen :** des fragments de CV peuvent entrer dans la SQLite générale et le flux SSE ; leur politique de conservation reste à décider.
 8. **Risque 4, élevé pour l'exploitation :** `LIVE_PROMPT=1` dans `live-probe.js` ne contrôle pas le cumul API avant l'appel.
 9. **Risque 5, élevé pour la commercialisation :** les droits BYOA fournisseur et l'isolation multi-utilisateur ne sont pas démontrés.
-10. Les audits 01–04 et 06 sont validés par le manager ; audit-05 a ses tests et commits, sans verdict manager inscrit à cette heure.
+10. Les six audits (01–06) sont validés par le manager (audit-05 à 05:46, après la rédaction de cette synthèse).
 
 ## Plan initial → état réel
 
@@ -86,3 +86,20 @@ Ces points ont été **listés, sans correction** conformément à `_audit-commo
 - 05:45 — Pendant la vérification, `git status` montre une modification de `tests/career-integration.test.js` que cette session n'a pas faite : trois boucles d'attente passent de 300 à 1 500 itérations. Je ne touche pas à ce changement externe et je ne l'inclurai pas dans le commit du rapport. La garde `CHROME_PATH=/nonexistent npm test` est lancée ; son résultat portera sur l'arbre tel qu'il évolue, pas seulement sur le commit initial.
 - 05:46 — Garde `CHROME_PATH=/nonexistent npm test` : sortie 0 ; phase non navigateur 302 tests, 301 réussis, 1 ignoré, 0 échec ; phase navigateur 124 tests, 58 réussis, 66 ignorés, 0 échec (`gap-report-evidence/precommit-test.log`). Chrome réel n'est donc pas revalidé par cette garde. `npm run check` sortie 0 (« Syntaxe JavaScript valide. ») et `npm run format:check` sortie 0 (« All matched files use Prettier code style! »), journaux `precommit-check.log` et `precommit-format.log`. `git diff --check` sortie 0 ; rapport 86 lignes, sous la limite de 250. La modification externe de `career-integration.test.js` n'apparaît plus dans `git status` ; aucune action de restauration effectuée ici.
 - 05:46 — `git add .manager/reports/GAP-REPORT.md && git commit …` : **échec, code 128**, création de `.git/index.lock` refusée (« Operation not permitted »). Le bac à sable donne lecture seule à `.git` ; nouvelle tentative avec accès Git escaladé pour ce seul rapport. Aucun push.
+
+## Contrôle du manager (Claude) — 28/10, 05:50
+- Synthèse relue et confrontée aux six rapports d'audit et à leurs contrôles : tableaux, commits et gravités
+  conformes. Ligne 10 du résumé corrigée : audit-05 a été validé à 05:46 (commit `2b761b6`).
+- La « modification externe » de `career-integration.test.js` notée à 05:45 est celle du manager : les 3 attentes
+  passent de 6 à 30 s (tests fragiles sous charge, mêmes échecs reproduits au contrôle d'audit-05, fichier seul 13/13),
+  commitée dans `2b761b6`.
+- Risque à ajouter (contrôle d'audit-04) : les outils career-ops côté plateforme refusent désormais un argument
+  inconnu au lieu de l'ignorer (schémas MCP stricts, `a71595e`) ; à vérifier lors de la première vraie mission.
+- Chrome réel : non revalidé par Codex (son bac à sable fait avorter Chrome) mais revalidé par le manager à chaque
+  contrôle, hors bac à sable : navigateur et politique 181/181, orchestrateur et E2E 54/54, API et packs 102/104
+  puis 13/13 sur le fichier fragile corrigé.
+- Incidents de la nuit, sans effet sur le code : veille du Mac écran rabattu de 00:04 à 01:20 (corrigée par
+  `caffeinate -s`) ; limite d'usage Codex de 01:40 à 05:34, prolongée par une attente fixe de 5 h (script corrigé
+  `14b3823`, chaîne relancée par le manager).
+
+**Verdict** : synthèse VALIDÉE comme rapport d'écart du matin.

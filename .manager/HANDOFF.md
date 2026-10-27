@@ -3,6 +3,25 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
+## 0000. Point d'étape du 27/10, 14:10 (Sydney) — À LIRE EN PREMIER (complète § 000)
+**Plan de réutilisation VALIDÉ** par l'utilisateur le 27/10 à 12:35 (`.manager/reuse-plan.md`, 5 amendements du
+manager). Étapes, chacune suivie d'une relecture `review-<id>` puis du contrôle du manager :
+`reuse-01a` ✅ → `reuse-01b` ⏳ → `reuse-01c` → `reuse-02` réduit (`fillForm`) → `reuse-04` réduit (liveness acpx).
+Consignes de codage : `.manager/PLAN-reuse.md` § « Consignes de l'utilisateur » (technique d'abord, sécurité
+reportée, suppression libre de notre code, une étape à la fois).
+
+- **Étape 1 `reuse-01a` VALIDÉE** (`6620808`, relecture `7148e17`, contrôle `4b1d2d2`) : snapshot
+  `page.ariaSnapshot({mode:'ai'})`, actions par `ref` via `page.getByRef`. Copie figée 269/0/1 + Chrome 124/124.
+- **Étape 2 `reuse-01b`** (clic en onglet caché, suppression de `force`, `observed()`, `selector` du clic) :
+  chaîne `reuse-01b review-reuse-01b` programmée à **16:20** (limite Codex levée à 16:16), détachée
+  (`.manager/logs/chain-reuse-01b.nohup`). Fin = `.manager/logs/chain.done`.
+- **À reporter en `reuse-01c`** : supprimer `selector` de `browser.type` ; décider l'upload (champ fichier souvent
+  absent du snapshot : sélecteur ou sélecteur de fichier Playwright `files.ts`) ; message zod « Invalid input »
+  remplacé par un message français sur `type`/`upload` ; actions `fill`/`press`/`selectOption`/`check`/
+  `setInputFiles` en onglet caché avec effet observé (amendement 3).
+- **Utilisateur à distance** : ne pas l'interrompre pour des détails ; Codex doit toujours avancer ; questions en
+  texte libre, jamais bloquantes (mémoire `never-block-codex-on-questions`).
+
 ## 000. Passation du 27/10, 11:15 (Sydney) — À LIRE EN PREMIER (prime sur § 00 et § 0)
 **Rôles** : le manager (Claude) écrit les briefs et contrôle chaque étape (diff, tests relancés en copie figée,
 preuves) ; Codex code, modèle `gpt-6-sol` (jamais `gpt-6.1-sol` : il épuise la limite), lancé en chaîne détachée

@@ -64,6 +64,33 @@ test('normalisation des sources réelles enregistrées : provenance complète, s
   assert.match(r[0].attribution, /Remotive/);
 });
 
+test('normalisation : une date source invalide ne fait pas perdre les autres offres', () => {
+  const a = normalizeArbeitnow(
+    {
+      data: [
+        { slug: 'fictif-1', title: 'Python', created_at: 'invalide' },
+        { slug: 'fictif-2', title: 'SQL', created_at: 1700000000 },
+      ],
+    },
+    '2026-10-25T00:00:00Z',
+  );
+  const r = normalizeRemotive(
+    {
+      jobs: [
+        { id: 1, title: 'Python', publication_date: 'invalide' },
+        { id: 2, title: 'SQL', publication_date: '2026-10-25T00:00:00Z' },
+      ],
+    },
+    '2026-10-25T00:00:00Z',
+  );
+  assert.equal(a.length, 2);
+  assert.equal(r.length, 2);
+  assert.equal(a[0].publishedAt, null);
+  assert.equal(r[0].publishedAt, null);
+  assert.ok(a[1].publishedAt);
+  assert.ok(r[1].publishedAt);
+});
+
 test('CSV : guillemets, virgules dans les champs, CRLF', () => {
   assert.deepEqual(parseCsv('a,b\r\n"x, y","z ""q"""\n'), [
     ['a', 'b'],

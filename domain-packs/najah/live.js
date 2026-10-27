@@ -59,6 +59,11 @@ const stripHtml = (html = '') =>
     .replace(/&[a-z#0-9]+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+const publishedAt = (value, unixSeconds = false) => {
+  if (!value) return null;
+  const date = new Date(unixSeconds ? Number(value) * 1000 : value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
 
 export function normalizeArbeitnow(body, fetchedAt) {
   return (body?.data ?? []).map((j) => ({
@@ -72,7 +77,7 @@ export function normalizeArbeitnow(body, fetchedAt) {
     remote: !!j.remote,
     tags: (j.tags ?? []).map(String).slice(0, 20),
     url: j.url,
-    publishedAt: j.created_at ? new Date(j.created_at * 1000).toISOString() : null,
+    publishedAt: publishedAt(j.created_at, true),
     excerpt: stripHtml(j.description).slice(0, 600),
     sponsorship: 'unknown',
     fetchedAt,
@@ -91,7 +96,7 @@ export function normalizeRemotive(body, fetchedAt) {
     remote: true,
     tags: (j.tags ?? []).map(String).slice(0, 20),
     url: j.url,
-    publishedAt: j.publication_date ? new Date(j.publication_date).toISOString() : null,
+    publishedAt: publishedAt(j.publication_date),
     excerpt: stripHtml(j.description).slice(0, 600),
     sponsorship: 'unknown',
     fetchedAt,

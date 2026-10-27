@@ -1,5 +1,5 @@
 import { realpathSync, statSync, mkdirSync, readFileSync } from 'node:fs';
-import { resolve, basename, relative, isAbsolute } from 'node:path';
+import { resolve, basename, relative, isAbsolute, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
 import { getCapability } from '../capability-registry/index.js';
@@ -96,7 +96,7 @@ export class BrowserGateway {
       const real = realpathSync(file); // resolves symlinks: the real file must stay in the run folder
       const root = realpathSync(this.policy.workspace);
       const rel = relative(root, real);
-      if (rel.startsWith('..') || isAbsolute(rel))
+      if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))
         throw new Error('Lien symbolique hors du dossier du run');
       if (!statSync(real).isFile()) throw new Error('Fichier introuvable');
       if (statSync(real).size > this.policy.maxDownloadBytes)
@@ -158,7 +158,7 @@ export class BrowserGateway {
       const real = realpathSync(this.policy.workspacePath(rawArgs.path));
       const root = realpathSync(this.policy.workspace);
       const rel = relative(root, real);
-      if (rel.startsWith('..') || isAbsolute(rel) || real !== args.path)
+      if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel) || real !== args.path)
         throw new Error('Fichier modifié pendant l’approbation');
       const buffer = readFileSync(real);
       if (buffer.length > this.policy.maxDownloadBytes) throw new Error('Fichier trop volumineux');

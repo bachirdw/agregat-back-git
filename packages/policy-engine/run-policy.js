@@ -1,6 +1,6 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { relative, resolve, isAbsolute } from 'node:path';
+import { relative, resolve, isAbsolute, sep } from 'node:path';
 
 // Per-run policy enforced by the gateway (code), not by prompts.
 export const SENSITIVE_WORDS =
@@ -182,7 +182,8 @@ export class RunPolicy {
     if (!this.workspace) throw new Error('Aucun dossier de run pour les fichiers');
     const target = isAbsolute(p) ? resolve(p) : resolve(this.workspace, p);
     const rel = relative(resolve(this.workspace), target);
-    if (rel.startsWith('..') || isAbsolute(rel)) throw new Error('Chemin hors du dossier du run');
+    if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))
+      throw new Error('Chemin hors du dossier du run');
     return target;
   }
 }

@@ -113,3 +113,35 @@ Avant chaque commit : ajouter le test rouge indiqué, lancer le seul fichier con
 Accords humains, filtre d'envoi et redaction, confinement des fichiers et des cibles CDP, mesure avant action et ledger, politique DNS, revue/quarantaine des Skills, DAG SQLite et reprise des écritures incertaines, interfaces de Domain Pack et règles métier locales. Aucune modification de la bibliothèque career-ops ni de son Skill. `reuse-08` et `reuse-09` restent des études courtes selon la carte, sans code tant que les interfaces n'ont pas de besoin concret.
 
 **Ordre recommandé** : `reuse-01` puis `reuse-02`, `reuse-03`, `reuse-04`, `reuse-06`, `reuse-07`; `reuse-05` comme jalon de décision après `reuse-04` sans remplacement. Les briefs dédiés « GET privés Chrome », « persistance privée » et « extraction du pack de l'orchestrateur » demandent arbitrage ; le premier est prioritaire pour la sécurité mais la solution ne découle pas d'une source de cette carte.
+
+## Contrôle du manager (Claude) — 27/10, 11:38
+
+**Vérifié** : 12 références ouvertes une à une (Playwright `tab.ts:483-504,584-605`, `snapshot.ts:23-45` ; acpx
+`process-liveness.ts:1-24`, `flows/runtime.ts:512-529` ; Vercel `agents.ts:156-175` ; notre `cdp.js:512-523,
+776-786,813-933@3b5ed96`, `AGENT_SKILL_DIRS`) : exactes. Licences MIT / Apache-2.0 conformes aux fichiers `LICENSE`.
+Commit `c77c444` limité aux fichiers `.manager/` ; travail de `review-code-01` intact. Conclusions sur acpx flows
+(pas d'API de reprise ; un checkpoint met le run en `waiting`) et sur les Skills (chemins déjà équivalents) : justes.
+
+**Amendements à intégrer avant codage** (preuves : `reports/reuse-00-evidence/manager-results.md`) :
+1. **Cause racine non diagnostiquée** : via Playwriter, l'onglet agent est créé en arrière-plan et reste
+   `visibilityState: hidden`, `requestAnimationFrame` figé ; aucun événement souris n'est délivré. Ni
+   `Page.startScreencast`, ni `Page.bringToFront` n'y changent rien, et `Target.activateTarget` est refusé.
+   `reuse-01` doit donc mesurer la visibilité avant chaque action et, si l'onglet est caché, agir directement
+   par le DOM, sans attendre l'échec d'un clic souris : c'est cette attente qui ralentit les missions.
+   `force:true` est interdit comme preuve de succès.
+2. **Tests d'onglet caché** : le Chrome isolé ne reproduit pas l'état caché (onglet d'arrière-plan `visible` et
+   cliquable, même sans les options anti-arrière-plan de Playwright). Un test « onglet caché » en Chrome isolé
+   n'est donc qu'une simulation, à nommer comme telle (souris neutralisée et `visibilityState` forcé). La seule
+   preuve réelle se fait via Playwriter, sur page locale fictive, après avoir vérifié `visibilityState === 'hidden'`.
+3. **Couvrir toutes les actions en onglet caché**, pas seulement le clic : saisie (`fill`, `type`, `press`),
+   `selectOption`, cases à cocher, `setInputFiles` ; chacune prouvée par un effet observé (valeur, événement
+   `input`/`change`) via Playwriter sur page fictive. Ce point conditionne `reuse-02` (remplissage de formulaire).
+4. Utiliser l'API publique `page.getByRef(ref)` et `locator.normalize()` de `playwright-core` 1.64.1
+   (`types.d.ts:3176`) plutôt que la chaîne `aria-ref=`.
+5. Périmètre : gain net faible hors navigateur. Recommandation : coder `reuse-01` (avec 1–4), puis `reuse-02`
+   réduit aux outils utiles aux formulaires multi-étapes (moins de tours d'agent = moins de coût et de temps), et
+   `reuse-04` réduit (liveness des processus). `reuse-03`, `05`, `06`, `07` : études closes sans code, sauf défaut
+   prouvé. Les GET de sous-ressources privées (gravité haute), les fragments de CV en SQLite et le découplage
+   career-ops du cœur relèvent de briefs dédiés, hors réutilisation.
+
+**Verdict du manager** : plan VALIDABLE avec ces 5 amendements. En attente de la validation de l'utilisateur.

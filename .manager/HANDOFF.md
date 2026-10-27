@@ -3,10 +3,10 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 0000. Point d'étape du 27/10, 19:30 (Sydney) — À LIRE EN PREMIER (complète § 000)
+## 0000. Point d'étape du 27/10, 20:00 (Sydney) — À LIRE EN PREMIER (complète § 000)
 **Plan de réutilisation VALIDÉ** (`.manager/reuse-plan.md`). Étapes, chacune relue puis contrôlée par le manager :
-`reuse-01a` ✅ → `reuse-01b` ✅ → `reuse-01c` (codé, relecture Claude en cours) → `reuse-02` réduit (`fillForm`)
-→ `reuse-04` réduit (liveness acpx). Consignes : `.manager/PLAN-reuse.md` § « Consignes de l'utilisateur ».
+`reuse-01a` ✅ → `reuse-01b` ✅ → `reuse-01c` ✅ (`c999369`) → `reuse-02` réduit ✅ (`fillForm`, `reports/reuse-02.md`)
+→ `reuse-04` réduit (liveness acpx) : brief Codex `briefs/reuse-04a.md` prêt, à lancer après 22h (limite Codex). Consignes : `.manager/PLAN-reuse.md` § « Consignes de l'utilisateur ».
 
 - **Étape 1** (`6620808`, `7148e17`, corrections manager `d45f41c`) : snapshot `ariaSnapshot({mode:'ai'})`,
   actions par `ref` ; une réécriture d'URL (`replaceState`) garde les refs. Audit : `reports/audit-reuse-01a-claude.md`.
@@ -21,6 +21,13 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
   n° 1, 2 (volet envoi), 5, 7 reportés avec la sécurité ; corriger seulement le technique d'après le plan et les sources.
   **Bloquant avant toute vraie mission Seek** : upload par bouton, check, select et press peuvent déclencher un envoi
   sans accord (n° 1, 2, 5) ; sans danger sur page fictive, à corriger avant une candidature réelle. Corrections avec test rouge→vert, puis contrôle du manager dans `reuse-01c.md`.
+- **Étape 3 contrôlée** (`1c5b0b0`, `c999369`) : constats techniques n° 3, 4, 6, 8, 9, 10, 11–15 corrigés ; rouge
+  sur ancien code et preuve Playwriter rouge→vert (`reports/reuse-01c.md` § Contrôle).
+- **Étape 4** (`d4e97d3` Codex, `72c6d64`/`cb3f05f`/`cbba7f0` manager) : `browser.fillForm`, un accord pour tout le
+  formulaire ; preuve Playwriter 6 champs en 1 appel ; gain = 1 tour d'agent au lieu de 6.
+- **Étape 5 (reste)** : Codex écrit `packages/agent-runtime/process-liveness.js` (copie acpx MIT) ; le manager branche
+  ensuite `AcpRuntime.close()` (SIGKILL seulement si le groupe n'est pas mort à coup sûr, attente bornée, état
+  renvoyé), puis relecture Claude économe et contrôle.
 - **Limite Codex** : ~13 % restants le 27/10 au soir (selon l'utilisateur) → partager le travail : quart à Codex,
   reste au manager, relecture par agent Claude économe. Départs différés : boucle sur l'horloge, jamais `sleep N`.
 - **À arbitrer plus tard (sécurité reportée par l'utilisateur)** : audit n° 9, 14, 15 (mot de passe dans le snapshot).

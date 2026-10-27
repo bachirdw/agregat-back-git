@@ -1,0 +1,1118 @@
+[
+  {
+    "name": "1360x900-home-empty",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 511,
+      "bottom": 583,
+      "width": 734,
+      "height": 72,
+      "scrollHeight": 72,
+      "clientHeight": 72,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 498,
+      "bottom": 680,
+      "width": 760,
+      "height": 181
+    },
+    "scroll": {
+      "top": 164,
+      "bottom": 498,
+      "width": 1096,
+      "height": 334,
+      "scrollHeight": 334,
+      "clientHeight": 334
+    },
+    "cardsBottom": 476,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1360x900-home-12",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 410,
+      "bottom": 684,
+      "width": 734,
+      "height": 274,
+      "scrollHeight": 274,
+      "clientHeight": 274,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 397,
+      "bottom": 781,
+      "width": 760,
+      "height": 384
+    },
+    "scroll": {
+      "top": 63,
+      "bottom": 397,
+      "width": 1096,
+      "height": 334,
+      "scrollHeight": 334,
+      "clientHeight": 334
+    },
+    "cardsBottom": 375,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1360x900-home-60",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 335,
+      "bottom": 695,
+      "width": 734,
+      "height": 360,
+      "scrollHeight": 1354,
+      "clientHeight": 360,
+      "overflowY": "auto"
+    },
+    "dock": {
+      "top": 322,
+      "bottom": 792,
+      "width": 760,
+      "height": 470
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 322,
+      "width": 1096,
+      "height": 270,
+      "scrollHeight": 334,
+      "clientHeight": 270
+    },
+    "cardsBottom": 364,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1360x900-mission-long",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 701,
+      "bottom": 728,
+      "width": 734,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 688,
+      "bottom": 884,
+      "width": 760,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 688,
+      "width": 1096,
+      "height": 688,
+      "scrollHeight": 1782,
+      "clientHeight": 688
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": 84,
+      "bottom": 276,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1360x900-mission-compact",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 783,
+      "bottom": 810,
+      "width": 738,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 774,
+      "bottom": 884,
+      "width": 760,
+      "height": 110
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 774,
+      "width": 1096,
+      "height": 774,
+      "scrollHeight": 2566,
+      "clientHeight": 774
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": 84,
+      "bottom": 276,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "true",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1360x900-mission-bottom",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 703,
+      "bottom": 729,
+      "width": 734,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 688,
+      "bottom": 884,
+      "width": 760,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 688,
+      "width": 1096,
+      "height": 688,
+      "scrollHeight": 2566,
+      "clientHeight": 688
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -1708,
+      "bottom": -1516,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1360x900-reduced-motion",
+    "viewport": [
+      1360,
+      900
+    ],
+    "textarea": {
+      "top": 701,
+      "bottom": 728,
+      "width": 734,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 688,
+      "bottom": 884,
+      "width": 760,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 688,
+      "width": 1096,
+      "height": 688,
+      "scrollHeight": 2566,
+      "clientHeight": 688
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -1708,
+      "bottom": -1516,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "none",
+    "composerTransition": "0s"
+  },
+  {
+    "name": "1280x720-home-empty",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 432,
+      "bottom": 504,
+      "width": 734,
+      "height": 72,
+      "scrollHeight": 72,
+      "clientHeight": 72,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 419,
+      "bottom": 601,
+      "width": 760,
+      "height": 181
+    },
+    "scroll": {
+      "top": 85,
+      "bottom": 419,
+      "width": 1016,
+      "height": 334,
+      "scrollHeight": 334,
+      "clientHeight": 334
+    },
+    "cardsBottom": 397,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1280x720-home-12",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 263,
+      "bottom": 537,
+      "width": 734,
+      "height": 274,
+      "scrollHeight": 274,
+      "clientHeight": 274,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 250,
+      "bottom": 634,
+      "width": 760,
+      "height": 384
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 250,
+      "width": 1016,
+      "height": 198,
+      "scrollHeight": 334,
+      "clientHeight": 198
+    },
+    "cardsBottom": 364,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1280x720-home-60",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 249,
+      "bottom": 537,
+      "width": 734,
+      "height": 288,
+      "scrollHeight": 1354,
+      "clientHeight": 288,
+      "overflowY": "auto"
+    },
+    "dock": {
+      "top": 236,
+      "bottom": 634,
+      "width": 760,
+      "height": 398
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 236,
+      "width": 1016,
+      "height": 184,
+      "scrollHeight": 334,
+      "clientHeight": 184
+    },
+    "cardsBottom": 364,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1280x720-mission-long",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 521,
+      "bottom": 548,
+      "width": 734,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 508,
+      "bottom": 704,
+      "width": 760,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 508,
+      "width": 1016,
+      "height": 508,
+      "scrollHeight": 1782,
+      "clientHeight": 508
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -1187,
+      "bottom": -995,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1280x720-mission-compact",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 603,
+      "bottom": 630,
+      "width": 738,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 594,
+      "bottom": 704,
+      "width": 760,
+      "height": 110
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 594,
+      "width": 1016,
+      "height": 594,
+      "scrollHeight": 2566,
+      "clientHeight": 594
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": 84,
+      "bottom": 276,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "true",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1280x720-mission-bottom",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 523,
+      "bottom": 549,
+      "width": 734,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 508,
+      "bottom": 704,
+      "width": 760,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 508,
+      "width": 1016,
+      "height": 508,
+      "scrollHeight": 2566,
+      "clientHeight": 508
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -1888,
+      "bottom": -1696,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1280x720-reduced-motion",
+    "viewport": [
+      1280,
+      720
+    ],
+    "textarea": {
+      "top": 521,
+      "bottom": 548,
+      "width": 734,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 508,
+      "bottom": 704,
+      "width": 760,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 508,
+      "width": 1016,
+      "height": 508,
+      "scrollHeight": 2566,
+      "clientHeight": 508
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -1888,
+      "bottom": -1696,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "none",
+    "composerTransition": "0s"
+  },
+  {
+    "name": "1024x640-home-empty",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 394,
+      "bottom": 466,
+      "width": 686,
+      "height": 72,
+      "scrollHeight": 72,
+      "clientHeight": 72,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 381,
+      "bottom": 563,
+      "width": 712,
+      "height": 182
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 381,
+      "width": 760,
+      "height": 329,
+      "scrollHeight": 334,
+      "clientHeight": 329
+    },
+    "cardsBottom": 364,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1024x640-home-12",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 210,
+      "bottom": 466,
+      "width": 686,
+      "height": 256,
+      "scrollHeight": 274,
+      "clientHeight": 256,
+      "overflowY": "auto"
+    },
+    "dock": {
+      "top": 197,
+      "bottom": 563,
+      "width": 712,
+      "height": 366
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 197,
+      "width": 760,
+      "height": 145,
+      "scrollHeight": 334,
+      "clientHeight": 145
+    },
+    "cardsBottom": 364,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1024x640-home-60",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 210,
+      "bottom": 466,
+      "width": 686,
+      "height": 256,
+      "scrollHeight": 1354,
+      "clientHeight": 256,
+      "overflowY": "auto"
+    },
+    "dock": {
+      "top": 197,
+      "bottom": 563,
+      "width": 712,
+      "height": 366
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 197,
+      "width": 760,
+      "height": 145,
+      "scrollHeight": 334,
+      "clientHeight": 145
+    },
+    "cardsBottom": 364,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1024x640-mission-long",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 441,
+      "bottom": 468,
+      "width": 686,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 428,
+      "bottom": 624,
+      "width": 712,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 428,
+      "width": 760,
+      "height": 428,
+      "scrollHeight": 2063,
+      "clientHeight": 428
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": 88,
+      "bottom": 280,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1024x640-mission-compact",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 523,
+      "bottom": 550,
+      "width": 690,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 514,
+      "bottom": 624,
+      "width": 712,
+      "height": 110
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 514,
+      "width": 760,
+      "height": 514,
+      "scrollHeight": 2867,
+      "clientHeight": 514
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": 84,
+      "bottom": 276,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "true",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1024x640-mission-bottom",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 442,
+      "bottom": 469,
+      "width": 686,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 428,
+      "bottom": 624,
+      "width": 712,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 428,
+      "width": 760,
+      "height": 428,
+      "scrollHeight": 2867,
+      "clientHeight": 428
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -2269,
+      "bottom": -2077,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "1024x640-reduced-motion",
+    "viewport": [
+      1024,
+      640
+    ],
+    "textarea": {
+      "top": 441,
+      "bottom": 468,
+      "width": 686,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 428,
+      "bottom": 624,
+      "width": 712,
+      "height": 196
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 428,
+      "width": 760,
+      "height": 428,
+      "scrollHeight": 2867,
+      "clientHeight": 428
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -2269,
+      "bottom": -2077,
+      "width": 560,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "none",
+    "composerTransition": "0s"
+  },
+  {
+    "name": "375x812-home-empty",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 551,
+      "bottom": 622,
+      "width": 317,
+      "height": 72,
+      "scrollHeight": 72,
+      "clientHeight": 72,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 538,
+      "bottom": 791,
+      "width": 343,
+      "height": 253
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 538,
+      "width": 375,
+      "height": 486,
+      "scrollHeight": 486,
+      "clientHeight": 486
+    },
+    "cardsBottom": 522,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "375x812-home-12",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 354,
+      "bottom": 628,
+      "width": 317,
+      "height": 274,
+      "scrollHeight": 274,
+      "clientHeight": 274,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 341,
+      "bottom": 796,
+      "width": 343,
+      "height": 455
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 341,
+      "width": 375,
+      "height": 289,
+      "scrollHeight": 486,
+      "clientHeight": 289
+    },
+    "cardsBottom": 522,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "375x812-home-60",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 304,
+      "bottom": 628,
+      "width": 317,
+      "height": 324,
+      "scrollHeight": 1354,
+      "clientHeight": 324,
+      "overflowY": "auto"
+    },
+    "dock": {
+      "top": 291,
+      "bottom": 796,
+      "width": 343,
+      "height": 505
+    },
+    "scroll": {
+      "top": 52,
+      "bottom": 291,
+      "width": 375,
+      "height": 239,
+      "scrollHeight": 486,
+      "clientHeight": 239
+    },
+    "cardsBottom": 522,
+    "bubble": null,
+    "collapsed": false,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": null,
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "375x812-mission-long",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 513,
+      "bottom": 540,
+      "width": 317,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 500,
+      "bottom": 796,
+      "width": 343,
+      "height": 296
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 500,
+      "width": 375,
+      "height": 500,
+      "scrollHeight": 2793,
+      "clientHeight": 500
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -2213,
+      "bottom": -2021,
+      "width": 288,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "375x812-mission-compact",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 695,
+      "bottom": 722,
+      "width": 321,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 686,
+      "bottom": 796,
+      "width": 343,
+      "height": 110
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 686,
+      "width": 375,
+      "height": 686,
+      "scrollHeight": 4217,
+      "clientHeight": 686
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": 76,
+      "bottom": 268,
+      "width": 288,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "true",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "375x812-mission-bottom",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 514,
+      "bottom": 540,
+      "width": 317,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 500,
+      "bottom": 796,
+      "width": 343,
+      "height": 296
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 500,
+      "width": 375,
+      "height": 500,
+      "scrollHeight": 4217,
+      "clientHeight": 500
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -3455,
+      "bottom": -3263,
+      "width": 288,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "rise",
+    "composerTransition": "0.52s"
+  },
+  {
+    "name": "375x812-reduced-motion",
+    "viewport": [
+      375,
+      812
+    ],
+    "textarea": {
+      "top": 513,
+      "bottom": 540,
+      "width": 317,
+      "height": 27,
+      "scrollHeight": 27,
+      "clientHeight": 27,
+      "overflowY": "hidden"
+    },
+    "dock": {
+      "top": 500,
+      "bottom": 796,
+      "width": 343,
+      "height": 296
+    },
+    "scroll": {
+      "top": 0,
+      "bottom": 500,
+      "width": 375,
+      "height": 500,
+      "scrollHeight": 4217,
+      "clientHeight": 500
+    },
+    "cardsBottom": null,
+    "bubble": {
+      "top": -3455,
+      "bottom": -3263,
+      "width": 288,
+      "height": 192
+    },
+    "collapsed": true,
+    "compact": "false",
+    "horizontalOverflow": false,
+    "bubbleAnimation": "none",
+    "composerTransition": "0s"
+  }
+]

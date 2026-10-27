@@ -70,3 +70,15 @@ Réglages pour les trois étapes : **Pack career-ops**, **Agent Gemini**, **Agen
 ### 3. CV et lettre pour une offre
 
 > Pour l’offre enregistrée `[ID_DE_L_OFFRE]`, prépare un CV adapté et une lettre de motivation, sans envoi ni candidature. Lis `modes/pdf.md` et `modes/cover.md`. Archive la description exacte et sa source dans `jds/<slug>.md`, puis lance `career_script` avec `command: "jd-skill-gap"` et ce chemin. Liste les manques dans `summary` sans les ajouter au CV. Écris le CV adapté dans `output/`, son payload JSON dans `output/`, puis lance `cv-title-check` et `verify-cv-facts` via `career_script` ; corrige tout fait inventé et signale les titres non vérifiés. Pour les confirmations ou réponses requises par `cover.md`, pose toutes les questions numérotées dans `summary` et attends mes réponses avant de rédiger la lettre. Une fois les deux documents validés, crée les PDF locaux avec `career_document` et indique leurs noms. Ne prétends pas que le rendu PDF simple est certifié ATS.
+
+## Contrôle du manager (Claude) — 28/10, 07:45
+- Diff `1b9602f..e4174dc` relu :
+  - contrôles en lecture seule (`--permission`, lecture limitée à l'espace, sans écriture ni sous-processus) ;
+    préchargeur réseau ;
+  - chemins `jds/` et `output/` sous motif ;
+  - agent incompatible remplacé par Gemini avant accord, avec la raison dans le plan.
+- Suite hors bac à sable, de 07:34 à 07:39 : 310 + 1 ignoré, Chrome 136/136, check et format verts
+  (`diag-02-evidence/manager-*.log`). Front `7b9980a` : 49/49, build vert.
+- Serveur 4310 redémarré à 07:39:44, aucune mission active (live et owner à true).
+
+**Verdict** : diag-02 VALIDÉ ; confirmation réelle par l'utilisateur avec les prompts ci-dessus.

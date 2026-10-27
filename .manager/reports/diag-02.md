@@ -21,6 +21,7 @@
 - 07:31 — Premier `git add`/`commit` front refusé par le bac à sable (`.git/index.lock: Operation not permitted`, code 128). Aucune réécriture d’historique ni push ; demande d’autorisation ciblée pour le commit local après les vérifications front vertes.
 - 07:32 — Autorisation ciblée obtenue, commit front `7b9980a` créé ; cinq fichiers modifiés, aucun autre fichier front. Back : phase hors Chrome encore en cours ; `check` et `format:check` relancés après les dernières retouches de tests.
 - 07:32 — Phase back hors Chrome terminée : 310 succès, 0 échec, 1 ignoré sur 311 (`back-nonchrome-final.log`). `npm run check`, `npm run format:check` verts (`back-final-*.log`), `git diff --check` vert. Commit back `87d9a40` créé avec huit fichiers de code/test. Ni push ni modification de la bibliothèque career-ops. Les fichiers `front-anim-01*` apparus en parallèle sont restés hors de ce commit.
+- 07:33 — Rapport commité `a0423dd`, puis contrôle de la fin du fichier : un ancien bloc « État : En cours » subsistait après les prompts. Correction documentaire immédiate pour que le rapport se termine bien par les prompts exacts ; aucun fichier de code retouché.
 
 ## Inventaire des scripts tiers (clone career-ops `2d6ed58`, copie installée identique)
 
@@ -69,7 +70,3 @@ Réglages pour les trois étapes : **Pack career-ops**, **Agent Gemini**, **Agen
 ### 3. CV et lettre pour une offre
 
 > Pour l’offre enregistrée `[ID_DE_L_OFFRE]`, prépare un CV adapté et une lettre de motivation, sans envoi ni candidature. Lis `modes/pdf.md` et `modes/cover.md`. Archive la description exacte et sa source dans `jds/<slug>.md`, puis lance `career_script` avec `command: "jd-skill-gap"` et ce chemin. Liste les manques dans `summary` sans les ajouter au CV. Écris le CV adapté dans `output/`, son payload JSON dans `output/`, puis lance `cv-title-check` et `verify-cv-facts` via `career_script` ; corrige tout fait inventé et signale les titres non vérifiés. Pour les confirmations ou réponses requises par `cover.md`, pose toutes les questions numérotées dans `summary` et attends mes réponses avant de rédiger la lettre. Une fois les deux documents validés, crée les PDF locaux avec `career_document` et indique leurs noms. Ne prétends pas que le rendu PDF simple est certifié ATS.
-
-## État
-
-En cours. Les preuves et décisions seront ajoutées au fil de l’eau.

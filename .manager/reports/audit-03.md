@@ -9,7 +9,8 @@
 - 01:27 — Sortie DAG UTF-8 : test ajouté à `tests/workflow-engine.test.js`, **rouge** (attendu `failed`, obtenu `completed`, `output-red.log`). Correction de `packages/workflow-engine/index.js` : `Buffer.byteLength` du JSON avant persistance. `node --test tests/workflow-engine.test.js tests/najah-live.test.js` : 34/34 réussis (`targeted-green.log`).
 - 01:28 — Lecture de `openclaw__acpx@c0b9dfd` et `dbos-inc__dbos-transact-ts@980dc55`, licences MIT vérifiées ; aucune copie. Suite ciblée élargie lancée, preuve `targeted-scope.log`.
 - 01:30 — `node --test` sur 13 fichiers du périmètre et dépendances : 184/184 réussis (`targeted-scope.log`). Garde précommit : `CHROME_PATH=/nonexistent npm test` exit 0 (unitaire/intégration : 296 réussis, 1 ignoré ; navigateur : 58 réussis, 66 ignorés), `npm run check` exit 0, `npm run format:check` exit 0, `git diff --check` exit 0. Preuves `precommit-*`, `diff-check.log`. Chrome réel non renouvelé ; le test initial sans cette variable reste rouge.
-- 01:30 — Premier `git add -A && git commit` : **échec** `Unable to create .git/index.lock: Operation not permitted` (bac à sable, `.git` en lecture seule). Reprise demandée avec élévation pour ce seul commit local autorisé ; aucun push.
+- 01:30 — Premier `git add -A && git commit` : **échec** `Unable to create .git/index.lock: Operation not permitted` (bac à sable, `.git` en lecture seule). Même commande locale avec élévation : **réussie**, commit `d7e1fd2` (`[audit-03] Borner les sorties du workflow en octets UTF-8`), 4 fichiers ; `git status --short` vide. Aucun push.
+- 01:31 — Avant le commit documentaire final, seconde garde `CHROME_PATH=/nonexistent npm test` exit 0 (296 réussis/1 ignoré ; navigateur 58 réussis/66 ignorés), `npm run check`, `npm run format:check`, `git diff --check` : tous exit 0 ; preuves `report-commit-*`.
 
 ## Écarts au plan
 

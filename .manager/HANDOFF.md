@@ -16,9 +16,10 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
   bouton + `filechooser`, download par ref, `selector` supprimé sauf `extract`). Mesure réelle : le clavier CDP est
   perdu sans erreur en onglet caché. Défaut réel corrigé : la barre Playwriter (`data-playwriter-toolbar`)
   recouvre le haut de l'onglet. Preuve formulaire FICTIF complète en 2,8 s. Relecture : agent Claude économe
-  (sonnet, lecture seule) lancé à 19:00 par l'ancienne conversation → `reports/review-reuse-01c-claude.md`. **Ne
-  pas en relancer une seconde tant que ce fichier n'existe pas et qu'il n'est pas 19:45** ; au-delà, relancer.
-  Ensuite : tri des constats, corrections avec test rouge→vert, contrôle du manager consigné dans `reuse-01c.md`.
+  (sonnet, lecture seule) lancé à 19:00 par l'ancienne conversation → `reports/review-reuse-01c-claude.md`. Rapport
+  **disponible (19:20)**, 15 constats, tri du manager en fin de fichier : **priorité 1 = n° 1, 2, 5** (un clic DOM
+  via upload/check/select/press échappe à l'accord d'envoi : interdit de l'utilisateur, pas « sécurité reportée »).
+  Puis n° 3, 4 ; basses ensuite. Corrections avec test rouge→vert, puis contrôle du manager dans `reuse-01c.md`.
 - **Limite Codex** : ~13 % restants le 27/10 au soir (selon l'utilisateur) → partager le travail : quart à Codex,
   reste au manager, relecture par agent Claude économe. Départs différés : boucle sur l'horloge, jamais `sleep N`.
 - **À arbitrer plus tard (sécurité reportée par l'utilisateur)** : audit n° 9, 14, 15 (mot de passe dans le snapshot).

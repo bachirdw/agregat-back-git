@@ -46,6 +46,15 @@ historique d'un commit). Ne jamais modifier ces clones (lecture seule). Licences
 3. **Agent codeur** (`reuse-01…`, session distincte) : exécute le plan validé, un brief à la fois, contrôlé par le
    manager entre chaque brief. Tout écart au plan est noté dans le rapport et soumis au manager.
 
+## Consignes de l'utilisateur pour le codage (27/10, 12:00)
+- Priorité à la partie technique. Les décisions de sécurité ouvertes (GET de sous-ressources privées, fragments de
+  CV en SQLite) sont reportées : n'y travaille pas.
+- **Supprime sans hésiter notre code maison** quand la version reprise couvre le besoin : pas de doublon, pas de
+  compatibilité morte, pas de repli « au cas où ». Les tests de comportement restent verts ; un test qui ne
+  vérifiait qu'un détail d'implémentation supprimé peut être réécrit ou supprimé, avec la raison dans le rapport.
+- Une étape à la fois. Après chaque étape : session de relecture indépendante (`review-<id>`), puis contrôle du
+  manager (tests relancés, preuve). L'étape suivante ne démarre qu'après ce double contrôle.
+
 ## Méthode « aller-retour » (obligatoire pour chaque remplacement)
 1. **Contrat d'abord** : lister le comportement à garder du module (sécurité, accords, filtre d'envoi, traçabilité)
    et s'assurer qu'il est couvert par des tests qui passent AVANT de toucher au code.

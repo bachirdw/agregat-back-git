@@ -46,6 +46,7 @@ test('registre : contrats stables, schémas stricts, effets déclarés', () => {
     'browser.click',
     'browser.check',
     'browser.select',
+    'browser.fillForm',
     'browser.type',
     'browser.press',
     'browser.upload',

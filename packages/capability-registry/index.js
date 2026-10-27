@@ -94,6 +94,60 @@ export const capabilities = [
       .strict(),
   },
   {
+    id: 'browser.fillForm',
+    domain: 'browser',
+    effect: 'write',
+    meter: 'browser_action',
+    description:
+      'Remplir en une action plusieurs champs de l’étape de formulaire visible, dans l’ordre, avec les ref du snapshot : kind text (text), checkbox (checked), radio, select (values). Ne soumet jamais : clique ensuite « Continue » ou « Suivant » avec browser_click. S’arrête au premier champ en échec et nomme ceux déjà remplis.',
+    schema: z
+      .object({
+        fields: z
+          .array(
+            z
+              .object({
+                ref,
+                kind: z.enum(['text', 'checkbox', 'radio', 'select'], {
+                  error: 'kind doit valoir text, checkbox, radio ou select',
+                }),
+                text: z.string({ error: 'text doit être une chaîne' }).max(10000).optional(),
+                checked: z.boolean({ error: 'checked doit être un booléen' }).optional(),
+                values: z
+                  .array(z.string().min(1, 'Option vide interdite'), {
+                    error: 'values doit être une liste de chaînes',
+                  })
+                  .min(1, 'Au moins une option requise')
+                  .max(20, 'Maximum 20 options')
+                  .optional(),
+              })
+              .strict()
+              .superRefine((field, ctx) => {
+                // Flat fields keep the tool schema simple for every model; one value key per kind.
+                const key = { text: 'text', checkbox: 'checked', select: 'values', radio: null }[
+                  field.kind
+                ];
+                for (const name of ['text', 'checked', 'values'])
+                  if ((name === key) !== (field[name] !== undefined))
+                    ctx.addIssue({
+                      code: 'custom',
+                      message:
+                        name === key
+                          ? `${name} requis pour kind ${field.kind}`
+                          : `${name} interdit pour kind ${field.kind}`,
+                    });
+              }),
+            { error: 'fields doit être une liste de champs' },
+          )
+          .min(1, 'Au moins un champ requis')
+          .max(30, 'Maximum 30 champs par appel')
+          .refine(
+            (fields) => new Set(fields.map((f) => f.ref)).size === fields.length,
+            'Une ref ne peut apparaître qu’une fois',
+          ),
+      })
+      .strict(),
+  },
+  {
     id: 'browser.type',
     domain: 'browser',
     effect: 'write',

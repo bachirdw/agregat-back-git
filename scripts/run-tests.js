@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { testPhaseTimeoutMs } from './test-phase-timeout.js';
 const BROWSER = new Set([
+  'browser-click-ref.test.js',
   'browser-gateway.test.js',
   'approval-bridge.test.js',
   'e2e-ui.test.js',

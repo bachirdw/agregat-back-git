@@ -1,0 +1,17 @@
+✔ gateway : lecture sans approbation, contenu marqué non fiable, mesure (5.75775ms)
+✔ gateway : clic sensible refusé sans approbation humaine, même auto-approuvé (3.242791ms)
+✔ gateway : une référence sensible demande accord avec la description de l’élément (2.513042ms)
+✔ gateway : clic approuvé exécuté ; texte saisi jamais transmis à l’approbation (0.7305ms)
+✔ gateway : capacités non accordées, arguments hors contrat, élément absent (0.404416ms)
+✔ gateway : domaine interdit et redirection vers domaine interdit bloqués (0.274083ms)
+✔ gateway : upload hors dossier et lien symbolique refusés (1.413167ms)
+✔ gateway : un élément modifié pendant l’approbation ne reçoit pas le consentement précédent (0.393875ms)
+✔ gateway : upload revalidé après consentement et appels sérialisés (25.793041ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 199.391375

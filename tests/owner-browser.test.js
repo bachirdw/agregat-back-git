@@ -1,3 +1,4 @@
+import { clickRef, refFor } from './support/click-ref.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -86,7 +87,7 @@ test(
       }),
     );
     const hiddenClick = await gateway.call('browser.click', { ref: frame });
-    assert.equal(hiddenClick.clickMode, 'dom-hidden-tab');
+    assert.equal(hiddenClick.clickMode, 'dom');
     assert.equal(
       await provider.page.frameLocator('iframe').locator('body').getAttribute('data-hits'),
       '2',
@@ -230,14 +231,14 @@ test(
       approve: async () => true,
     });
     await gateway.call('browser.navigate', { url: origin });
-    const clicked = await gateway.call('browser.click', { selector: '#moving' });
-    assert.equal(clicked.clickMode, 'forced');
+    const clicked = await clickRef(gateway, '#moving');
+    assert.equal(clicked.clickMode, 'dom');
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '1');
     await provider.page.evaluate(() => {
       console.debug = () => {};
     });
-    const silent = await gateway.call('browser.click', { selector: '#moving' });
-    assert.equal(silent.clickMode, 'forced');
+    const silent = await clickRef(gateway, '#moving');
+    assert.equal(silent.clickMode, 'dom');
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '2');
     await provider.page.evaluate(() =>
       Object.defineProperty(document, 'visibilityState', {
@@ -245,37 +246,26 @@ test(
         get: () => 'hidden',
       }),
     );
-    const realHiddenLocator = provider.page.locator.bind(provider.page);
+    const originalTargetLocator = provider.targetLocator.bind(provider);
     let pointerClicks = 0;
-    provider.page.locator = (selector, options) => {
-      const locator = realHiddenLocator(selector, options);
-      if (selector !== '#moving') return locator;
-      return {
-        first: () => {
-          const target = locator.first();
-          return {
-            count: () => target.count(),
-            click: async () => {
-              pointerClicks++;
-              throw new Error('Aucun événement souris CDP autorisé en onglet caché');
-            },
-            isVisible: () => target.isVisible(),
-            isEnabled: () => target.isEnabled(),
-            evaluate: (...args) => target.evaluate(...args),
-          };
-        },
+    provider.targetLocator = async (...args) => {
+      const target = await originalTargetLocator(...args);
+      target.click = async () => {
+        pointerClicks++;
+        throw new Error('Souris interdite en onglet caché');
       };
+      return target;
     };
-    const hidden = await gateway.call('browser.click', { selector: '#moving' });
-    provider.page.locator = realHiddenLocator;
+    const hidden = await clickRef(gateway, '#moving');
+    provider.targetLocator = originalTargetLocator;
     await provider.page.evaluate(() => delete document.visibilityState);
-    assert.equal(hidden.clickMode, 'dom-hidden-tab');
+    assert.equal(hidden.clickMode, 'dom');
     assert.equal(pointerClicks, 0);
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '3');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'block';
     });
-    await assert.rejects(gateway.call('browser.click', { selector: '#covered' }), /masqué par div/);
+    await assert.rejects(clickRef(gateway, '#covered'), /masqué par div/);
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '3');
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'none';
@@ -283,33 +273,17 @@ test(
     await provider.page.locator('#moving').evaluate((el) => {
       el.click = () => {};
     });
-    const realLocator = provider.page.locator.bind(provider.page);
-    provider.page.locator = (selector, options) => {
-      const locator = realLocator(selector, options);
-      if (selector !== '#moving') return locator;
-      return {
-        first: () => {
-          const target = locator.first();
-          return {
-            click: async ({ force }) => {
-              if (!force) {
-                const error = new Error('FICTIF timeout');
-                error.name = 'TimeoutError';
-                throw error;
-              }
-            },
-            isVisible: () => target.isVisible(),
-            isEnabled: () => target.isEnabled(),
-            evaluate: (...args) => target.evaluate(...args),
-          };
-        },
-      };
-    };
+    await provider.page.evaluate(() =>
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      }),
+    );
     await assert.rejects(
-      provider.perform('browser.click', { selector: '#moving' }, gateway.policy),
+      provider.perform('browser.click', { ref: await refFor(gateway, '#moving') }, gateway.policy),
       /Clic non délivré à la page/,
     );
-    provider.page.locator = realLocator;
+    await provider.page.evaluate(() => delete document.visibilityState);
     assert.equal(await provider.page.locator('body').getAttribute('data-hits'), '3');
   },
 );
@@ -353,53 +327,22 @@ test(
       },
     });
     await gateway.call('browser.navigate', { url: origin });
-    const result = await gateway.call('browser.click', { selector: 'button' });
-    assert.equal(result.clickMode, 'forced');
+    const result = await clickRef(gateway, 'button');
+    assert.equal(result.clickMode, 'dom');
     assert.equal(approvals, 1);
     assert.equal(posts, 1);
     approvals = 0;
     posts = 0;
     await gateway.call('browser.navigate', { url: origin });
-    const perform = provider.perform.bind(provider);
-    provider.perform = async (capability, args, policy) => {
-      if (capability !== 'browser.click') return perform(capability, args, policy);
-      const locator = provider.page.locator.bind(provider.page);
-      provider.page.locator = (selector, options) => {
-        const original = locator(selector, options);
-        if (selector !== 'button') return original;
-        return {
-          first: () => {
-            const target = original.first();
-            return {
-              click: async ({ force }) => {
-                if (!force) {
-                  const error = new Error('FICTIF timeout');
-                  error.name = 'TimeoutError';
-                  throw error;
-                }
-              },
-              isVisible: () => target.isVisible(),
-              isEnabled: () => target.isEnabled(),
-              evaluate: (...values) => target.evaluate(...values),
-            };
-          },
-        };
-      };
-      try {
-        return await perform(capability, args, policy);
-      } finally {
-        provider.page.locator = locator;
-      }
-    };
-    const domResult = await gateway.call('browser.click', { selector: 'button' });
-    assert.equal(domResult.clickMode, 'dom-hidden-tab');
+    const domResult = await clickRef(gateway, 'button');
+    assert.equal(domResult.clickMode, 'dom');
     assert.equal(approvals, 1);
     assert.equal(posts, 1);
     allow = false;
     approvals = 0;
     posts = 0;
     await gateway.call('browser.navigate', { url: origin });
-    await assert.rejects(gateway.call('browser.click', { selector: 'button' }), /Action refusée/);
+    await assert.rejects(clickRef(gateway, 'button'), /Action refusée/);
     assert.equal(approvals, 1);
     assert.equal(posts, 0);
   },
@@ -440,7 +383,7 @@ test(
     });
     await gateway.call('browser.navigate', { url: origin });
     assert.equal((await provider.describe('#choice')).tag, 'input');
-    await gateway.call('browser.click', { selector: '#choice' });
+    await clickRef(gateway, '#choice');
     assert.equal(await provider.page.locator('#choice').isChecked(), true);
     assert.equal(approvals, 0);
   },
@@ -499,11 +442,11 @@ test(
     await waitFor(() => posts.length === 1);
     assert.deepEqual(posts, ['GetApplyStatus']);
     assert.equal(approvals, 0);
-    await gateway.call('browser.click', { selector: '#mutate' });
+    await clickRef(gateway, '#mutate');
     await waitFor(() => approvals === 1);
     assert.equal(approvals, 1);
     assert.deepEqual(posts, ['GetApplyStatus']);
-    await gateway.call('browser.click', { selector: '#disguised' });
+    await clickRef(gateway, '#disguised');
     await waitFor(() => approvals === 2);
     assert.equal(approvals, 2);
     assert.deepEqual(posts, ['GetApplyStatus']);
@@ -549,7 +492,7 @@ test(
       },
     });
     await gateway.call('browser.navigate', { url: origin });
-    await gateway.call('browser.click', { selector: '#go' });
+    await clickRef(gateway, '#go');
     const deadline = Date.now() + 2000;
     while (!approvals.length && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
     assert.equal(approvals.length, 1);
@@ -651,7 +594,7 @@ test(
       'FICTIF',
     );
     await gateway.call('browser.type', { selector: '#query', text: 'FICTIF résultat recherché' });
-    assert.equal((await gateway.call('browser.click', { selector: '#go' })).clickMode, 'normal');
+    assert.equal((await clickRef(gateway, '#go')).clickMode, 'mouse');
     assert.equal(
       (await gateway.call('browser.extract', { selector: 'p' })).text,
       'FICTIF résultat recherché',
@@ -667,7 +610,7 @@ test(
       readFileSync(join(workspace, 'downloads', download.file), 'utf8'),
       'FICTIF téléchargement',
     );
-    await gateway.call('browser.click', { selector: '#send' });
+    await clickRef(gateway, '#send');
     assert.equal(fixture.posts(), 1);
     assert.equal(approvals, 1);
   },
@@ -818,7 +761,7 @@ test(
       },
     });
     await gateway.call('browser.navigate', { url: fixture.origin });
-    await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
+    await assert.rejects(clickRef(gateway, '#send'), /refusée/);
     assert.equal(fixture.posts(), 0);
     // Long after any agent action, the page's own same-site API call loads the page: allowed,
     // without approval (Seek's apply form stayed on "Loading" when these were blocked).
@@ -829,7 +772,7 @@ test(
     await new Promise((r) => setTimeout(r, 300));
     assert.equal(fixture.posts(), 1);
     approved = true;
-    await gateway.call('browser.click', { selector: '#send' });
+    await clickRef(gateway, '#send');
     assert.equal(fixture.posts(), 2);
     // Only the two agent clicks asked for approval.
     assert.equal(requests, 2);
@@ -1151,12 +1094,12 @@ test(
       assert.match(first.snapshot, /Choose documents/);
       assert.equal(first.loading, false);
       await gateway.call('browser.upload', { selector: '#cv', path: 'cv.pdf' });
-      await gateway.call('browser.click', { selector: '#nocl' });
-      await gateway.call('browser.click', { selector: '#next span' });
+      await clickRef(gateway, '#nocl');
+      await clickRef(gateway, '#next');
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /employer questions/);
-      await gateway.call('browser.click', { selector: '#rights' });
+      await clickRef(gateway, '#rights');
       await gateway.call('browser.type', { selector: '#why', text: 'FICTIF motivation' });
-      await gateway.call('browser.click', { selector: '#next span' });
+      await clickRef(gateway, '#next');
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /Review and submit/);
       // Stats keep posting in the background; none of it may reach the approval queue.
       await new Promise((r) => setTimeout(r, 1000));
@@ -1164,7 +1107,7 @@ test(
     };
 
     await fill();
-    await gateway.call('browser.click', { selector: '#submit' });
+    await clickRef(gateway, '#submit');
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(approvals.length, 1);
     assert.equal(approvals[0].actionClass, 'send');
@@ -1173,7 +1116,7 @@ test(
     approvals.length = 0;
     answer = true;
     await fill();
-    await gateway.call('browser.click', { selector: '#submit' });
+    await clickRef(gateway, '#submit');
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(fixture.counts.apply, 1);
     assert.equal(approvals.length, 1, JSON.stringify(approvals.map((a) => a.args?.url)));
@@ -1203,7 +1146,7 @@ test(
     });
     await gateway.call('browser.navigate', { url: fixture.origin });
     // Refused send, then the tab disappears (user, relay or site closed it).
-    await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
+    await assert.rejects(clickRef(gateway, '#send'), /refusée/);
     await provider.page.close();
     const again = await gateway.call('browser.snapshot', { url: fixture.origin });
     assert.match(again.snapshot, /FICTIF premier/);
@@ -1243,7 +1186,7 @@ test(
     assert.notEqual(provider.context, oldContext);
     assert.equal(oldContext.listenerCount('page'), 0);
     assert.equal(provider.context.listenerCount('page'), 1);
-    await assert.rejects(gateway.call('browser.click', { selector: '#send' }), /refusée/);
+    await assert.rejects(clickRef(gateway, '#send'), /refusée/);
     assert.equal(approvals.length, 1);
     assert.equal(approvals[0].actionClass, 'send');
     assert.equal(fixture.posts(), 0);

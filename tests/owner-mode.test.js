@@ -1,3 +1,4 @@
+import { clickRef, refFor } from './support/click-ref.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -94,14 +95,14 @@ test('propriétaire : envoi approuvé et saisie automatique ; garde des argument
     meter: () => metered++,
   });
   await gateway.call('browser.navigate', { url });
-  await gateway.call('browser.click', { selector: '#send' });
+  await clickRef(gateway, '#send');
   await gateway.call('browser.type', { selector: '#password', text: 'FICTIF' });
   const result = await gateway.call('browser.extract');
   assert.equal(result.untrusted, true);
   assert.match(result.text, /FICTIF/);
   assert.equal(approvals, 1);
   assert.equal(metered, 4);
-  await assert.rejects(gateway.call('browser.click', { selector: '' }));
+  await assert.rejects(clickRef(gateway, ''));
   await assert.rejects(
     gateway.call('browser.upload', { selector: '#send', path: '../secret' }),
     /dossier/,

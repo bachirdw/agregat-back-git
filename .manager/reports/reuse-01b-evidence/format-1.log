@@ -1,0 +1,12 @@
+
+> agent-platform@0.1.0 format:check
+> prettier --check apps packages domain-packs tests scripts/*.js
+
+Checking formatting...
+[warn] packages/browser-gateway/cdp.js
+[warn] tests/approval-bridge.test.js
+[warn] tests/browser-click-ref.test.js
+[warn] tests/browser-gateway.test.js
+[warn] tests/owner-browser.test.js
+[warn] tests/support/click-ref.js
+[warn] Code style issues found in 6 files. Run Prettier with --write to fix.

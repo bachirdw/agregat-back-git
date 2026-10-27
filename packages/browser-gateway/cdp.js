@@ -12,7 +12,6 @@ import {
 } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
-import { randomUUID } from 'node:crypto';
 
 import { ownerTransport } from './owner-transport.js';
 import { requestPinned } from '../policy-engine/http.js';
@@ -851,22 +850,41 @@ export class CdpBrowser {
       }
       case 'browser.click':
         // Resolve first: a stale ref must not open the post-click send window.
-        const target = await this.targetLocator(args.ref ? { ref: args.ref } : args.selector);
+        const target = await this.targetLocator({ ref: args.ref });
         this.sendGrant = args.sendApproved === true;
         this.formStep = args.formStep === true;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
-        let clickMode = 'normal';
+        let clickMode = 'mouse';
+        let hidden = false;
         try {
           let clickError = null;
-          if (await page.evaluate(() => document.visibilityState === 'hidden')) {
+          hidden = await page.evaluate(() => document.visibilityState === 'hidden');
+          if (hidden) {
             clickError = new Error('Onglet caché');
           } else {
+            // Keep the witness independent of the locator: the click may remove its target.
+            const witness = await target.evaluateHandle((el) => {
+              let delivered = false;
+              const onClick = (event) => {
+                if (event.composedPath().includes(el)) delivered = true;
+              };
+              el.addEventListener('click', onClick, true);
+              return {
+                delivered: () => delivered,
+                stop: () => el.removeEventListener('click', onClick, true),
+              };
+            });
             try {
               await target.click({ timeout: Math.min(3000, this.navigationTimeoutMs) });
             } catch (error) {
               if (error.name !== 'TimeoutError') throw error;
-              clickError = error;
+              // A timeout after delivery must never cause a second click.
+              if (!(await witness.evaluate((value) => value.delivered()).catch(() => true)))
+                clickError = error;
+            } finally {
+              await witness.evaluate((value) => value.stop()).catch(() => {});
+              await witness.dispose().catch(() => {});
             }
           }
           if (clickError) {
@@ -884,73 +902,68 @@ export class CdpBrowser {
               return {
                 reachable: !!point && (point === el || el.contains(point)),
                 covering: point?.tagName.toLowerCase() ?? 'aucun élément',
+                mayNavigate:
+                  (el instanceof HTMLAnchorElement && !!el.href) ||
+                  ((el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
+                    (el.type === 'submit' || el.type === 'image') &&
+                    !!el.form),
               };
             });
             if (!hit.reachable)
               throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
                 cause: clickError,
               });
-            const marker = `__gatewayClick_${randomUUID().replaceAll('-', '')}`;
-            let navigated = false;
-            const onNavigation = (frame) => {
-              if (frame === page.mainFrame()) navigated = true;
-            };
-            page.on('framenavigated', onNavigation);
-            const observed = async () => {
-              const deadline = Date.now() + 1000;
-              do {
-                if (navigated) return true;
-                try {
-                  if (await target.evaluate((_el, key) => window[key] === true, marker))
-                    return true;
-                } catch {
-                  // The click may have replaced the document before the flag could be read.
-                  // An uncertain result must never cause a second, possibly final, click.
-                  return true;
-                }
-                if (Date.now() >= deadline) return false;
-                await new Promise((resolve) => setTimeout(resolve, 20));
-              } while (true);
-            };
+            // Completion wait only for native link/form activation; never used as click proof.
+            const navigation = hit.mayNavigate
+              ? page
+                  .waitForEvent('domcontentloaded', {
+                    timeout: Math.min(1500, this.navigationTimeoutMs),
+                  })
+                  .catch(() => null)
+              : null;
+            let delivered;
             try {
-              await target.evaluate((el, key) => {
-                const listener = (event) => {
-                  if (event.composedPath().includes(el)) window[key] = true;
+              delivered = await target.evaluate((el) => {
+                const box = el.getBoundingClientRect();
+                const init = {
+                  bubbles: true,
+                  cancelable: true,
+                  composed: true,
+                  clientX: box.left + box.width / 2,
+                  clientY: box.top + box.height / 2,
+                  button: 0,
+                  buttons: 1,
                 };
-                window.addEventListener('click', listener, true);
-                window[key] = false;
-                window[`${key}Listener`] = listener;
-              }, marker);
-              if (!(await page.evaluate(() => document.visibilityState === 'hidden'))) {
+                let clicked = false;
+                const onClick = (event) => {
+                  if (event.composedPath().includes(el)) clicked = true;
+                };
+                el.addEventListener('click', onClick, true);
                 try {
-                  await target.click({ force: true, timeout: this.navigationTimeoutMs });
-                } catch (forcedError) {
-                  if (forcedError.name !== 'TimeoutError') throw forcedError;
+                  el.dispatchEvent(new PointerEvent('pointerdown', init));
+                  el.dispatchEvent(new MouseEvent('mousedown', init));
+                  el.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+                  el.dispatchEvent(new MouseEvent('mouseup', { ...init, buttons: 0 }));
+                  el.click();
+                  return clicked;
+                } finally {
+                  el.removeEventListener('click', onClick, true);
                 }
-              }
-              if (await observed()) clickMode = 'forced';
-              else {
-                try {
-                  await target.evaluate((el) => el.click());
-                } catch (domError) {
-                  if (!(await observed())) throw domError;
-                }
-                if (!(await observed())) throw new Error('Clic non délivré à la page');
-                clickMode = 'dom-hidden-tab';
-              }
-            } finally {
-              page.off('framenavigated', onNavigation);
-              await target
-                .evaluate((_el, key) => {
-                  const listener = window[`${key}Listener`];
-                  if (listener) {
-                    window.removeEventListener('click', listener, true);
-                    delete window[`${key}Listener`];
-                    delete window[key];
-                  }
-                }, marker)
-                .catch(() => {});
+              });
+            } catch (error) {
+              // A document replacement can destroy the evaluation after the click.
+              // The action is uncertain, so never send a second click.
+              if (
+                !/Execution context was destroyed|Frame was detached|Target closed/.test(
+                  String(error),
+                )
+              )
+                throw error;
+              delivered = true;
             }
+            if (!delivered) throw new Error('Clic non délivré à la page');
+            clickMode = 'dom';
+            if (navigation) await navigation;
           }
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {
@@ -968,6 +981,7 @@ export class CdpBrowser {
           url: page.url(),
           title: await page.title(),
           clickMode,
+          hidden,
           // Lets the agent explain a submit that silently went nowhere (cross-site XHR).
           ...(this.blockedThirdParty.size
             ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }

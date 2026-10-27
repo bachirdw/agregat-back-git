@@ -1,0 +1,32 @@
+(node:23595) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Chrome FICTIF : références du snapshot pour clic, saisie, fichier, iframe et navigation (3325.598375ms)
+✔ Chrome FICTIF : clic instable contrôlé et superposition refusée (10634.350792ms)
+✖ Chrome FICTIF : formulaire final instable demande accord et refuse le POST (4910.803208ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19365.677125
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:285:1
+✖ Chrome FICTIF : formulaire final instable demande accord et refuse le POST (4910.803208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-browser.test.js:327:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

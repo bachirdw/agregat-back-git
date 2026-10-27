@@ -1,0 +1,3 @@
+{"step":"extension/status","connected":true}
+{"step":"visibility","visibilityState":"hidden"}
+{"step":"counter","successes":10,"count":0,"clickMode":"forced","medianMs":1006,"timesMs":[673,1021,1009,976,963,954,1013,1006,985,1018]}

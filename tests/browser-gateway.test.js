@@ -1,3 +1,4 @@
+import { clickRef, refFor } from './support/click-ref.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -207,13 +208,10 @@ test('gateway : lecture sans approbation, contenu marqué non fiable, mesure', a
 test('gateway : clic sensible refusé sans approbation humaine, même auto-approuvé', async () => {
   const { gw, approvals } = fixtureGateway({ autoApprove: ['browser.click'] });
   await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
-  await assert.rejects(
-    gw.call('browser.click', { selector: '#apply' }),
-    /refusée par l’utilisateur/,
-  );
+  await assert.rejects(clickRef(gw, '#apply'), /refusée par l’utilisateur/);
   assert.equal(approvals.length, 1);
   assert.equal(approvals[0].sensitive, true);
-  await gw.call('browser.click', { selector: '#filter' }); // non sensible + auto-approuvé
+  await clickRef(gw, '#filter'); // non sensible + auto-approuvé
   assert.equal(approvals.length, 1);
 });
 
@@ -225,18 +223,21 @@ test('gateway : une référence sensible demande accord avec la description de l
   assert.equal(approvals[0].element.text, 'Postuler');
   assert.equal(approvals[0].args.ref, 'e2');
   assert.equal(gw.provider.actions.filter((action) => action.id === 'browser.click').length, 0);
-  for (const args of [
-    { ref: 'x' },
-    { ref: 'e2', selector: '#apply' },
-    { ref: 'e2', script: 'FICTIF' },
+  for (const [args, message] of [
+    [{ ref: 'x' }, /Référence invalide/],
+    [{ ref: 'e2', selector: '#apply' }, /Unrecognized key/],
+    [{ ref: 'e2', script: 'FICTIF' }, /Unrecognized key/],
+    [{ selector: '#apply' }, /expected string/],
   ])
-    await assert.rejects(gw.call('browser.click', args));
+    await assert.rejects(gw.call('browser.click', args), message);
+  assert.equal(approvals.length, 1);
+  assert.equal(gw.provider.actions.filter((action) => action.id === 'browser.click').length, 0);
 });
 
 test('gateway : clic approuvé exécuté ; texte saisi jamais transmis à l’approbation', async () => {
   const { gw, approvals } = fixtureGateway({ decision: true });
   await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
-  assert.equal((await gw.call('browser.click', { selector: '#apply' })).done, 'browser.click');
+  assert.equal((await clickRef(gw, '#apply')).done, 'browser.click');
   await gw.call('browser.type', { selector: '#pw', text: 'motdepasse-secret' });
   assert.ok(!JSON.stringify(approvals).includes('motdepasse-secret'));
   assert.equal(approvals.at(-1).args.textLength, 17);
@@ -256,7 +257,7 @@ test('gateway : capacités non accordées, arguments hors contrat, élément abs
   await assert.rejects(gw.call('browser.execute', {}), /inconnue/);
   gw.policy.capabilities = new Set(ALL);
   await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
-  await assert.rejects(gw.call('browser.click', { selector: '#absent' }), /introuvable/);
+  await assert.rejects(gw.call('browser.click', { ref: 'e99' }), /introuvable/);
 });
 
 test('gateway : domaine interdit et redirection vers domaine interdit bloqués', async () => {
@@ -395,7 +396,7 @@ test(
   async (t) => {
     const { gw, hits, origin, approvals } = await realGateway(t, { decision: false });
     await gw.call('browser.navigate', { url: origin + '/' });
-    await assert.rejects(gw.call('browser.click', { selector: '#apply' }), /refusée/);
+    await assert.rejects(clickRef(gw, '#apply'), /refusée/);
     assert.equal(hits.posts, 0);
     assert.equal(approvals[0].sensitive, true);
     assert.equal(approvals[0].element.text, 'Postuler');
@@ -408,7 +409,7 @@ test(
   async (t) => {
     const { gw, hits, origin } = await realGateway(t, { decision: true });
     await gw.call('browser.navigate', { url: origin + '/' });
-    const out = await gw.call('browser.click', { selector: '#apply' });
+    const out = await clickRef(gw, '#apply');
     assert.equal(hits.posts, 1);
     assert.equal(out.title, 'Envoyé');
   },
@@ -440,10 +441,7 @@ test(
       /bloquée par la politique|non autorisé|Protocole/,
     );
     await gw.call('browser.navigate', { url: origin + '/' });
-    await assert.rejects(
-      gw.call('browser.click', { selector: '#redir' }),
-      /bloquée par la politique/,
-    );
+    await assert.rejects(clickRef(gw, '#redir'), /bloquée par la politique/);
   },
 );
 
@@ -616,8 +614,8 @@ test(
     await gw.call('browser.navigate', { url: origin });
     await new Promise((r) => setTimeout(r, 150));
     assert.equal(forbiddenHits, 0, 'aucune sous-ressource ni requête de script hors périmètre');
-    await gw.call('browser.click', { selector: '#popup' }).catch(() => {});
-    await gw.call('browser.click', { selector: '#form' }).catch(() => {});
+    await clickRef(gw, '#popup').catch(() => {});
+    await clickRef(gw, '#form').catch(() => {});
     await new Promise((r) => setTimeout(r, 150));
     assert.equal(forbiddenHits, 0, 'aucun nouvel onglet hors périmètre');
     await assert.rejects(gw.call('browser.navigate', { url: origin + '/one' }));
@@ -628,12 +626,13 @@ test(
 test('gateway : un élément modifié pendant l’approbation ne reçoit pas le consentement précédent', async () => {
   const { gw } = fixtureGateway({ decision: true });
   await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
+  const filterRef = await refFor(gw, '#filter');
   gw.approve = async () => {
-    gw.provider.pages[gw.provider.url].elements['#filter'] = { tag: 'button', text: 'Payer' };
+    gw.provider.pages[gw.provider.url].elements[filterRef] = { tag: 'button', text: 'Payer' };
     return true;
   };
   const count = gw.provider.actions.length;
-  await assert.rejects(gw.call('browser.click', { selector: '#filter' }), /modifi/);
+  await assert.rejects(gw.call('browser.click', { ref: filterRef }), /modifi/);
   assert.equal(gw.provider.actions.length, count);
 });
 
@@ -677,10 +676,7 @@ test('gateway : upload revalidé après consentement et appels sérialisés', as
     active--;
     return true;
   };
-  await Promise.all([
-    gw.call('browser.click', { selector: '#filter' }),
-    gw.call('browser.click', { selector: '#filter' }),
-  ]);
+  await Promise.all([clickRef(gw, '#filter'), clickRef(gw, '#filter')]);
   assert.equal(peak, 1);
 });
 
@@ -719,7 +715,7 @@ test(
       approve: async () => true,
     });
     await gw.call('browser.navigate', { url: origin });
-    await gw.call('browser.click', { selector: '#send' });
+    await clickRef(gw, '#send');
     assert.equal(posts, 1);
     assert.equal(reads, 1);
   },
@@ -1553,7 +1549,7 @@ test(
     });
     await gateway.call('browser.navigate', { url: origin });
     for (const selector of ['#upper', '#invalid', '#external']) {
-      await assert.rejects(gateway.call('browser.click', { selector }), /refusée/);
+      await assert.rejects(clickRef(gateway, selector), /refusée/);
       assert.equal(requests.at(-1).sensitive, true);
     }
     assert.equal(requests.length, 3);
@@ -1562,7 +1558,7 @@ test(
       requests.push(request);
       return true;
     };
-    await gateway.call('browser.click', { selector: '#external' });
+    await clickRef(gateway, '#external');
     assert.equal(requests.at(-1).sensitive, true);
     assert.equal(posts, 1, 'soumission FICTIVE après consentement explicite');
   },
@@ -1632,9 +1628,7 @@ for (const kind of [
         });
       } else {
         await gateway.call('browser.navigate', { url: origin });
-        result = await gateway.call('browser.click', {
-          selector: kind === 'link' ? '#link' : '#send',
-        });
+        result = await clickRef(gateway, kind === 'link' ? '#link' : '#send');
       }
       assert.equal(result.url, origin + finalUrl);
       assert.equal(result.title, `FICTIF ${kind === 'form307' ? 'POST' : 'GET'} 1`);

@@ -1,0 +1,4 @@
+{"step":"extension/status","connected":true}
+{"step":"visibility","visibilityState":"hidden"}
+{"step":"counter","successes":10,"count":10,"clickMode":"dom","medianMs":727,"timesMs":[864,282,810,224,727,814,276,754,268,693]}
+{"step":"other","checked":true,"opened":"1","arrived":1,"modes":["dom","dom","dom"],"hidden":[true,true,true]}

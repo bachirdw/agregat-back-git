@@ -46,7 +46,9 @@ async function setup(t, options = {}) {
   app.engine.active.set(run.id, { abort: new AbortController() });
   const pack = {
     ...getPack('core'),
-    policies: { browser: { capabilities: ['browser.navigate', 'browser.click'] } },
+    policies: {
+      browser: { capabilities: ['browser.navigate', 'browser.snapshot', 'browser.click'] },
+    },
   };
   const mcp = await connectMcp(app.engine.mcpServerFor(run, pack));
   t.after(async () => {
@@ -76,7 +78,12 @@ test(
   async (t) => {
     const { mcp } = await setup(t);
     const names = (await mcp.listTools()).tools.map((x) => x.name).sort();
-    assert.deepEqual(names, ['browser_click', 'browser_navigate', 'evidence_echo']);
+    assert.deepEqual(names, [
+      'browser_click',
+      'browser_navigate',
+      'browser_snapshot',
+      'evidence_echo',
+    ]);
   },
 );
 
@@ -86,8 +93,11 @@ test(
   async (t) => {
     const { app, run, mcp, hits, origin } = await setup(t);
     await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
+    const snapshot = await mcp.callTool({ name: 'browser_snapshot', arguments: {} });
+    const ref = JSON.stringify(snapshot).match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, JSON.stringify(snapshot).slice(0, 400));
     const [result, asked] = await Promise.all([
-      mcp.callTool({ name: 'browser_click', arguments: { selector: '#apply' } }, undefined, {
+      mcp.callTool({ name: 'browser_click', arguments: { ref } }, undefined, {
         timeout: 90000,
       }),
       decideWhenAsked(app, run.id, 'deny'),
@@ -105,8 +115,11 @@ test(
   async (t) => {
     const { app, run, mcp, hits, origin } = await setup(t);
     await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
+    const snapshot = await mcp.callTool({ name: 'browser_snapshot', arguments: {} });
+    const ref = JSON.stringify(snapshot).match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, JSON.stringify(snapshot).slice(0, 400));
     const [result] = await Promise.all([
-      mcp.callTool({ name: 'browser_click', arguments: { selector: '#apply' } }, undefined, {
+      mcp.callTool({ name: 'browser_click', arguments: { ref } }, undefined, {
         timeout: 90000,
       }),
       decideWhenAsked(app, run.id, 'allow'),

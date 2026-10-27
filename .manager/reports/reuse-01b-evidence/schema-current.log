@@ -1,0 +1,4 @@
+{"selector":"#x"} false
+{"ref":"e2","selector":"#x"} false
+{"ref":"x"} false
+{"ref":"e2","script":"x"} false

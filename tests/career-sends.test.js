@@ -1,3 +1,4 @@
+import { clickRef, refFor } from './support/click-ref.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
@@ -178,17 +179,17 @@ test('Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn blo
     },
   });
   await gateway.call('browser.navigate', { url });
-  await assert.rejects(gateway.call('browser.click', { selector: '#apply' }), /refusée/);
+  await assert.rejects(clickRef(gateway, '#apply'), /refusée/);
   assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 0);
   approved = true;
-  await gateway.call('browser.click', { selector: '#apply' });
+  await clickRef(gateway, '#apply');
   assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 1);
   assert.equal(decisions, 2);
   provider.submissionPreview = async () => ({ fields: [randomUUID()] });
-  await assert.rejects(gateway.call('browser.click', { selector: '#apply' }), /modifié/);
+  await assert.rejects(clickRef(gateway, '#apply'), /modifié/);
   provider.url = 'https://www.linkedin.com/in/fictif/';
   provider.pages[provider.url] = provider.pages[url];
-  await assert.rejects(gateway.call('browser.click', { selector: '#apply' }), /LinkedIn/);
+  await assert.rejects(clickRef(gateway, '#apply'), /LinkedIn/);
   assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 1);
   assert.equal(linkedInDraft({ url: provider.url, text: 'Message FICTIF' }).manualSendOnly, true);
   for (const url of [

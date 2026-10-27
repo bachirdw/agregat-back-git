@@ -56,8 +56,8 @@ export const capabilities = [
     effect: 'write',
     meter: 'browser_action',
     description:
-      'Cliquer sur la référence ref du snapshot (eN ou fNeN) ; une soumission/envoi/paiement demande accord. Sélecteur CSS historique accepté.',
-    schema: target.strict(),
+      'Cliquer sur ref du snapshot (eN ou fNeN) ; clickMode vaut mouse ou dom, hidden indique si l’onglet était caché. Une soumission/envoi/paiement demande accord.',
+    schema: z.object({ ref }).strict(),
   },
   {
     id: 'browser.type',

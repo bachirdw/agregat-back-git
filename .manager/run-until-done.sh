@@ -17,9 +17,19 @@ LOG=${OUT##*LOG=}
 TID=$(thread "$LOG")
 for attempt in $(seq 1 4); do
   limited "$LOG" || break
-  echo "$(date '+%F %T') limite d'usage ($LOG), attente ${LIMIT_WAIT:-18000} s (tentative $attempt), session $TID"
+  echo "$(date '+%F %T') limite d'usage ($LOG), attente (tentative $attempt), session $TID"
   # Clock loop, not one long sleep: sleep does not count time while the Mac is asleep.
-  T=$(( $(date +%s) + ${LIMIT_WAIT:-18000} )); while [ $(date +%s) -lt $T ]; do sleep 60; done
+  # Wait until the reset time announced by Codex ("try again at 3:18 AM") + 2 min, else LIMIT_WAIT.
+  AT=$(grep -o 'try again at [0-9]*:[0-9]* [AP]M' "$LOG" | tail -1 | cut -d' ' -f4-)
+  T=$(( $(date +%s) + ${LIMIT_WAIT:-18000} ))
+  if [ -n "$AT" ]; then
+    R=$(date -j -f "%Y-%m-%d %I:%M %p" "$(date +%F) $AT" +%s 2>/dev/null) && {
+      [ $R -le $(date +%s) ] && R=$(( R + 86400 ))
+      T=$(( R + 120 ))
+    }
+  fi
+  echo "$(date '+%F %T') reprise prévue à $(date -r $T '+%H:%M')"
+  while [ $(date +%s) -lt $T ]; do sleep 60; done
   # Session NEUVE à chaque reprise (contexte court) : elle repart du rapport, qui sert de passation.
   OUT=$(.manager/run-sprint.sh "$ID")
   echo "$OUT"; LOG=${OUT##*LOG=}

@@ -54,7 +54,9 @@
 - Clarifier dans un brief séparé la révocation d’une action navigateur déjà en cours ou en file lors d’une annulation de run (ADR 004:20-22) ; aucun changement d’interface lancé dans cet audit.
 - Les constats de sécurité d’envoi sans accord et GET privés restent reportés expressément ; ne pas les considérer résolus par le correctif de chemin.
 
-- 01:23 — `git add -A && git commit` : ÉCHEC avant staging, `Unable to create .git/index.lock: Operation not permitted` (bac à sable en lecture seule pour `.git`). Tentative d’exécution Git escaladée demandée ; aucun commit revendiqué tant que sa sortie n’est pas connue.
+- 01:23 — `git add -A && git commit` : ÉCHEC avant staging, `Unable to create .git/index.lock: Operation not permitted` (bac à sable en lecture seule pour `.git`). Nouvelle tentative avec accès Git escaladé : succès, commit `cd9ad10` (`[audit-02] Corriger le confinement des noms commençant par deux points`).
+
+- 01:25 — Gardes avant commit documentaire : `CHROME_PATH=/nonexistent npm test` exit 0 (295/296 et 58/124, ignorés 1 et 66, preuve `report-commit-npm-test.log`) ; `npm run check` exit 0 (`report-commit-check.log`) ; `npm run format:check` exit 0 (`report-commit-format.log`).
 
 ## État final
 

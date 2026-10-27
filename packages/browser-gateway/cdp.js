@@ -921,6 +921,112 @@ export class CdpBrowser {
       }
     }
   }
+  async #setChecked(page, ref, checked) {
+    const target = await this.targetLocator({ ref: ref });
+    const kind = await target.evaluate((el) => (el instanceof HTMLInputElement ? el.type : null));
+    if (!['checkbox', 'radio'].includes(kind))
+      throw new Error('Référence invalide : case à cocher ou bouton radio requis');
+    const hidden = await this.#isHidden(page);
+    const before = await target.isChecked();
+    if (before === checked) return { checked: before, changed: false, clickMode: 'none', hidden };
+    if (kind === 'radio' && !checked)
+      throw new Error('Bouton radio impossible à décocher directement');
+    let clickMode = 'mouse';
+    if (hidden) {
+      await this.#domClick(target, page, new Error('Onglet caché'));
+      clickMode = 'dom';
+    } else {
+      const witness = await this.#clickWitness(target);
+      try {
+        await target.setChecked(checked, {
+          timeout: Math.min(3000, this.navigationTimeoutMs),
+        });
+      } catch (error) {
+        if (error.name !== 'TimeoutError') throw error;
+        // A delivered click refused by the page must not be repeated: never toggle twice.
+        const delivered = await witness.evaluate((value) => value.delivered()).catch(() => true);
+        if (!delivered) {
+          await this.#domClick(target, page, error);
+          clickMode = 'dom';
+        }
+      } finally {
+        await witness.evaluate((value) => value.stop()).catch(() => {});
+        await witness.dispose().catch(() => {});
+      }
+    }
+    const actual = await target.isChecked();
+    if (actual !== checked) throw new Error('État coché différent de l’état demandé');
+    return { checked: actual, changed: true, clickMode, hidden };
+  }
+  async #selectValues(page, ref, values) {
+    const target = await this.targetLocator({ ref: ref });
+    const options = await target.evaluate((el) => {
+      if (!(el instanceof HTMLSelectElement)) return null;
+      return {
+        multiple: el.multiple,
+        items: Array.from(el.options, (option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+      };
+    });
+    if (!options) throw new Error('Référence invalide : liste select requise');
+    if (!options.multiple && values.length !== 1)
+      throw new Error('Une liste simple exige une seule option');
+    // An exact value wins over another option's label.
+    const resolvedValues = values.map((value) => {
+      const option =
+        options.items.find((item) => item.value === value) ??
+        options.items.find((item) => item.label === value);
+      if (!option) throw new Error(`Option introuvable : ${value}`);
+      return option.value;
+    });
+    await target.selectOption(
+      resolvedValues.map((value) => ({ value })),
+      { timeout: this.navigationTimeoutMs },
+    );
+    const selected = await target.evaluate((el) =>
+      Array.from(el.selectedOptions, (option) => option.value),
+    );
+    if (
+      selected.length !== new Set(resolvedValues).size ||
+      selected.some((value) => !resolvedValues.includes(value))
+    )
+      throw new Error('Options sélectionnées différentes des options demandées');
+    return { selected };
+  }
+  async #fillText(page, ref, text) {
+    // Filling a field is not a send; same-site autosave stays automatic.
+    // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
+    const target = await this.targetLocator({ ref: ref });
+    if (text) await target.fill(text, { timeout: 10000 });
+    else
+      // Playwright clears a text field with the Delete key, which a hidden tab drops silently.
+      // The native setter keeps framework value tracking (React) consistent.
+      await target.evaluate((el) => {
+        if (!('value' in el)) el.textContent = '';
+        else {
+          const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+          Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(el, '');
+        }
+        el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    const after = await target.evaluate((el) => ({
+      value: 'value' in el ? String(el.value) : el.textContent,
+      secret: el.type === 'password',
+    }));
+    if (text && !after.value) throw new Error('Saisie sans effet : champ vide après saisie');
+    if (!text && after.value) throw new Error('Saisie sans effet : champ non vidé');
+    // A secret is never echoed, so a page that restores its value must be reported here.
+    if (after.secret && after.value !== text)
+      throw new Error('Saisie non appliquée : le champ secret a été modifié par la page');
+    return {
+      typed: text.length,
+      // A mask may reformat the text (phone, date): show it, except for a secret field.
+      ...(after.value !== text && !after.secret ? { value: after.value.slice(0, 200) } : {}),
+    };
+  }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
     page.setDefaultTimeout(this.navigationTimeoutMs);
@@ -1057,122 +1163,58 @@ export class CdpBrowser {
             : {}),
         };
       case 'browser.check': {
-        const target = await this.targetLocator({ ref: args.ref });
-        const kind = await target.evaluate((el) =>
-          el instanceof HTMLInputElement ? el.type : null,
-        );
-        if (!['checkbox', 'radio'].includes(kind))
-          throw new Error('Référence invalide : case à cocher ou bouton radio requis');
-        const hidden = await this.#isHidden(page);
-        const before = await target.isChecked();
-        if (before === args.checked)
-          return { url: page.url(), checked: before, changed: false, clickMode: 'none', hidden };
-        if (kind === 'radio' && !args.checked)
-          throw new Error('Bouton radio impossible à décocher directement');
-        let clickMode = 'mouse';
-        if (hidden) {
-          await this.#domClick(target, page, new Error('Onglet caché'));
-          clickMode = 'dom';
-        } else {
-          const witness = await this.#clickWitness(target);
-          try {
-            await target.setChecked(args.checked, {
-              timeout: Math.min(3000, this.navigationTimeoutMs),
-            });
-          } catch (error) {
-            if (error.name !== 'TimeoutError') throw error;
-            // A delivered click refused by the page must not be repeated: never toggle twice.
-            const delivered = await witness
-              .evaluate((value) => value.delivered())
-              .catch(() => true);
-            if (!delivered) {
-              await this.#domClick(target, page, error);
-              clickMode = 'dom';
-            }
-          } finally {
-            await witness.evaluate((value) => value.stop()).catch(() => {});
-            await witness.dispose().catch(() => {});
-          }
-        }
-        const checked = await target.isChecked();
-        if (checked !== args.checked) throw new Error('État coché différent de l’état demandé');
+        const result = await this.#setChecked(page, args.ref, args.checked);
         await this.assertLanded(policy);
-        return { url: page.url(), checked, changed: true, clickMode, hidden };
+        return { url: page.url(), ...result };
       }
       case 'browser.select': {
-        const target = await this.targetLocator({ ref: args.ref });
-        const options = await target.evaluate((el) => {
-          if (!(el instanceof HTMLSelectElement)) return null;
-          return {
-            multiple: el.multiple,
-            items: Array.from(el.options, (option) => ({
-              value: option.value,
-              label: option.label,
-            })),
-          };
-        });
-        if (!options) throw new Error('Référence invalide : liste select requise');
-        if (!options.multiple && args.values.length !== 1)
-          throw new Error('Une liste simple exige une seule option');
-        // An exact value wins over another option's label.
-        const values = args.values.map((value) => {
-          const option =
-            options.items.find((item) => item.value === value) ??
-            options.items.find((item) => item.label === value);
-          if (!option) throw new Error(`Option introuvable : ${value}`);
-          return option.value;
-        });
-        await target.selectOption(
-          values.map((value) => ({ value })),
-          { timeout: this.navigationTimeoutMs },
-        );
-        const selected = await target.evaluate((el) =>
-          Array.from(el.selectedOptions, (option) => option.value),
-        );
-        if (
-          selected.length !== new Set(values).size ||
-          selected.some((value) => !values.includes(value))
-        )
-          throw new Error('Options sélectionnées différentes des options demandées');
+        const result = await this.#selectValues(page, args.ref, args.values);
         await this.assertLanded(policy);
-        return { url: page.url(), selected };
+        return { url: page.url(), ...result };
       }
       case 'browser.type': {
-        // Filling a field is not a send; same-site autosave stays automatic.
-        // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
-        const target = await this.targetLocator({ ref: args.ref });
-        if (args.text) await target.fill(args.text, { timeout: 10000 });
-        else
-          // Playwright clears a text field with the Delete key, which a hidden tab drops silently.
-          // The native setter keeps framework value tracking (React) consistent.
-          await target.evaluate((el) => {
-            if (!('value' in el)) el.textContent = '';
-            else {
-              const proto =
-                el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
-              Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(el, '');
+        const result = await this.#fillText(page, args.ref, args.text);
+        return { url: page.url(), ...result };
+      }
+      // Adapté de microsoft/playwright@b8336b3:packages/playwright-core/src/tools/backend/form.ts — Apache-2.0
+      case 'browser.fillForm': {
+        const filled = [];
+        const hidden = await this.#isHidden(page);
+        for (const [index, field] of args.fields.entries()) {
+          try {
+            let result;
+            switch (field.kind) {
+              case 'text':
+                result = await this.#fillText(page, field.ref, field.value);
+                break;
+              case 'checkbox':
+              case 'radio':
+                result = await this.#setChecked(
+                  page,
+                  field.ref,
+                  field.kind === 'radio' ? true : field.value,
+                );
+                await this.assertLanded(policy);
+                break;
+              case 'select':
+                result = await this.#selectValues(page, field.ref, field.value);
+                await this.assertLanded(policy);
+                break;
+              default:
+                throw new Error('Type de champ invalide');
             }
-            el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-          });
-        const after = await target.evaluate((el) => ({
-          value: 'value' in el ? String(el.value) : el.textContent,
-          secret: el.type === 'password',
-        }));
-        if (args.text && !after.value)
-          throw new Error('Saisie sans effet : champ vide après saisie');
-        if (!args.text && after.value) throw new Error('Saisie sans effet : champ non vidé');
-        // A secret is never echoed, so a page that restores its value must be reported here.
-        if (after.secret && after.value !== args.text)
-          throw new Error('Saisie non appliquée : le champ secret a été modifié par la page');
-        return {
-          url: page.url(),
-          typed: args.text.length,
-          // A mask may reformat the text (phone, date): show it, except for a secret field.
-          ...(after.value !== args.text && !after.secret
-            ? { value: after.value.slice(0, 200) }
-            : {}),
-        };
+            filled.push({ ref: field.ref, kind: field.kind, ...result });
+          } catch (error) {
+            let cause = error.message ?? String(error);
+            if (field.kind === 'text' && field.value)
+              cause = cause.replaceAll(field.value, '[masqué]');
+            const completed = filled.map(({ ref }) => ref).join(', ') || 'aucun';
+            throw new Error(
+              `Champ ${index + 1} (${field.ref}) : ${cause} — déjà remplis : ${completed}`,
+            );
+          }
+        }
+        return { url: page.url(), filled, hidden };
       }
       case 'browser.press': {
         const target = await this.targetLocator({ ref: args.ref });

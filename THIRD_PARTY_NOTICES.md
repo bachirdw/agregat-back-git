@@ -1,5 +1,9 @@
 # Dépendances et licences
 
+La boucle typée de `browser.fillForm` est adaptée de
+`microsoft/playwright@b8336b3:packages/playwright-core/src/tools/backend/form.ts`,
+© Microsoft Corporation, sous licence Apache-2.0. Aucun fichier Playwright n’est copié.
+
 Aucun code source des projets comparés n'a été copié dans le produit. Les sources de l’ancien audit API restent dans `.research/`, ignoré par Git. Le sprint 01 inspecte 27 clones sous `/Users/diaw/Downloads/agent-repos/` ; SHA, licences réelles et empreintes sont consignés dans `docs/research/sprint-01-inventory.json`.
 
 Dépendances directes verrouillées dans package-lock.json :

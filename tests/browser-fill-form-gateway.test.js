@@ -17,17 +17,21 @@ const ELEMENTS = {
   e4: { tag: 'select', inForm: true },
 };
 
-function setup({ ownerMode = false, autoApprove = [], decision = true, elements = ELEMENTS } = {}) {
+function setup({
+  ownerMode = false,
+  autoApprove = [],
+  decision = true,
+  elements = ELEMENTS,
+  onApprove,
+} = {}) {
   const approvals = [];
   const performed = [];
-  let reads = 0;
   const gateway = new BrowserGateway({
     provider: {
       name: 'fictif',
       currentUrl: async () => 'http://127.0.0.1:9999/',
       describe: async ({ ref }) => {
-        reads++;
-        const element = typeof elements === 'function' ? elements(ref, reads) : elements[ref];
+        const element = typeof elements === 'function' ? elements(ref) : elements[ref];
         return element ? { ...element } : null;
       },
       perform: async (id, args) => {
@@ -42,6 +46,7 @@ function setup({ ownerMode = false, autoApprove = [], decision = true, elements 
     }),
     approve: async (request) => {
       approvals.push(request);
+      onApprove?.();
       return decision;
     },
     autoApprove,
@@ -120,16 +125,18 @@ test('gateway FICTIVE : refus, champ sensible et champ introuvable avant toute a
 });
 
 test('gateway FICTIVE : un seul champ modifié pendant l’accord annule tout le remplissage', async () => {
-  const { gateway, performed } = setup({
-    // Four reads before approval, then the select changes.
-    elements: (ref, reads) =>
-      ref === 'e4' && reads > 4 ? { tag: 'select', inForm: false } : ELEMENTS[ref],
+  let approved = false;
+  const { gateway, approvals, performed } = setup({
+    // The select changes while the human reads the approval.
+    onApprove: () => (approved = true),
+    elements: (ref) =>
+      ref === 'e4' && approved ? { tag: 'select', inForm: false } : ELEMENTS[ref],
   });
   await assert.rejects(
     gateway.call('browser.fillForm', { fields: FIELDS }),
     /modifié pendant l’approbation/,
   );
-  assert.equal(performed.length, 0);
+  assert.deepEqual([approvals.length, performed.length], [1, 0]);
 });
 
 test('propriétaire FICTIF : fillForm automatique, sans accord', async () => {
@@ -153,4 +160,15 @@ test('contrat FICTIF : messages français pour les erreurs de forme et de longue
     () => getCapability('browser.type').schema.parse({ ref: 'e1', text: 'x'.repeat(10001) }),
     /10 000 caractères/,
   );
+});
+
+test('contrat FICTIF : le schéma JSON des modèles dit quelle clé de valeur va avec quel kind', async () => {
+  const { toJsonSchemaCompat } = await import(
+    '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js'
+  );
+  const json = toJsonSchemaCompat(getCapability('browser.fillForm').schema);
+  const field = json.properties.fields.items.properties;
+  assert.match(field.text.description, /kind text/);
+  assert.match(field.checked.description, /kind checkbox/);
+  assert.match(field.values.description, /kind select/);
 });

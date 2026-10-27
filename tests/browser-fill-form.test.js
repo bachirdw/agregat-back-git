@@ -162,6 +162,28 @@ test(
     );
     assert.equal(await provider.page.locator('#name').inputValue(), 'Ada');
     assert.equal(await provider.page.locator('#radio').isChecked(), false);
+    // Fields after the stale ref stay untouched (select fields included).
+    assert.deepEqual(
+      await provider.page.evaluate(() => [
+        document.querySelector('#single').value,
+        document.querySelector('#multi').selectedOptions.length,
+      ]),
+      ['a', 0],
+    );
+    refs = await setup();
+    // A kind that does not match the element fails on that field and changes nothing.
+    await assert.rejects(
+      perform('browser.fillForm', { fields: [{ ref: refs.Accord, kind: 'text', value: 'x' }] }),
+      new RegExp(`Champ 1 \\(${refs.Accord}\\)`),
+    );
+    await assert.rejects(
+      perform('browser.fillForm', {
+        fields: [{ ref: refs.Région, kind: 'checkbox', value: true }],
+      }),
+      new RegExp(`Champ 1 \\(${refs.Région}\\)`),
+    );
+    assert.equal(await provider.page.locator('#box').isChecked(), false);
+    assert.equal(await provider.page.locator('#single').inputValue(), 'a');
     refs = await setup();
     const secret = 'FICTIF-secret-unique-973';
     const password = await perform('browser.fillForm', {

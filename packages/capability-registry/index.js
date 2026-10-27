@@ -114,8 +114,12 @@ export const capabilities = [
                   text: z
                     .string({ error: 'text doit être une chaîne' })
                     .max(10000, 'text : 10 000 caractères maximum')
-                    .optional(),
-                  checked: z.boolean({ error: 'checked doit être un booléen' }).optional(),
+                    .optional()
+                    .describe('Requis pour kind text, interdit sinon ; chaîne vide = effacer'),
+                  checked: z
+                    .boolean({ error: 'checked doit être un booléen' })
+                    .optional()
+                    .describe('Requis pour kind checkbox, interdit sinon'),
                   values: z
                     .array(
                       z
@@ -127,7 +131,8 @@ export const capabilities = [
                     )
                     .min(1, 'Au moins une option requise')
                     .max(20, 'Maximum 20 options')
-                    .optional(),
+                    .optional()
+                    .describe('Requis pour kind select (valeurs ou libellés), interdit sinon'),
                 },
                 {
                   // Only the shape error: unknown keys keep zod's precise message.

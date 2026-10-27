@@ -40,3 +40,15 @@ Non traités : n° 6 (l'interface d'accord affiche des ref ; même limite que `t
   brief `reuse-04a` exige désormais `date +%H:%M`.
 
 **Verdict** : étape 4 VALIDÉE.
+
+## Reprise par la session Claude du 27/10 au soir — constats restants (20:28)
+- n° 8 corrigé : le test « modifié pendant l'accord » bascule l'élément dans le rappel d'accord (plus de compteur
+  de lectures codé en dur) et vérifie qu'un accord a bien été demandé.
+- n° 10 corrigé : `.describe()` sur `text`, `checked`, `values` ; test rouge puis vert via `toJsonSchemaCompat`
+  du SDK MCP 1.32.2 (le convertisseur qu'utilise `McpServer`).
+- n° 7 complété : après une ref périmée, `#single`/`#multi` restent intacts ; un `kind` incohérent (text sur une
+  case, checkbox sur une liste) échoue au champ et ne change rien.
+- Horodatage : « vers 20:05 » dans `manager-control-suite.log` était estimé → 20:03:57 relevé par `stat`.
+- Restent ouverts, sans changement : n° 6 (libellés dans l'interface d'accord, reporté avec la sécurité/UX), n° 9
+  (info, sans effet).
+- Suite complète : 276 + 1 ignoré, Chrome 136/136, check et format verts.

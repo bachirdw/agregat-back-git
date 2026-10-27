@@ -64,6 +64,7 @@ async function ui(
     scrollIntoView() {}
     remove() {
       this.parent.children = this.parent.children.filter((c) => c !== this);
+      this.parent = null;
     }
   }
   const elements = new Map();
@@ -105,14 +106,24 @@ async function ui(
     meters: {},
   };
   const requests = [];
+  const clock = { now: Date.now() };
+  const intervals = [];
   const context = vm.createContext({
     document: {
-      getElementById: get,
+      getElementById: (id) =>
+        id.startsWith('permission-') ? (all.find((e) => e.id === id && e.parent) ?? null) : get(id),
       createElement: (tag) => new Element(tag),
       body: new Element('body'),
     },
     EventSource,
     setTimeout: () => 1,
+    setInterval: (fn) => (intervals.push(fn), intervals.length),
+    clearInterval: () => {},
+    Date: class extends Date {
+      static now() {
+        return clock.now;
+      }
+    },
     fetch: async (url, options) => {
       requests.push({ url, options });
       const data =
@@ -126,7 +137,7 @@ async function ui(
   });
   vm.runInContext(source, context);
   for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r));
-  return { get, events, requests, context, catalog };
+  return { get, events, requests, context, catalog, clock, intervals };
 }
 const plan = {
   agent: 'FICTIF',
@@ -233,4 +244,56 @@ test('UI : réponse terminale en retard ne remplace pas un autre run', async () 
   await ended;
   assert.match(get('result').textContent, /FICTIF B/);
   assert.equal(events[1].closed, undefined);
+});
+
+test('UI legacy : compte à rebours visible et accord désactivé après expiration', async () => {
+  const { context, get, clock, intervals, requests } = await ui();
+  context.permissionData = {
+    id: 'FICTIF',
+    tool: { title: 'FICTIF envoi' },
+    expiresAt: clock.now + 30000,
+    options: [{ optionId: 'allow', name: 'Approuver', kind: 'allow_once' }],
+  };
+  vm.runInContext('permission(permissionData)', context);
+  const row = get('permissions').children[0];
+  const status = row.children.find((child) => child.tagName === 'small');
+  const approve = row.children.find((child) => child.tagName === 'button');
+  assert.match(status?.textContent ?? '', /30 s/);
+  assert.equal(approve.disabled, false);
+  clock.now += 31000;
+  await approve.onclick();
+  assert.equal(
+    requests.some((request) => request.url === '/api/permissions/FICTIF'),
+    false,
+  );
+  intervals[0]();
+  assert.equal(status.textContent, 'Accord expiré');
+  assert.equal(approve.disabled, true);
+});
+
+test('UI legacy : liste privée des envois affiche aussi l’expiration', async () => {
+  const pending = {
+    id: 'FICTIF',
+    tool: { title: 'FICTIF envoi', rawInput: { capability: 'email.send' } },
+    expiresAt: Date.now() + 30000,
+    options: [{ optionId: 'allow', name: 'Approuver', kind: 'allow_once' }],
+  };
+  const { context, get, clock, intervals, requests } = await ui((url) => {
+    if (url === '/api/career/pending') return { pending: [pending] };
+    throw new Error('Requête FICTIVE inattendue');
+  });
+  await vm.runInContext('refreshCareerPending()', context);
+  const row = get('career-pending').children[1];
+  const status = row.children.find((child) => child.tagName === 'small');
+  const approve = row.children.find((child) => child.tagName === 'button');
+  assert.match(status.textContent, /30 s/);
+  clock.now += 31000;
+  await approve.onclick();
+  assert.equal(
+    requests.some((request) => request.url === '/api/permissions/FICTIF'),
+    false,
+  );
+  intervals[0]();
+  assert.equal(status.textContent, 'Accord expiré');
+  assert.equal(approve.disabled, true);
 });

@@ -340,6 +340,28 @@ const stepLabels = {
   uncertain: 'Incertaine · décision requise',
 };
 let workflowSteps = [];
+const permissionTimers = new Map();
+function showExpiry(row, buttons, expiresAt, key) {
+  if (!Number.isFinite(expiresAt)) return;
+  permissionTimers.get(key)?.();
+  const status = element('small');
+  row.append(status);
+  const refresh = () => {
+    const seconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    status.textContent = seconds ? `Expire dans ${seconds} s` : 'Accord expiré';
+    if (!seconds) {
+      for (const button of buttons) button.disabled = true;
+      permissionTimers.get(key)?.();
+    }
+  };
+  const timer = setInterval(refresh, 1000);
+  const stop = () => {
+    clearInterval(timer);
+    if (permissionTimers.get(key) === stop) permissionTimers.delete(key);
+  };
+  permissionTimers.set(key, stop);
+  refresh();
+}
 function renderSteps(states = {}) {
   $('steps').hidden = !workflowSteps.length;
   $('steps').replaceChildren();
@@ -525,18 +547,27 @@ function permission(p) {
     element('strong', p.tool?.title ?? 'Autorisation agent'),
     element('pre', JSON.stringify(p.tool ?? {}, null, 2)),
   );
+  const buttons = [];
   for (const o of p.options) {
     const b = element('button', o.name, 'secondary');
+    b.disabled = false;
     b.onclick = async () => {
+      if (Number.isFinite(p.expiresAt) && Date.now() >= p.expiresAt) {
+        b.disabled = true;
+        return;
+      }
       try {
         await api('/permissions/' + p.id, { optionId: o.optionId });
+        permissionTimers.get(p.id)?.();
         row.remove();
       } catch (e) {
         error(e);
       }
     };
+    buttons.push(b);
     row.append(b);
   }
+  showExpiry(row, buttons, p.expiresAt, p.id);
   $('permissions').append(row);
 }
 async function openRun(id) {
@@ -549,6 +580,7 @@ async function openRun(id) {
     $('events').textContent = '';
     workflowSteps = [];
     stepStates = {};
+    for (const stop of permissionTimers.values()) stop();
     $('permissions').replaceChildren();
     $('run-panel').hidden = false;
     $('result').replaceChildren();
@@ -589,8 +621,11 @@ async function openRun(id) {
         stepStates[e.data.stepId] = { state: e.data.state, error: e.data.error };
         renderSteps(stepStates);
       }
-      if (e.type === 'permission_resolved')
+      if (e.type === 'permission_resolved') {
+        permissionTimers.get(e.data.id)?.();
+        permissionTimers.get('career-' + e.data.id)?.();
         document.getElementById('permission-' + e.data.id)?.remove();
+      }
     });
     source.addEventListener('end', async () => {
       if (!isCurrent()) return;
@@ -801,10 +836,12 @@ $('career-refresh').onclick = () => refreshCareer().catch(error);
 
 async function refreshCareerPending() {
   const queue = await api('/career/pending');
+  for (const [key, stop] of permissionTimers) if (key.startsWith('career-')) stop();
   $('career-pending').replaceChildren(element('h3', 'Envois en attente de votre accord'));
   if (!queue.pending.length) $('career-pending').append(element('p', 'Aucun envoi en attente.'));
   for (const item of queue.pending) {
     const row = element('article', undefined, 'permission');
+    const buttons = [];
     row.append(
       element('strong', item.tool?.title ?? 'Envoi'),
       element('pre', JSON.stringify(item.tool?.rawInput ?? {}, null, 2)),
@@ -812,18 +849,26 @@ async function refreshCareerPending() {
     for (const option of item.options) {
       const button = element('button', option.name, 'secondary');
       button.type = 'button';
+      button.disabled = false;
       button.onclick = async () => {
+        if (Number.isFinite(item.expiresAt) && Date.now() >= item.expiresAt) {
+          button.disabled = true;
+          return;
+        }
         button.disabled = true;
         try {
           await api('/permissions/' + item.id, { optionId: option.optionId });
+          permissionTimers.get('career-' + item.id)?.();
           row.remove();
         } catch (e) {
           error(e);
-          button.disabled = false;
+          button.disabled = Number.isFinite(item.expiresAt) && Date.now() >= item.expiresAt;
         }
       };
+      buttons.push(button);
       row.append(button);
     }
+    showExpiry(row, buttons, item.expiresAt, 'career-' + item.id);
     $('career-pending').append(row);
   }
 }

@@ -56,3 +56,15 @@ Sources acpx et DBOS sous MIT (`LICENSE:1-5`) ; étude seule, zéro code copié 
 - **Opérationnel** : correctif UTF-8 confirmé rouge→vert ; suite ciblée 184/184, garde `CHROME_PATH=/nonexistent npm test`, check et format verts. Aucune API de modèle, mission ou source réelle appelée.
 - **Incomplet** : validation Chrome réelle impossible dans ce bac à sable (`SIGABRT`, `EPERM`, 75 échecs initiaux). Rejouer sur un hôte où Chrome démarre. Atomicité de l'état/événement, historique des tentatives, borne cumulée d'événements et découplage career-ops restent proposés.
 - **Sécurité reportée** : points d'envoi et persistance privée indiqués dans `_audit-common.md`, recensés sans modification.
+
+## Contrôle du manager (Claude) — 28/10, 01:34
+- Diff relu (`d7e1fd2`) : la borne de sortie du DAG mesure les octets UTF-8 (`Buffer.byteLength`) ; changement minimal.
+  Test ajouté sur le cache malformé : vert dès le départ (honnêtement signalé), garde de non-régression.
+- Vrai test : `workflow-engine.test.js` sur l'ancien code → 1 échec (« sortie UTF-8 ») ; corrigé → 18/18.
+- Copie figée `8e30d56`, Chrome réel, 01:33:00 → 01:33:37 : `e2e-ui`, `workflow-run`, `workflow-resume`,
+  `najah-live`, `platform` → 54/54 (la phase Chrome de Codex avorte dans son bac à sable).
+- Profondeur : session courte (7 min, 70 commandes) mais lecture effective mesurée dans le journal : ~2 000 des
+  2 097 lignes du périmètre, plus acpx (`flows/graph.ts`, `runtime.ts`) et DBOS (`dbos-executor.ts`).
+
+**Verdict** : audit-03 VALIDÉ. Restent ouverts (proposés, non codés) : transaction état + événement, extraction du
+couplage career-ops hors de l'orchestrateur, table d'historique des tentatives, borne cumulée des événements par run.

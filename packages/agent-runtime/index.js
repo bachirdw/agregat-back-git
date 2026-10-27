@@ -220,6 +220,7 @@ export class AcpRuntime {
     for (const server of mcpServers)
       this.secrets.push(
         ...(server.env ?? [])
+          .filter(({ name }) => !['CAREER_OPS_ROOT', 'CAREER_OPS_DATA_DIR'].includes(name))
           .map(({ value }) => value)
           .filter((value) => typeof value === 'string' && value.length >= 8),
       );

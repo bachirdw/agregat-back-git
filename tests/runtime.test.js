@@ -737,6 +737,29 @@ test('sécurité : secret du pont MCP ajouté à la liste de masquage, fermeture
   await assert.rejects(pending, /fermé|terminé|closed/);
 });
 
+test('chemin de workspace MCP visible dans les erreurs, jeton MCP toujours masqué', async () => {
+  const root = '/tmp/career-workspace-FICTIF-123456';
+  const secret = 'FICTIF-RELAY-TOKEN-1234567890';
+  await withRuntime(fake({ eventText: `${root} ${secret}` }), async (r) => {
+    await r.start();
+    await r.session([
+      {
+        name: 'career-FICTIF',
+        command: 'fictif',
+        args: [],
+        env: [
+          { name: 'CAREER_OPS_ROOT', value: root },
+          { name: 'CAREER_OPS_DATA_DIR', value: root },
+          { name: 'RELAY_APPROVAL_TOKEN', value: secret },
+        ],
+      },
+    ]);
+    await r.prompt('FICTIF');
+    assert.match(r.text(), /career-workspace-FICTIF-123456/);
+    assert.doesNotMatch(r.text(), /FICTIF-RELAY-TOKEN/);
+  });
+});
+
 test('sécurité : valeur opaque du pont MCP masquée même si son nom ne désigne pas un secret', async () => {
   const secret = 'FICTIF-HEADER-OPAQUE-1234567890';
   await withRuntime(fake({ eventText: secret }), async (r) => {

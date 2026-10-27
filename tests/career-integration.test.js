@@ -373,6 +373,11 @@ test('Modèle choisi dans l’interface : appliqué à la mission career-ops (en
 test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt seulement sur blocage nommé', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
   for (const rule of [
+    /Si l'utilisateur demande une note, des points forts ou des manques/,
+    /modes\/oferta\.md/,
+    /Le mode scan ne fait que découvrir/,
+    /G \(légitimité de l'annonce\)/,
+    /H \(réponses de candidature, seulement si la note vaut 5\)/,
     /JUSQU'AU BOUT/,
     /refais browser_snapshot après CHAQUE clic/,
     /Une capture n'est jamais une fin/,

@@ -1,7 +1,7 @@
 import { attachDocument } from './documents.js';
 import { readdirSync, lstatSync, existsSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { z } from 'zod';
@@ -10,14 +10,16 @@ import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { buildChildEnv } from '../agent-runtime/env.js';
 import { emailSchema, EmailGateway, linkedInDraft } from './sends.js';
 const exec = promisify(execFile);
+const sectionText = z.string().min(1).max(10000);
 const sections = z
-  .object(
-    Object.fromEntries('ABCDEFGH'.split('').map((key) => [key, z.string().min(1).max(10000)])),
-  )
+  .object({
+    ...Object.fromEntries('ABCDEFG'.split('').map((key) => [key, sectionText])),
+    H: sectionText.optional(),
+  })
   .strict();
 export const offerSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().uuid().optional(),
     title: z.string().min(1).max(300),
     company: z.string().min(1).max(300),
     url: z
@@ -27,14 +29,14 @@ export const offerSchema = z
       .refine((s) => /^https?:/.test(s)),
     source: z.string().min(1).max(1000),
     fetchedAt: z.string().datetime(),
-    score: z.number().int().min(1).max(5).nullable(),
-    report: sections.nullable(),
+    score: z.number().int().min(1).max(5).nullable().default(null),
+    report: sections.nullable().default(null),
     simulated: z.boolean(),
   })
   .strict()
   .refine(
     (v) => (v.score === null) === (v.report === null),
-    'Note et rapport A–H doivent être fournis ensemble',
+    'Note et rapport A–G doivent être fournis ensemble',
   );
 const pathSchema = z
   .string()
@@ -92,7 +94,7 @@ export class CareerTools {
     return { path, saved: true };
   }
   saveOffer(raw) {
-    const offer = offerSchema.parse(raw);
+    const offer = { ...offerSchema.parse(raw), id: raw.id ?? randomUUID() };
     writeConfined(this.career.path(), `relay/offers/${offer.id}.json`, JSON.stringify(offer));
     if (offer.report)
       writeConfined(
@@ -266,7 +268,7 @@ export function registerCareerTools(
   );
   register(
     'career_offer_save',
-    'Enregistrer une offre sourcée et éventuellement son évaluation 1–5 et rapport A–H. Ne rien inventer.',
+    'Enregistrer une offre sourcée et éventuellement son évaluation 1–5 et rapport A–G (H facultatif). Ne rien inventer.',
     offerSchema,
     (offer) => tools.saveOffer(offer),
   );

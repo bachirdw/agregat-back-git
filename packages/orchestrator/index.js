@@ -43,6 +43,12 @@ export const inputSchema = z
   })
   .strict();
 export { parseAgentResult } from './result.js';
+export function verificationScope(packId, simulated) {
+  if (packId === 'core') return 'Structure seulement ; faits non vérifiés';
+  if (packId === 'najah') return 'Classement et provenance comparés aux fixtures';
+  if (simulated) return 'Résultat fictif ; structure vérifiée seulement';
+  return 'Structure vérifiée ; offres et évaluations non vérifiées';
+}
 export class Orchestrator {
   constructor(
     store,
@@ -683,10 +689,7 @@ export class Orchestrator {
       this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
         valid: true,
-        scope:
-          plan.pack.id === 'core'
-            ? 'Structure seulement ; faits non vérifiés'
-            : 'Classement et provenance comparés aux fixtures',
+        scope: verificationScope(plan.pack.id, plan.simulated),
       });
       this.store.update(run.id, {
         state: 'completed',

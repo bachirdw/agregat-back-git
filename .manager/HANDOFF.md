@@ -3,27 +3,24 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 0000. Point d'étape du 27/10, 14:10 (Sydney) — À LIRE EN PREMIER (complète § 000)
-**Plan de réutilisation VALIDÉ** par l'utilisateur le 27/10 à 12:35 (`.manager/reuse-plan.md`, 5 amendements du
-manager). Étapes, chacune suivie d'une relecture `review-<id>` puis du contrôle du manager :
-`reuse-01a` ✅ → `reuse-01b` ⏳ → `reuse-01c` → `reuse-02` réduit (`fillForm`) → `reuse-04` réduit (liveness acpx).
-Consignes de codage : `.manager/PLAN-reuse.md` § « Consignes de l'utilisateur » (technique d'abord, sécurité
-reportée, suppression libre de notre code, une étape à la fois).
+## 0000. Point d'étape du 27/10, 19:30 (Sydney) — À LIRE EN PREMIER (complète § 000)
+**Plan de réutilisation VALIDÉ** (`.manager/reuse-plan.md`). Étapes, chacune relue puis contrôlée par le manager :
+`reuse-01a` ✅ → `reuse-01b` ✅ → `reuse-01c` (codé, relecture Claude en cours) → `reuse-02` réduit (`fillForm`)
+→ `reuse-04` réduit (liveness acpx). Consignes : `.manager/PLAN-reuse.md` § « Consignes de l'utilisateur ».
 
-- **Étape 1 `reuse-01a` VALIDÉE** (`6620808`, relecture `7148e17`, contrôle `4b1d2d2`) : snapshot
-  `page.ariaSnapshot({mode:'ai'})`, actions par `ref` via `page.getByRef`. Copie figée 269/0/1 + Chrome 124/124.
-- **Étape 2 `reuse-01b`** (clic en onglet caché, suppression de `force`, `observed()`, `selector` du clic) :
-  chaîne `reuse-01b review-reuse-01b` programmée à **17:05** (limite Codex levée vers 17:00 selon l’utilisateur), détachée
-  (`.manager/logs/chain-reuse-01b.nohup`). Fin = `.manager/logs/chain.done`.
-- **À reporter en `reuse-01c`** : supprimer `selector` de `browser.type` ; décider l'upload (champ fichier souvent
-  absent du snapshot : sélecteur ou sélecteur de fichier Playwright `files.ts`) ; message zod « Invalid input »
-  remplacé par un message français sur `type`/`upload` ; actions `fill`/`press`/`selectOption`/`check`/
-  `setInputFiles` en onglet caché avec effet observé (amendement 3).
-- **Audit indépendant de l'étape 1** (`reports/audit-reuse-01a-claude.md`, `e2add40`) : aucun défaut grave ; constats
-  affectés à `reuse-01b` (n° 1–4, 6–8, 11a ; le n° 8 casse les refs à chaque `replaceState`, important pour Seek)
-  et `reuse-01c` (n° 5, 10–13). À arbitrer plus tard (sécurité reportée) : n° 9, 14, 15.
-- **Utilisateur à distance** : ne pas l'interrompre pour des détails ; Codex doit toujours avancer ; questions en
-  texte libre, jamais bloquantes (mémoire `never-block-codex-on-questions`).
+- **Étape 1** (`6620808`, `7148e17`, corrections manager `d45f41c`) : snapshot `ariaSnapshot({mode:'ai'})`,
+  actions par `ref` ; une réécriture d'URL (`replaceState`) garde les refs. Audit : `reports/audit-reuse-01a-claude.md`.
+- **Étape 2** (`eb2afcf`…`8265b18`, contrôle `c211441`) : clic en onglet caché par chemin DOM, preuve dans la même
+  évaluation, plus de `force`/`observed()`. Réel : 10/10 clics (avant : 10 succès annoncés, 0 effet), 67 ms.
+- **Étape 3** : `17a5366` (Codex, check/select) + `9835402` (manager : type vérifié, `browser.press`, upload par
+  bouton + `filechooser`, download par ref, `selector` supprimé sauf `extract`). Mesure réelle : le clavier CDP est
+  perdu sans erreur en onglet caché. Défaut réel corrigé : la barre Playwriter (`data-playwriter-toolbar`)
+  recouvre le haut de l'onglet. Preuve formulaire FICTIF complète en 2,8 s. Relecture : agent Claude économe →
+  `reports/review-reuse-01c-claude.md`, puis corrections et contrôle.
+- **Limite Codex** : ~13 % restants le 27/10 au soir (selon l'utilisateur) → partager le travail : quart à Codex,
+  reste au manager, relecture par agent Claude économe. Départs différés : boucle sur l'horloge, jamais `sleep N`.
+- **À arbitrer plus tard (sécurité reportée par l'utilisateur)** : audit n° 9, 14, 15 (mot de passe dans le snapshot).
+- **Utilisateur à distance** : ne pas l'interrompre pour des détails ; questions non bloquantes.
 
 ## 000. Passation du 27/10, 11:15 (Sydney) — À LIRE EN PREMIER (prime sur § 00 et § 0)
 **Rôles** : le manager (Claude) écrit les briefs et contrôle chaque étape (diff, tests relancés en copie figée,

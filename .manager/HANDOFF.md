@@ -26,7 +26,7 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 - **Étape 4** (`d4e97d3` Codex, `72c6d64`/`cb3f05f`/`cbba7f0` manager) : `browser.fillForm`, un accord pour tout le
   formulaire ; preuve Playwriter 6 champs en 1 appel ; gain = 1 tour d'agent au lieu de 6.
 - **Étape 4 contrôlée** : suite sur copie figée `cbba7f0` verte (275 + 1 ignoré, Chrome 136/136, check/format) —
-  `reports/reuse-02-evidence/manager-control-suite.log` (écrit à 20:05, **pas encore commité** : Bash bloqué).
+  `reports/reuse-02-evidence/manager-control-suite.log` (commité de force : les `.log` sont ignorés par Git).
 - **Étape 5 — CODÉE PAR CLAUDE (décision de l'utilisateur, 27/10 ~20:10 : Codex indisponible)**. Le brief
   `briefs/reuse-04a.md` sert de cahier des charges, mais c'est la session Claude qui code tout :
   1. `packages/agent-runtime/process-liveness.js` : copie adaptée de `openclaw/acpx@c0b9dfd:src/process-liveness.ts`

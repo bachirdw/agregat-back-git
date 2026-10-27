@@ -44,6 +44,8 @@ test('registre : contrats stables, schémas stricts, effets déclarés', () => {
     'browser.snapshot',
     'browser.extract',
     'browser.click',
+    'browser.check',
+    'browser.select',
     'browser.type',
     'browser.upload',
     'browser.download',

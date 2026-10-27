@@ -60,6 +60,38 @@ export const capabilities = [
     schema: z.object({ ref }).strict(),
   },
   {
+    id: 'browser.check',
+    domain: 'browser',
+    effect: 'write',
+    meter: 'browser_action',
+    description:
+      'Cocher ou décocher une case, ou cocher un bouton radio identifié par ref du snapshot. Aucun clic si l’état demandé est déjà atteint.',
+    schema: z
+      .object({ ref, checked: z.boolean({ error: 'checked doit être un booléen' }) })
+      .strict(),
+  },
+  {
+    id: 'browser.select',
+    domain: 'browser',
+    effect: 'write',
+    meter: 'browser_action',
+    description:
+      'Choisir une ou plusieurs options d’une liste select par ref du snapshot ; values contient leurs valeurs ou leurs libellés.',
+    schema: z
+      .object({
+        ref,
+        values: z
+          .array(
+            z
+              .string({ error: 'Chaque option doit être une chaîne' })
+              .min(1, 'Option vide interdite'),
+          )
+          .min(1, 'Au moins une option requise')
+          .max(20, 'Maximum 20 options'),
+      })
+      .strict(),
+  },
+  {
     id: 'browser.type',
     domain: 'browser',
     effect: 'write',

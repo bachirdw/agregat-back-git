@@ -66,7 +66,14 @@ export class BrowserGateway {
     let sensitive = cap.effect === 'sensitive';
     const target = args.ref ? { ref: args.ref } : args.selector;
     if (
-      ['browser.click', 'browser.type', 'browser.download', 'browser.upload'].includes(capabilityId)
+      [
+        'browser.click',
+        'browser.check',
+        'browser.select',
+        'browser.type',
+        'browser.download',
+        'browser.upload',
+      ].includes(capabilityId)
     ) {
       element = await this.provider.describe(target);
       if (!element) throw new Error(`Élément introuvable : ${args.ref ?? args.selector}`);

@@ -772,6 +772,112 @@ export class CdpBrowser {
     });
     return { page: this.page.url(), title: await this.page.title(), ...fields };
   }
+  async #domClick(target, page, clickError) {
+    if (!(await target.isVisible()) || !(await target.isEnabled()))
+      throw new Error('Clic impossible : élément invisible ou désactivé', {
+        cause: clickError,
+      });
+    const hit = await target.evaluate((el) => {
+      el.scrollIntoView({ block: 'center', inline: 'center' });
+      const box = el.getBoundingClientRect();
+      const point = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return {
+        reachable: !!point && (point === el || el.contains(point)),
+        covering: point?.tagName.toLowerCase() ?? 'aucun élément',
+        mayNavigate:
+          (el instanceof HTMLAnchorElement &&
+            /^https?:$/.test(el.protocol) &&
+            !el.hasAttribute('download') &&
+            (!el.target || el.target === '_self') &&
+            el.href.split('#')[0] !== location.href.split('#')[0]) ||
+          ((el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
+            (el.type === 'submit' || el.type === 'image') &&
+            !!el.form &&
+            (!el.form.target || el.form.target === '_self')),
+      };
+    });
+    if (!hit.reachable)
+      throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
+        cause: clickError,
+      });
+    // Completion wait only for native link/form activation; never used as click proof.
+    // An event listener can be removed immediately when the page cancels navigation.
+    let onNavigation;
+    const navigation = hit.mayNavigate
+      ? new Promise((resolve) => {
+          onNavigation = resolve;
+          page.on('domcontentloaded', onNavigation);
+        })
+      : null;
+    let activation;
+    try {
+      activation = await target.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const init = {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clientX: box.left + box.width / 2,
+          clientY: box.top + box.height / 2,
+          button: 0,
+          buttons: 1,
+        };
+        let clicked = false;
+        let clickEvent;
+        let submitEvent;
+        const form = el.form;
+        const onClick = (event) => {
+          if (event.composedPath().includes(el)) {
+            clicked = true;
+            clickEvent = event;
+          }
+        };
+        const onSubmit = (event) => {
+          submitEvent = event;
+        };
+        el.addEventListener('click', onClick, true);
+        form?.addEventListener('submit', onSubmit, true);
+        try {
+          el.dispatchEvent(new PointerEvent('pointerdown', init));
+          el.dispatchEvent(new MouseEvent('mousedown', init));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+          el.dispatchEvent(new MouseEvent('mouseup', { ...init, buttons: 0 }));
+          el.click();
+          return {
+            delivered: clicked,
+            canceled: !!(clickEvent?.defaultPrevented || submitEvent?.defaultPrevented),
+          };
+        } finally {
+          el.removeEventListener('click', onClick, true);
+          form?.removeEventListener('submit', onSubmit, true);
+        }
+      });
+    } catch (error) {
+      // A document replacement can destroy the evaluation after the click.
+      // The action is uncertain, so never send a second click.
+      if (!/Execution context was destroyed|Frame was detached|Target closed/.test(String(error)))
+        throw error;
+      activation = { delivered: true, canceled: false };
+    } finally {
+      if (onNavigation && !activation?.delivered) page.off('domcontentloaded', onNavigation);
+    }
+    if (!activation.delivered) throw new Error('Clic non délivré à la page');
+    if (navigation) {
+      let timer;
+      try {
+        if (!activation.canceled)
+          await Promise.race([
+            navigation,
+            new Promise(
+              (resolve) => (timer = setTimeout(resolve, Math.min(1500, this.navigationTimeoutMs))),
+            ),
+          ]);
+      } finally {
+        clearTimeout(timer);
+        page.off('domcontentloaded', onNavigation);
+      }
+    }
+  }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
     page.setDefaultTimeout(this.navigationTimeoutMs);
@@ -897,120 +1003,8 @@ export class CdpBrowser {
             }
           }
           if (clickError) {
-            if (!(await target.isVisible()) || !(await target.isEnabled()))
-              throw new Error('Clic impossible : élément invisible ou désactivé', {
-                cause: clickError,
-              });
-            const hit = await target.evaluate((el) => {
-              el.scrollIntoView({ block: 'center', inline: 'center' });
-              const box = el.getBoundingClientRect();
-              const point = document.elementFromPoint(
-                box.left + box.width / 2,
-                box.top + box.height / 2,
-              );
-              return {
-                reachable: !!point && (point === el || el.contains(point)),
-                covering: point?.tagName.toLowerCase() ?? 'aucun élément',
-                mayNavigate:
-                  (el instanceof HTMLAnchorElement &&
-                    /^https?:$/.test(el.protocol) &&
-                    !el.hasAttribute('download') &&
-                    (!el.target || el.target === '_self') &&
-                    el.href.split('#')[0] !== location.href.split('#')[0]) ||
-                  ((el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
-                    (el.type === 'submit' || el.type === 'image') &&
-                    !!el.form &&
-                    (!el.form.target || el.form.target === '_self')),
-              };
-            });
-            if (!hit.reachable)
-              throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
-                cause: clickError,
-              });
-            // Completion wait only for native link/form activation; never used as click proof.
-            // An event listener can be removed immediately when the page cancels navigation.
-            let onNavigation;
-            const navigation = hit.mayNavigate
-              ? new Promise((resolve) => {
-                  onNavigation = resolve;
-                  page.on('domcontentloaded', onNavigation);
-                })
-              : null;
-            let activation;
-            try {
-              activation = await target.evaluate((el) => {
-                const box = el.getBoundingClientRect();
-                const init = {
-                  bubbles: true,
-                  cancelable: true,
-                  composed: true,
-                  clientX: box.left + box.width / 2,
-                  clientY: box.top + box.height / 2,
-                  button: 0,
-                  buttons: 1,
-                };
-                let clicked = false;
-                let clickEvent;
-                let submitEvent;
-                const form = el.form;
-                const onClick = (event) => {
-                  if (event.composedPath().includes(el)) {
-                    clicked = true;
-                    clickEvent = event;
-                  }
-                };
-                const onSubmit = (event) => {
-                  submitEvent = event;
-                };
-                el.addEventListener('click', onClick, true);
-                form?.addEventListener('submit', onSubmit, true);
-                try {
-                  el.dispatchEvent(new PointerEvent('pointerdown', init));
-                  el.dispatchEvent(new MouseEvent('mousedown', init));
-                  el.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
-                  el.dispatchEvent(new MouseEvent('mouseup', { ...init, buttons: 0 }));
-                  el.click();
-                  return {
-                    delivered: clicked,
-                    canceled: !!(clickEvent?.defaultPrevented || submitEvent?.defaultPrevented),
-                  };
-                } finally {
-                  el.removeEventListener('click', onClick, true);
-                  form?.removeEventListener('submit', onSubmit, true);
-                }
-              });
-            } catch (error) {
-              // A document replacement can destroy the evaluation after the click.
-              // The action is uncertain, so never send a second click.
-              if (
-                !/Execution context was destroyed|Frame was detached|Target closed/.test(
-                  String(error),
-                )
-              )
-                throw error;
-              activation = { delivered: true, canceled: false };
-            } finally {
-              if (onNavigation && !activation?.delivered)
-                page.off('domcontentloaded', onNavigation);
-            }
-            if (!activation.delivered) throw new Error('Clic non délivré à la page');
+            await this.#domClick(target, page, clickError);
             clickMode = 'dom';
-            if (navigation) {
-              let timer;
-              try {
-                if (!activation.canceled)
-                  await Promise.race([
-                    navigation,
-                    new Promise(
-                      (resolve) =>
-                        (timer = setTimeout(resolve, Math.min(1500, this.navigationTimeoutMs))),
-                    ),
-                  ]);
-              } finally {
-                clearTimeout(timer);
-                page.off('domcontentloaded', onNavigation);
-              }
-            }
           }
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {
@@ -1034,6 +1028,74 @@ export class CdpBrowser {
             ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }
             : {}),
         };
+      case 'browser.check': {
+        const target = await this.targetLocator({ ref: args.ref });
+        const kind = await target.evaluate((el) =>
+          el instanceof HTMLInputElement ? el.type : null,
+        );
+        if (!['checkbox', 'radio'].includes(kind))
+          throw new Error('Référence invalide : case à cocher ou bouton radio requis');
+        const hidden = await page.evaluate(() => document.visibilityState === 'hidden');
+        const before = await target.isChecked();
+        if (before === args.checked)
+          return { url: page.url(), checked: before, changed: false, clickMode: 'none', hidden };
+        if (kind === 'radio' && !args.checked)
+          throw new Error('Bouton radio impossible à décocher directement');
+        let clickMode = 'mouse';
+        if (hidden) {
+          await this.#domClick(target, page, new Error('Onglet caché'));
+          clickMode = 'dom';
+        } else {
+          try {
+            await target.setChecked(args.checked, {
+              timeout: Math.min(3000, this.navigationTimeoutMs),
+            });
+          } catch (error) {
+            if (error.name !== 'TimeoutError') throw error;
+            // A timeout may follow delivery: never toggle a checkbox twice.
+            if ((await target.isChecked()) !== args.checked) {
+              await this.#domClick(target, page, error);
+              clickMode = 'dom';
+            }
+          }
+        }
+        const checked = await target.isChecked();
+        if (checked !== args.checked) throw new Error('État coché différent de l’état demandé');
+        await this.assertLanded(policy);
+        return { url: page.url(), checked, changed: true, clickMode, hidden };
+      }
+      case 'browser.select': {
+        const target = await this.targetLocator({ ref: args.ref });
+        const options = await target.evaluate((el) => {
+          if (!(el instanceof HTMLSelectElement)) return null;
+          return {
+            multiple: el.multiple,
+            items: Array.from(el.options, (option) => ({
+              value: option.value,
+              label: option.label,
+            })),
+          };
+        });
+        if (!options) throw new Error('Référence invalide : liste select requise');
+        if (!options.multiple && args.values.length !== 1)
+          throw new Error('Une liste simple exige une seule option');
+        const values = args.values.map((value) => {
+          const option = options.items.find((item) => item.value === value || item.label === value);
+          if (!option) throw new Error(`Option introuvable : ${value}`);
+          return option.value;
+        });
+        await target.selectOption(values, { timeout: this.navigationTimeoutMs });
+        const selected = await target.evaluate((el) =>
+          Array.from(el.selectedOptions, (option) => option.value),
+        );
+        if (
+          selected.length !== new Set(values).size ||
+          selected.some((value) => !values.includes(value))
+        )
+          throw new Error('Options sélectionnées différentes des options demandées');
+        await this.assertLanded(policy);
+        return { url: page.url(), selected };
+      }
       case 'browser.type':
         // Filling a field is not a send; same-site autosave stays automatic.
         await (

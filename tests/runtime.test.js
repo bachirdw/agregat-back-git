@@ -20,6 +20,10 @@ import {
   saveProbe,
 } from '../packages/agent-runtime/index.js';
 import { buildChildEnv, redact } from '../packages/agent-runtime/env.js';
+import {
+  isProcessAlive,
+  isProcessDefinitelyDead,
+} from '../packages/agent-runtime/process-liveness.js';
 
 const FAKE = resolve(ROOT, 'tests/fixtures/fake-acp.js');
 const temporary = () => mkdtempSync(join(tmpdir(), 'relay-runtime-'));
@@ -46,18 +50,11 @@ async function withRuntime(runtime, fn) {
     runtime.close();
   }
 }
-const alive = (pid) => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
 async function waitDead(pid, ms = 4000) {
   const until = Date.now() + ms;
-  while (alive(pid) && Date.now() < until) await new Promise((r) => setTimeout(r, 50));
-  return !alive(pid);
+  while (!isProcessDefinitelyDead(pid) && Date.now() < until)
+    await new Promise((r) => setTimeout(r, 50));
+  return isProcessDefinitelyDead(pid);
 }
 
 test('timeout réel : initialize sans réponse rejeté dans le délai', async () => {
@@ -696,16 +693,16 @@ test('sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du
     await r.session([]);
     await r.prompt('FICTIF');
     child = JSON.parse(r.text()).grandchild;
-    assert.ok(alive(child));
+    assert.ok(isProcessAlive(child));
     await new Promise((resolve) => setTimeout(resolve, 100));
-    r.close();
+    assert.equal(await r.close(), 'dead', 'groupe arrêté, petit-enfant compris');
     assert.ok(
       await waitDead(child),
       'SIGKILL doit viser le groupe même si le leader est déjà sorti',
     );
   } finally {
     r.close();
-    if (child && alive(child)) process.kill(child, 'SIGKILL');
+    if (child && isProcessAlive(child)) process.kill(child, 'SIGKILL');
   }
 });
 

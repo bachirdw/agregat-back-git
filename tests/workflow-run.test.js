@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createApp } from '../apps/api/server.js';
 import { terminal } from '../packages/storage/index.js';
+import { isProcessDefinitelyDead } from '../packages/agent-runtime/process-liveness.js';
 import { rank } from '../domain-packs/najah/index.js';
 import { aggregateOutputs, toolArguments } from '../packages/orchestrator/workflow-run.js';
 
@@ -278,17 +279,9 @@ test('timeout d’étape pendant initialize : le processus ACP est fermé sans a
     await assert.rejects(executeWorkflow(app.engine, run, plan, control), /délai/);
     assert.ok(existsSync(pidFile), 'le faux agent a démarré');
     const pid = Number(readFileSync(pidFile, 'utf8'));
-    let alive = true;
-    for (let i = 0; i < 80; i++) {
-      try {
-        process.kill(pid, 0);
-      } catch {
-        alive = false;
-        break;
-      }
+    for (let i = 0; i < 80 && !isProcessDefinitelyDead(pid); i++)
       await new Promise((r) => setTimeout(r, 25));
-    }
-    assert.equal(alive, false, 'processus terminé après timeout d’étape');
+    assert.ok(isProcessDefinitelyDead(pid), 'processus terminé après timeout d’étape');
   } finally {
     await app.close();
   }

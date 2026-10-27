@@ -1,0 +1,8 @@
+darwin v24.14.1
+t+0ms group=EPERM pid=ok exitCode=null
+exit event: group=ESRCH pid=ESRCH
+t+20ms group=ESRCH pid=ESRCH exitCode=SIGTERM
+t+40ms group=ESRCH pid=ESRCH exitCode=SIGTERM
+t+60ms group=ESRCH pid=ESRCH exitCode=SIGTERM
+t+80ms group=ESRCH pid=ESRCH exitCode=SIGTERM
+t+100ms group=ESRCH pid=ESRCH exitCode=SIGTERM

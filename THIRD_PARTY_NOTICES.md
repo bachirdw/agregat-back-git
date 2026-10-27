@@ -13,6 +13,35 @@ This software contains code derived from the Puppeteer project (https://github.c
 available under the Apache 2.0 license (https://github.com/puppeteer/puppeteer/blob/master/LICENSE).
 ```
 
+`packages/agent-runtime/process-liveness.js` est adapté de
+`openclaw/acpx@c0b9dfd:src/process-liveness.ts` (TypeScript → JavaScript ESM), sous licence MIT.
+Écarts : `isProcessAlive` renvoie vrai sur `EPERM` (processus existant d’un autre utilisateur), et
+`processGroupState` est un ajout de la plateforme. Licence d’acpx :
+
+```
+MIT License
+
+Copyright (c) 2025 OpenClaw Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 Aucun code source des projets comparés n'a été copié dans le produit. Les sources de l’ancien audit API restent dans `.research/`, ignoré par Git. Le sprint 01 inspecte 27 clones sous `/Users/diaw/Downloads/agent-repos/` ; SHA, licences réelles et empreintes sont consignés dans `docs/research/sprint-01-inventory.json`.
 
 Dépendances directes verrouillées dans package-lock.json :

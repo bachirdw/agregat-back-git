@@ -1,0 +1,128 @@
+✔ liveness : pid invalide ou le nôtre, jamais vivant ni mort à coup sûr (0.445208ms)
+✔ liveness : vrai processus enfant vivant, puis mort à coup sûr après exit (3.828542ms)
+✔ liveness : groupe détaché vivant, puis mort après SIGKILL du groupe (1.43825ms)
+✔ liveness : EPERM = vivant mais pas à nous, jamais « mort » (0.194292ms)
+✔ liveness : sous Windows, pas de groupe POSIX, état inconnu (0.537542ms)
+✖ close : runtime sans processus → none (1.748791ms)
+✖ close : groupe qui sort sur SIGTERM → dead, aucun SIGKILL (1.318833ms)
+✖ close : groupe qui ignore SIGTERM, petit-enfant compris → SIGKILL, dead (56.447083ms)
+✖ close : EPERM après SIGTERM → unknown, jamais de SIGKILL (44.777042ms)
+✖ close : groupe déjà mort avant close → dead, aucun signal (1.652125ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 5
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 264.26475
+
+✖ failing tests:
+
+test at tests/process-liveness.test.js:149:1
+✖ close : runtime sans processus → none (1.748791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'none'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:151:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'none',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/process-liveness.test.js:154:1
+✖ close : groupe qui sort sur SIGTERM → dead, aucun SIGKILL (1.318833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'dead'
+  
+      at file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:160:12
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withKillSpy (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:43:12)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:157:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'dead',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/process-liveness.test.js:166:1
+✖ close : groupe qui ignore SIGTERM, petit-enfant compris → SIGKILL, dead (56.447083ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'dead'
+  
+      at file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:177:14
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withKillSpy (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:43:12)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:175:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'dead',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/process-liveness.test.js:187:1
+✖ close : EPERM après SIGTERM → unknown, jamais de SIGKILL (44.777042ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'unknown'
+  
+      at file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:193:14
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withKillSpy (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:43:12)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:191:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'unknown',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/process-liveness.test.js:204:1
+✖ close : groupe déjà mort avant close → dead, aucun signal (1.652125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'dead'
+  
+      at file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:211:12
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withKillSpy (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:43:12)
+      at async TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/process-liveness.test.js:210:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'dead',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

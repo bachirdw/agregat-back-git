@@ -4,6 +4,7 @@ import { Readable, Writable } from 'node:stream';
 import { client, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
 import { buildChildEnv, redact, redactValue, secretValues } from './env.js';
 import { agentCapabilities, sessionModels, sessionModes } from './capabilities.js';
+import { processGroupState } from './process-liveness.js';
 export { detectAgents, loadAgentConfig, findCli } from './discovery.js';
 export { profiles, getProfile, agentIds } from './profiles.js';
 export { chooseAgent, requirementsFor } from './router.js';
@@ -302,25 +303,69 @@ export class AcpRuntime {
       mode: this.mode ?? null,
     };
   }
+  // Stops the agent's process group; resolves to 'dead', 'alive', 'unknown' or 'none'. Callable without await.
   close() {
-    if (this.stopped) return;
+    if (this.closing) return this.closing;
     this.stopped = true;
     this.ready = false;
     this.lifecycle.abort();
     this.connection?.close();
-    if (!this.child?.pid) return;
-    const kill = (signal) => {
+    this.closing = stopProcess(this.child);
+    return this.closing;
+  }
+}
+
+const TERM_GRACE_MS = 1500;
+const KILL_WAIT_MS = 1000;
+const PROBE_MS = 100;
+// Timers are unref'd: closing never delays the platform's own exit.
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref());
+
+// Polls until the group is dead or the delay is over; returns the last state seen.
+// macOS answers EPERM for a group holding only unreaped zombies, so 'unknown' may still turn 'dead'.
+async function settleGroup(pgid, ms) {
+  const until = Date.now() + ms;
+  let state = processGroupState(pgid);
+  while (state !== 'dead' && Date.now() < until) {
+    await pause(PROBE_MS);
+    state = processGroupState(pgid);
+  }
+  return state;
+}
+
+async function stopProcess(child) {
+  if (!child?.pid) return 'none';
+  if (process.platform === 'win32') {
+    // No POSIX group: signal the child itself and trust its exit event.
+    if (child.exitCode !== null || child.signalCode !== null) return 'dead';
+    const exited = new Promise((resolve) => child.once('exit', () => resolve('dead')));
+    const signal = (name) => {
       try {
-        if (process.platform === 'win32') this.child.kill(signal);
-        else process.kill(-this.child.pid, signal);
+        child.kill(name);
       } catch {
         /* Already exited. */
       }
     };
-    kill('SIGTERM');
-    const t = setTimeout(() => {
-      kill('SIGKILL');
-    }, 1500);
-    t.unref();
+    signal('SIGTERM');
+    if ((await Promise.race([exited, pause(TERM_GRACE_MS)])) === 'dead') return 'dead';
+    signal('SIGKILL');
+    return (await Promise.race([exited, pause(KILL_WAIT_MS)])) ?? 'unknown';
   }
+  const pgid = child.pid;
+  let state = processGroupState(pgid);
+  if (state === 'unknown') state = await settleGroup(pgid, KILL_WAIT_MS);
+  if (state !== 'alive') return state;
+  const signal = (name) => {
+    try {
+      process.kill(-pgid, name);
+    } catch {
+      /* The probe below decides. */
+    }
+  };
+  signal('SIGTERM');
+  state = await settleGroup(pgid, TERM_GRACE_MS);
+  // SIGKILL only a group known to be ours and alive: never on EPERM, the id may be reused.
+  if (state !== 'alive') return state;
+  signal('SIGKILL');
+  return settleGroup(pgid, KILL_WAIT_MS);
 }

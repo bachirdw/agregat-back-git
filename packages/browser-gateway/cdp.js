@@ -786,6 +786,24 @@ export class CdpBrowser {
     });
     return { page: this.page.url(), title: await this.page.title(), ...fields };
   }
+  #isHidden(page) {
+    return page.evaluate(() => document.visibilityState === 'hidden');
+  }
+  // Records whether a click reached the element, independently of the locator: the click may
+  // remove its target. A timeout after delivery must never cause a second click.
+  async #clickWitness(target) {
+    return target.evaluateHandle((el) => {
+      let delivered = false;
+      const onClick = (event) => {
+        if (event.composedPath().includes(el)) delivered = true;
+      };
+      el.addEventListener('click', onClick, true);
+      return {
+        delivered: () => delivered,
+        stop: () => el.removeEventListener('click', onClick, true),
+      };
+    });
+  }
   async #domClick(target, page, clickError) {
     if (!(await target.isVisible()) || !(await target.isEnabled()))
       throw new Error('Clic impossible : élément invisible ou désactivé', {
@@ -800,7 +818,12 @@ export class CdpBrowser {
         .elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2)
         .find((n) => !n.closest('[data-playwriter-toolbar], #__playwriter_ghost_cursor__'));
       return {
-        reachable: !!point && (point === el || el.contains(point)),
+        // Clicking a control's label activates it, so a styled checkbox under its decoration counts.
+        reachable:
+          !!point &&
+          (point === el ||
+            el.contains(point) ||
+            Array.from(el.labels ?? []).some((label) => label.contains(point))),
         covering: point?.tagName.toLowerCase() ?? 'aucun élément',
         // Only the main document's load is awaited; a frame navigation is not.
         mayNavigate:
@@ -947,9 +970,7 @@ export class CdpBrowser {
         const loading = await waitForReadablePage(page);
         const readTimeout = () => Math.max(2000, readDeadline - Date.now());
         if ((args.limit ?? 1) > 1) {
-          const matches = args.ref
-            ? await this.targetLocator({ ref: args.ref })
-            : page.locator(args.selector ?? 'body');
+          const matches = page.locator(args.selector ?? 'body');
           await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
           const count = Math.min(await matches.count(), args.limit);
           const texts = [];
@@ -983,22 +1004,11 @@ export class CdpBrowser {
         let hidden = false;
         try {
           let clickError = null;
-          hidden = await page.evaluate(() => document.visibilityState === 'hidden');
+          hidden = await this.#isHidden(page);
           if (hidden) {
             clickError = new Error('Onglet caché');
           } else {
-            // Keep the witness independent of the locator: the click may remove its target.
-            const witness = await target.evaluateHandle((el) => {
-              let delivered = false;
-              const onClick = (event) => {
-                if (event.composedPath().includes(el)) delivered = true;
-              };
-              el.addEventListener('click', onClick, true);
-              return {
-                delivered: () => delivered,
-                stop: () => el.removeEventListener('click', onClick, true),
-              };
-            });
+            const witness = await this.#clickWitness(target);
             try {
               await target.click({ timeout: Math.min(3000, this.navigationTimeoutMs) });
             } catch (error) {
@@ -1053,7 +1063,7 @@ export class CdpBrowser {
         );
         if (!['checkbox', 'radio'].includes(kind))
           throw new Error('Référence invalide : case à cocher ou bouton radio requis');
-        const hidden = await page.evaluate(() => document.visibilityState === 'hidden');
+        const hidden = await this.#isHidden(page);
         const before = await target.isChecked();
         if (before === args.checked)
           return { url: page.url(), checked: before, changed: false, clickMode: 'none', hidden };
@@ -1064,17 +1074,24 @@ export class CdpBrowser {
           await this.#domClick(target, page, new Error('Onglet caché'));
           clickMode = 'dom';
         } else {
+          const witness = await this.#clickWitness(target);
           try {
             await target.setChecked(args.checked, {
               timeout: Math.min(3000, this.navigationTimeoutMs),
             });
           } catch (error) {
             if (error.name !== 'TimeoutError') throw error;
-            // A timeout may follow delivery: never toggle a checkbox twice.
-            if ((await target.isChecked()) !== args.checked) {
+            // A delivered click refused by the page must not be repeated: never toggle twice.
+            const delivered = await witness
+              .evaluate((value) => value.delivered())
+              .catch(() => true);
+            if (!delivered) {
               await this.#domClick(target, page, error);
               clickMode = 'dom';
             }
+          } finally {
+            await witness.evaluate((value) => value.stop()).catch(() => {});
+            await witness.dispose().catch(() => {});
           }
         }
         const checked = await target.isChecked();
@@ -1097,12 +1114,18 @@ export class CdpBrowser {
         if (!options) throw new Error('Référence invalide : liste select requise');
         if (!options.multiple && args.values.length !== 1)
           throw new Error('Une liste simple exige une seule option');
+        // An exact value wins over another option's label.
         const values = args.values.map((value) => {
-          const option = options.items.find((item) => item.value === value || item.label === value);
+          const option =
+            options.items.find((item) => item.value === value) ??
+            options.items.find((item) => item.label === value);
           if (!option) throw new Error(`Option introuvable : ${value}`);
           return option.value;
         });
-        await target.selectOption(values, { timeout: this.navigationTimeoutMs });
+        await target.selectOption(
+          values.map((value) => ({ value })),
+          { timeout: this.navigationTimeoutMs },
+        );
         const selected = await target.evaluate((el) =>
           Array.from(el.selectedOptions, (option) => option.value),
         );
@@ -1118,13 +1141,30 @@ export class CdpBrowser {
         // Filling a field is not a send; same-site autosave stays automatic.
         // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
         const target = await this.targetLocator({ ref: args.ref });
-        await target.fill(args.text, { timeout: 10000 });
+        if (args.text) await target.fill(args.text, { timeout: 10000 });
+        else
+          // Playwright clears a text field with the Delete key, which a hidden tab drops silently.
+          // The native setter keeps framework value tracking (React) consistent.
+          await target.evaluate((el) => {
+            if (!('value' in el)) el.textContent = '';
+            else {
+              const proto =
+                el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+              Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(el, '');
+            }
+            el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          });
         const after = await target.evaluate((el) => ({
           value: 'value' in el ? String(el.value) : el.textContent,
           secret: el.type === 'password',
         }));
         if (args.text && !after.value)
           throw new Error('Saisie sans effet : champ vide après saisie');
+        if (!args.text && after.value) throw new Error('Saisie sans effet : champ non vidé');
+        // A secret is never echoed, so a page that restores its value must be reported here.
+        if (after.secret && after.value !== args.text)
+          throw new Error('Saisie non appliquée : le champ secret a été modifié par la page');
         return {
           url: page.url(),
           typed: args.text.length,
@@ -1136,7 +1176,7 @@ export class CdpBrowser {
       }
       case 'browser.press': {
         const target = await this.targetLocator({ ref: args.ref });
-        const hidden = await page.evaluate(() => document.visibilityState === 'hidden');
+        const hidden = await this.#isHidden(page);
         if (!hidden) {
           await target.press(args.key, { timeout: Math.min(3000, this.navigationTimeoutMs) });
           return { url: page.url(), key: args.key, mode: 'keyboard', hidden };
@@ -1147,9 +1187,25 @@ export class CdpBrowser {
         const handled = await target.evaluate((el, key) => {
           el.focus();
           const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
-          const down = new KeyboardEvent('keydown', init);
+          // Older widgets (jQuery UI autocomplete) still read keyCode/which.
+          const code = {
+            ArrowLeft: 37,
+            ArrowUp: 38,
+            ArrowRight: 39,
+            ArrowDown: 40,
+            Escape: 27,
+            Home: 36,
+            End: 35,
+          }[key];
+          const event = (type) => {
+            const e = new KeyboardEvent(type, init);
+            for (const name of ['keyCode', 'which'])
+              Object.defineProperty(e, name, { get: () => code });
+            return e;
+          };
+          const down = event('keydown');
           el.dispatchEvent(down);
-          el.dispatchEvent(new KeyboardEvent('keyup', init));
+          el.dispatchEvent(event('keyup'));
           return down.defaultPrevented;
         }, args.key);
         return { url: page.url(), key: args.key, mode: 'dom', hidden, handled };
@@ -1157,19 +1213,42 @@ export class CdpBrowser {
       case 'browser.upload': {
         const target = await this.targetLocator({ ref: args.ref });
         const files = args.filePayload ?? args.path;
-        const kind = await target.evaluate((el) => ({
-          fileInput: el instanceof HTMLInputElement && el.type === 'file',
-          submits:
-            (el instanceof HTMLButtonElement || el instanceof HTMLInputElement) &&
-            (el.type === 'submit' || el.type === 'image') &&
-            !!el.form,
-        }));
+        const expected = typeof files === 'string' ? basename(files) : files.name;
+        // Same activation target as describe(): a ref on a child node acts through its button.
+        const kind = await target.evaluate((el) => {
+          const host = el.closest('button, input, a[href]') ?? el;
+          return {
+            fileInput: el instanceof HTMLInputElement && el.type === 'file',
+            submits:
+              (host instanceof HTMLButtonElement || host instanceof HTMLInputElement) &&
+              (host.type === 'submit' || host.type === 'image') &&
+              !!host.form,
+            navigates: host instanceof HTMLAnchorElement && host.getAttribute('href') !== '#',
+          };
+        });
+        // Pages often empty or replace the input in their change handler (dropzones, React):
+        // the proof is the change event seen by the page, or the final state as a fallback.
+        const received = (field) =>
+          field.evaluateHandle((el) => {
+            const seen = [];
+            el.addEventListener(
+              'change',
+              () => seen.push(...Array.from(el.files ?? [], (f) => f.name)),
+              true,
+            );
+            return { names: () => [...seen, ...Array.from(el.files ?? [], (f) => f.name)] };
+          });
         let field = target;
+        let recorder;
         if (!kind.fileInput) {
-          // Upload buttons open a file chooser; a submit button would send the form instead.
+          // Upload buttons open a file chooser; a submit button or a link would act instead.
           if (kind.submits)
             throw new Error(
               'Upload refusé : ce bouton soumet le formulaire ; choisis le champ ou le bouton « Joindre »',
+            );
+          if (kind.navigates)
+            throw new Error(
+              'Upload refusé : ce lien navigue ; choisis le champ ou le bouton « Joindre »',
             );
           const chooser = page.waitForEvent('filechooser', {
             timeout: Math.min(5000, this.navigationTimeoutMs),
@@ -1180,14 +1259,21 @@ export class CdpBrowser {
           try {
             opened = await chooser;
           } catch (error) {
+            if (error.name !== 'TimeoutError') throw error;
             throw new Error('Aucun sélecteur de fichier ouvert par cet élément', { cause: error });
           }
-          await opened.setFiles(files, { timeout: 10000 });
           field = opened.element();
-        } else await target.setInputFiles(files, { timeout: 10000 });
-        const names = await field.evaluate((el) => Array.from(el.files ?? [], (f) => f.name));
-        const expected = typeof files === 'string' ? basename(files) : files.name;
-        if (!names.includes(expected)) throw new Error('Fichier absent du champ après upload');
+          recorder = await received(field);
+          await opened.setFiles(files, { timeout: 10000 });
+        } else {
+          recorder = await received(field);
+          await target.setInputFiles(files, { timeout: 10000 });
+        }
+        const names = await recorder
+          .evaluate((value) => value.names())
+          .finally(() => recorder.dispose().catch(() => {}));
+        if (!names.includes(expected)) throw new Error('Fichier non reçu par la page après upload');
+        await this.assertLanded(policy);
         return {
           url: page.url(),
           uploaded: basename(args.path),
@@ -1206,7 +1292,9 @@ export class CdpBrowser {
         // chrome.debugger forbids download-directory settings. Fetch ordinary download links
         // with the context's HTTP client instead, preserving its session without global settings.
         if (this.ownerConnection) {
-          const href = await (await this.targetLocator({ ref: args.ref })).getAttribute('href');
+          const href = await (
+            await this.targetLocator({ ref: args.ref })
+          ).evaluate((el) => el.closest('a')?.getAttribute('href') ?? null);
           if (!href)
             throw new Error('Playwriter : un lien HTTP/HTTPS est requis pour le téléchargement');
           let url = new URL(href, page.url()).href;

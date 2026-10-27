@@ -7,7 +7,7 @@ import { z } from 'zod';
 const url = z.string().min(1).max(2048);
 const selector = z.string().min(1).max(500);
 const ref = z
-  .string()
+  .string({ error: 'ref requise : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot' })
   .regex(
     /^(?:f\d+)?e\d+$/,
     'Référence invalide : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot',
@@ -86,6 +86,7 @@ export const capabilities = [
             z
               .string({ error: 'Chaque option doit être une chaîne' })
               .min(1, 'Option vide interdite'),
+            { error: 'values doit être une liste de chaînes, par exemple ["Oui"]' },
           )
           .min(1, 'Au moins une option requise')
           .max(20, 'Maximum 20 options'),
@@ -99,7 +100,12 @@ export const capabilities = [
     meter: 'browser_action',
     description:
       'Saisir du texte dans le champ ref du snapshot (remplace son contenu) ; value est renvoyé si le site reformate la saisie. Les champs secrets sont sensibles et jamais journalisés.',
-    schema: z.object({ ref, text: z.string().max(10000) }).strict(),
+    schema: z
+      .object({
+        ref,
+        text: z.string({ error: 'text requis (chaîne, vide pour effacer)' }).max(10000),
+      })
+      .strict(),
   },
   {
     id: 'browser.press',
@@ -107,7 +113,7 @@ export const capabilities = [
     effect: 'write',
     meter: 'browser_action',
     description:
-      'Envoyer une touche de navigation (flèches, Échap, Début, Fin) à l’élément ref, par exemple dans une liste d’autocomplétion. Pour valider, clique le bouton ; pour écrire, utilise browser_type.',
+      'Envoyer une touche de navigation (flèches, Échap, Début, Fin) à l’élément ref, par exemple dans une liste d’autocomplétion. En onglet caché, seuls les scripts de la page réagissent (pas d’action par défaut du navigateur) : pour un select natif, utilise browser_select ; pour valider, clique le bouton ; pour écrire, utilise browser_type.',
     schema: z
       .object({
         ref,
@@ -125,7 +131,12 @@ export const capabilities = [
     meter: 'browser_action',
     description:
       'Joindre un fichier du dossier du run : ref du champ fichier, ou du bouton « Joindre » qui ouvre le sélecteur de fichier (jamais un bouton d’envoi).',
-    schema: z.object({ ref, path: z.string().min(1).max(1000) }).strict(),
+    schema: z
+      .object({
+        ref,
+        path: z.string({ error: 'path requis : fichier du dossier du run' }).min(1).max(1000),
+      })
+      .strict(),
   },
   {
     id: 'browser.download',

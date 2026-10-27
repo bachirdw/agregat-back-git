@@ -17,8 +17,10 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
   perdu sans erreur en onglet caché. Défaut réel corrigé : la barre Playwriter (`data-playwriter-toolbar`)
   recouvre le haut de l'onglet. Preuve formulaire FICTIF complète en 2,8 s. Relecture : agent Claude économe
   (sonnet, lecture seule) lancé à 19:00 par l'ancienne conversation → `reports/review-reuse-01c-claude.md`. Rapport
-  **disponible (19:20)**, 15 constats. Tri de 19:20 (n° 1, 2, 5 en priorité 1) **retiré par l'utilisateur (19:35)** :
-  n° 1, 2 (volet envoi), 5, 7 reportés avec la sécurité ; corriger seulement le technique d'après le plan et les sources. Corrections avec test rouge→vert, puis contrôle du manager dans `reuse-01c.md`.
+  **disponible (19:20)**, 15 constats. Tri de 19:20 (n° 1, 2, 5 en priorité 1) **retiré par l'utilisateur (19:21)** :
+  n° 1, 2 (volet envoi), 5, 7 reportés avec la sécurité ; corriger seulement le technique d'après le plan et les sources.
+  **Bloquant avant toute vraie mission Seek** : upload par bouton, check, select et press peuvent déclencher un envoi
+  sans accord (n° 1, 2, 5) ; sans danger sur page fictive, à corriger avant une candidature réelle. Corrections avec test rouge→vert, puis contrôle du manager dans `reuse-01c.md`.
 - **Limite Codex** : ~13 % restants le 27/10 au soir (selon l'utilisateur) → partager le travail : quart à Codex,
   reste au manager, relecture par agent Claude économe. Départs différés : boucle sur l'horloge, jamais `sleep N`.
 - **À arbitrer plus tard (sécurité reportée par l'utilisateur)** : audit n° 9, 14, 15 (mot de passe dans le snapshot).

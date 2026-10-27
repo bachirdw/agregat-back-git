@@ -47,7 +47,7 @@ dépend seulement du comportement du site ou de Chrome) ; **probable** ; **à v�
 - Garde « élément modifié pendant l'approbation » : la liste de la gateway inclut bien `check`, `select`, `press` ; testée pour `check` et `select` avec un nombre de lectures exact.
 - Instructions (orchestrateur, `CAREER_INSTRUCTIONS`, manifeste) alignées sur les nouvelles capacités ; aucun fichier de la bibliothèque career-ops touché.
 
-## Tri du manager (Claude) — 27/10, 19:35 (remplace le tri de 19:20, retiré à la demande de l'utilisateur)
+## Tri du manager (Claude) — 27/10, 19:21 (remplace le tri de 19:20, retiré à la demande de l'utilisateur)
 - **Reportés (sécurité, consigne de l'utilisateur)** : n° 1, 2 (volet envoi), 5, 7. Aucune correction dans cette étape.
 - **Corrigés (technique, d'après le plan et les sources Playwright)** : n° 3, 4, 6, 9, 10 (libellé), 11, 12, 13, 14, 15
   et n° 8 en partie ; détail dans `reuse-01c.md`, § « Contrôle du manager ».

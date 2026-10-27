@@ -144,7 +144,7 @@ test(
     );
     await assert.rejects(
       gateway.call('browser.select', { ref: ref('Simple'), values: [] }),
-      /valeur|chaîne|array/i,
+      /Au moins une option/,
     );
 
     await provider.page.addInitScript(() => {

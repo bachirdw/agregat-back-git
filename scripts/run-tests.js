@@ -7,6 +7,7 @@ const BROWSER = new Set([
   'browser-click-ref.test.js',
   'browser-type-upload-ref.test.js',
   'browser-select-check.test.js',
+  'browser-field-review.test.js',
   'browser-gateway.test.js',
   'approval-bridge.test.js',
   'e2e-ui.test.js',

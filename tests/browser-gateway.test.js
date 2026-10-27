@@ -230,7 +230,7 @@ test('gateway : une référence sensible demande accord avec la description de l
     [{ ref: 'x' }, /Référence invalide/],
     [{ ref: 'e2', selector: '#apply' }, /Unrecognized key/],
     [{ ref: 'e2', script: 'FICTIF' }, /Unrecognized key/],
-    [{ selector: '#apply' }, /expected string/],
+    [{ selector: '#apply' }, /ref requise/],
   ])
     await assert.rejects(gw.call('browser.click', args), message);
   assert.equal(approvals.length, 1);

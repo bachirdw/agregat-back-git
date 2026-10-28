@@ -60,6 +60,54 @@ test('Modèle career-ops : choisit l’identifiant annoncé, refuse l’ancien a
   assert.throws(() => selectAnnouncedCareerModel('gemini-3.1-flash-lite', models), /non annoncé/);
 });
 
+test('Reprise privée : un nouveau CV joint est transmis avec les pièces existantes, les IDs invalides sont refusés', async (t) => {
+  const { root, career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  const oldFile = await career.upload(
+    Buffer.from('ANCIEN CV FICTIF'),
+    'ancien.md',
+    'text/markdown',
+  );
+  const newFile = await career.upload(
+    Buffer.from('NOUVEAU CV FICTIF'),
+    'nouveau.md',
+    'text/markdown',
+  );
+  const id = randomUUID();
+  app.store.create({
+    id,
+    state: 'completed',
+    prompt: 'Mission privée dans l’espace de candidature',
+    agent: 'fixture',
+    pack: 'career-ops',
+    skills: [],
+    attachments: [oldFile.id],
+    workspace: 'career-ops',
+    cwd: root,
+    model: '',
+    budgetCents: 0,
+    mode: 'agent',
+    resumable: true,
+    sessionId: randomUUID(),
+  });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const post = (attachments) =>
+    fetch(`${base}/api/runs/${id}/resume`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+      body: JSON.stringify({ prompt: 'Suite FICTIVE', attachments }),
+    });
+  assert.equal((await post([randomUUID()])).status, 400);
+  assert.equal((await post(Array.from({ length: 8 }, () => randomUUID()))).status, 400);
+  const response = await post([newFile.id]);
+  assert.equal(response.status, 201);
+  const resumed = await response.json();
+  assert.deepEqual(resumed.attachments, [oldFile.id, newFile.id]);
+  assert.equal(resumed.sessionId, app.store.get(id).sessionId);
+  app.engine.cancel(resumed.id);
+});
+
 test('Plan career-ops : rapport A–G et accord explicite avant tout envoi', () => {
   const steps = getPack('career-ops').workflow.steps;
   assert.match(

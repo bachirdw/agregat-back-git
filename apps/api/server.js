@@ -353,7 +353,9 @@ export function createApp({
               agent: old.agent,
               pack: old.pack,
               skills: old.skills,
-              attachments: old.attachments ?? [],
+              attachments: Array.isArray(body.attachments)
+                ? [...new Set([...(old.attachments ?? []), ...body.attachments])]
+                : (body.attachments ?? old.attachments ?? []),
               ...(old.workspace ? { workspace: old.workspace } : {}),
               model: old.model,
               budgetCents: old.budgetCents,

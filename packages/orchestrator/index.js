@@ -59,9 +59,18 @@ export class Orchestrator {
       timeoutMs = 180000,
       career = new CareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
+      autoSend = process.env.AGENT_PLATFORM_AUTO_SEND === '1',
     } = {},
   ) {
-    Object.assign(this, { store, skills, dataDir, live: ownerMode || live, timeoutMs, ownerMode });
+    Object.assign(this, {
+      store,
+      skills,
+      dataDir,
+      live: ownerMode || live,
+      timeoutMs,
+      ownerMode,
+      autoSend,
+    });
     this.active = new Map();
     this.permissions = new Map();
     this.career = career;
@@ -739,7 +748,7 @@ export class Orchestrator {
     }
   }
   permission(runId, p, simulated, signal) {
-    if (this.ownerMode && p.actionClass !== 'send' && !signal.aborted) {
+    if (this.ownerMode && (p.actionClass !== 'send' || this.autoSend) && !signal.aborted) {
       const option =
         p.options.find((o) => o.kind === 'allow_once') ??
         p.options.find((o) => o.kind === 'allow_always');

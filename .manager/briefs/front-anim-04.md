@@ -61,3 +61,16 @@ checkout : le code doit toujours compiler.
 
 ## Fin
 Dernier message en 12 lignes au plus : FAIT · COMMITS · PREUVES · RESTE.
+
+## Ajout du manager (28/10, 14:58) — back, même session
+Mission `92d19275` (recherche et note, Gemini) tuée à 180 s pile par le délai global
+(`packages/orchestrator/index.js:59,524-527`). L'utilisateur n'a vu que « Exécution privée échouée ou annulée »
+(`:726-729`), parce que le message réel « Délai maximal dépassé » est masqué pour career-ops.
+
+À corriger, avec test rouge → vert :
+- afficher la cause non privée (délai, annulation, agent arrêté) sans fuite de données privées ;
+- porter le délai career-ops par défaut à 15 min (une recherche avec évaluation dépasse 3 min). Le manager l'a déjà
+  fixé par `AGENT_PLATFORM_TIMEOUT_MS=900000` au lancement du serveur.
+
+Autre constat : Gemini ajoute parfois `wait_for_previous` aux arguments des outils career. Le schéma strict les
+refuse, puis l'agent réessaie. Ignore ce champ connu plutôt que d'échouer.

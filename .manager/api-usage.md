@@ -40,3 +40,13 @@ Tokens relus dans `relay/agent-home/.gemini/tmp/agregat-career-ops/chats/session
 **Total du jour ≈ 3,90 $ (+ ≈ 0,05 $ d'appels REST de test) sur le plafond opérationnel de 5 $.**
 ANOMALIE : toutes les missions de l'après-midi enregistrées « gemini-3.1-flash-lite » ont été servies par gemini-3.5-flash-lite (modèle non annoncé par le probe ; le CLI a substitué). À corriger : le modèle enregistré doit être le modèle réellement servi.
 Coût dominé par la relecture du contexte (≈ 78 k jetons par tour, 187 tours sur une session reprise 3 fois). AUCUNE nouvelle mission Gemini sans accord explicite de l'utilisateur (reste ≈ 1 $).
+
+## Relevé du 28/10, 18:00 — reprise demandée par le propriétaire
+
+Le propriétaire relève les plafonds opérationnels cumulés à **5 $ et 600 tours**. Aucun appel Gemini supplémentaire effectué pendant ce relevé.
+
+Lecture des traces locales `session-2026-10-27*.jsonl` et `session-2026-10-28*.jsonl` de l'espace privé avant la reprise : 46 **entrées** Gemini avec tokens le 27/10 (≈ 0,436 $ si toutes sont facturées) et 62 le 28/10 (≈ 0,356 $ dans la même hypothèse). Estimation avec 0,30 $/M tokens d'entrée hors cache, 0,03 $/M en cache, 2,50 $/M en sortie et réflexion ; les tests directs hors plateforme peuvent ajouter un montant non relevé. En prenant le total du 26/10 ci-dessus (≈ 3,95 $), **cumul conservateur ≈ 4,74 $**, reste ≈ 0,26 $ avant 5 $.
+
+**Correction du comptage** : plusieurs entrées du journal Gemini répètent un même tour (même session, horodatage et tokens). Le total du 26 au 28/10 après la reprise est **199 tours distincts observés** (153 + 13 + 33), pas 543 tours. Le chiffre de 543 communiqué initialement au propriétaire comptait des entrées brutes et était faux. Les traces hors de ce dossier peuvent encore manquer. Le propriétaire a autorisé 600 tours sur la base de cette surestimation ; ce relèvement est conservé mais aucun nouveau run n'est impliqué par cette autorisation.
+
+| 18:00 | reprise `43f5696c` | gemini-3.5-flash-lite | Scan portals.yml puis deux évaluations, session reprise ; aucun envoi | 649 626 entrée (dont 524 421 cache) / 1 133 sortie + 1 850 réflexion, **8 tours distincts** | ≈ 0,061 $ après déduplication ; ≈ 0,165 $ si les 22 entrées répétées sont toutes comptées | ≈ 4,91 $ conservateurs, hors tests directs non relevés |

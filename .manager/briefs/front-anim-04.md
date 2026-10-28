@@ -120,3 +120,30 @@ message générique.
   À faire : borner la durée de chaque appel d'outil vu dans le flux (par exemple 120 s sans mise à jour). Ensuite,
   annuler le tour (`session/cancel`), le dire dans le fil (« recherche web bloquée, relance »), et laisser
   l'utilisateur Reprendre. Test avec un agent fixture qui laisse un outil en cours.
+
+## Ajout du manager (28/10, 20:10) — PRIORITÉ 1 : « ça me ramène en bas », même agent arrêté
+Constat de l'utilisateur : dès qu'il essaie de remonter, la page redescend en bas, y compris **quand l'agent a fini**.
+Donc ce n'est pas seulement `useFollow` (qui ne réagit qu'aux événements) : une boucle d'interface tourne sans événement.
+
+**Hypothèse du manager (lecture du code, non reproduite) — boucle composeur ↔ collage en bas** :
+1. `App.tsx` `onScroll` : tout défilement vers le haut de plus de 2 px appelle `setComposerCompact(true)`, **même à moins
+   de 40 px du bas**.
+2. Le dock se réduit. Le flux gagne en hauteur, donc la distance au bas diminue.
+3. `ResizeObserver` (`measure`, `App.tsx:130-145`) juge alors `atBottom` vrai (seuil 40 px) et force
+   `feed.scrollTop = feed.scrollHeight` dans un `requestAnimationFrame`.
+4. Le défilement ramène à moins de 40 px du bas, donc `setComposerCompact(false)`, le dock regrandit, et ça recommence.
+
+À cela s'ajoutent `useFollow` (`stick` reste vrai à moins de 40 px, et tout événement recolle en bas) et le seuil de
+40 px, trop large pour distinguer « l'utilisateur est en bas » de « il vient de remonter un peu ».
+
+**À faire** :
+- Reproduire d'abord (Playwright hors bac à sable, 1550×810 et 375×812, mission terminée, longue conversation) : molette de
+  −30 px puis −600 px, attendre 3 s, mesurer `scrollTop`. Test rouge avant correction.
+- Une **intention utilisateur explicite** (événements `wheel`, `touchmove`, `keydown` flèches/PageUp/Home, glissement de
+  la barre) coupe définitivement le collage en bas tant que l'utilisateur n'est pas revenu lui-même en bas (distance
+  ≤ 2 px) ou n'a pas cliqué « Revenir en bas ». Ne pas déduire l'intention d'un simple `scrollTop` (les redimensionnements
+  du dock et du contenu en produisent).
+- Le recollage de `measure()` et celui de `useFollow` doivent lire ce même drapeau. Le compactage du composeur ne doit
+  jamais déplacer `scrollTop` ni se déclencher par un défilement que le code a lui-même provoqué.
+- Désactiver `overflow-anchor` si besoin et vérifier qu'aucune autre source (`scrollIntoView`, focus du champ) ne rescrolle.
+- Même test sur mission **terminée** et **en réflexion**. Vérifier que la sélection de texte ne déclenche rien.

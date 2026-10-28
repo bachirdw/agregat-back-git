@@ -127,9 +127,23 @@ const app = agent({ name: 'fake-acp' })
   )
   .onNotification(methods.agent.session.cancel, () => {
     calls.push('session/cancel');
+    if (cfg.cancelFile) writeFileSync(cfg.cancelFile, 'session/cancel');
   })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
     await guard('session/prompt');
+    if (cfg.stallTool) {
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'FICTIF-stalled',
+          title: 'Recherche web FICTIVE',
+          kind: 'fetch',
+          status: 'in_progress',
+        },
+      });
+      await never();
+    }
     if (cfg.unsafeUpdate)
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,

@@ -58,6 +58,7 @@ export class Orchestrator {
       dataDir = resolve(ROOT, '.data'),
       live = false,
       timeoutMs,
+      toolIdleMs = 120000,
       career = new CareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
       autoSend = process.env.AGENT_PLATFORM_AUTO_SEND === '1',
@@ -70,6 +71,7 @@ export class Orchestrator {
       live: ownerMode || live,
       timeoutMs: timeoutMs ?? 180000,
       careerTimeoutMs: timeoutMs ?? 900000,
+      toolIdleMs,
       ownerMode,
       autoSend,
     });
@@ -536,6 +538,26 @@ export class Orchestrator {
   async execute(run, plan, control, previous) {
     let text = '',
       events = 0;
+    const toolTimers = new Map();
+    let promptStarted = false;
+    const watchTool = (update) => {
+      if (!promptStarted || !update.toolCallId) return;
+      if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate)) return;
+      const id = update.toolCallId;
+      clearTimeout(toolTimers.get(id));
+      toolTimers.delete(id);
+      if (['completed', 'failed', 'cancelled'].includes(update.status)) return;
+      toolTimers.set(
+        id,
+        setTimeout(() => {
+          this.store.event(run.id, 'tool_stalled', { toolCallId: id, afterMs: this.toolIdleMs });
+          const error = new Error('Outil sans mise à jour');
+          error.code = 'tool_stalled';
+          error.afterMs = this.toolIdleMs;
+          control.abort.abort(error);
+        }, this.toolIdleMs),
+      );
+    };
     const timer = setTimeout(
       () => control.abort.abort(new Error('Délai maximal dépassé')),
       this.timeoutFor(plan.pack.id),
@@ -543,7 +565,7 @@ export class Orchestrator {
     const onAbort = () => {
       control.closeAll?.();
       control.runtime?.cancel();
-      control.runtime?.close();
+      if (!control.runtime?.sessionId) control.runtime?.close();
       this.clearPermissions(run.id);
     };
     control.abort.signal.addEventListener('abort', onAbort, { once: true });
@@ -590,6 +612,7 @@ export class Orchestrator {
             ? resolve(run.cwd, 'relay/agent-home')
             : resolve(this.dataDir, 'agent-homes', plan.agent.id),
         onEvent: (update) => {
+          watchTool(update);
           if (++events > 4000) {
             control.abort.abort(new Error('Trop d’événements'));
             return;
@@ -654,6 +677,7 @@ export class Orchestrator {
       });
       let response;
       try {
+        promptStarted = true;
         response = await runtime.prompt(prompt, control.abort.signal);
       } catch (e) {
         if (!plan.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
@@ -745,8 +769,11 @@ export class Orchestrator {
       });
     } finally {
       clearTimeout(timer);
+      for (const timer of toolTimers.values()) clearTimeout(timer);
       control.abort.signal.removeEventListener('abort', onAbort);
       this.clearPermissions(run.id);
+      if (control.abort.signal.aborted && control.runtime?.sessionId)
+        await new Promise((resolve) => setTimeout(resolve, 100));
       control.runtime?.close();
       this.active.delete(run.id);
       this.approvalTokens.delete(run.id);

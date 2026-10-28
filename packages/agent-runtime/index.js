@@ -187,7 +187,16 @@ export class AcpRuntime {
       else
         local.signal.addEventListener('abort', () => reject(local.signal.reason), { once: true });
     });
-    local.signal.addEventListener('abort', () => this.close(), { once: true });
+    local.signal.addEventListener(
+      'abort',
+      () => {
+        if (signal?.aborted && this.sessionId) {
+          this.cancel();
+          setTimeout(() => this.close(), 100).unref();
+        } else this.close();
+      },
+      { once: true },
+    );
     const pending = local.signal.aborted
       ? aborted
       : this.connection.agent.request(method, params, { cancellationSignal: local.signal });

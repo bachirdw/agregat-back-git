@@ -19,6 +19,10 @@ test('échec privé : délai, annulation et arrêt de l’agent sont nommés san
   );
   assert.equal(careerFailureMessage({ cancelled: true }), 'Annulée par l’utilisateur');
   assert.equal(
+    careerFailureMessage({ reason: { code: 'tool_stalled', afterMs: 120000 } }),
+    'Outil sans mise à jour depuis 120 s ; relancer.',
+  );
+  assert.equal(
     careerFailureMessage({ error: { code: 'exited', message: 'CV privé' } }),
     'Agent arrêté',
   );

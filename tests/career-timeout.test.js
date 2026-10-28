@@ -12,6 +12,7 @@ test('délai par défaut : career-ops 15 min, autres packs 3 min ; surcharge exp
   try {
     assert.equal(app.engine.timeoutFor('core'), 180000);
     assert.equal(app.engine.timeoutFor('career-ops'), 900000);
+    assert.equal(app.engine.toolIdleMs, 120000);
     assert.equal(overridden.engine.timeoutFor('core'), 1234);
     assert.equal(overridden.engine.timeoutFor('career-ops'), 1234);
   } finally {

@@ -74,3 +74,9 @@ Mission `92d19275` (recherche et note, Gemini) tuée à 180 s pile par le délai
 
 Autre constat : Gemini ajoute parfois `wait_for_previous` aux arguments des outils career. Le schéma strict les
 refuse, puis l'agent réessaie. Ignore ce champ connu plutôt que d'échouer.
+- **Recherche** : dans la mission `92d19275`, Gemini a utilisé seulement `jobs_search_live`, qui interroge Arbeitnow
+  et Remotive (`domain-packs/najah/live.js:7-13`). Ces sources sont peu pertinentes pour Sydney. Il n'a pas lancé
+  `career_script scan`, c'est-à-dire les portails de `portals.yml` : SEEK, LinkedIn, Indeed.
+
+  Correction attendue dans `CAREER_INSTRUCTIONS` : pour toute recherche, `career_script scan` d'abord ;
+  `jobs_search_live` seulement en complément. Ajoute un test.

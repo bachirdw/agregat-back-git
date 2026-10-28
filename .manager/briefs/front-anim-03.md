@@ -51,3 +51,10 @@ L'utilisateur la veut **collée en bas**, comme dans Claude Code et l'export de 
 
 ## Fin
 Dernier message en 12 lignes au plus : FAIT · COMMITS · PREUVES · RESTE.
+
+## Note du manager (28/10, 11:08) — contrôle de front-anim-02
+`front-anim-02-evidence/measure-run.sh` est lancé hors bac à sable.
+- Le plan est OK aux 5 tailles : le bas de « Lancer » est au-dessus du dock compact.
+- La mission avec 12 lignes est OK aux 4 tailles de bureau.
+- Le script échoue en **375×812, mission** : il attend `.toolbar .badge` visible, mais ce badge est masqué sur mobile
+  (`measure.mjs:86`). Corrige le script (attends l'état autrement) et inclus ce cas dans tes mesures.

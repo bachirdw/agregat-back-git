@@ -1,0 +1,268 @@
+[
+  {
+    "name": "1550x810-plan-initial",
+    "viewport": [
+      1550,
+      810
+    ],
+    "dockTop": 704.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 658.234375,
+    "lastBottom": 672.234375,
+    "scrollTop": 414,
+    "scrollHeight": 1224,
+    "clientHeight": 810,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1550x810-plan-bottom",
+    "viewport": [
+      1550,
+      810
+    ],
+    "dockTop": 704.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 658.234375,
+    "lastBottom": 672.234375,
+    "scrollTop": 414,
+    "scrollHeight": 1224,
+    "clientHeight": 810,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1550x810-mission-12-bottom",
+    "viewport": [
+      1550,
+      810
+    ],
+    "dockTop": 468,
+    "dockHeight": 443.015625,
+    "measuredDockHeight": 444,
+    "launchBottom": null,
+    "lastBottom": -31.875,
+    "scrollTop": 1695,
+    "scrollHeight": 2163,
+    "clientHeight": 468,
+    "paddingBottom": 468,
+    "scrollPaddingBottom": 468,
+    "compact": "false",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1360x900-plan-initial",
+    "viewport": [
+      1360,
+      900
+    ],
+    "dockTop": 794.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 748.234375,
+    "lastBottom": 762.234375,
+    "scrollTop": 324,
+    "scrollHeight": 1224,
+    "clientHeight": 900,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1360x900-plan-bottom",
+    "viewport": [
+      1360,
+      900
+    ],
+    "dockTop": 794.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 748.234375,
+    "lastBottom": 762.234375,
+    "scrollTop": 324,
+    "scrollHeight": 1224,
+    "clientHeight": 900,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1360x900-mission-12-bottom",
+    "viewport": [
+      1360,
+      900
+    ],
+    "dockTop": 468,
+    "dockHeight": 443.015625,
+    "measuredDockHeight": 444,
+    "launchBottom": null,
+    "lastBottom": -31.875,
+    "scrollTop": 1695,
+    "scrollHeight": 2163,
+    "clientHeight": 468,
+    "paddingBottom": 468,
+    "scrollPaddingBottom": 468,
+    "compact": "false",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1280x720-plan-initial",
+    "viewport": [
+      1280,
+      720
+    ],
+    "dockTop": 614.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 568.234375,
+    "lastBottom": 582.234375,
+    "scrollTop": 504,
+    "scrollHeight": 1224,
+    "clientHeight": 720,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1280x720-plan-bottom",
+    "viewport": [
+      1280,
+      720
+    ],
+    "dockTop": 614.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 568.234375,
+    "lastBottom": 582.234375,
+    "scrollTop": 504,
+    "scrollHeight": 1224,
+    "clientHeight": 720,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1280x720-mission-12-bottom",
+    "viewport": [
+      1280,
+      720
+    ],
+    "dockTop": 468,
+    "dockHeight": 443.015625,
+    "measuredDockHeight": 444,
+    "launchBottom": null,
+    "lastBottom": -31.875,
+    "scrollTop": 1695,
+    "scrollHeight": 2163,
+    "clientHeight": 468,
+    "paddingBottom": 468,
+    "scrollPaddingBottom": 468,
+    "compact": "false",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1024x640-plan-initial",
+    "viewport": [
+      1024,
+      640
+    ],
+    "dockTop": 534.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 488.234375,
+    "lastBottom": 502.234375,
+    "scrollTop": 584,
+    "scrollHeight": 1224,
+    "clientHeight": 640,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1024x640-plan-bottom",
+    "viewport": [
+      1024,
+      640
+    ],
+    "dockTop": 534.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 488.234375,
+    "lastBottom": 502.234375,
+    "scrollTop": 584,
+    "scrollHeight": 1224,
+    "clientHeight": 640,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "1024x640-mission-12-bottom",
+    "viewport": [
+      1024,
+      640
+    ],
+    "dockTop": 450,
+    "dockHeight": 425.390625,
+    "measuredDockHeight": 426,
+    "launchBottom": null,
+    "lastBottom": -31.828125,
+    "scrollTop": 1953,
+    "scrollHeight": 2403,
+    "clientHeight": 450,
+    "paddingBottom": 450,
+    "scrollPaddingBottom": 450,
+    "compact": "false",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "375x812-plan-initial",
+    "viewport": [
+      375,
+      812
+    ],
+    "dockTop": 714.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 643.6875,
+    "lastBottom": 682.1875,
+    "scrollTop": 808,
+    "scrollHeight": 1620,
+    "clientHeight": 812,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  },
+  {
+    "name": "375x812-plan-bottom",
+    "viewport": [
+      375,
+      812
+    ],
+    "dockTop": 714.453125,
+    "dockHeight": 81.546875,
+    "measuredDockHeight": 82,
+    "launchBottom": 643.6875,
+    "lastBottom": 682.1875,
+    "scrollTop": 808,
+    "scrollHeight": 1620,
+    "clientHeight": 812,
+    "paddingBottom": 106,
+    "scrollPaddingBottom": 106,
+    "compact": "true",
+    "horizontalOverflow": false
+  }
+]

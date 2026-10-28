@@ -29,3 +29,13 @@
 - Exécuter `.manager/reports/front-anim-02-evidence/measure-run.sh` hors bac à sable, lire `measure.log` et `measure.json`, et contrôler les captures `*-plan-initial.png`, `*-plan-bottom.png`, `*-mission-12-bottom.png` aux cinq tailles. Le script vérifie « Lancer » et le dernier élément du fil au-dessus du dock, plus la mesure CSS du dock et le débordement horizontal. Si une géométrie échoue, le script rend le code 1 ; corriger avant validation.
 - Relancer `npm test` du back hors bac à sable pour statuer sur les 75 échecs Chrome ; ils étaient déjà présents à la baseline et n'ont pas été attribués aux deux libellés modifiés.
 - Aucun appel de modèle payant, aucune mission réelle, aucun envoi, aucun push.
+
+## Contrôle du manager (Claude) — 28/10, 11:08
+- `measure-run.sh` lancé hors bac à sable.
+- Plan : OK aux 5 tailles.
+  - Bas de « Lancer » au-dessus du dock compact (82 px), avec 46 px d'écart à 1550×810.
+  - Réserve de 106 px égale à la hauteur du dock + 24 px.
+- Mission avec un dock de 12 lignes : OK aux 4 tailles de bureau. La réserve suit la hauteur du dock (444 px).
+- Mission 375×812 non mesurée : défaut du script (badge masqué sur mobile), confié à front-anim-03.
+
+**Verdict** : front-anim-02 VALIDÉ (réserve : mesure mission mobile).

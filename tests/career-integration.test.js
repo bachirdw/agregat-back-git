@@ -469,6 +469,45 @@ test('Réponse en texte libre (questions intake) : mission réussie, texte en r�
   assert.equal(result.simulated, true, 'un agent fictif reste étiqueté simulé');
 });
 
+test('Fixture career : questions puis réponse dans la même session ACP', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  const wait = async (run) => {
+    for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+      await new Promise((r) => setTimeout(r, 20));
+    return app.store.get(run.id);
+  };
+  const first = await wait(
+    await app.engine.create({
+      prompt: 'FICTIF_PROFIL questions',
+      agent: 'fixture',
+      pack: 'career-ops',
+    }),
+  );
+  assert.equal(first.state, 'completed', first.error);
+  assert.equal(first.resumable, true);
+  const second = await wait(
+    await app.engine.create(
+      { prompt: 'FICTIF_REPONSE Sydney', agent: 'fixture', pack: 'career-ops' },
+      first,
+    ),
+  );
+  assert.equal(second.state, 'completed', second.error);
+  assert.equal(second.sessionId, first.sessionId);
+  assert.match(readFileSync(join(career.path(), 'modes/_profile.md'), 'utf8'), /Sydney/);
+});
+
 test('Modèle choisi dans l’interface : appliqué à la mission career-ops (env et session ACP)', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);

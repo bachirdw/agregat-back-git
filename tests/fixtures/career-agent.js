@@ -8,7 +8,7 @@ const app = agent({ name: 'career-FICTIF' })
   .onRequest(methods.agent.initialize, () => ({
     protocolVersion: PROTOCOL_VERSION,
     agentInfo: { name: 'FICTIF', version: '1' },
-    agentCapabilities: {},
+    agentCapabilities: { loadSession: true },
   }))
   .onRequest(methods.agent.session.new, (ctx) => {
     session = { ...ctx.params, sessionId: randomUUID(), model: process.env.GEMINI_MODEL };
@@ -28,6 +28,10 @@ const app = agent({ name: 'career-FICTIF' })
         },
       ],
     };
+  })
+  .onRequest(methods.agent.session.load, (ctx) => {
+    session = { ...ctx.params, sessionId: ctx.params.sessionId, model: process.env.GEMINI_MODEL };
+    return { sessionId: session.sessionId };
   })
   .onRequest(methods.agent.session.setConfigOption, (ctx) => {
     if (ctx.params.configId === 'model') session.model = ctx.params.value;
@@ -49,6 +53,64 @@ const app = agent({ name: 'career-FICTIF' })
         return JSON.parse(r.content[0].text);
       };
       const cv = await call('career_read', { path: 'cv.md' });
+      if (request.objective.includes('FICTIF_LENT'))
+        await new Promise((resolve) => setTimeout(resolve, 12000));
+      const send = async (summary) =>
+        connection.client.notify(methods.client.session.update, {
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: {
+              type: 'text',
+              text: JSON.stringify({ simulated: true, summary, evidence: [] }),
+            },
+          },
+        });
+      if (request.objective.includes('FICTIF_PROFIL')) {
+        await send('Questions FICTIVES : 1. Quelle ville visez-vous ? 2. Quel poste visez-vous ?');
+        return { stopReason: 'end_turn' };
+      }
+      if (request.objective.includes('FICTIF_REPONSE')) {
+        await call('career_write', {
+          path: 'modes/_profile.md',
+          text: `# Profil FICTIF\n\nRéponse : ${request.objective}\n`,
+        });
+        await send(
+          'Profil FICTIF enregistré dans modes/_profile.md ; réponse reçue : ' + request.objective,
+        );
+        return { stopReason: 'end_turn' };
+      }
+      if (request.objective.includes('FICTIF_RECHERCHE')) {
+        await call('career_offer_save', {
+          id: randomUUID(),
+          title: 'Poste FICTIF',
+          company: 'Entreprise FICTIVE',
+          url: 'https://jobs.example.test/fictif',
+          source: 'Fixture locale FICTIVE, aucun accès réseau',
+          fetchedAt: new Date().toISOString(),
+          score: 4,
+          report: Object.fromEntries(
+            'ABCDEFG'.split('').map((key) => [key, `Analyse ${key} FICTIVE`]),
+          ),
+          simulated: true,
+        });
+        await send('Recherche FICTIVE : offre enregistrée, note 4/5 et rapport A–G.');
+        return { stopReason: 'end_turn' };
+      }
+      if (request.objective.includes('FICTIF_CV_LETTRE')) {
+        await call('career_write', {
+          path: 'output/cv-fictif.md',
+          text: '# CV adapté FICTIF\n' + cv.text,
+        });
+        await call('career_write', {
+          path: 'output/lettre-fictive.md',
+          text: '# Lettre FICTIVE\n' + cv.text,
+        });
+        await send(
+          'CV et lettre FICTIFS dans output/cv-fictif.md et output/lettre-fictive.md. Manques FICTIFS : expérience Kubernetes non attestée. Aucun envoi.',
+        );
+        return { stopReason: 'end_turn' };
+      }
       let controlEvidence = '';
       if (request.objective.includes('CONTROLES_FICTIFS')) {
         const gap = await call('career_script', {

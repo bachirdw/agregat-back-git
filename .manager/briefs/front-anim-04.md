@@ -80,3 +80,17 @@ refuse, puis l'agent réessaie. Ignore ce champ connu plutôt que d'échouer.
 
   Correction attendue dans `CAREER_INSTRUCTIONS` : pour toute recherche, `career_script scan` d'abord ;
   `jobs_search_live` seulement en complément. Ajoute un test.
+
+## Ajout du manager (28/10, 15:10), test d'un utilisateur lambda dans l'interface
+- **Routage Auto** : le prompt « Trouve-moi des offres d'emploi qui correspondent à mon profil… » avec Agent Auto et
+  Pack Auto donne un plan **Codex + Navigation générale**. L'expression de `packs.js:89` attend « trouve des
+  offres » mot pour mot. Une demande d'emploi courante doit aller vers career-ops. C'est le lien avec l'orchestration
+  des Skills de `BACKLOG.md` ; en attendant, élargis la détection (offres d'emploi, job, poste, candidature, CV,
+  profil…) avec des tests.
+- **Entrée** ajoute une ligne au lieu d'envoyer. L'export de design dit « Entrée pour envoyer, Maj+Entrée pour aller
+  à la ligne » : applique ce comportement.
+- **Mission career-ops en cours** :
+  - le message de l'utilisateur n'apparaît pas dans le fil ;
+  - la zone de saisie affiche « Créez une nouvelle mission pour poursuivre » pendant l'exécution, ce qui est faux.
+
+  Corrige les deux.

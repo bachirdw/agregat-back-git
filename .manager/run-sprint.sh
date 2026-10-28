@@ -8,7 +8,7 @@ N=$1
 TS=$(date +%Y%m%d-%H%M%S)
 LOG=.manager/logs/$N-$TS.jsonl
 EXTRA=(); [ -n "${EXTRA_DIR:-}" ] && EXTRA=(--add-dir "$EXTRA_DIR")
-COMMON=(-m ${MODEL:-gpt-6-sol} -c model_reasoning_effort=\"${EFFORT:-medium}\" -c sandbox_workspace_write.network_access=true)
+COMMON=(-m ${MODEL:-gpt-6-sol} -c model_reasoning_effort=\"${EFFORT:-medium}\" -c service_tier=\"${TIER:-default}\" -c sandbox_workspace_write.network_access=true)
 if [ $# -ge 3 ]; then
   codex exec resume "${COMMON[@]}" --json -o .manager/logs/$N-$TS.last.md "$2" "$3" < /dev/null > "$LOG" 2>&1
 else

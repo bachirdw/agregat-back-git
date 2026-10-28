@@ -43,3 +43,24 @@ Si Chrome avorte dans le bac à sable, livre le lanceur `test-ready-01-evidence/
 
 ## Fin
 Dernier message en 12 lignes au plus : FAIT · COMMITS · PRÊT À TESTER · RESTE.
+
+## Note du manager (28/10, 12:51) — l'utilisateur signale que l'interface bugue
+Session précédente arrêtée à 12:51 pour changer de réglages ; ses changements non commités (`tests/career-integration.test.js`,
+`tests/fixtures/career-agent.js`, rapport) sont ta passation : reprends-les.
+L'utilisateur : « l'interface bugue, teste-la ». **Élargis le test** au-delà du parcours career-ops : clique et
+vérifie **chaque** interaction visible, à 1550×810 et 375×812 :
+- barre latérale : nouvelle mission, liste des missions, réouverture d'une mission, repli ;
+- pages Agents, Skills, Domain Packs, Consommation ;
+- toutes les pastilles du composeur et leurs menus (Agent, Modèle, Skills, Pack, Mode, Workflow, Navigateur,
+  Budget) ;
+- pièce jointe (fichier FICTIF) ;
+- thème clair/sombre ;
+- forme compacte au défilement, « Afficher les réglages », « Afficher plus » ;
+- plan, Lancer, Modifier, Stop pendant l'exécution, Reprendre, réponse dans la session ;
+- rechargement de la page au milieu d'une mission ;
+- perte puis retour du back (arrête la copie 4322 puis relance-la) : le front doit le dire et se reconnecter.
+
+Pour chaque interaction, vérifie trois choses : aucune erreur console, aucun élément masqué ou hors écran, et un
+état affiché qui correspond à l'état réel de l'API. Liste chaque bug trouvé dans le rapport, avec sa capture et
+son verdict (corrigé ou proposé), puis corrige par ordre de gravité. Tu peux lancer Playwright hors bac à sable
+par escalade, comme dans front-anim-03.

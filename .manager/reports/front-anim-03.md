@@ -26,3 +26,13 @@
 - **Preuves** : front `npm test` 65/65, build et Prettier verts (`front-final-*.log`) ; Playwright code 0 avec 30 états/30 captures aux cinq tailles (`measure.json`, `measure.log`, PNG). Marges toutes égales à 16 px ; aucune carte visible sous le dock ni débordement horizontal ; « Lancer » et le dernier élément du fil au-dessus du dock. Back `npm test` hors bac à sable 311 + 136 succès, 0 échec, 1 ignoré ; check et format verts. Mesure de mission avec 12 lignes **FICTIVE** injectée dans le DOM après une mission fixture, car cet agent ne permet pas la reprise.
 - **Décisions** : garder le dock dans le flux sur l'accueil et en mission ; refuser un positionnement absolu qui nécessiterait une seconde réserve et risquerait un recouvrement. Garder l'alignement bas de l'accueil sur bureau et l'alignement haut sur mobile, conforme à l'espace réellement disponible. Ne pas ajouter de transition de navigation : les deux pages ont désormais la même marge, et la transition existante du composeur ainsi que la réduction de mouvement de front-anim-01 restent en place. Le script ouvre explicitement le composeur de mission avant mesure pour éviter une capture pendant sa compaction.
 - **Limites / manager** : aucun appel de modèle, mission réelle, site externe, envoi ou push. Les captures et le résultat Playwright portent sur Chrome local et un backend figé en mode fixture ; le contrôle visuel final du manager reste souhaitable. Aucun point bloquant connu.
+
+## Contrôle du manager (Claude) — 28/10, 12:41
+- Mesures relues : `bottomMargin` de 16 px partout, à l'accueil comme sur la page mission.
+  - Plan : « Lancer » reste au-dessus du dock.
+  - Mobile : la mission avec 12 lignes est mesurée, le défaut du script noté au contrôle de front-anim-02 est
+    corrigé.
+- Capture relue : `1550x810-home-0.png`. La zone de saisie est en bas, avec le titre et les cartes au-dessus, sans
+  chevauchement.
+
+**Verdict** : front-anim-03 VALIDÉ.

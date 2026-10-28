@@ -3,6 +3,97 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
+## 000000. Journée du 28/10 — test réel, diagnostic, nouvel affichage (À LIRE EN PREMIER, prime sur § 00000)
+
+### État à 19:50 (Sydney)
+- **Serveurs**, relancés détachés le 28/10 après une coupure par fin de session :
+  - back 4310 : `AGENT_PLATFORM_TIMEOUT_MS=900000 AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1
+    AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 nohup node --env-file-if-exists=.manager/secrets.env
+    apps/api/server.js`, journal `.manager/logs/server-4310.log` ;
+  - front 5173 : `npm run dev` dans agregat-front, journal `.manager/logs/vite-5173.log`.
+
+  Toujours vérifier qu'aucune mission ne tourne (`GET /api/runs`) avant de redémarrer.
+- **Back** : `ef475b4`. **Front** : `5c308dc`.
+- **Changements NON commités** de front-anim-04, faits par une session Codex que l'utilisateur a pilotée hors chaîne :
+  - back : `apps/api/server.js`, `tests/career-integration.test.js` ;
+  - front : `App.tsx`, `Composer.tsx` et leurs tests, `tests/e2e.test.mjs`.
+
+  À reprendre, contrôler et commiter (voir `reports/front-anim-04.md`).
+- **Dépense Gemini** : cumul prudent d'environ **4,91 $ sur 5 $** (`api-usage.md`), avec un plafond relevé par le
+  propriétaire à 5 $ et 600 tours. **Plus aucune mission Gemini sans accord.**
+- Codex : `gpt-6-sol`. L'utilisateur réinitialise lui-même la limite d'usage. Pour relancer une chaîne en attente :
+  `touch .manager/logs/resume-now`.
+
+### Décisions de l'utilisateur (28/10)
+1. **Tout le codage va à Codex.** Claude supervise : briefs, contrôle du diff, tests relancés, mesures Playwright hors
+   bac à sable, commits de contrôle. Il code seulement l'outillage `.manager/` (mémoire `coding-goes-to-codex`).
+2. **Effort de Codex** : `high` (ou `xhigh`) pour l'urgent qui débloque les tests de l'utilisateur, `medium` pour
+   le reste. Mode Fast (`TIER=priority`) seulement sur demande (mémoire `codex-effort-strategy`).
+3. **Un seul front** : http://127.0.0.1:5173. L'ancienne page `apps/web` reste en doublon ; sa suppression est
+   proposée, sans réponse.
+4. **Le prompt pour postuler, c'est l'utilisateur qui l'envoie** lui-même, devant sa machine. Claude peut lancer des
+   recherches et des notations depuis l'interface, avec l'accord de l'utilisateur.
+5. **Sécurité** : toujours reportée (points d'envoi, GET privés), sauf ce qui casse le test.
+6. **Plus tard**, dans `BACKLOG.md` :
+   - orchestration de plusieurs Skills : un routeur interne qui reconnaît chaque Skill et impose l'ordre des outils ;
+   - accès depuis un téléphone : architecture serveur hébergé + exécuteur local ou cloud + notifications d'accord,
+     ADR à rédiger ;
+   - les 5 décisions du GAP-REPORT.
+
+### Fait le 28/10 (tout est validé par le manager, rapports dans `reports/`)
+| Étape | Commits | Résultat |
+|---|---|---|
+| diag-01 | back `ef22ed1`, front `2fbfab9` `3a4c70c` `554683d` | `career_offer_save` : UUID généré et note facultative, rapport A–G (H facultatif) ; masquage limité aux vrais secrets ; libellé de vérification honnête ; outil refusé affiché ; accueil sans chevauchement |
+| diag-02 | back `87d9a40` `a0423dd` `e4174dc`, front `7b9980a` | Auto vers career-ops (mots-clés) ; agent incompatible remplacé par Gemini dans le plan ; contrôles `jd-skill-gap`, `cv-title-check`, `verify-cv-facts` exposés en lecture seule sans réseau ; PDF ATS non exposé |
+| front-anim-01 | fusion front `bca4d39` | Export Claude Design `design/conversation-agent.html` reproduit : composeur adaptatif jusqu'à 40 %, compact au défilement, bulles repliables, animations du design |
+| front-anim-02 | front `4136e84` `cc1475a`, back `9f655e2` | Réserve `--dock-h` (ResizeObserver) ; plan compact, « Lancer » visible ; libellés du plan corrigés |
+| front-anim-03 | front `1c43c2b` | Dock ancré à 16 px du bas sur toutes les pages |
+| test-ready-01 | front `5c308dc`, back `73f7626` `5f13a8f` `0e9aaa0` | Parcours Playwright 42/42 (1550×810 et 375×812) ; reconnexion après perte de l'API ; brouillon vidé au lancement ; fixture career rejouable |
+
+**Missions réelles** (Gemini) :
+- profil `d04b4aea` : OK, `modes/_profile.md` créé avec 4 TODO et 3 questions encore sans réponse ;
+- recherche `92d19275` : coupée à 180 s, délai porté depuis à 15 min ;
+- `ffa2c6f0` : OK, 2 offres notées, mais seulement via Arbeitnow et Remotive ;
+- `52537401` : `google_web_search` bloqué, coupée à 10 min ;
+- reprise `43f5696c` par Codex : OK en 47 s avec `career_script scan`. Résultat : HCL 5/5 et Cloudera 4/5.
+
+### Plan (ordre)
+1. **front-anim-04** (brief `briefs/front-anim-04.md`, avec tous les ajouts du 28/10) : finir, contrôler et commiter
+   les changements en cours.
+   - Affichage :
+     - débordement horizontal (« zooms ») ;
+     - défilement bloqué pendant la réflexion, plus un bouton « Revenir en bas » ;
+     - Entrée pour envoyer ;
+     - message absent et « Créez une nouvelle mission » pendant une mission career-ops.
+   - Back :
+     - cause réelle des échecs (délai, inactivité, annulation) au lieu du message générique ;
+     - délai career-ops de 15 min par défaut ;
+     - **borne de 120 s par outil sans mise à jour** (`google_web_search` bloqué) ;
+     - surveillance « agent silencieux » et diagnostic de Gemini dans les détails ;
+     - `career_script scan` imposé avant `jobs_search_live` ;
+     - champ `wait_for_previous` ignoré ;
+     - Auto : détection des demandes d'emploi élargie (« Trouve-moi des offres d'emploi… » partait vers Codex et la
+       navigation générale).
+2. **Test réel par l'utilisateur**, avec son accord pour la dépense Gemini : réponses aux 3 questions du profil, puis
+   recherche avec note, puis CV et lettre pour HCL (prompt dans `reports/diag-02.md` ou `test-ready-01.md`). La
+   candidature est lancée par l'utilisateur lui-même.
+3. **Puis, en effort `medium`, chantiers du GAP-REPORT**, supervisés toute la journée, en commençant par :
+   - l'orchestration des Skills (`BACKLOG.md`) ;
+   - le PDF ATS confiné ;
+   - les points d'envoi (sécurité), quand l'utilisateur le décidera.
+
+### Pièges appris le 28/10
+- Un processus lancé depuis la session Claude meurt avec elle : serveurs et attentes de chaîne. Lancer avec
+  `( … nohup … & )`, puis vérifier.
+- Le guetteur de limite lit désormais les dates (« Nov 2nd, 2026 5:55 PM ») et accepte `resume-now`.
+- Modifier `run-sprint.sh` pendant qu'il tourne provoque une « parse error » : remplacer le fichier par un `mv`
+  atomique.
+- Chrome avorte dans le bac à sable de Codex. Les mesures Playwright se font hors bac à sable, par escalade ou par
+  le manager.
+- Gemini peut rester bloqué sur `google_web_search` en ACP : il faut le contourner (scan) ou le borner.
+- `jobs_search_live` ne couvre qu'Arbeitnow et Remotive, peu utiles pour Sydney. Le bon outil est
+  `career_script scan` (`portals.yml` : SEEK, LinkedIn, Indeed).
+
 ## 00000. Nuit du 27→28/10 — AUDIT COMPLET PAR CODEX, supervisé par Claude (À LIRE EN PREMIER)
 
 **Résultat (28/10, 05:50, relevé par `date`)** : chaîne terminée, six audits et la synthèse VALIDÉS par le manager.

@@ -59,6 +59,7 @@ export class Orchestrator {
       live = false,
       timeoutMs,
       toolIdleMs = 120000,
+      silentMs = 180000,
       career = new CareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
       autoSend = process.env.AGENT_PLATFORM_AUTO_SEND === '1',
@@ -72,6 +73,7 @@ export class Orchestrator {
       timeoutMs: timeoutMs ?? 180000,
       careerTimeoutMs: timeoutMs ?? 900000,
       toolIdleMs,
+      silentMs,
       ownerMode,
       autoSend,
     });
@@ -540,6 +542,39 @@ export class Orchestrator {
       events = 0;
     const toolTimers = new Map();
     let promptStarted = false;
+    let silenceTimer;
+    let warningTimer;
+    const clearSilence = () => {
+      clearTimeout(silenceTimer);
+      clearTimeout(warningTimer);
+    };
+    const armSilence = () => {
+      if (!promptStarted) return;
+      clearSilence();
+      const warningMs = Math.min(60000, Math.max(1, Math.floor(this.silentMs / 2)));
+      warningTimer = setTimeout(
+        () => this.store.event(run.id, 'agent_silent', { elapsedMs: warningMs, stopped: false }),
+        warningMs,
+      );
+      silenceTimer = setTimeout(() => {
+        this.store.event(run.id, 'agent_silent', { elapsedMs: this.silentMs, stopped: true });
+        const error = new Error('Agent inactif');
+        error.code = 'agent_silent';
+        error.afterMs = this.silentMs;
+        control.abort.abort(error);
+      }, this.silentMs);
+    };
+    const recordDiagnostic = () => {
+      const diagnostic = control.runtime?.diagnostic;
+      if (plan.pack.id !== 'career-ops' || !diagnostic || control.diagnosticRecorded) return;
+      control.diagnosticRecorded = true;
+      try {
+        writeConfined(run.cwd, `relay/runs/${run.id}-diagnostic.txt`, diagnostic);
+      } catch {
+        this.store.event(run.id, 'agent_diagnostic_unavailable', {});
+      }
+      if (this.ownerMode) this.store.event(run.id, 'agent_diagnostic', { text: diagnostic });
+    };
     const watchTool = (update) => {
       if (!promptStarted || !update.toolCallId) return;
       if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate)) return;
@@ -612,6 +647,7 @@ export class Orchestrator {
             ? resolve(run.cwd, 'relay/agent-home')
             : resolve(this.dataDir, 'agent-homes', plan.agent.id),
         onEvent: (update) => {
+          armSilence();
           watchTool(update);
           if (++events > 4000) {
             control.abort.abort(new Error('Trop d’événements'));
@@ -678,7 +714,9 @@ export class Orchestrator {
       let response;
       try {
         promptStarted = true;
+        armSilence();
         response = await runtime.prompt(prompt, control.abort.signal);
+        clearSilence();
       } catch (e) {
         if (!plan.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
           saveProbe(this.dataDir, plan.agent.id, {
@@ -742,12 +780,14 @@ export class Orchestrator {
         valid: true,
         scope: verificationScope(plan.pack.id, plan.simulated),
       });
+      recordDiagnostic();
       this.store.update(run.id, {
         state: 'completed',
         result: value,
         finishedAt: new Date().toISOString(),
       });
     } catch (e) {
+      recordDiagnostic();
       const reason = control.abort.signal.reason;
       if (!plan.simulated && control.runtime && !control.runtime.sessionId && !control.cancelled)
         saveProbe(this.dataDir, plan.agent.id, {
@@ -769,6 +809,7 @@ export class Orchestrator {
       });
     } finally {
       clearTimeout(timer);
+      clearSilence();
       for (const timer of toolTimers.values()) clearTimeout(timer);
       control.abort.signal.removeEventListener('abort', onAbort);
       this.clearPermissions(run.id);

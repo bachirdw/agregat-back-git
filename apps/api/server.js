@@ -69,13 +69,23 @@ export function createApp({
   timeoutMs = Number(process.env.AGENT_PLATFORM_TIMEOUT_MS) > 0
     ? Number(process.env.AGENT_PLATFORM_TIMEOUT_MS)
     : undefined,
+  silentMs = Number(process.env.AGENT_PLATFORM_AGENT_SILENCE_MS) > 0
+    ? Number(process.env.AGENT_PLATFORM_AGENT_SILENCE_MS)
+    : undefined,
   ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
   career = new CareerWorkspace(),
   webDir = process.env.AGENT_PLATFORM_WEB_DIR || null,
 } = {}) {
   const store = new Store(resolve(dataDir, 'platform.sqlite'));
   const skills = new SkillRegistry(store, skillDefinitions, { dataDir });
-  const engine = new Orchestrator(store, skills, { dataDir, live, timeoutMs, ownerMode, career });
+  const engine = new Orchestrator(store, skills, {
+    dataDir,
+    live,
+    timeoutMs,
+    silentMs,
+    ownerMode,
+    career,
+  });
   const files = {
     '/': ['index.html', 'text/html'],
     '/app.js': ['app.js', 'text/javascript'],

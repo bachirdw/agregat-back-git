@@ -130,6 +130,7 @@ const app = agent({ name: 'fake-acp' })
     if (cfg.cancelFile) writeFileSync(cfg.cancelFile, 'session/cancel');
   })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
+    if (cfg.diagnosticText) process.stderr.write(cfg.diagnosticText);
     await guard('session/prompt');
     if (cfg.stallTool) {
       await connection.client.notify(methods.client.session.update, {

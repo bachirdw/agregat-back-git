@@ -57,7 +57,7 @@ export class Orchestrator {
     {
       dataDir = resolve(ROOT, '.data'),
       live = false,
-      timeoutMs = 180000,
+      timeoutMs,
       career = new CareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
       autoSend = process.env.AGENT_PLATFORM_AUTO_SEND === '1',
@@ -68,7 +68,8 @@ export class Orchestrator {
       skills,
       dataDir,
       live: ownerMode || live,
-      timeoutMs,
+      timeoutMs: timeoutMs ?? 180000,
+      careerTimeoutMs: timeoutMs ?? 900000,
       ownerMode,
       autoSend,
     });
@@ -84,6 +85,9 @@ export class Orchestrator {
     store.bindCurrency(this.pricing.currency);
     store.limits.monthlyCapCents = this.pricing.monthlyCapCents;
     this.approvalBase = null; // set by the HTTP server once listening
+  }
+  timeoutFor(packId) {
+    return packId === 'career-ops' ? this.careerTimeoutMs : this.timeoutMs;
   }
   // Single metering point: prices the usage, writes the chained ledger and stops the run when a
   // budget or the monthly cap would be exceeded (the action that triggered it is refused).
@@ -534,7 +538,7 @@ export class Orchestrator {
       events = 0;
     const timer = setTimeout(
       () => control.abort.abort(new Error('Délai maximal dépassé')),
-      this.timeoutMs,
+      this.timeoutFor(plan.pack.id),
     );
     const onAbort = () => {
       control.closeAll?.();

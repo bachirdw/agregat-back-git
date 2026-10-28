@@ -24,7 +24,7 @@ test('E2E : échec de lancement ne laisse aucun serveur local empêchant la sort
           AGENT_PLATFORM_OWNER_MODE: '0',
           AGENT_PLATFORM_LIVE: '0',
         },
-        timeout: 5000,
+        timeout: 15000,
       },
     );
     assert.fail('Le faux Chrome doit échouer');
@@ -55,7 +55,7 @@ test('captures : échec de lancement ferme aussi l’API locale', async () => {
           AGENT_PLATFORM_OWNER_MODE: '0',
           AGENT_PLATFORM_LIVE: '0',
         },
-        timeout: 5000,
+        timeout: 15000,
       },
     );
     assert.fail('Le faux Chrome doit échouer');

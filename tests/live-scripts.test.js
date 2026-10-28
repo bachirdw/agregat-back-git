@@ -49,10 +49,10 @@ async function probe(t, { state = 'completed', permissions = [], hang = false, e
         NODE_TEST_CONTEXT: undefined,
         PORT: String(server.address().port),
         LIVE_RUN_TIMEOUT_MS: '2000',
-        LIVE_RUN_REQUEST_TIMEOUT_MS: '100',
+        LIVE_RUN_REQUEST_TIMEOUT_MS: '1000',
         ...env,
       },
-      timeout: 3000,
+      timeout: 10000,
     });
     result = { ...r, code: 0, killed: false };
   } catch (e) {

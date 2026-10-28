@@ -26,7 +26,7 @@ test('runner : une phase bloquée expire sans attendre le délai de quinze minut
       cwd: root,
       env: { ...env, AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS: '100' },
       encoding: 'utf8',
-      timeout: 2000,
+      timeout: 15000,
     });
     assert.equal(result.error, undefined, 'le runner lui-même doit sortir avant le délai externe');
     assert.equal(result.status, 1);

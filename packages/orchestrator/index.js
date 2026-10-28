@@ -23,6 +23,7 @@ import { ROOT, getDag, getPack, proposeDag, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { executionResult, parseAgentResult } from './result.js';
+import { careerFailureMessage } from './failure.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
@@ -734,7 +735,7 @@ export class Orchestrator {
         state: control.cancelled ? 'cancelled' : 'failed',
         error:
           plan.pack.id === 'career-ops'
-            ? 'Exécution privée échouée ou annulée ; vérifier la configuration locale et le suivi.'
+            ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
             : String(reason?.message ?? e.message ?? e).slice(0, 1000),
         finishedAt: new Date().toISOString(),
       });

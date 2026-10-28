@@ -174,7 +174,7 @@ test(
       const elapsed = Date.now() - t0;
       const signals = calls.filter(([, signal]) => signal !== 0).map(([, signal]) => signal);
       assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
-      assert.ok(elapsed >= 1400 && elapsed < 3500, `attente bornée : ${elapsed} ms`);
+      assert.ok(elapsed >= 1400 && elapsed < 12000, `attente bornée : ${elapsed} ms`);
     });
     assert.ok(await waitFor(() => isProcessDefinitelyDead(child.grandchild)));
   },

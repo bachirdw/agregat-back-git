@@ -20,11 +20,16 @@
 - 13:23 — Neuvième Playwright code 1 (`runner-outside-9.log`) : métier, Stop/Reprendre, long défilement et Skill activé/désactivé verts ; deux attentes du script sont incorrectes (après suggestion « Général », Mode est Agent unique, donc pas de pastille Workflow ; la barre latérale mobile ouverte masque les suggestions). Script corrigé pour remettre Mode Workflow et fermer la barre avant ces contrôles. **Défaut intermittent réel** à la coupure du back : si le SSE ne signale aucune erreur, le front ne lit jamais l'état de l'API et laisse « En cours ». `heartbeat-red.log` : test `App.test.tsx` rouge (12 succès, 1 échec, une seule lecture du run) ; lecture de secours toutes les 2 s pendant une mission active et arrêt à l'état final, test ciblé vert 13/13 (`heartbeat-green.log`). Test E2E de perte/reconnexion à rejouer. Le lanceur s'est nettoyé, 4322/5176 libres.
 - 13:26 — Dixième Playwright code 1 (`runner-outside-10.log`, `flow.json`) : **40 étapes OK sur 42**, y compris deux coupures et retours du backend, Stop/Reprendre, galeries, suggestions et parcours métier aux deux tailles. Seuls échecs : le script tente la première case Skill, désactivée, alors qu'un Skill actif sélectionnable est plus loin ; locator limité aux cases non désactivées. Aucun défaut produit nouveau. `run.sh` libère 4322/5176 ; le message shell « Killed: 9 » signale la coupure volontaire du premier backend. Relance finale ciblée du Playwright prévue.
 - 13:28 — Onzième Playwright **code 0**, 42 étapes OK sur 42 (`runner-final.log`, `flow.log`, `flow.json`, captures PNG). Deux erreurs console 502 attendues uniquement pendant les coupures volontaires, aucune autre ; captures de la perte visible et retour de l'API aux deux tailles ; 4322/5176 libres. Pré-commit front : `npm test` 71/71, `npm run build` code 0 (avertissement de taille de chunks préexistant), `npx prettier --check src` code 1 sur quatre fichiers ; pré-commit back : `npm run check` code 0, `npm run format:check` code 1 sur deux fichiers. Prettier appliqué uniquement à ces six fichiers (`front-format-fix.log`, `back-format-fix.log`) ; les vérifications complètes doivent être répétées avant commit. Aucun appel de modèle, envoi, site réel ni serveur utilisateur.
+- 17:51 — Reprise après coupure : lecture de `AGENTS.md`, du brief, de `_audit-common.md`, de la fin de `front-anim-03.md` et de la passation ci-dessous. `git status --short` vide dans les deux dépôts ; le manager a déjà commité le front `5c308dc` et le back `73f7626` après vérifications (71/71 front, 312 tests back hors Chrome et 136/136 Chrome, build/check/format verts). `flow.json` relu : 42 verdicts `ok`, deux erreurs console HTTP 502 sur les deux seules coupures volontaires. Ports 4322/5176 libres (`lsof` code 1 sans sortie). Aucun test relancé à ce stade, aucun serveur utilisateur touché. Une première orchestration d'outils a échoué sur une erreur de syntaxe JavaScript, corrigée aussitôt. Deux commandes de résumé ont utilisé par erreur des noms de champs JSON (`ok` au lieu de `verdict`) et des noms de journaux inexistants (`front-final-*`) ; relecture des vrais champs et journaux corrigée. Fichiers touchés : ce rapport seulement.
+- 17:57 — Vérification avant commit documentaire : `npm run check` code 0 et `npm run format:check` code 0 (`reprise-precommit-{check,format}.log`). `npm test` code 1 (`reprise-precommit-test.log`) : phase sans Chrome 313 tests, 312 réussites, 0 échec, 1 ignoré ; phase Chrome 136 tests, 61 réussites, 75 échecs de lancement `SIGABRT`/`kill EPERM` dans le bac à sable. Il ne s'agit pas d'une régression du code du sprint : le manager avait exécuté cette même phase hors bac à sable à 136/136 avant les commits. Selon `_audit-common.md`, pas de nouvelle tentative Chrome ici. Les journaux `.log` sont locaux et ignorés par Git ; leurs résumés sont consignés dans ce rapport. Seul ce rapport est modifié ; aucun processus de test n'écoute sur 4322/5176.
+- 17:58 — `git diff --check` vert, `flow.json` reconfirmé 42/42 ; tentative `git add -A && git commit` code 128 avant tout staging : création de `.git/index.lock` refusée par le bac à sable (`Operation not permitted`). Aucun commit créé et seul le rapport reste modifié. Escalade ciblée du commit local demandée, sans push ni réécriture d'historique.
 
-## État provisoire
+## État et décisions
 
-- Script de bout en bout : prévu.
-- Vérification Gemini réelle : prévue par le propriétaire, hors de ce sprint sans appel payant.
+- **Opérationnel sur fixture FICTIVE** : lanceur `test-ready-01-evidence/run.sh`, copie figée du back sur 4322, Vite sur 5176, Chrome local, deux tailles 1550×810 et 375×812. `flow.json` : 42/42 étapes `ok`. La fixture ACP reprend la même session et joue questions, réponse, offres et documents FICTIFS. Les fichiers du Skill career-ops tiers n'ont pas été modifiés.
+- **Simulé** : contenu des offres, profil, CV, lettre et agent de test. Le parcours ne prouve ni la qualité d'une réponse Gemini, ni une recherche d'offres réelles, ni le rendu final d'un CV utilisateur.
+- **Non exécuté ici** : vraie mission Gemini sur 4310/5173, site d'emploi externe, CV utilisateur, envoi ou candidature. L'audit commun interdit ces actions dans ce sprint. Aucun appel API payant.
+- **Décisions** : copie `git archive` pour isoler les essais ; agent fixture étendu au strict nécessaire ; synchronisation périodique de l'état API pendant une mission pour rendre visible la perte du SSE ; ne pas assimiler un 502 de coupure volontaire à un défaut de l'interface ; pas de refonte ni de changement à la bibliothèque career-ops. Le rendu PDF simple existant n'est pas présenté comme certifié ATS.
 
 ## Contrôle du manager (Claude) — 28/10, 13:42
 - 13:33 : Codex a atteint sa limite d'usage avant de commiter. La chaîne reprendra à 17:22, ou plus tôt sur
@@ -43,3 +48,59 @@
 - Commits du manager : front et back, préfixe `[test-ready-01]`.
 
 **Verdict** : correctifs VALIDÉS. Le rapport final et les prompts restent à écrire par Codex à sa reprise.
+
+## Étapes validées et preuves
+
+Le fichier [`flow.json`](test-ready-01-evidence/flow.json) contient 21 étapes par taille, toutes `ok`. Les captures finales portent le même identifiant que chaque étape (`test-ready-01-evidence/<identifiant>.png`). Le lanceur a terminé avec code 0 (`runner-final.log`) et les ports de test ont été libérés. Deux erreurs console HTTP 502 sont attendues pendant les deux coupures volontaires du back ; aucune autre erreur console n'est enregistrée.
+
+| Parcours contrôlé à **1550×810 et 375×812** | Captures représentatives | Verdict |
+| --- | --- | --- |
+| Accueil, thème, suggestions, nouvelle mission, barre latérale, liste et réouverture, repli mobile | `*-accueil.png`, `*-theme.png`, `*-navigation.png`, `*-suggestions-accueil.png`, `*-reouvrir.png` | OK aux deux tailles |
+| Pages Agents, Skills, Domain Packs, Consommation ; activation puis désactivation réversible d'un Skill de la copie | `*-agents-page.png`, `*-skills-page.png`, `*-packs-page.png`, `*-consommation-page.png`, `*-skill-activer-desactiver.png` | OK aux deux tailles |
+| Composeur : Agent, Modèle, Skills, Pack, Mode, Workflow, Navigateur, Budget, contrôles « bientôt », fichier joint FICTIF, long prompt, forme compacte et « Afficher plus » | `*-composeur.png`, `*-piece-jointe.png`, `*-long-prompt-et-compact.png` | OK aux deux tailles |
+| Profil : Pack career-ops, Agent unique, plan, « Lancer » visible et cliquable, « Modifier », fin, question puis réponse dans la même session | `*-plan-profil.png`, `*-modifier.png`, `*-profil.png`, `*-reponse-meme-session.png` | OK aux deux tailles ; ID de session confirmé par API |
+| Nouvelle recherche avec liste d'offres et rapport A–G ; CV et lettre avec chemins `output/` et manques | `*-recherche.png`, `*-cv-lettre.png` | OK aux deux tailles, données FICTIVES |
+| Rechargement en mission, Stop et Reprendre ; perte volontaire du back, alerte visible, redémarrage, resynchronisation avec l'API | `*-reload-stop-reprendre.png`, `*-backend-perdu.png`, `*-perte-retour-backend.png` | OK aux deux tailles ; deux 502 console attendus |
+
+Le script vérifie la visibilité et l'accès au bouton utile, l'absence de recouvrement par le composeur, les erreurs console et la concordance avec l'état API pour les étapes concernées. Les captures sont des états finaux ou des états de perte enregistrés ; celles des défauts initiaux ont parfois été écrasées par la relance finale. Les journaux rouges conservent alors la preuve du défaut.
+
+## Défauts constatés et verdicts
+
+| Défaut réel | Preuve initiale et capture de contrôle | Correction / verdict |
+| --- | --- | --- |
+| Le brouillon initial restait dans le composeur après lancement du profil, ce qui rendait « Envoyer la réponse » trompeur. | `draft-red.log` ; `1550x810-profil.png`, `375x812-profil.png` | Brouillon vidé à l'ouverture de la mission ; `draft-green.log`, corrigé dans le front `5c308dc`. |
+| `/favicon.ico` provoquait une erreur 404 console dès l'accueil. | `runner-outside.log` ; `1550x810-accueil.png`, `375x812-accueil.png` | Icône locale et déclaration HTML ; aucune 404 finale, corrigé dans le front `5c308dc`. |
+| La conversation de recherche montrait les offres sans le rapport A–G pourtant présent dans un composant non utilisé. | `report-red.log` ; `1550x810-recherche.png`, `375x812-recherche.png` | Rapport A–G/H dans la conversation ; `report-green.log`, corrigé dans le front `5c308dc`. |
+| La perte du flux career-ops était cachée dans les détails techniques. | `disconnect-red.log` ; `1550x810-backend-perdu.png`, `375x812-backend-perdu.png` | Alerte visible en conversation, corrigé dans le front `5c308dc` (`disconnect-green.log`). |
+| Après coupure du back, le 502 HTML de Vite était montré comme réponse illisible et la mission pouvait rester faussement « En cours ». | `backend-loss-red.log`, `heartbeat-red.log` ; `1550x810-backend-perdu.png`, `375x812-backend-perdu.png` | 502/503/504 interprétés comme API indisponible ; rafraîchissement de secours toutes les 2 s jusqu'à l'état final ; `backend-loss-green-2.log`, `heartbeat-green.log`, captures `*-perte-retour-backend.png`, corrigé dans le front `5c308dc`. |
+
+Les autres échecs des essais Playwright 1 à 10 provenaient des attentes du script (texte, sélecteurs, synchronisation) ou du nettoyage du lanceur ; chaque correction est consignée dans le journal. Aucun autre défaut produit n'a été confirmé. Les journaux `runner-outside*.log` gardent les échecs et `runner-final.log` le résultat final.
+
+## Vérifications avant la clôture
+
+- Contrôle du manager : front `npm test` **71/71**, `npm run build` et Prettier verts ; back **312 tests réussis hors Chrome**, **136/136 Chrome**, `npm run check` et `npm run format:check` verts. Preuves : contrôle ci-dessus, `front-precommit-test.log`, `front-precommit-build.log`, `manager-suite.log` et journaux du manager. Les journaux `front-precommit-prettier.log` et `back-precommit-format.log` montrent les échecs de format avant correction, et non l'état commité.
+- Nouvelle vérification de cette reprise avant le commit documentaire : back `npm run check` et `npm run format:check` verts ; `npm test` code 1 à cause de 75 échecs de lancement Chrome sous bac à sable, phase sans Chrome 312/312 réussis et 1 ignoré (`reprise-precommit-*.log`). Le contrôle hors bac à sable du manager était vert 136/136 Chrome. Aucun code produit modifié depuis ses commits.
+
+## Reste à vérifier en vrai avec Gemini
+
+Sur l'interface utilisateur 5173, vérifier avec les données que l'utilisateur choisira : plan indiquant **Pack career-ops**, **Gemini** et **Agent unique** ; questions de profil et réponse dans la même session ; recherche et note d'offres réellement consultées avec sources, date et blocs A–G ; CV et lettre relus par l'utilisateur, manques signalés sans ajout de faits, contrôles de titres et de faits, fichiers locaux générés. Le PDF simple n'a pas de certification ATS. Ces essais n'ont pas été exécutés pendant ce sprint.
+
+## Prompts à coller dans l'interface
+
+Réglages pour les trois étapes : **Pack career-ops**, **Agent Gemini**, **Agent unique**. Laisser « Défaut du fournisseur » si aucun modèle n'est proposé, et vérifier que le plan affiche career-ops et Gemini avant « Lancer ». Répondre aux questions de profil dans la même session. Remplacer seulement `[ID_DE_L_OFFRE]` par l'ID réel de l'offre choisie.
+
+### 1. Profil
+
+> Crée mon profil career-ops dans `modes/_profile.md`. Lis d'abord `modes/_profile.template.md`, `cv.md` et le profil existant avec `career_read`. Si une information manque, pose toutes tes questions numérotées dans `summary` et attends mes réponses dans cette session. N'invente aucun fait. Une fois mes réponses obtenues, écris le profil avec `career_write`. N'envoie rien et ne candidate à rien.
+
+### 2. Recherche et note
+
+> À partir de mon CV et de mon profil career-ops, cherche des offres correspondant à mes critères enregistrés dans le profil. Lis `modes/oferta.md`. Pour chaque offre retenue, conserve l'URL, la source, la date de consultation et le texte de l'annonce ; évalue-la avec une note de 1 à 5 et les blocs A à G, notamment les points forts, les manques et la légitimité de l'annonce. Utilise `career_offer_save`. Si l'annonce ne permet pas une évaluation honnête, laisse note et rapport à `null` et explique pourquoi dans `summary`. N'envoie rien et ne candidate à rien.
+
+### 3. CV et lettre pour une offre
+
+> Pour l'offre enregistrée `[ID_DE_L_OFFRE]`, prépare un CV adapté et une lettre de motivation, sans envoi ni candidature. Lis `modes/pdf.md` et `modes/cover.md`. Archive la description exacte et sa source dans `jds/<slug>.md`, puis lance `career_script` avec `command: "jd-skill-gap"` et ce chemin. Liste les manques dans `summary` sans les ajouter au CV. Écris le CV adapté dans `output/`, son payload JSON dans `output/`, puis lance `cv-title-check` et `verify-cv-facts` via `career_script` ; corrige tout fait inventé et signale les titres non vérifiés. Pour les confirmations ou réponses requises par `cover.md`, pose toutes les questions numérotées dans `summary` et attends mes réponses avant de rédiger la lettre. Une fois les deux documents validés, crée les PDF locaux avec `career_document` et indique leurs noms. Ne prétends pas que le rendu PDF simple est certifié ATS.
+
+## Points pour le manager
+
+Les changements de code et preuves Playwright ont été validés puis commités par le manager (`5c308dc` front ; `73f7626` back). La présente reprise ne change que ce rapport. Le contrôle réel avec Gemini et les données de l'utilisateur reste à organiser par lui ; aucun blocage technique nouveau n'a été constaté.

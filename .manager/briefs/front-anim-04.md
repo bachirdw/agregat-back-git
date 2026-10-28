@@ -1,0 +1,63 @@
+# front-anim-04 — Débordement horizontal (« zooms ») et défilement bloqué pendant la réflexion
+
+**Ne pas lancer avant le feu vert de l'utilisateur.** Il teste d'abord le back.
+
+Lis `.manager/briefs/_audit-common.md` : ses **Interdits** et son **Économie de contexte** s'appliquent. Ta
+passation : rapports `front-anim-01.md` à `03.md` et `test-ready-01.md`, à lire en entier, y compris « Contrôle du
+manager ». Ils donnent l'historique de l'affichage :
+- 01 : zone de saisie adaptative et réductible, bulles repliables, animations de l'export Claude Design
+  (`design/conversation-agent.html`) ;
+- 02 : réserve `--dock-h` et plan compact ;
+- 03 : dock ancré à 16 px du bas ;
+- test-ready-01 : reconnexion et parcours testé de bout en bout (42 étapes sur 42).
+
+Travaille dans `/Users/diaw/Downloads/agregat-front` (`main`). Préfixe de commit : `[front-anim-04]`. Avant chaque
+commit, lance `npm test`, `npm run build` et `npx prettier --check src`. Tiens le rapport
+`.manager/reports/front-anim-04.md` à jour (heures relevées avec `date +%H:%M`). Le Vite 5173 de l'utilisateur sert ce
+checkout : le code doit toujours compiler.
+
+## Constats de l'utilisateur (28/10, 14:55, mission réelle `d04b4aea`, capture `front-anim-04-evidence/utilisateur-debordement.webp`)
+1. **« Il fait des zooms »** : toute la page est décalée horizontalement. La barre latérale est coupée à gauche
+   (« ission », « lissions ») et le texte sort à droite.
+
+   Hypothèse du manager : une ligne d'outil très longue sans césure (`career_write path: modes/_profile.md, text:
+   # User Profile Context -- … ## Your Target Roles | …`, en monospace sur une seule ligne) élargit un conteneur. Un
+   ancêtre défile alors en X, ce que le pavé tactile déclenche, et `scrollLeft` dépasse 0.
+
+   Vérifie aussi `.main`, `.scroll-content`, `html` et `body`.
+
+   Attendu :
+   - aucun défilement horizontal du document ni des conteneurs, quel que soit le contenu ;
+   - longues lignes d'outils tronquées par une ellipse sur leur ligne repliée ;
+   - dans le détail déplié : `overflow-wrap: anywhere` ou un défilement interne ;
+   - Markdown, `pre` et `code` contenus dans la colonne.
+2. **« Quand je suis en bas, je ne peux pas remonter »**, surtout **pendant la réflexion** de l'agent : le suivi
+   automatique (`src/follow.ts` `useFollow`, plus le collage en bas de front-anim-02 quand le dock grandit) le
+   ramène en bas à chaque événement.
+
+   Attendu : dès que l'utilisateur fait défiler vers le haut (molette, pavé tactile, toucher, clavier), le suivi
+   s'arrête net, même si des événements arrivent ou si le dock change de taille. Il ne reprend que si
+   l'utilisateur revient lui-même en bas, ou s'il clique sur un bouton « Revenir en bas » à ajouter (pastille
+   flottante avec flèche, discrète, animation du design).
+
+   Respecte `prefers-reduced-motion`.
+3. Sur la capture, l'utilisateur a sélectionné du texte. Vérifie que la sélection ne déclenche pas de défilement ni
+   de recalage.
+
+## Preuves
+- Tests vitest rouge → vert :
+  - long contenu d'outil sans espace : aucun débordement (largeur de défilement égale à la largeur visible, simulée)
+    ;
+  - `useFollow` : un défilement vers le haut pendant un flux d'événements n'est jamais annulé.
+- Playwright hors bac à sable, par escalade comme front-anim-03 : reprends
+  `test-ready-01-evidence/flow.mjs`, à 1550×810 et 375×812, avec une mission fixture qui émet :
+  - un outil à ligne de 5 000 caractères sans espace ;
+  - des pensées en continu pendant 20 s.
+
+  Mesure :
+  - `document.scrollingElement.scrollLeft` égal à 0 et `scrollWidth` au plus égal à `clientWidth`, pour chaque
+    conteneur ;
+  - pendant le flux, défiler de 600 px vers le haut et vérifier après 3 s que `scrollTop` n'est pas revenu en bas.
+
+## Fin
+Dernier message en 12 lignes au plus : FAIT · COMMITS · PREUVES · RESTE.

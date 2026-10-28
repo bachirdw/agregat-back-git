@@ -107,3 +107,16 @@ message générique.
 2. **Garder le diagnostic** de l'agent (stderr de Gemini, déjà masqué et limité dans `AcpRuntime.diagnostic`) pour
    le run, consultable dans « Détails techniques ». Cherche si Gemini attendait un quota (429) ou un outil.
 3. Cause réelle de l'échec visible, comme déjà demandé (délai, inactivité, annulation).
+- **Cause trouvée par le manager (15:25)** : dans la mission `52537401`, l'appel `google_web_search` (outil natif de
+  Gemini) est passé à `in_progress` à 04:10:46Z, puis n'a jamais renvoyé `completed`. Tous les autres outils se
+  sont terminés.
+
+  Tests directs hors plateforme (Gemini CLI 0.65.0, `-p`) :
+  - prompt simple : OK en 3 à 4 s, avec `gemini-3.5-flash-lite` comme avec `gemini-3.8-flash` ;
+  - `google_web_search` « AI Engineer jobs Sydney » : OK en 22 s.
+
+  Le quota et l'API ne sont donc pas en cause : le blocage est **intermittent**, ou propre au mode ACP.
+
+  À faire : borner la durée de chaque appel d'outil vu dans le flux (par exemple 120 s sans mise à jour). Ensuite,
+  annuler le tour (`session/cancel`), le dire dans le fil (« recherche web bloquée, relance »), et laisser
+  l'utilisateur Reprendre. Test avec un agent fixture qui laisse un outil en cours.

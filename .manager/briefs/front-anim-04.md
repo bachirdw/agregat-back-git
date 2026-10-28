@@ -94,3 +94,16 @@ refuse, puis l'agent réessaie. Ignore ce champ connu plutôt que d'échouer.
   - la zone de saisie affiche « Créez une nouvelle mission pour poursuivre » pendant l'exécution, ce qui est faux.
 
   Corrige les deux.
+
+## Ajout du manager (28/10, 15:22) — mission `52537401` (« AI Engineer à Sydney, Working Holiday Visa »)
+Gemini a lu le CV, puis fait une recherche web et `jobs_search_live` (Arbeitnow et Remotive). Son **dernier
+événement date de 04:10:46Z**, 21 s après le départ. Plus rien ensuite, jusqu'à l'échec à 04:20:27Z : le délai
+de prompt ACP de 10 min (`packages/agent-runtime/index.js:37`) a coupé la mission. L'utilisateur n'a vu que le
+message générique.
+
+À faire :
+1. **Surveillance d'inactivité** : afficher « Agent silencieux depuis N min » dans le fil, avec Stop et Reprendre.
+   Après un seuil configurable, arrêter avec la cause « agent inactif ».
+2. **Garder le diagnostic** de l'agent (stderr de Gemini, déjà masqué et limité dans `AcpRuntime.diagnostic`) pour
+   le run, consultable dans « Détails techniques ». Cherche si Gemini attendait un quota (429) ou un outil.
+3. Cause réelle de l'échec visible, comme déjà demandé (délai, inactivité, annulation).

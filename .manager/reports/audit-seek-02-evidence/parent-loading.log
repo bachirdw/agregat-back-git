@@ -1,0 +1,49 @@
+(node:78832) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ chargement différé FICTIF : snapshot et extract attendent le formulaire
+  ✖ browser.snapshot (59.809458ms)
+  ✖ browser.extract (0.448417ms)
+✖ chargement différé FICTIF : snapshot et extract attendent le formulaire (66.3665ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 811.365708
+
+✖ failing tests:
+
+test at tests/owner-browser.test.js:297:15
+✖ browser.snapshot (59.809458ms)
+  browserType.launchPersistentContext: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oVXDjx --remote-debugging-pipe about:blank
+  <launched> pid=78836
+  Call log:
+  [2m  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oVXDjx --remote-debugging-pipe about:blank[22m
+  [2m  - <launched> pid=78836[22m
+  [2m  - [pid=78836] <gracefully close start>[22m
+  [2m  - [pid=78836] <kill>[22m
+  [2m  - [pid=78836] <will force kill>[22m
+  [2m  - [pid=78836] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=78836] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=78836] starting temporary directories cleanup[22m
+  [2m  - [pid=78836] finished temporary directories cleanup[22m
+  [2m  - [pid=78836] <gracefully close end>[22m
+  
+      at async step (/private/tmp/audit-seek-02-parent/packages/browser-gateway/cdp.js:218:16)
+      at async CdpBrowser.open (/private/tmp/audit-seek-02-parent/packages/browser-gateway/cdp.js:313:22)
+      at async CdpBrowser.ensure (/private/tmp/audit-seek-02-parent/packages/browser-gateway/cdp.js:185:14)
+      at async CdpBrowser.perform (/private/tmp/audit-seek-02-parent/packages/browser-gateway/cdp.js:619:18)
+      at async BrowserGateway.execute (/private/tmp/audit-seek-02-parent/packages/browser-gateway/index.js:139:20) {
+    log: [ '  - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-first-run --no-default-browser-check --user-data-dir=/var/folders/85/5y3ssg_162zdsww_qy9p9m_m0000gn/T/playwright_chromiumdev_profile-oVXDjx --remote-debugging-pipe about:blank', '  - <launched> pid=78836', '  - [pid=78836] <gracefully close start>', '  - [pid=78836] <kill>', '  - [pid=78836] <will force kill>', '  - [pid=78836] exception while trying to kill process: Error: kill EPERM', '  - [pid=78836] <process did exit: exitCode=null, signal=SIGABRT>', '  - [pid=78836] starting temporary directories cleanup', '  - [pid=78836] finished temporary directories cleanup', '  - [pid=78836] <gracefully close end>' ]
+  }
+
+test at tests/owner-browser.test.js:297:15
+✖ browser.extract (0.448417ms)
+  Error: Navigateur fermé
+      at CdpBrowser.prepare (file:///private/tmp/audit-seek-02-parent/packages/browser-gateway/cdp.js:99:29)
+      at BrowserGateway.execute (file:///private/tmp/audit-seek-02-parent/packages/browser-gateway/index.js:62:34)

@@ -81,6 +81,8 @@ flowchart LR
   ACP --> EVIDENCE["Preuves navigateur vers API et stockage"]
 ```
 
+Le provider `playwriter-owner` désigne le Chrome de l'utilisateur connecté ; `cdp-isolated-fallback` désigne un profil vierge, non connecté à ses comptes.
+
 `browser-agent` est un parcours d'agent construit par l'orchestrateur, **pas un DAG YAML durable**.
 Il est choisi en propriétaire pour le pack hors Najah et un workflow absent, `auto` ou `browser-agent` ;
 ce n'est pas une classification sémantique des seuls prompts « va sur ». Le proxy crée une cible marquée,

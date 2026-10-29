@@ -22,6 +22,8 @@
 - 06:26 — Point 4 : `p4-check.log` et `p4-format.log` codes 0 ; `p4-target.log` code 0, 35/35. Suite complète finale `final-full.log` en cours. Le rapport sera finalisé et commité avec le point 4 après son résultat.
 - 06:28 — Validation finale du point 4 : `final-full.log` code 0 (346/347 réussis, 1 ignoré ; dernier groupe 58/117 réussis, 59 Chrome ignorés). `git diff --cached --check` code 0, branche `nuit-29-10`. Rapport finalisé avant le commit local ; aucun test live.
 
+- 06:29 — Quatrième commit local `00c2bc4` code 0, avec le rapport, l'orchestrateur et les tests du résumé. `git status --short` vide dans le back et le front ; branches `nuit-29-10` confirmées. Aucun push. Ce dernier résultat de commande sera conservé par un commit documentaire.
+
 ## Décisions et alternatives
 
 - Le Bilan regroupe les résultats par appel identifié dans le tour courant ; les doublons de notification ACP ne deviennent pas des appels supplémentaires. Les résultats MCP du pont sont retenus pour un outil lorsqu'ils existent. Alternative rejetée : listes de noms réussis/échoués sans comptage, contradictoires après plusieurs appels.
@@ -37,4 +39,4 @@
 
 ## Questions et suite pour le manager
 
-- Relire les quatre commits locaux et relancer les tests Chrome hors bac à sable si nécessaire. Aucun changement de la bibliothèque career-ops, de son Skill ou des CV. Aucune autre question bloquante.
+- Relire les quatre commits de code locaux et relancer les tests Chrome hors bac à sable si nécessaire. Aucun changement de la bibliothèque career-ops, de son Skill ou des CV. Aucune autre question bloquante.

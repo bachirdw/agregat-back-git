@@ -837,6 +837,7 @@ export class Orchestrator {
       }
       await verifyPack(plan.pack.id, value, run.prompt);
       if (plan.pack.id === 'career-ops') {
+        const agentAnswer = value.summary.trim();
         const currentBrowserEvidence = ['browser.snapshot', 'browser.extract'].some((capability) =>
           control.browserEvidenceCapabilities?.has(capability),
         );
@@ -876,7 +877,12 @@ export class Orchestrator {
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
         writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
         value.summary =
-          'Mission terminée ; documents et évaluations dans l’espace privé.\n' +
+          (agentAnswer
+            ? this.ownerMode
+              ? agentAnswer
+              : 'Réponse disponible dans l’espace privé.'
+            : 'Mission terminée ; documents et évaluations dans l’espace privé.') +
+          '\n' +
           formatCareerBilan(run.prompt, turnTruth) +
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
         value.evidence = [];

@@ -475,6 +475,7 @@ test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refu
   const done = app.store.get(run.id);
   assert.equal(done.state, 'completed', done.error);
   assert.doesNotMatch(JSON.stringify(done), /DONNÉE_PRIVÉE/);
+  assert.match(done.result.summary, /^Réponse disponible dans l’espace privé\./);
   assert.doesNotMatch(JSON.stringify(app.store.events(run.id)), /DONNÉE_PRIVÉE/);
   const privateResult = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
   const privateInput = await (await fetch(base + `/api/career/runs/${run.id}/input`)).json();
@@ -652,7 +653,7 @@ test('Réponse en texte libre (questions intake) : mission réussie, texte en r�
 });
 
 test('Fixture career : questions puis réponse dans la même session ACP', async (t) => {
-  const { career, app } = fixture(t);
+  const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
   writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
   const originalPlan = app.engine.plan.bind(app.engine);
@@ -678,6 +679,7 @@ test('Fixture career : questions puis réponse dans la même session ACP', async
     }),
   );
   assert.equal(first.state, 'completed', first.error);
+  assert.match(first.result.summary, /^Questions FICTIVES : 1\./);
   assert.equal(first.resumable, true);
   const second = await wait(
     await app.engine.create(

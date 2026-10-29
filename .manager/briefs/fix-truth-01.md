@@ -5,6 +5,10 @@
 
 # fix-truth-01 — un résultat de mission career-ops ne doit jamais dire plus que ce qui a été fait
 
+> **BRANCHE (consigne de l'utilisateur, 29/10 22:20)** : tout ton travail, back ET front, reste sur la branche `nuit-29-10` de chaque dépôt
+> (déjà créée et active). Ne change jamais de branche, ne merge pas, ne touche pas à `main`, ne pousse rien. L'utilisateur testera
+> demain matin et supprimera la branche si le résultat n'est pas bon.
+
 Lis `.manager/briefs/_audit-common.md` (Interdits, économie de contexte). Aucun appel Gemini, aucune mission réelle, aucun site réel,
 aucun push, ne touche ni au serveur 4310, ni au front 5173, ni au relais 19988 (serveurs de test ≥ 4320 seulement).
 **Ce brief ajoute des règles de VÉRACITÉ, pas des garde-fous de sécurité** : n'ajoute ni ne renforce aucune demande d'accord ni aucun refus d'envoi.

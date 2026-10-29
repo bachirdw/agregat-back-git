@@ -1,5 +1,9 @@
 # skill-router-01 — routeur de Skills : ordre, priorités, suivi jusqu'au bout, bilan honnête (chantier de fond du BACKLOG)
 
+> **BRANCHE (consigne de l'utilisateur, 29/10 22:20)** : tout ton travail, back ET front, reste sur la branche `nuit-29-10` de chaque dépôt
+> (déjà créée et active). Ne change jamais de branche, ne merge pas, ne touche pas à `main`, ne pousse rien. L'utilisateur testera
+> demain matin et supprimera la branche si le résultat n'est pas bon.
+
 **Prends ton temps : qualité, preuves et petits commits avant vitesse.** Lis `.manager/briefs/_audit-common.md` (Interdits, économie de contexte),
 `.manager/BACKLOG.md` (entrée « orchestration de plusieurs Skills »), `docs/architecture.md`, `docs/adr/*`, puis les rapports
 `fix-truth-01.md`, `fix-resume-01.md`, `front-anim-05.md`. Aucun appel Gemini, aucune mission réelle, aucun site réel, aucun push, ne touche ni

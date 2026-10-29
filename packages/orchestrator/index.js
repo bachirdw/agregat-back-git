@@ -220,7 +220,10 @@ export class Orchestrator {
     return { approved: outcome.outcome?.optionId === 'allow' };
   }
   stepDecision(runId, stepId, { approved, action, note } = {}) {
-    const engine = this.active.get(runId)?.engine;
+    const control = this.active.get(runId);
+    if (control?.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
+      throw new Error('Workflow annulé ou inactif');
+    const engine = control?.engine;
     if (!engine) throw new Error('Aucun workflow actif pour ce run');
     if (action) engine.resolveUncertain(runId, stepId, action);
     else {

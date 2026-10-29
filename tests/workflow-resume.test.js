@@ -151,6 +151,29 @@ test('brouillon refusé à la relecture : workflow en échec, reprise possible',
   assert.equal((await until(app, run.id, ['completed', 'failed'])).state, 'completed');
 });
 
+test('annulation pendant une approbation : une décision tardive ne valide pas l’étape', async (t) => {
+  const app = await setup(t);
+  const run = await app.engine.create({
+    prompt: 'Lettre pour une offre fictive',
+    agent: 'fixture',
+    pack: 'najah',
+    mode: 'workflow',
+    workflow: 'application-draft',
+  });
+  const end = Date.now() + 20000;
+  while (app.engine.workflows.row(run.id, 'review')?.state !== 'waiting_approval') {
+    assert.ok(Date.now() < end);
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  app.engine.cancel(run.id);
+  assert.throws(
+    () => app.engine.stepDecision(run.id, 'review', { approved: true }),
+    /annulé|inactif/i,
+  );
+  assert.equal((await until(app, run.id, ['cancelled'])).state, 'cancelled');
+  assert.equal(app.engine.workflows.row(run.id, 'review').state, 'cancelled');
+});
+
 test('reprise concurrente : un seul contrôle et une seule exécution', async (t) => {
   const app = await setup(t);
   const { getPack } = await import('../packages/orchestrator/packs.js');

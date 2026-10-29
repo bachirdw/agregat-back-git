@@ -64,7 +64,7 @@ test('Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécut
   assert.match(formatCareerBilan('Postule à cette offre FICTIVE', truth), /career_read/);
   assert.match(
     formatCareerBilan('Postule à cette offre FICTIVE', truth),
-    /browser_click — échec signalé par l’outil/,
+    /browser_click : 1 réussi, 1 échoué/,
   );
   assert.match(
     formatCareerBilan('Postule à cette offre FICTIVE', truth),
@@ -94,6 +94,34 @@ test('Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécut
   assert.doesNotMatch(
     formatCareerBilan('Envoie un courriel FICTIF', draft),
     /Non exécuté : envoi de courriel/,
+  );
+});
+test('Bilan FICTIF : appels réels mixtes comptés sans contradiction ni doublon ACP', () => {
+  const truth = createTurnTruth();
+  truth.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'a',
+    title: 'browser_extract',
+    status: 'completed',
+  });
+  truth.observe({ sessionUpdate: 'tool_call_update', toolCallId: 'a', status: 'completed' });
+  truth.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'b',
+    title: 'browser_extract',
+    status: 'failed',
+  });
+  const bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
+  assert.match(bilan, /browser_extract : 1 réussi, 1 échoué/);
+  assert.doesNotMatch(bilan, /Actions réussies : browser_extract/);
+  assert.doesNotMatch(bilan, /Actions échouées : browser_extract/);
+  const gateway = createTurnTruth();
+  gateway.recordGatewayTool('browser_extract', 'completed', { toolCallId: 'call-1' });
+  gateway.recordGatewayTool('browser_extract', 'completed', { toolCallId: 'call-1' });
+  gateway.recordGatewayTool('browser_extract', 'failed', { toolCallId: 'call-2' });
+  assert.match(
+    formatCareerBilan('Lis cette annonce FICTIVE', gateway),
+    /browser_extract : 1 réussi, 1 échoué/,
   );
 });
 test('Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon', () => {

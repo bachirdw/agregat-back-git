@@ -419,6 +419,7 @@ export function createApp({
           control.turnTruth.recordGatewayTool(body.name, body.status, {
             jdRead: body.jdRead === true,
             sent: body.sent,
+            toolCallId: body.toolCallId,
           });
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

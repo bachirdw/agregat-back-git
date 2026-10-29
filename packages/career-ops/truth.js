@@ -34,6 +34,8 @@ export function createTurnTruth() {
   const paths = new Map();
   const failed = new Map();
   const outcomes = new Map();
+  const gatewayOutcomes = new Map();
+  let anonymousCall = 0;
   let offerSaved = false;
   let jdRead = false;
   return {
@@ -61,14 +63,14 @@ export function createTurnTruth() {
             : 'échec signalé par l’outil',
         );
       if (update.status === 'failed')
-        outcomes.set(`${name}:failed`, {
+        outcomes.set(update.toolCallId, {
           name,
           status: 'failed',
           cause: failed.get(name) ?? 'échec signalé par l’outil',
         });
       if (update.status === 'completed') {
-        outcomes.set(`${name}:completed`, {
-          ...outcomes.get(`${name}:completed`),
+        outcomes.set(update.toolCallId, {
+          ...outcomes.get(update.toolCallId),
           name,
           status: 'completed',
         });
@@ -77,7 +79,7 @@ export function createTurnTruth() {
           jdRead = true;
       }
     },
-    recordGatewayTool(name, status, { jdRead: sourceRead = false, sent } = {}) {
+    recordGatewayTool(name, status, { jdRead: sourceRead = false, sent, toolCallId } = {}) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
           name,
@@ -85,8 +87,9 @@ export function createTurnTruth() {
         !['completed', 'failed'].includes(status)
       )
         throw new Error('Résultat d’outil invalide');
-      outcomes.set(`${name}:${status}`, {
-        ...outcomes.get(`${name}:${status}`),
+      const key = toolCallId ?? `anonymous-${++anonymousCall}`;
+      gatewayOutcomes.set(key, {
+        ...gatewayOutcomes.get(key),
         name,
         status,
         ...(status === 'failed' ? { cause: 'échec signalé par l’outil' } : {}),
@@ -98,7 +101,9 @@ export function createTurnTruth() {
         failed.set(name, 'échec signalé par l’outil');
     },
     toolOutcomes() {
-      return [...outcomes.values()];
+      const gateway = [...gatewayOutcomes.values()];
+      const gatewayNames = new Set(gateway.map((item) => item.name));
+      return [...outcomes.values()].filter((item) => !gatewayNames.has(item.name)).concat(gateway);
     },
     failedActions() {
       return [...failed].map(([name, cause]) => ({ name, cause }));
@@ -114,19 +119,34 @@ export function createTurnTruth() {
 
 export function formatCareerBilan(prompt, truth) {
   const outcomes = truth.toolOutcomes();
+  const byName = new Map();
+  for (const outcome of outcomes) {
+    const group = byName.get(outcome.name) ?? { completed: [], failed: [] };
+    group[outcome.status].push(outcome);
+    byName.set(outcome.name, group);
+  }
   const done = new Set(
     outcomes.filter((item) => item.status === 'completed').map((item) => item.name),
   );
-  const successes = outcomes
-    .filter((item) => item.status === 'completed')
-    .map((item) =>
-      item.name === 'email_send'
-        ? `email_send (${item.sent === true ? 'envoyé' : item.sent === false ? 'brouillon' : 'statut d’envoi inconnu'})`
-        : item.name,
-    );
-  const failures = outcomes
-    .filter((item) => item.status === 'failed')
-    .map(({ name, cause }) => `${name} — ${cause}`);
+  const successes = [];
+  const failures = [];
+  const mixed = [];
+  for (const [name, group] of byName) {
+    if (group.completed.length && group.failed.length) {
+      mixed.push(
+        `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''}`,
+      );
+    } else if (group.completed.length) {
+      const sent = group.completed.at(-1).sent;
+      successes.push(
+        name === 'email_send'
+          ? `email_send (${sent === true ? 'envoyé' : sent === false ? 'brouillon' : 'statut d’envoi inconnu'})`
+          : name,
+      );
+    } else {
+      failures.push(`${name} — ${group.failed.at(-1).cause}`);
+    }
+  }
   const missing = [];
   const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(prompt);
   if (
@@ -164,7 +184,7 @@ export function formatCareerBilan(prompt, truth) {
     !done.has('career_write')
   )
     missing.push('rédaction de document');
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.`;
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

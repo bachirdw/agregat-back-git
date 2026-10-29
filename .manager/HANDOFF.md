@@ -13,7 +13,7 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 | `fix-browser-01` (repli « Chrome isolé » visible) | VALIDE | rouge 2/3 sur `637cfd1`, vert 3/3 ; `owner-browser` 32/32 |
 | `front-anim-06` (débordement, avertissement repli) | A CORRIGER | mesure réelle : ligne d'outil de 6 662 px dans 780 px |
 | `front-anim-07` (reprise de 06) | VALIDE | rouge 1/83, vert 83/83 ; mesure réelle 1550 px (732 ≤ 780) et 375 px (339 ≤ 375) |
-| Preuve réelle du correctif Seek sur la VRAIE page SEEK, Chrome connecté | BLOQUE | relais Playwriter 19988 éteint ; demande l'accord de l'utilisateur |
+| Preuve réelle du correctif Seek sur la VRAIE page SEEK, Chrome connecté | VALIDE (29/10, 21:07 Sydney) | sonde `real-probe.mjs` : provider `playwriter-owner`, `loading:false`, `loadingAlert:false`, 33 contrôles de formulaire, snapshot en 4 338 ms ; accord explicite de l'utilisateur ; lecture seule |
 
 ### Faits à retenir
 - **Les missions de recherche du 29/10 ont tourné dans un Chrome VIERGE** (`cdp-isolated-fallback`, « Extension Playwriter indisponible ») :
@@ -27,7 +27,7 @@ Document de reprise pour la prochaine session (manager Claude ou Codex). À lire
 - Défauts connus non corrigés : `owner-browser` sensible à la charge machine (échec au 1er passage sous charge 7, vert ensuite) ;
   débordement de 4 à 5 px des éléments `spread` ; le correctif de reprise accepte une reprise « qui devait agir » sans action (étiquetée « sans nouvelle navigation »).
 
-### Prochaine action
+### Prochaine action (ancienne, réalisée le 29/10)
 Si l'utilisateur autorise : démarrer Playwriter, lancer `.manager/reports/seek-apply-01-evidence/real-probe.mjs` (lecture seule : navigate + snapshot, rien n'est rempli ni envoyé) et consigner le résultat. Sinon : rester BLOQUE sur ce point.
 
 ## 000000. Journée du 28/10 — test réel, diagnostic, nouvel affichage (À LIRE EN PREMIER, prime sur § 00000)

@@ -94,6 +94,7 @@ const app = agent({ name: 'career-FICTIF' })
       if (request.objective.includes('FICTIF_ROUTEUR')) {
         if (
           !request.instructions.includes('Ordre des étapes du Skill') ||
+          !request.instructions.includes("n'utilise pas l'outil de recherche web natif") ||
           request.instructions.indexOf('career_script') >
             request.instructions.indexOf('career_offer_save')
         )

@@ -11,6 +11,9 @@
 
 - 07:26 — Point 2 : fixture ACP enrichie avec appels FICTIFS `browser_navigate`, `browser_snapshot`, `browser_extract` réussi puis échoué, suivis d’un outil bloqué. Test `p2-red.log` code 1 : le Bilan ne contenait que les étapes du Skill. Correction dans `packages/orchestrator/index.js` : même Bilan des actions du tour qu’en succès, étapes et cause anonymisée dans le résultat échoué. `failure.js` nomme « Searching the web » uniquement pour cette valeur fixe. Tests `p2-green.log` code 0 (6/6), `p2-target-2.log` code 0 (7/7) couvrant aussi délai, annulation et silence ; `p2-prettier.log`, `p2-check.log`, `p2-format.log` codes 0 ; `p2-full.log` code 0 : 348/349 réussis, 1 ignoré ; Chrome 58/117 réussis, 59 ignorés. Fichiers : orchestrateur, cause d’échec, fixture, deux tests, rapport.
 
+- 07:28 — Point 2 commité localement `fdb484d` (code 0), aucun push.
+- 07:29 — Point 3 : test rouge `p3-red.log` code 1 (phrase absente), puis `p3-green.log` code 0 (12/12) après ajout du texte de compatibilité dans l’ordre `career-ops` pour `evaluate` et `search`. Le faux agent valide aussi la présence dans le prompt ACP : `p3-integration.log` code 0 (1/1). `p3-prettier.log`, `p3-check.log`, `p3-format.log` codes 0 ; `p3-target-final.log` code 0 (12/12) ; `p3-full.log` code 0 : 349/350 réussis, 1 ignoré ; Chrome 58/117 réussis, 59 ignorés. Fichiers : routeur, test de routage, fixture ACP, rapport.
+
 ## Décisions et alternatives
 
 - Le retrait des URL est limité au texte scoré ; le prompt original reste disponible pour les autres usages. Alternative rejetée : modifier les priorités des intentions, qui masquerait le défaut sans enlever les mots parasites.
@@ -18,10 +21,13 @@
 - Le nom libre d’un outil ACP peut contenir des données privées ; seule la valeur fixe « Searching the web » est reprise dans la cause publique. Alternative rejetée : afficher tout `update.title`.
 - Le résultat d’échec est construit après le début du tour ACP ; une annulation avant son début garde le comportement existant sans faux résultat.
 
+- La consigne de compatibilité est du texte dans `formatSkillOrder`, sans refus ni garde-fou de plateforme. Elle est réservée aux intentions carrière qui lisent ou cherchent des offres ; l’intention `apply` ne reçoit pas cette phrase.
+
 ## État et preuves
 
-- En cours ; aucun comportement corrigé ni vérifié à cette heure.
+- **Opérationnel sur faux agents et données FICTIVES** : URL exclues du score d’intention, Bilan d’échec avec actions du tour et cause anonymisée, phrase de compatibilité dans l’ordre ACP. Preuves : `p1-full-final.log` code 0 (347/348, 1 ignoré), `p2-full.log` code 0 (348/349, 1 ignoré), `p3-full.log` code 0 (349/350, 1 ignoré) ; chaque groupe Chrome : 58/117 réussis, 59 ignorés. `check` et `format:check` verts avant chaque commit.
+- **Non vérifié** : Chrome réel, site réel, modèle réel et affichage du front. Aucun appel Gemini, aucune mission réelle, aucun site réel, aucun push, aucun serveur utilisateur touché.
 
 ## Questions et suite pour le manager
 
-- À compléter.
+- Le manager peut relancer les tests Chrome hors bac à sable et observer une mission réelle ultérieurement. Aucun autre point bloquant connu.

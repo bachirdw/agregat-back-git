@@ -18,6 +18,7 @@ intents:
       - id: read-offer
         title: Lire réellement l'annonce
         tool: career_read
+        alternativeTools: [browser_extract, browser_snapshot]
         argument: jds/
         precondition: Annonce identifiée
         done: Lecture d'une annonce enregistrée terminée
@@ -74,6 +75,7 @@ intents:
       - id: open
         title: Ouvrir le formulaire
         tool: browser_navigate
+        urlKind: application
         precondition: Offre identifiée
         done: Navigation terminée
         optional: false

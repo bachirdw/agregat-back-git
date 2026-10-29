@@ -426,7 +426,7 @@ export function createApp({
             sessionUpdate: 'tool_call',
             toolCallId: body.toolCallId,
             title: body.name,
-            rawInput: { command: body.argument, path: body.argument },
+            rawInput: { command: body.argument, path: body.argument, url: body.landedUrl },
             status: body.status,
           });
         }

@@ -16,6 +16,7 @@ const stepSchema = z
       .max(5)
       .optional(),
     argument: z.string().trim().min(1).max(100).optional(),
+    urlKind: z.enum(['application']).optional(),
     requiresStep: id.optional(),
     precondition: z.string().trim().min(1).max(200),
     done: z.string().trim().min(1).max(200),
@@ -147,6 +148,18 @@ function toolName(update, expected) {
 }
 function matches(step, update, name) {
   if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;
+  if (step.urlKind === 'application' && name === 'browser_navigate') {
+    try {
+      const url = new URL(update.rawInput?.url ?? update.rawInput?.args?.url);
+      if (
+        !/^https?:$/.test(url.protocol) ||
+        !/(?:^|\/)(?:apply|application|candidature|postuler)(?:\/|$)/i.test(url.pathname)
+      )
+        return false;
+    } catch {
+      return false;
+    }
+  }
   if (!step.argument || step.tool !== name) return true;
   const input = update.rawInput ?? update.args ?? {};
   return [input.command, input.script, input.path, input.args, update.title].some(

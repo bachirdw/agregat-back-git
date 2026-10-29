@@ -64,7 +64,7 @@ async function meter(dimension, units = 1) {
 // The workflow executor premeters its own calls. Agent-initiated calls are metered here,
 // including tools registered by a domain pack, before their handlers run.
 const register = server.registerTool.bind(server);
-async function reportToolOutcome(name, status, args, sent, toolCallId) {
+async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
   const url = process.env.RELAY_TOOL_OUTCOME_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return;
   await fetch(url, {
@@ -78,6 +78,17 @@ async function reportToolOutcome(name, status, args, sent, toolCallId) {
       name,
       status,
       toolCallId,
+      ...(name === 'browser_navigate' && status === 'completed'
+        ? {
+            landedUrl: (() => {
+              try {
+                return JSON.parse(result.content?.[0]?.text ?? '{}').url;
+              } catch {
+                return null;
+              }
+            })(),
+          }
+        : {}),
       argument:
         name === 'career_script' && String(args?.command ?? args?.script ?? '').includes('scan')
           ? 'scan'
@@ -110,7 +121,9 @@ server.registerTool = (name, definition, handler) =>
         result = failure(e);
       }
       const outcome = gatewayToolOutcome(name, result);
-      await reportToolOutcome(name, outcome.status, args, outcome.sent, toolCallId).catch(() => {});
+      await reportToolOutcome(name, outcome.status, args, outcome.sent, toolCallId, result).catch(
+        () => {},
+      );
       return result;
     },
   );

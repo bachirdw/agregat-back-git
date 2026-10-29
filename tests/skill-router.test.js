@@ -176,6 +176,46 @@ test('relecture FICTIVE : un instantané avant le remplissage ne clôt pas la re
   });
   assert.equal(progress.finish().steps.find((step) => step.id === 'review').toolCallId, 'review');
 });
+test('navigation FICTIVE : une annonce ne prouve pas l’ouverture du formulaire', () => {
+  const selected = selectSkillIntents('Postule à cette offre FICTIVE', [career]);
+  const progress = new SkillProgress(selected);
+  progress.start();
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'ad',
+    title: 'browser_navigate',
+    rawInput: { url: 'https://example.test/jobs/123' },
+    status: 'completed',
+  });
+  assert.equal(progress.current().steps.find((step) => step.id === 'open').state, 'pending');
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'apply',
+    title: 'browser_navigate',
+    rawInput: { url: 'https://example.test/jobs/123/apply' },
+    status: 'completed',
+  });
+  assert.equal(progress.finish().steps.find((step) => step.id === 'open').toolCallId, 'apply');
+});
+test('lecture FICTIVE d’annonce dans le navigateur valide la lecture seule', () => {
+  const selected = selectSkillIntents(
+    'Mode oferta. Lis cette annonce FICTIVE, n’enregistre rien.',
+    [career],
+  );
+  const progress = new SkillProgress(selected);
+  progress.start();
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'extract',
+    title: 'browser_extract',
+    status: 'completed',
+  });
+  assert.equal(progress.finish().steps.find((step) => step.id === 'read-offer').state, 'done');
+  assert.equal(
+    progress.finish().steps.some((step) => step.id === 'save-evaluation'),
+    false,
+  );
+});
 
 test('annulation, outil étranger et injection dans le prompt ne créent aucune preuve fictive', () => {
   const selected = selectSkillIntents(

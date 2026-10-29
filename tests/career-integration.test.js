@@ -22,6 +22,7 @@ import {
 } from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 import { terminal } from '../packages/storage/index.js';
+import { SkillProgress, selectSkillIntents } from '../packages/orchestrator/skill-router.js';
 import {
   createTurnTruth,
   formatCareerBilan,
@@ -1013,6 +1014,35 @@ test('Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés', a
     { name: 'career_read', status: 'completed' },
   ]);
   assert.equal(control.turnTruth.hasJdRead(), true);
+  control.skillProgress = new SkillProgress(
+    selectSkillIntents('Postule à cette offre FICTIVE', [getPack('career-ops').skillManifest]),
+  );
+  control.skillProgress.start();
+  const navigate = (landedUrl) =>
+    fetch(`http://127.0.0.1:${app.server.address().port}/api/internal/tool-outcome/${id}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-platform-request': '1',
+        'x-relay-token': 'JETON_FICTIF',
+      },
+      body: JSON.stringify({
+        name: 'browser_navigate',
+        status: 'completed',
+        toolCallId: randomUUID(),
+        landedUrl,
+      }),
+    });
+  assert.equal((await navigate('https://example.test/jobs/123')).status, 200);
+  assert.equal(
+    control.skillProgress.current().steps.find((step) => step.id === 'open').state,
+    'pending',
+  );
+  assert.equal((await navigate('https://example.test/jobs/123/apply')).status, 200);
+  assert.equal(
+    control.skillProgress.current().steps.find((step) => step.id === 'open').state,
+    'done',
+  );
   assert.doesNotMatch(JSON.stringify(app.store.events(id)), /career_read/);
   app.engine.active.delete(id);
   app.engine.approvalTokens.delete(id);

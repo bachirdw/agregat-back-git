@@ -16,6 +16,18 @@ propriétaire (autres utilisateurs, démos) garde sa politique actuelle : ne la 
 (chemin de fichier confiné au dossier du run, pas d'injection shell, expiration des outils figés) restent : ce ne sont pas des restrictions
 métier. Tout le reste ci-dessous disparaît en mode propriétaire.
 
+## Hiérarchie voulue par l'utilisateur (30/10) — à appliquer partout
+1. **Le prompt de l'utilisateur décide de CE QUI est fait** : s'il dit « envoie », l'agent envoie ; s'il dit « postule », il postule jusqu'au
+   bout ; s'il dit « ne soumets pas », il s'arrête avant. La plateforme n'ajoute ni refus ni confirmation.
+2. **Le Skill (ses modes, ses scripts) décide de COMMENT** : l'agent suit la méthode du Skill exactement (ordre des étapes, scripts
+   à lancer, formats). Quand le Skill dit « ne soumets pas » (par exemple le mode `apply`) et que le prompt demande d'envoyer, le prompt
+   l'emporte sur cette phrase, mais la méthode du Skill (préparation, vérifications, ordre) reste suivie.
+3. **La plateforme ne crée aucune méthode propre ni restriction** : elle fournit les outils (MCP, navigateur, scripts), expose les modes du
+   Skill, observe et rapporte (Bilan, suivi d'étapes). Le routeur et le manifeste ne bloquent ni ne réordonnent rien : ils constatent.
+   Relis `CAREER_INSTRUCTIONS` et le routeur : retire toute formulation où la plateforme dicte la méthode au lieu de renvoyer au Skill
+   (« lis le mode pertinent via career_read et suis-le exactement »), en gardant les règles de véracité de fix-truth-01.
+Ces règles sont génériques (aucune mention de recrutement dans le moteur) : un autre Skill dans un autre domaine fonctionne pareil.
+
 ## À faire (un commit `[fix-open-01]` par point, test rouge → vert avec faux agent / fixture)
 1. **LinkedIn** : retire, en mode propriétaire, le refus « LinkedIn : écriture automatisée interdite… » (`packages/browser-gateway/index.js`
    ~l.114) et l'abandon réseau des requêtes d'écriture vers linkedin.com (`packages/browser-gateway/cdp.js` ~l.539).

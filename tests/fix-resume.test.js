@@ -71,3 +71,16 @@ test('nouvelle mission navigateur sans navigation reste refusée', async (t) => 
   assert.equal(done.state, 'failed');
   assert.match(done.error, /Navigation non prouvée/);
 });
+
+test('résumé vide : le texte final utile de l’agent est repris et borné', async (t) => {
+  const done = await runFixture(t, {
+    browserWorkflow: false,
+    config: {
+      eventText: `Voici les liens FICTIFS. ${'détail '.repeat(500)}`,
+      result: { ...answer, summary: '' },
+    },
+  });
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /^Voici les liens FICTIFS/);
+  assert.ok(done.result.summary.length <= 2000);
+});

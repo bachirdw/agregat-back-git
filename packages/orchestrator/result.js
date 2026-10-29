@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { redact } from '../agent-runtime/env.js';
 
 const resultSchema = z
   .object({ simulated: z.boolean(), summary: z.string().min(1), evidence: z.array(z.unknown()) })
@@ -24,6 +25,11 @@ export function parseAgentResult(text) {
     json = JSON.parse(candidate.slice(start, end + 1));
   } catch {
     return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
+  }
+  if (json && typeof json === 'object' && json.summary === '') {
+    const prose = fenced ? raw.replace(fenced[0], ' ') : raw.slice(0, start) + raw.slice(end + 1);
+    const fallback = redact(prose).replace(/\s+/g, ' ').trim().slice(0, 2000);
+    if (fallback) json.summary = fallback;
   }
   const parsed = resultSchema.safeParse(json);
   if (!parsed.success)

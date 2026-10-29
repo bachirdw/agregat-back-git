@@ -24,6 +24,19 @@ test('résultat agent : extrait borné à 300 caractères', () => {
   assert.ok(parseAgentResult('x'.repeat(5000)).excerpt.length <= 300);
 });
 
+test('résumé absent : prose récupérée, secret masqué et JSON seul toujours refusé', () => {
+  const empty = { ...valid, summary: '' };
+  const secret = 'AIza' + 'A'.repeat(25);
+  const parsed = parseAgentResult(
+    `Réponse FICTIVE ${secret}\n` + '```json\n' + JSON.stringify(empty) + '\n```',
+  );
+  assert.equal(parsed.ok, true);
+  assert.match(parsed.value.summary, /Réponse FICTIVE/);
+  assert.doesNotMatch(parsed.value.summary, /AIza/);
+  assert.match(parsed.value.summary, /secret masqué/);
+  assert.equal(parseAgentResult(JSON.stringify(empty)).ok, false);
+});
+
 test('provenance : runtime fait autorité et données Najah restent fictives', async () => {
   const { executionResult } = await import('../packages/orchestrator/result.js');
   for (const simulated of [true, false]) {

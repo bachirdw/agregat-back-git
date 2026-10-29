@@ -80,6 +80,10 @@ const app = agent({ name: 'career-FICTIF' })
         );
         return { stopReason: 'end_turn' };
       }
+      if (request.objective.includes('FICTIF_REPRISE_RAPIDE')) {
+        await send('Candidature FICTIVE prétendument envoyée sans outil navigateur.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_RECHERCHE')) {
         await call('career_offer_save', {
           id: randomUUID(),

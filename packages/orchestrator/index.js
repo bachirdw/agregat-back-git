@@ -24,6 +24,7 @@ import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { executionResult, parseAgentResult } from './result.js';
 import { careerFailureMessage } from './failure.js';
+import { shortResumeWithoutBrowser } from '../career-ops/truth.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
@@ -540,6 +541,7 @@ export class Orchestrator {
   async execute(run, plan, control, previous) {
     let text = '',
       events = 0;
+    let browserToolObserved = false;
     const toolTimers = new Map();
     let promptStarted = false;
     let silenceTimer;
@@ -649,6 +651,13 @@ export class Orchestrator {
         onEvent: (update) => {
           armSilence();
           watchTool(update);
+          if (
+            update.sessionUpdate === 'tool_call' &&
+            /\bbrowser[_\.][a-z]/i.test(
+              String(update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? ''),
+            )
+          )
+            browserToolObserved = true;
           if (++events > 4000) {
             control.abort.abort(new Error('Trop d’événements'));
             return;
@@ -768,6 +777,21 @@ export class Orchestrator {
       }
       await verifyPack(plan.pack.id, value, run.prompt);
       if (plan.pack.id === 'career-ops') {
+        if (
+          shortResumeWithoutBrowser({
+            previous,
+            prompt: run.prompt,
+            durationMs: Date.now() - new Date(run.createdAt).getTime(),
+            browserObserved:
+              browserToolObserved ||
+              this.store.events(run.id).some((event) => event.type === 'browser_evidence'),
+          })
+        ) {
+          value.summary =
+            'L’agent n’a rien exécuté : aucune action navigateur observée pendant cette reprise. Vérifiez la candidature avant de la considérer comme effectuée.';
+          value.evidence = [];
+          this.store.event(run.id, 'career_no_browser_action', { resumed: true });
+        }
         writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
         value.summary = 'Mission terminée ; documents et évaluations dans l’espace privé.';
         value.evidence = [];

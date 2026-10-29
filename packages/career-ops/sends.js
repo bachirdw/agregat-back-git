@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import { readConfined, writeConfined, safeDirectory } from '../policy-engine/files.js';
+import { recipientInCareerSources } from './truth.js';
 
 const address = z
   .string()
@@ -81,6 +82,8 @@ export class EmailGateway {
   async send(raw, signal) {
     const email = emailSchema.parse(raw);
     const root = this.career.path();
+    if (!recipientInCareerSources(root, email.to))
+      throw new Error('Adresse du destinataire absente de l’offre, du CV et des fichiers sources');
     const files = this.career.attachments(email.attachments).map((f) => ({
       filename: f.name,
       content: readConfined(root, f.path, 10 * 1024 * 1024),

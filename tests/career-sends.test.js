@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, realpathSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
@@ -14,6 +14,7 @@ import { createApp } from '../apps/api/server.js';
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'relay-send-FICTIF-')));
   t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, 'cv.md'), 'CV FICTIF : contact vérifié fictif@example.test');
   return new CareerWorkspace({ root, roots: [root] });
 }
 const email = () => ({

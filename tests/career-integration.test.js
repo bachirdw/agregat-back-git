@@ -569,6 +569,48 @@ test('Fixture career : questions puis réponse dans la même session ACP', async
   assert.match(readFileSync(join(career.path(), 'modes/_profile.md'), 'utf8'), /Sydney/);
 });
 
+test('Reprise FICTIVE rapide sans navigateur : résultat privé signale l’absence d’action', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  const wait = async (run) => {
+    for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+      await new Promise((r) => setTimeout(r, 20));
+    return app.store.get(run.id);
+  };
+  const first = await wait(
+    await app.engine.create({
+      prompt: 'FICTIF_PROFIL questions',
+      agent: 'fixture',
+      pack: 'career-ops',
+    }),
+  );
+  assert.equal(first.state, 'completed', first.error);
+  const second = await wait(
+    await app.engine.create(
+      { prompt: 'FICTIF_REPRISE_RAPIDE postule', agent: 'fixture', pack: 'career-ops' },
+      first,
+    ),
+  );
+  assert.equal(second.state, 'completed', second.error);
+  const privateResult = JSON.parse(
+    readFileSync(join(career.path(), `relay/runs/${second.id}-result.json`), 'utf8'),
+  );
+  assert.match(privateResult.summary, /n’a rien exécuté/i);
+  assert.doesNotMatch(privateResult.summary, /prétendument envoyée/i);
+  assert.ok(app.store.events(second.id).some((event) => event.type === 'career_no_browser_action'));
+});
+
 test('Modèle choisi dans l’interface : appliqué à la mission career-ops (env et session ACP)', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
@@ -629,6 +671,13 @@ test('Instructions career-ops : scan des portails d’abord, recherche live en c
   assert.match(
     CAREER_INSTRUCTIONS,
     /pour toute recherche[^.]*career_script scan d'abord[^.]*jobs_search_live[^.]*en complément/i,
+  );
+});
+test('Instructions career-ops : aucune adresse de destinataire devinée', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  assert.match(
+    CAREER_INSTRUCTIONS,
+    /adresse de destinataire[^.]*offre[^.]*CV[^.]*fichier source[^.]*ne la devine jamais/i,
   );
 });
 test('Instructions CV et lettre : contrôles, manques, questions et aucune candidature', async () => {

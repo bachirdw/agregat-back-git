@@ -109,6 +109,29 @@ if (mode === 'fixture') {
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
   const gateway = new BrowserGateway({ provider, policy, approve, meter });
   browserGateway = gateway;
+  let fallbackReported = false;
+  const reportFallback = async () => {
+    if (
+      fallbackReported ||
+      provider.name !== 'cdp-isolated-fallback' ||
+      !process.env.RELAY_EVIDENCE_URL
+    )
+      return;
+    const response = await fetch(
+      process.env.RELAY_EVIDENCE_URL.replace('/evidence/', '/browser-fallback/'),
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-platform-request': '1',
+          'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+        },
+        body: '{}',
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.ok) fallbackReported = true;
+  };
   for (const cap of describeCapabilities('browser')) {
     if (!policy.capabilities.has(cap.id)) continue; // only granted capabilities are even listed
     server.registerTool(
@@ -136,6 +159,8 @@ if (mode === 'fixture') {
           return text(output);
         } catch (e) {
           return failure(e);
+        } finally {
+          await reportFallback().catch(() => {});
         }
       },
     );

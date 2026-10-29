@@ -399,6 +399,24 @@ export function createApp({
         return json(res, 200, decision);
       }
       const evidence = path.match(/^\/api\/internal\/evidence\/([a-f0-9-]{36})$/);
+      const browserFallback = path.match(/^\/api\/internal\/browser-fallback\/([a-f0-9-]{36})$/);
+      if (browserFallback) {
+        const id = browserFallback[1];
+        if (
+          !ownerMode ||
+          engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
+          !engine.active.has(id) ||
+          engine.active.get(id).abort.signal.aborted
+        )
+          throw new Error('Journal navigateur non autorisé');
+        if (!store.events(id).some((event) => event.type === 'browser_fallback'))
+          store.event(id, 'browser_fallback', {
+            run: id,
+            reason: 'Extension Playwriter indisponible ; Chrome isolé utilisé.',
+            connected: false,
+          });
+        return json(res, 200, { ok: true });
+      }
       if (evidence) {
         const id = evidence[1];
         if (

@@ -670,6 +670,11 @@ test(
     );
     assert.equal(run.result.evidence[0].provider, 'cdp-isolated-fallback');
     assert.match(run.result.evidence[0].fallback, /Extension Playwriter indisponible/);
+    assert.equal(
+      app.store.events(run.id).filter((event) => event.type === 'browser_fallback').length,
+      1,
+    );
+    assert.match(run.result.summary, /Navigateur : Chrome isolé, non connecté à vos comptes/);
     assert.match(run.result.evidence[1].text, /FICTIF page de test/);
     assert.equal(run.permissions.length, 0);
     assert.ok(run.usage.entries.length >= 5);

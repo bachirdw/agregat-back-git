@@ -807,6 +807,9 @@ export class Orchestrator {
           if (!['simulated', 'summary', 'evidence', 'agent', 'provenance'].includes(key))
             delete value[key];
       }
+      if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
+        value.summary +=
+          '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible).';
       this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
         valid: true,

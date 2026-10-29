@@ -259,12 +259,25 @@ test('Auto : trouve des offres, évalue cette offre et postule routés vers le p
   for (const prompt of ['trouve des offres', 'évalue cette offre', 'postule'])
     assert.equal(getPack('auto', prompt).id, 'career-ops');
 });
+test('Auto : demandes d’emploi et de profil courantes routées vers career-ops', () => {
+  for (const prompt of [
+    'Trouve-moi des offres d’emploi qui correspondent à mon profil',
+    'Je cherche un job à Sydney',
+    'Quel poste convient à mon parcours ?',
+    'Prépare ma candidature',
+    'Adapte mon CV à cette annonce',
+    'Analyse mon profil professionnel',
+  ])
+    assert.equal(getPack('auto', prompt).id, 'career-ops', prompt);
+  assert.equal(getPack('auto', 'Résume ce document technique').id, 'core');
+});
 test('Auto propriétaire : profil et fichiers career-ops utilisent le pack privé avant le navigateur', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
   for (const prompt of [
     'Crée mon fichier modes/_profile.md avec career_read puis career_write',
     'Prépare un CV pour cette offre avec jd-skill-gap.mjs',
+    'Trouve-moi des offres d’emploi qui correspondent à mon profil',
   ]) {
     const plan = await app.engine.plan({ prompt, agent: 'fixture', pack: 'auto' });
     assert.equal(plan.pack.id, 'career-ops');

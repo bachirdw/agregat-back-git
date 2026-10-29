@@ -728,6 +728,7 @@ export class Orchestrator {
       });
       let response;
       try {
+        control.browserEvidenceCapabilities?.clear();
         promptStarted = true;
         armSilence();
         response = await runtime.prompt(prompt, control.abort.signal);
@@ -790,6 +791,17 @@ export class Orchestrator {
       }
       await verifyPack(plan.pack.id, value, run.prompt);
       if (plan.pack.id === 'career-ops') {
+        const currentBrowserEvidence = ['browser.snapshot', 'browser.extract'].some((capability) =>
+          control.browserEvidenceCapabilities?.has(capability),
+        );
+        if (
+          /\b\d+(?:[,.]\d+)?\s*\/\s*5\b/.test(value.summary) &&
+          !turnTruth.hasOfferSave() &&
+          !turnTruth.hasJdRead() &&
+          !currentBrowserEvidence
+        )
+          value.summary +=
+            '\nNotes non vérifiées : aucune annonce lue dans cette mission, aucune offre enregistrée.';
         if (
           shortResumeWithoutBrowser({
             previous,

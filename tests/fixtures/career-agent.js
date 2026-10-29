@@ -104,6 +104,10 @@ const app = agent({ name: 'career-FICTIF' })
         await send('Terminé.');
         return { stopReason: 'end_turn' };
       }
+      if (request.objective.includes('FICTIF_NOTES_SANS_SOURCE')) {
+        await send('Correspondance parfaite 5/5 pour une offre FICTIVE.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_REPONSE')) {
         await call('career_write', {
           path: 'modes/_profile.md',

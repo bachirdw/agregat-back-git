@@ -696,7 +696,7 @@ test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt
   ])
     assert.match(CAREER_INSTRUCTIONS, rule);
 });
-test('Véracité FICTIVE : action échouée visible dans le résultat privé', async (t) => {
+test('Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé', async (t) => {
   const { career, app } = fixture(t);
   reviewCareer(career, app.skills);
   writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
@@ -716,6 +716,11 @@ test('Véracité FICTIVE : action échouée visible dans le résultat privé', a
       /Action\(s\) échouée\(s\) : browser_click —/,
       /actions échouées/,
     ],
+    [
+      'FICTIF_NOTES_SANS_SOURCE évalue cette offre',
+      /Notes non vérifiées : aucune annonce lue dans cette mission, aucune offre enregistrée\./,
+      null,
+    ],
   ]) {
     const run = await app.engine.create({ prompt, agent: 'fixture', pack: 'career-ops' });
     for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
@@ -732,6 +737,50 @@ test('Véracité FICTIVE : action échouée visible dans le résultat privé', a
         scope,
       );
   }
+});
+test('Preuve navigateur FICTIVE : capacité du tour en mémoire, contenu privé absent des événements', async (t) => {
+  const { career, app } = fixture(t, true);
+  const id = randomUUID();
+  app.store.create({
+    id,
+    state: 'running',
+    prompt: 'Offre FICTIVE',
+    agent: 'fixture',
+    pack: 'career-ops',
+    skills: [],
+    attachments: [],
+    workspace: 'career-ops',
+    cwd: career.path(),
+    model: '',
+    budgetCents: 0,
+    mode: 'agent',
+    resumable: false,
+  });
+  const control = { abort: new AbortController() };
+  app.engine.active.set(id, control);
+  app.engine.approvalTokens.set(id, 'JETON_FICTIF');
+  t.after(() => {
+    app.engine.active.delete(id);
+    app.engine.approvalTokens.delete(id);
+  });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const response = await fetch(
+    `http://127.0.0.1:${app.server.address().port}/api/internal/evidence/${id}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-platform-request': '1',
+        'x-relay-token': 'JETON_FICTIF',
+      },
+      body: JSON.stringify({ capability: 'browser.snapshot', text: 'DONNÉE_PRIVÉE_FICTIVE' }),
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(control.browserEvidenceCapabilities.has('browser.snapshot'), true);
+  assert.doesNotMatch(JSON.stringify(app.store.events(id)), /DONNÉE_PRIVÉE_FICTIVE/);
+  app.engine.active.delete(id);
+  app.engine.approvalTokens.delete(id);
 });
 test('Instructions career-ops : scan des portails d’abord, recherche live en complément', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');

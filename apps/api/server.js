@@ -426,7 +426,11 @@ export function createApp({
           engine.active.get(id).abort.signal.aborted
         )
           throw new Error('Journal navigateur non autorisé');
-        if (store.get(id)?.workspace !== 'career-ops') store.event(id, 'browser_evidence', body);
+        if (store.get(id)?.workspace === 'career-ops')
+          engine.active.get(id).browserEvidenceCapabilities ??= new Set();
+        if (store.get(id)?.workspace === 'career-ops')
+          engine.active.get(id).browserEvidenceCapabilities.add(body.capability);
+        else store.event(id, 'browser_evidence', body);
         return json(res, 200, { ok: true });
       }
       const usage = path.match(/^\/api\/internal\/usage\/([a-f0-9-]{36})$/);

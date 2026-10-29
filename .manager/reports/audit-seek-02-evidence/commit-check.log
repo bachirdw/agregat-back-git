@@ -1,0 +1,236 @@
+commit 0ba06bc7077c8dbe7f5358b07a645b11cdf5da35
+Author:     bachir diaw <tomdiaw999@gmail.com>
+AuthorDate: Thu Oct 29 19:22:26 2026 +1100
+Commit:     bachir diaw <tomdiaw999@gmail.com>
+CommitDate: Thu Oct 29 19:22:26 2026 +1100
+
+    [audit-seek-02] Documenter le contre-audit du chargement Seek
+
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:560: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:563: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:580: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:594: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:607: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:621: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:634: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:648: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:662: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:676: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:689: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:703: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:716: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:730: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:743: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:757: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:770: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:784: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:796: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:813: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:821: trailing whitespace.
++    
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:835: trailing whitespace.
++    
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:850: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:864: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:884: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:898: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:911: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:925: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:938: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:952: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:965: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:979: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:999: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1013: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1022: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1036: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1049: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1063: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1076: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1091: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1104: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1118: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1131: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1145: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1158: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1173: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1186: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1200: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1213: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1227: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1240: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1254: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1267: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1281: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1294: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1308: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1321: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1336: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1349: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1363: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1376: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1391: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1404: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1418: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1431: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1446: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1459: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1473: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1486: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1500: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1513: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1527: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1540: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1554: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1567: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1581: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1594: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1608: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1621: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1635: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1648: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1662: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1675: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1689: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1702: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1716: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1729: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1732: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1749: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1764: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1774: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1788: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1801: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1816: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1829: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1843: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1862: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1876: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1931: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1946: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1965: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1979: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:1992: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:2007: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:2020: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/baseline-suite.log:2035: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/late-parent.log:23: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/late-parent.log:35: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/parent-loading-escalated.log:21: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/parent-loading-escalated.log:23: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/parent-loading-escalated.log:42: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/parent-loading-escalated.log:44: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/parent-loading.log:22: trailing whitespace.
++  
+.manager/reports/audit-seek-02-evidence/parent-loading.log:36: trailing whitespace.
++  

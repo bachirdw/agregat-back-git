@@ -32,3 +32,5 @@
 
 ## Questions / reste
 - Aucun point fonctionnel restant sur le brief. Contrôle du manager avec Chrome souhaité selon les règles communes.
+- 20:03 — Commit local du point 3 : `704007b`, code 0. Rapport final complété avec l’identifiant du commit ; un dernier commit documentaire est nécessaire pour inscrire cette passation dans Git.
+- 20:05 — Gate du commit documentaire : `npm run check` code 0 (`report-check.log`), `npm run format:check` code 0 (`report-format.log`), trois fichiers de tests ciblés code 0 (`report-target.log`), `CHROME_PATH=/nonexistent npm test` code 0 (`report-test.log`, dernier groupe 58 réussites et 59 ignorés). Rapport prêt pour commit local final.

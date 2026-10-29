@@ -14,6 +14,10 @@
 - 07:28 — Point 2 commité localement `fdb484d` (code 0), aucun push.
 - 07:29 — Point 3 : test rouge `p3-red.log` code 1 (phrase absente), puis `p3-green.log` code 0 (12/12) après ajout du texte de compatibilité dans l’ordre `career-ops` pour `evaluate` et `search`. Le faux agent valide aussi la présence dans le prompt ACP : `p3-integration.log` code 0 (1/1). `p3-prettier.log`, `p3-check.log`, `p3-format.log` codes 0 ; `p3-target-final.log` code 0 (12/12) ; `p3-full.log` code 0 : 349/350 réussis, 1 ignoré ; Chrome 58/117 réussis, 59 ignorés. Fichiers : routeur, test de routage, fixture ACP, rapport.
 
+- 07:32 — Point 3 commité localement `1b53ec4` code 0, aucun push. Vérification : back et front sur `nuit-29-10`, arbres propres. `git log` montre deux commits externes `9dd8d57` et `b67a10e` intercalés après notre point 1 ; je ne les ai pas créés ni modifiés. Les suites des points 2 et 3 ont tourné après leur apparition.
+
+- 07:34 — ÉCHEC de `report-full.log` code 1 : groupe principal 349/350 réussis, 1 ignoré ; groupe Chrome désactivé 57/117 réussis, 1 échec, 59 ignorés. Le test `browser-gateway.test.js:942` n’a pas trouvé le PID du faux Chrome dans sa fenêtre de 1 s. Ce même test était vert dans `p3-full.log`. Relance ciblée `report-browser-retry.log` code 0 (1/1) ; échec non reproduit seul, vraisemblablement sensible à la charge. Aucun test supprimé ni assoupli ; suite complète relancée et `report-full-retry.log` code 0 : groupe principal 349/350 réussis, 1 ignoré ; groupe Chrome 58/117 réussis, 59 ignorés.
+
 ## Décisions et alternatives
 
 - Le retrait des URL est limité au texte scoré ; le prompt original reste disponible pour les autres usages. Alternative rejetée : modifier les priorités des intentions, qui masquerait le défaut sans enlever les mots parasites.
@@ -30,4 +34,4 @@
 
 ## Questions et suite pour le manager
 
-- Le manager peut relancer les tests Chrome hors bac à sable et observer une mission réelle ultérieurement. Aucun autre point bloquant connu.
+- Le manager peut relancer les tests Chrome hors bac à sable et observer une mission réelle ultérieurement. Le test du faux Chrome a échoué une fois sous charge puis réussi seul et dans la suite complète ; surveiller sa stabilité. Aucun autre point bloquant connu.

@@ -82,6 +82,19 @@ test('prompts métier FICTIFS 28–30/10 : lecture, recherche, candidature, Link
   );
 });
 
+test('les URL FICTIVES ne changent pas l’intention explicite', () => {
+  const prompt =
+    "Mode oferta. Nouvelle tâche, ignore toute conversation précédente. Ouvre cette annonce dans mon Chrome : https://au.linkedin.com/jobs/view/ai-automation-engineer-investment-technology-at-halcyon-knights-4483292217 , lis-la avec browser_snapshot et dis-moi en 5 lignes ses exigences principales. N'enregistre rien, n'envoie rien, ne clique sur aucun bouton Apply.";
+  assert.equal(selectSkillIntents(prompt, [career])[0]?.intent.id, 'evaluate');
+  assert.equal(
+    selectSkillIntents(
+      'Postule à cette offre FICTIVE : https://example.test/apply/jobs/view/offres',
+      [career],
+    )[0]?.intent.id,
+    'apply',
+  );
+});
+
 test('suivi du tour : preuve réelle, ordre observé, échec, absence et doublon', () => {
   const selected = selectSkillIntents('Surveille les articles sur le climat', [watch]);
   const events = [];

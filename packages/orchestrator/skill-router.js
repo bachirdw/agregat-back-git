@@ -89,10 +89,9 @@ function normalize(value) {
 export function selectSkillIntents(prompt, manifests) {
   if (typeof prompt !== 'string') throw new TypeError('Prompt invalide');
   const objective = normalize(
-    prompt.replace(
-      /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
-      ' ',
-    ),
+    prompt
+      .replace(/https?:\/\/\S+/giu, ' ')
+      .replace(/(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu, ' '),
   );
   const forbidSave =
     /(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(

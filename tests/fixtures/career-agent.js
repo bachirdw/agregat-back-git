@@ -79,6 +79,18 @@ const app = agent({ name: 'career-FICTIF' })
         await send('Questions FICTIVES : 1. Quelle ville visez-vous ? 2. Quel poste visez-vous ?');
         return { stopReason: 'end_turn' };
       }
+      if (request.objective.includes('FICTIF_PRIORITE')) {
+        const instructions = request.instructions ?? '';
+        if (
+          !instructions.startsWith('Si un mode du Skill') ||
+          !instructions.includes('clique le bouton final seulement si le prompt') ||
+          instructions.indexOf('clique le bouton final seulement si le prompt') >
+            instructions.indexOf('Active le Skill')
+        )
+          throw new Error('Priorité de la plateforme absente du prompt FICTIF');
+        await send('Consigne prioritaire FICTIVE reçue avant le Skill.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_ACTION_ECHOUEE')) {
         await connection.client.notify(methods.client.session.update, {
           sessionId: session.sessionId,

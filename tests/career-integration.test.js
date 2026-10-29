@@ -696,6 +696,45 @@ test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt
   ])
     assert.match(CAREER_INSTRUCTIONS, rule);
 });
+test('Instructions career-ops : priorité de la plateforme avant la lecture du Skill', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  const clause = 'Si un mode du Skill';
+  assert.ok(CAREER_INSTRUCTIONS.includes(clause));
+  assert.ok(CAREER_INSTRUCTIONS.indexOf(clause) < CAREER_INSTRUCTIONS.indexOf('Active le Skill'));
+  assert.match(CAREER_INSTRUCTIONS, /page de relecture/);
+  assert.match(
+    CAREER_INSTRUCTIONS,
+    /bouton final seulement si le prompt de l'utilisateur le demande explicitement/,
+  );
+  assert.doesNotMatch(CAREER_INSTRUCTIONS, /career_script verify-cv-facts/);
+});
+test('Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  const run = await app.engine.create({
+    prompt: 'FICTIF_PRIORITE contrôle les consignes',
+    agent: 'fixture',
+    pack: 'career-ops',
+  });
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
+  const result = JSON.parse(
+    readFileSync(join(career.path(), `relay/runs/${run.id}-result.json`), 'utf8'),
+  );
+  assert.match(result.summary, /Consigne prioritaire FICTIVE reçue avant le Skill/);
+});
 test('Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé', async (t) => {
   const { career, app } = fixture(t);
   reviewCareer(career, app.skills);
@@ -802,7 +841,6 @@ test('Instructions CV et lettre : contrôles, manques, questions et aucune candi
     /jds\/<slug>\.md/,
     /career_script jd-skill-gap/,
     /career_script cv-title-check/,
-    /career_script verify-cv-facts/,
     /modes\/cover\.md/,
     /questions numérotées dans summary/,
     /aucun envoi, aucune candidature/,

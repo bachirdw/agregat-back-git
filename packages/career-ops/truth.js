@@ -13,6 +13,55 @@ export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browse
   );
 }
 
+// ACP can replay old tool updates on session/load. Create one tracker for each new prompt.
+export function createTurnTruth() {
+  const names = new Map();
+  const paths = new Map();
+  const failed = new Map();
+  let offerSaved = false;
+  let jdRead = false;
+  return {
+    observe(update) {
+      if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate) || !update.toolCallId)
+        return;
+      const candidate = String(
+        update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? '',
+      );
+      const match = candidate.match(
+        /(?:^|[^\w])(browser[_\.][a-z]\w*|email_send|career_offer_save|career_read)(?!\w)/i,
+      );
+      const name = match?.[1]?.replace('.', '_').toLowerCase() ?? names.get(update.toolCallId);
+      if (!name) return;
+      names.set(update.toolCallId, name);
+      const path = update.rawInput?.path ?? update.rawInput?.arguments?.path;
+      if (path) paths.set(update.toolCallId, String(path));
+      if (update.status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
+        failed.set(
+          name,
+          /écriture automatisée interdite|automated writing prohibited/i.test(
+            JSON.stringify(update.rawOutput ?? update.content ?? ''),
+          )
+            ? 'écriture automatisée interdite'
+            : 'échec signalé par l’outil',
+        );
+      if (update.status === 'completed') {
+        if (name === 'career_offer_save') offerSaved = true;
+        if (name === 'career_read' && /^jds\//.test(paths.get(update.toolCallId) ?? ''))
+          jdRead = true;
+      }
+    },
+    failedActions() {
+      return [...failed].map(([name, cause]) => ({ name, cause }));
+    },
+    hasOfferSave() {
+      return offerSaved;
+    },
+    hasJdRead() {
+      return jdRead;
+    },
+  };
+}
+
 // Only source material can establish a recipient. Generated drafts, reports and agent output
 // cannot make a guessed address true by writing it back to the workspace.
 export function recipientInCareerSources(root, recipient) {

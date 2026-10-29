@@ -22,6 +22,32 @@ import {
 } from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 import { terminal } from '../packages/storage/index.js';
+import { createTurnTruth } from '../packages/career-ops/truth.js';
+
+test('Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé', () => {
+  const truth = createTurnTruth();
+  truth.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'jd',
+    title: 'career_read',
+    rawInput: { path: 'jds/offre-fictive.md' },
+  });
+  truth.observe({ sessionUpdate: 'tool_call_update', toolCallId: 'jd', status: 'completed' });
+  assert.equal(truth.hasJdRead(), true);
+  truth.observe({ sessionUpdate: 'tool_call', toolCallId: 'save', title: 'career_offer_save' });
+  truth.observe({ sessionUpdate: 'tool_call_update', toolCallId: 'save', status: 'completed' });
+  assert.equal(truth.hasOfferSave(), true);
+  truth.observe({ sessionUpdate: 'tool_call', toolCallId: 'email', title: 'email_send' });
+  truth.observe({
+    sessionUpdate: 'tool_call_update',
+    toolCallId: 'email',
+    status: 'failed',
+    rawOutput: { secret: 'DONNÉE_PRIVÉE_FICTIVE' },
+  });
+  assert.deepEqual(truth.failedActions(), [
+    { name: 'email_send', cause: 'échec signalé par l’outil' },
+  ]);
+});
 
 function fixture(t, ownerMode = false) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-integrated-FICTIF-')));
@@ -567,6 +593,10 @@ test('Fixture career : questions puis réponse dans la même session ACP', async
   assert.equal(second.state, 'completed', second.error);
   assert.equal(second.sessionId, first.sessionId);
   assert.match(readFileSync(join(career.path(), 'modes/_profile.md'), 'utf8'), /Sydney/);
+  assert.doesNotMatch(
+    readFileSync(join(career.path(), `relay/runs/${second.id}-result.json`), 'utf8'),
+    /Action\(s\) échouée\(s\)/,
+  );
 });
 
 test('Reprise FICTIVE rapide sans navigateur : résultat privé signale l’absence d’action', async (t) => {
@@ -665,6 +695,43 @@ test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt
     /l'étape, le champ et la cause exacte/,
   ])
     assert.match(CAREER_INSTRUCTIONS, rule);
+});
+test('Véracité FICTIVE : action échouée visible dans le résultat privé', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  for (const [prompt, expected, scope] of [
+    [
+      'FICTIF_ACTION_ECHOUEE postule',
+      /Action\(s\) échouée\(s\) : browser_click —/,
+      /actions échouées/,
+    ],
+  ]) {
+    const run = await app.engine.create({ prompt, agent: 'fixture', pack: 'career-ops' });
+    for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+      await new Promise((r) => setTimeout(r, 20));
+    assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
+    const privateResult = JSON.parse(
+      readFileSync(join(career.path(), `relay/runs/${run.id}-result.json`), 'utf8'),
+    );
+    assert.match(privateResult.summary, expected);
+    assert.doesNotMatch(privateResult.summary, /DONNÉE_PRIVÉE_FICTIVE/);
+    if (scope)
+      assert.match(
+        app.store.events(run.id).find((e) => e.type === 'verification').data.scope,
+        scope,
+      );
+  }
 });
 test('Instructions career-ops : scan des portails d’abord, recherche live en complément', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');

@@ -29,8 +29,17 @@ const app = agent({ name: 'career-FICTIF' })
       ],
     };
   })
-  .onRequest(methods.agent.session.load, (ctx) => {
+  .onRequest(methods.agent.session.load, async (ctx) => {
     session = { ...ctx.params, sessionId: ctx.params.sessionId, model: process.env.GEMINI_MODEL };
+    await connection.client.notify(methods.client.session.update, {
+      sessionId: session.sessionId,
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'FICTIF-history',
+        title: 'browser_click',
+        status: 'failed',
+      },
+    });
     return { sessionId: session.sessionId };
   })
   .onRequest(methods.agent.session.setConfigOption, (ctx) => {
@@ -68,6 +77,31 @@ const app = agent({ name: 'career-FICTIF' })
         });
       if (request.objective.includes('FICTIF_PROFIL')) {
         await send('Questions FICTIVES : 1. Quelle ville visez-vous ? 2. Quel poste visez-vous ?');
+        return { stopReason: 'end_turn' };
+      }
+      if (request.objective.includes('FICTIF_ACTION_ECHOUEE')) {
+        await connection.client.notify(methods.client.session.update, {
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: 'tool_call',
+            toolCallId: 'FICTIF-click',
+            title: 'browser_click',
+            status: 'in_progress',
+          },
+        });
+        await connection.client.notify(methods.client.session.update, {
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'FICTIF-click',
+            status: 'failed',
+            rawOutput: {
+              error: 'LinkedIn : écriture automatisée interdite',
+              private: 'DONNÉE_PRIVÉE_FICTIVE',
+            },
+          },
+        });
+        await send('Terminé.');
         return { stopReason: 'end_turn' };
       }
       if (request.objective.includes('FICTIF_REPONSE')) {

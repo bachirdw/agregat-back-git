@@ -24,7 +24,7 @@ import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { executionResult, parseAgentResult } from './result.js';
 import { careerFailureMessage } from './failure.js';
-import { shortResumeWithoutBrowser } from '../career-ops/truth.js';
+import { createTurnTruth, shortResumeWithoutBrowser } from '../career-ops/truth.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
@@ -547,6 +547,7 @@ export class Orchestrator {
     let browserToolObserved = false;
     const toolTimers = new Map();
     let promptStarted = false;
+    const turnTruth = createTurnTruth();
     let silenceTimer;
     let warningTimer;
     const clearSilence = () => {
@@ -654,6 +655,7 @@ export class Orchestrator {
         onEvent: (update) => {
           armSilence();
           watchTool(update);
+          if (promptStarted) turnTruth.observe(update);
           if (
             promptStarted &&
             update.sessionUpdate === 'tool_call' &&
@@ -803,6 +805,13 @@ export class Orchestrator {
           value.evidence = [];
           this.store.event(run.id, 'career_no_browser_action', { resumed: true });
         }
+        if (turnTruth.failedActions().length)
+          value.summary +=
+            '\nAction(s) échouée(s) : ' +
+            turnTruth
+              .failedActions()
+              .map(({ name, cause }) => `${name} — ${cause}`)
+              .join(' ; ');
         writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
         value.summary = 'Mission terminée ; documents et évaluations dans l’espace privé.';
         value.evidence = [];
@@ -810,13 +819,22 @@ export class Orchestrator {
           if (!['simulated', 'summary', 'evidence', 'agent', 'provenance'].includes(key))
             delete value[key];
       }
+      if (turnTruth.failedActions().length)
+        value.summary +=
+          '\nAction(s) échouée(s) : ' +
+          turnTruth
+            .failedActions()
+            .map(({ name, cause }) => `${name} — ${cause}`)
+            .join(' ; ');
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible).';
       this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
         valid: true,
-        scope: verificationScope(plan.pack.id, plan.simulated),
+        scope:
+          verificationScope(plan.pack.id, plan.simulated) +
+          (turnTruth.failedActions().length ? ' ; actions échouées' : ''),
       });
       recordDiagnostic();
       this.store.update(run.id, {

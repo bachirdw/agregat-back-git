@@ -1,0 +1,16 @@
+# Rapport fix-truth-01
+
+## Journal
+
+- 21:56 — Lecture de `AGENTS.md`, du brief et de `_audit-common.md` ; `git status --short` vide, dernier commit `6a0fcc0`. Aucun rapport de passation existant. Démarrage de l’audit du code et des tests. Aucun appel réel ni modification de la bibliothèque career-ops.
+
+## État
+
+En cours. Les preuves de test seront archivées dans `fix-truth-01-evidence/`.
+- 21:59 — Baseline `CHROME_PATH=/nonexistent npm test` : code 0, 117 tests, 58 réussis, 59 ignorés (Chrome), 0 échec ; preuve `fix-truth-01-evidence/baseline-npm-test.log`.
+- 21:59 — Test rouge `node --test tests/career-integration.test.js` : code 1, 25 réussis, 2 échecs attendus (action échouée masquée, clauses absentes) ; preuve `fix-truth-01-evidence/red-career.log`. Le test des notes n’a pas encore été atteint car la première assertion du même test a échoué.
+- 21:59 — Lecture du contrôle réel `verify-cv-facts.mjs` (bibliothèque en lecture seule) : contrôle des faits structurés, chiffres, outils et formulations selon ses sources/configuration ; il ne prouve pas exhaustivement toute compétence, tout employeur ou tout titre. Décision : imposer un contrôle avant chaque CV adapté et demander au modèle de ne rien inventer, avec mention de cette limite. Un premier script de remplacement a échoué sur une apostrophe différente (code 1, aucune écriture) ; correction du littéral puis écriture réussie dans `packages/career-ops/integration.js`.
+- 22:00 — `node --test tests/career-integration.test.js` après correction : code 0, 27/27 réussis (`green-career-1.log`). Ajout du suivi des appels ACP du tour courant dans `truth.js`, des mentions privées/publiques d'échec et de l'indicateur `verification.scope` dans l'orchestrateur ; clauses de priorité et de CV dans `integration.js`. Correction supplémentaire : les preuves `browser_evidence` de career-ops ne sont pas journalisées volontairement pour préserver les données privées ; `apps/api/server.js` garde désormais uniquement le nom de la capacité en mémoire, effacé avant le prompt courant.
+- 22:04 — Tests ciblés après cas de reprise et d'anonymisation : code 0, 28/28 réussis (`green-career-3.log`). Décision de découper les quatre points en commits atomiques : copie de travail provisoire sous `/private/tmp/fix-truth-01-full`, retrait temporaire des points 2–4 de l'arbre pour valider et commiter le point 1 seul. Les modifications du serveur et des consignes sont donc momentanément différées, puis seront restaurées par point. Aucun historique réécrit.
+- 22:06 — Point 1 : `npm run check` code 0 (`p1-check.log`), `npm run format:check` code 0 (`p1-format.log`), test concerné 27/27 code 0 (`p1-target.log`), `CHROME_PATH=/nonexistent npm test` code 0 (`p1-npm-test.log`, dernier groupe 117 tests dont 59 ignorés sans Chrome). Action `browser_click` en échec signalée dans le résultat privé et le résumé public ; cause classée sans reprendre les données privées ; `verification.scope` mentionne les actions échouées. Reprise : les notifications de `session/load` ne comptent pas.
+- 22:06 — ÉCHEC `git add ... && git commit ...` : code 128, impossible de créer `.git/index.lock` (`Operation not permitted`) car `.git` est en lecture seule dans le bac à sable. Demande d’exécution autorisée pour les commits locaux requis ; aucun push.

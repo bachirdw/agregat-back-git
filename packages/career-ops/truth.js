@@ -118,6 +118,10 @@ export function createTurnTruth() {
 }
 
 export function formatCareerBilan(prompt, truth) {
+  const requested = prompt.replace(
+    /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
+    ' ',
+  );
   const outcomes = truth.toolOutcomes();
   const byName = new Map();
   for (const outcome of outcomes) {
@@ -148,9 +152,9 @@ export function formatCareerBilan(prompt, truth) {
     }
   }
   const missing = [];
-  const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(prompt);
+  const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(requested);
   if (
-    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(prompt) &&
+    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(requested) &&
     ![...done].some((name) =>
       /^(?:browser_fillForm|browser_type|browser_check|browser_select|browser_upload)$/i.test(name),
     )
@@ -158,7 +162,10 @@ export function formatCareerBilan(prompt, truth) {
     missing.push('candidature (aucun appel de formulaire)');
   if (
     offerContext &&
-    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(prompt) &&
+    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(requested) &&
+    !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(
+      prompt,
+    ) &&
     !done.has('career_offer_save')
   )
     missing.push('évaluation enregistrée');

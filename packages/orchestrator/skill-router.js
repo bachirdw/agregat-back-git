@@ -87,7 +87,16 @@ function normalize(value) {
 }
 export function selectSkillIntents(prompt, manifests) {
   if (typeof prompt !== 'string') throw new TypeError('Prompt invalide');
-  const objective = normalize(prompt);
+  const objective = normalize(
+    prompt.replace(
+      /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
+      ' ',
+    ),
+  );
+  const forbidSave =
+    /(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(
+      prompt,
+    );
   const words = new Set(objective.match(/[\p{L}\p{N}]+/gu) ?? []);
   return manifests
     .flatMap((raw) => {
@@ -98,14 +107,21 @@ export function selectSkillIntents(prompt, manifests) {
             intent.phrases.some((phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `)) ||
             intent.keywords.some((word) => words.has(normalize(word))),
         )
-        .map((intent) => ({ pack: manifest.pack, intent }));
+        .map((intent) => ({
+          pack: manifest.pack,
+          intent:
+            intent.id === 'evaluate' && forbidSave
+              ? { ...intent, steps: intent.steps.filter((step) => step.id !== 'save-evaluation') }
+              : intent,
+        }));
     })
     .sort(
       (a, b) =>
         b.intent.priority - a.intent.priority ||
         a.pack.localeCompare(b.pack) ||
         a.intent.id.localeCompare(b.intent.id),
-    );
+    )
+    .slice(0, 1);
 }
 
 export function formatSkillOrder(selection) {

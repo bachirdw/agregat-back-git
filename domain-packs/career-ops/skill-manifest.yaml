@@ -3,7 +3,17 @@ intents:
   - id: evaluate
     title: Évaluer une annonce
     priority: 90
-    phrases: [évalue cette offre, evalue cette offre, évaluer une annonce, note cette offre]
+    phrases:
+      [
+        évalue cette offre,
+        evalue cette offre,
+        évaluer une annonce,
+        note cette offre,
+        lis cette annonce,
+        lis l'annonce,
+        ouvre cette annonce,
+        mode oferta,
+      ]
     steps:
       - id: read-offer
         title: Lire réellement l'annonce

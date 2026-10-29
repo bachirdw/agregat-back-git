@@ -82,6 +82,10 @@ test('Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécut
     formatCareerBilan('Recherche mon CV FICTIF', createTurnTruth()),
     /recherche d’offres/,
   );
+  assert.doesNotMatch(
+    formatCareerBilan('Lis cette annonce FICTIVE, ne clique pas Apply.', createTurnTruth()),
+    /candidature \(aucun appel de formulaire\)/,
+  );
   const draft = createTurnTruth();
   draft.recordGatewayTool('email_send', 'completed', { sent: false });
   assert.match(formatCareerBilan('Envoie un courriel FICTIF', draft), /email_send \(brouillon\)/);

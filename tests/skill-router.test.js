@@ -34,7 +34,7 @@ test('manifestes valides, rejet des étapes ambiguës et chemins hors périmètr
   );
 });
 
-test('intentions multiples classées par priorité, sans dépendance au recrutement', () => {
+test('intention dominante classée par priorité, sans dépendance au recrutement', () => {
   const selection = selectSkillIntents('Surveille les articles sur le climat', [career, watch]);
   assert.deepEqual(
     selection.map((x) => x.intent.id),
@@ -50,13 +50,35 @@ test('intentions multiples classées par priorité, sans dépendance au recrutem
     selectSkillIntents('Trouve des offres et évalue cette offre', [career, watch]).map(
       (x) => x.intent.id,
     ),
-    ['search', 'evaluate'],
+    ['search'],
   );
   assert.deepEqual(
     selectSkillIntents('Surveille les articles et trouve des offres', [career, watch]).map(
       (x) => `${x.pack}:${x.intent.id}`,
     ),
-    ['career-ops:search', 'watch:monitor'],
+    ['career-ops:search'],
+  );
+});
+test('prompts métier FICTIFS 28–30/10 : lecture, recherche, candidature, LinkedIn et négation', () => {
+  const cases = [
+    [
+      'Mode oferta. Ouvre cette annonce et dis-moi en 5 lignes ses exigences. N’enregistre rien, ne clique sur aucun bouton Apply.',
+      'evaluate',
+    ],
+    ['Lis l’annonce et évalue cette offre FICTIVE.', 'evaluate'],
+    ['Trouve-moi des offres d’emploi FICTIVES.', 'search'],
+    ['Postule à cette offre FICTIVE.', 'apply'],
+    ['Prépare mon profil LinkedIn FICTIF.', 'linkedin'],
+    ['Lis cette annonce FICTIVE, ne pas postuler.', 'evaluate'],
+    ['Lis cette annonce FICTIVE, ne clique pas Apply.', 'evaluate'],
+    ['Ne pas postuler à cette offre FICTIVE.', null],
+  ];
+  for (const [prompt, expected] of cases)
+    assert.equal(selectSkillIntents(prompt, [career]).at(0)?.intent.id ?? null, expected, prompt);
+  const readOnly = selectSkillIntents(cases[0][0], [career]);
+  assert.deepEqual(
+    readOnly[0].intent.steps.map((step) => step.id),
+    ['read-offer'],
   );
 });
 

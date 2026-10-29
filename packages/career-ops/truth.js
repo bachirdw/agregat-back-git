@@ -13,11 +13,27 @@ export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browse
   );
 }
 
+export function gatewayToolOutcome(name, result) {
+  if (result.isError) return { status: 'failed' };
+  if (name !== 'career_script' && name !== 'email_send') return { status: 'completed' };
+  try {
+    const value = JSON.parse(result.content?.[0]?.text ?? '{}');
+    if (name === 'career_script') return { status: value.exitCode === 0 ? 'completed' : 'failed' };
+    return {
+      status: 'completed',
+      ...(typeof value.sent === 'boolean' ? { sent: value.sent } : {}),
+    };
+  } catch {
+    return { status: 'failed' };
+  }
+}
+
 // ACP can replay old tool updates on session/load. Create one tracker for each new prompt.
 export function createTurnTruth() {
   const names = new Map();
   const paths = new Map();
   const failed = new Map();
+  const outcomes = new Map();
   let offerSaved = false;
   let jdRead = false;
   return {
@@ -28,7 +44,7 @@ export function createTurnTruth() {
         update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? '',
       );
       const match = candidate.match(
-        /(?:^|[^\w])(browser[_\.][a-z]\w*|email_send|career_offer_save|career_read)(?!\w)/i,
+        /(?:^|[^\w])(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)(?!\w)/i,
       );
       const name = match?.[1]?.replace('.', '_').toLowerCase() ?? names.get(update.toolCallId);
       if (!name) return;
@@ -44,11 +60,45 @@ export function createTurnTruth() {
             ? 'écriture automatisée interdite'
             : 'échec signalé par l’outil',
         );
+      if (update.status === 'failed')
+        outcomes.set(`${name}:failed`, {
+          name,
+          status: 'failed',
+          cause: failed.get(name) ?? 'échec signalé par l’outil',
+        });
       if (update.status === 'completed') {
+        outcomes.set(`${name}:completed`, {
+          ...outcomes.get(`${name}:completed`),
+          name,
+          status: 'completed',
+        });
         if (name === 'career_offer_save') offerSaved = true;
         if (name === 'career_read' && /^jds\//.test(paths.get(update.toolCallId) ?? ''))
           jdRead = true;
       }
+    },
+    recordGatewayTool(name, status, { jdRead: sourceRead = false, sent } = {}) {
+      if (
+        !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
+          name,
+        ) ||
+        !['completed', 'failed'].includes(status)
+      )
+        throw new Error('Résultat d’outil invalide');
+      outcomes.set(`${name}:${status}`, {
+        ...outcomes.get(`${name}:${status}`),
+        name,
+        status,
+        ...(status === 'failed' ? { cause: 'échec signalé par l’outil' } : {}),
+        ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
+      });
+      if (status === 'completed' && name === 'career_offer_save') offerSaved = true;
+      if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
+      if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
+        failed.set(name, 'échec signalé par l’outil');
+    },
+    toolOutcomes() {
+      return [...outcomes.values()];
     },
     failedActions() {
       return [...failed].map(([name, cause]) => ({ name, cause }));
@@ -60,6 +110,61 @@ export function createTurnTruth() {
       return jdRead;
     },
   };
+}
+
+export function formatCareerBilan(prompt, truth) {
+  const outcomes = truth.toolOutcomes();
+  const done = new Set(
+    outcomes.filter((item) => item.status === 'completed').map((item) => item.name),
+  );
+  const successes = outcomes
+    .filter((item) => item.status === 'completed')
+    .map((item) =>
+      item.name === 'email_send'
+        ? `email_send (${item.sent === true ? 'envoyé' : item.sent === false ? 'brouillon' : 'statut d’envoi inconnu'})`
+        : item.name,
+    );
+  const failures = outcomes
+    .filter((item) => item.status === 'failed')
+    .map(({ name, cause }) => `${name} — ${cause}`);
+  const missing = [];
+  const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(prompt);
+  if (
+    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(prompt) &&
+    ![...done].some((name) =>
+      /^(?:browser_fillForm|browser_type|browser_check|browser_select|browser_upload)$/i.test(name),
+    )
+  )
+    missing.push('candidature (aucun appel de formulaire)');
+  if (
+    offerContext &&
+    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(prompt) &&
+    !done.has('career_offer_save')
+  )
+    missing.push('évaluation enregistrée');
+  if (
+    offerContext &&
+    /\b(?:recherch(?:e|er|ez)|cherch(?:e|er|ez)|trouv(?:e|er|ez))\b/i.test(prompt) &&
+    ![...done].some((name) =>
+      ['career_script', 'jobs_search_live', 'browser_snapshot', 'browser_extract'].includes(name),
+    )
+  )
+    missing.push('recherche d’offres');
+  if (
+    /\b(?:mail|e-?mail|courriel)\b/i.test(prompt) &&
+    /\b(?:envoi|envoie|envoyer|expédi(?:e|er))\b/i.test(prompt) &&
+    !outcomes.some((item) => item.name === 'email_send' && item.sent === true)
+  )
+    missing.push('envoi de courriel');
+  if (
+    (/(?:^|[^\p{L}])(?:prépar(?:e|er|ez)|rédig(?:e|er|ez)|cré(?:e|er|ez)|adapt(?:e|er|ez)|génér(?:e|er|ez)|produi(?:s|re)).{0,80}\b(?:CV|lettre)\b/iu.test(
+      prompt,
+    ) ||
+      /\bCV\s*\+\s*lettre\b/iu.test(prompt)) &&
+    !done.has('career_write')
+  )
+    missing.push('rédaction de document');
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

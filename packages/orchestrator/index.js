@@ -24,7 +24,11 @@ import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { executionResult, parseAgentResult } from './result.js';
 import { careerFailureMessage } from './failure.js';
-import { createTurnTruth, shortResumeWithoutBrowser } from '../career-ops/truth.js';
+import {
+  createTurnTruth,
+  formatCareerBilan,
+  shortResumeWithoutBrowser,
+} from '../career-ops/truth.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
@@ -177,6 +181,8 @@ export class Orchestrator {
       env.RELAY_APPROVAL_TOKEN = this.approvalTokens.get(run.id);
       env.RELAY_EVIDENCE_URL = `${this.approvalBase}/api/internal/evidence/${run.id}`;
       env.RELAY_USAGE_URL = `${this.approvalBase}/api/internal/usage/${run.id}`;
+      if (pack.id === 'career-ops')
+        env.RELAY_TOOL_OUTCOME_URL = `${this.approvalBase}/api/internal/tool-outcome/${run.id}`;
     }
     return platformMcp(pack.id, env);
   }
@@ -548,6 +554,7 @@ export class Orchestrator {
     const toolTimers = new Map();
     let promptStarted = false;
     const turnTruth = createTurnTruth();
+    control.turnTruth = turnTruth;
     let silenceTimer;
     let warningTimer;
     const clearSilence = () => {
@@ -730,6 +737,7 @@ export class Orchestrator {
       try {
         control.browserEvidenceCapabilities?.clear();
         promptStarted = true;
+        control.promptStarted = true;
         armSilence();
         response = await runtime.prompt(prompt, control.abort.signal);
         clearSilence();
@@ -824,8 +832,11 @@ export class Orchestrator {
               .failedActions()
               .map(({ name, cause }) => `${name} — ${cause}`)
               .join(' ; ');
+        value.summary += '\n' + formatCareerBilan(run.prompt, turnTruth);
         writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
-        value.summary = 'Mission terminée ; documents et évaluations dans l’espace privé.';
+        value.summary =
+          'Mission terminée ; documents et évaluations dans l’espace privé.\n' +
+          formatCareerBilan(run.prompt, turnTruth);
         value.evidence = [];
         for (const key of Object.keys(value))
           if (!['simulated', 'summary', 'evidence', 'agent', 'provenance'].includes(key))

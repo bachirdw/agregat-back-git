@@ -399,6 +399,23 @@ export function createApp({
         return json(res, 200, decision);
       }
       const evidence = path.match(/^\/api\/internal\/evidence\/([a-f0-9-]{36})$/);
+      const toolOutcome = path.match(/^\/api\/internal\/tool-outcome\/([a-f0-9-]{36})$/);
+      if (toolOutcome) {
+        const id = toolOutcome[1];
+        const control = engine.active.get(id);
+        if (
+          engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
+          !control?.promptStarted ||
+          control.abort.signal.aborted ||
+          store.get(id)?.workspace !== 'career-ops'
+        )
+          throw new Error('Bilan d’outil non autorisé');
+        control.turnTruth.recordGatewayTool(body.name, body.status, {
+          jdRead: body.jdRead === true,
+          sent: body.sent,
+        });
+        return json(res, 200, { ok: true });
+      }
       const browserFallback = path.match(/^\/api\/internal\/browser-fallback\/([a-f0-9-]{36})$/);
       if (browserFallback) {
         const id = browserFallback[1];

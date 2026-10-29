@@ -22,7 +22,11 @@ import {
 } from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 import { terminal } from '../packages/storage/index.js';
-import { createTurnTruth } from '../packages/career-ops/truth.js';
+import {
+  createTurnTruth,
+  formatCareerBilan,
+  gatewayToolOutcome,
+} from '../packages/career-ops/truth.js';
 
 test('Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé', () => {
   const truth = createTurnTruth();
@@ -47,6 +51,64 @@ test('Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé', (
   assert.deepEqual(truth.failedActions(), [
     { name: 'email_send', cause: 'échec signalé par l’outil' },
   ]);
+});
+test('Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécutée', () => {
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('career_read', 'completed');
+  truth.recordGatewayTool('browser_click', 'failed');
+  truth.recordGatewayTool('browser_click', 'completed');
+  truth.recordGatewayTool('career_read', 'completed', { jdRead: true });
+  assert.equal(truth.hasJdRead(), true);
+  assert.throws(() => truth.recordGatewayTool('career_read SECRET', 'completed'), /invalide/);
+  assert.match(formatCareerBilan('Postule à cette offre FICTIVE', truth), /Bilan/);
+  assert.match(formatCareerBilan('Postule à cette offre FICTIVE', truth), /career_read/);
+  assert.match(
+    formatCareerBilan('Postule à cette offre FICTIVE', truth),
+    /browser_click — échec signalé par l’outil/,
+  );
+  assert.match(
+    formatCareerBilan('Postule à cette offre FICTIVE', truth),
+    /Non exécuté : candidature \(aucun appel de formulaire\)/,
+  );
+  assert.match(
+    formatCareerBilan('Évalue cette offre FICTIVE', createTurnTruth()),
+    /évaluation enregistrée/,
+  );
+  assert.doesNotMatch(
+    formatCareerBilan('Évalue cette offre FICTIVE selon mon CV', createTurnTruth()),
+    /rédaction de document/,
+  );
+  assert.doesNotMatch(
+    formatCareerBilan('Recherche mon CV FICTIF', createTurnTruth()),
+    /recherche d’offres/,
+  );
+  const draft = createTurnTruth();
+  draft.recordGatewayTool('email_send', 'completed', { sent: false });
+  assert.match(formatCareerBilan('Envoie un courriel FICTIF', draft), /email_send \(brouillon\)/);
+  assert.match(
+    formatCareerBilan('Envoie un courriel FICTIF', draft),
+    /Non exécuté : envoi de courriel/,
+  );
+  draft.recordGatewayTool('email_send', 'completed', { sent: true });
+  assert.match(formatCareerBilan('Envoie un courriel FICTIF', draft), /email_send \(envoyé\)/);
+  assert.doesNotMatch(
+    formatCareerBilan('Envoie un courriel FICTIF', draft),
+    /Non exécuté : envoi de courriel/,
+  );
+});
+test('Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon', () => {
+  const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
+  assert.deepEqual(gatewayToolOutcome('career_script', result({ exitCode: 2 })), {
+    status: 'failed',
+  });
+  assert.deepEqual(gatewayToolOutcome('career_script', result({ exitCode: 0 })), {
+    status: 'completed',
+  });
+  assert.deepEqual(gatewayToolOutcome('email_send', result({ sent: false, draft: 'FICTIF' })), {
+    status: 'completed',
+    sent: false,
+  });
+  assert.deepEqual(gatewayToolOutcome('email_send', { isError: true }), { status: 'failed' });
 });
 
 function fixture(t, ownerMode = false) {
@@ -638,6 +700,9 @@ test('Reprise FICTIVE rapide sans navigateur : résultat privé signale l’abse
   );
   assert.match(privateResult.summary, /n’a rien exécuté/i);
   assert.doesNotMatch(privateResult.summary, /prétendument envoyée/i);
+  assert.match(privateResult.summary, /Bilan\n- Actions réussies : aucune observée/);
+  assert.match(privateResult.summary, /- Actions échouées : aucune observée/);
+  assert.match(privateResult.summary, /- Non exécuté : candidature \(aucun appel de formulaire\)/);
   assert.ok(app.store.events(second.id).some((event) => event.type === 'career_no_browser_action'));
 });
 
@@ -739,6 +804,7 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
   const { career, app } = fixture(t);
   reviewCareer(career, app.skills);
   writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   const originalPlan = app.engine.plan.bind(app.engine);
   app.engine.plan = async (...args) => {
     const plan = await originalPlan(...args);
@@ -760,6 +826,7 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
       /Notes non vérifiées : aucune annonce lue dans cette mission, aucune offre enregistrée\./,
       null,
     ],
+    ['FICTIF_RECHERCHE recherche des offres', /career_offer_save/, null],
   ]) {
     const run = await app.engine.create({ prompt, agent: 'fixture', pack: 'career-ops' });
     for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
@@ -769,7 +836,15 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
       readFileSync(join(career.path(), `relay/runs/${run.id}-result.json`), 'utf8'),
     );
     assert.match(privateResult.summary, expected);
+    assert.match(privateResult.summary, /Bilan\n- Actions réussies : career_read/);
+    assert.match(privateResult.summary, /- Actions échouées :/);
+    assert.match(privateResult.summary, /- Non exécuté :/);
     assert.doesNotMatch(privateResult.summary, /DONNÉE_PRIVÉE_FICTIVE/);
+    assert.match(app.store.get(run.id).result.summary, /Bilan\n- Actions réussies/);
+    if (prompt.includes('FICTIF_ACTION_ECHOUEE'))
+      assert.match(privateResult.summary, /candidature \(aucun appel de formulaire\)/);
+    if (prompt.includes('FICTIF_RECHERCHE'))
+      assert.doesNotMatch(privateResult.summary, /Notes non vérifiées/);
     if (scope)
       assert.match(
         app.store.events(run.id).find((e) => e.type === 'verification').data.scope,
@@ -818,6 +893,55 @@ test('Preuve navigateur FICTIVE : capacité du tour en mémoire, contenu privé 
   assert.equal(response.status, 200);
   assert.equal(control.browserEvidenceCapabilities.has('browser.snapshot'), true);
   assert.doesNotMatch(JSON.stringify(app.store.events(id)), /DONNÉE_PRIVÉE_FICTIVE/);
+  app.engine.active.delete(id);
+  app.engine.approvalTokens.delete(id);
+});
+test('Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés', async (t) => {
+  const { career, app } = fixture(t);
+  const id = randomUUID();
+  app.store.create({
+    id,
+    state: 'running',
+    prompt: 'Mission FICTIVE',
+    agent: 'fixture',
+    pack: 'career-ops',
+    skills: [],
+    attachments: [],
+    workspace: 'career-ops',
+    cwd: career.path(),
+    model: '',
+    budgetCents: 0,
+    mode: 'agent',
+    resumable: false,
+  });
+  const control = { abort: new AbortController(), turnTruth: createTurnTruth() };
+  app.engine.active.set(id, control);
+  app.engine.approvalTokens.set(id, 'JETON_FICTIF');
+  t.after(() => {
+    app.engine.active.delete(id);
+    app.engine.approvalTokens.delete(id);
+  });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const post = (token, status, jdRead = false) =>
+    fetch(`http://127.0.0.1:${app.server.address().port}/api/internal/tool-outcome/${id}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-platform-request': '1',
+        'x-relay-token': token,
+      },
+      body: JSON.stringify({ name: 'career_read', status, jdRead }),
+    });
+  assert.equal((await post('JETON_FICTIF', 'completed')).status, 400);
+  control.promptStarted = true;
+  assert.equal((await post('MAUVAIS_JETON_FICTIF', 'completed')).status, 400);
+  assert.equal((await post('JETON_FICTIF', 'inventé')).status, 400);
+  assert.equal((await post('JETON_FICTIF', 'completed', true)).status, 200);
+  assert.deepEqual(control.turnTruth.toolOutcomes(), [
+    { name: 'career_read', status: 'completed' },
+  ]);
+  assert.equal(control.turnTruth.hasJdRead(), true);
+  assert.doesNotMatch(JSON.stringify(app.store.events(id)), /career_read/);
   app.engine.active.delete(id);
   app.engine.approvalTokens.delete(id);
 });

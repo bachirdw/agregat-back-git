@@ -3,6 +3,33 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
+## 0000000. Journée du 29/10 — supervision Codex, état réel (À LIRE EN PREMIER, prime sur § 000000)
+
+### Verdicts du manager (preuves rejouées par le manager, jamais le seul compte rendu de Codex)
+| Étape | Verdict | Preuve rejouée |
+|---|---|---|
+| `audit-seek-02` (correctif « Loading » Seek, fixture) | VALIDE | tests ciblés 15/15 ; `owner-browser` 32/32 sur Chrome réel isolé |
+| `fix-resume-01` (reprise sans navigation, résumé vide, causes d'échec) | VALIDE | rouge 5/16 sur `cdd09e6`, vert 16/16 ; gate sans Chrome 322/323 |
+| `fix-browser-01` (repli « Chrome isolé » visible) | VALIDE | rouge 2/3 sur `637cfd1`, vert 3/3 ; `owner-browser` 32/32 |
+| `front-anim-06` (débordement, avertissement repli) | A CORRIGER | mesure réelle : ligne d'outil de 6 662 px dans 780 px |
+| `front-anim-07` (reprise de 06) | VALIDE | rouge 1/83, vert 83/83 ; mesure réelle 1550 px (732 ≤ 780) et 375 px (339 ≤ 375) |
+| Preuve réelle du correctif Seek sur la VRAIE page SEEK, Chrome connecté | BLOQUE | relais Playwriter 19988 éteint ; demande l'accord de l'utilisateur |
+
+### Faits à retenir
+- **Les missions de recherche du 29/10 ont tourné dans un Chrome VIERGE** (`cdp-isolated-fallback`, « Extension Playwriter indisponible ») :
+  SEEK, Indeed et Jora y affichent un contrôle anti-robot (jamais à contourner, `--patchright` et `cloud` de Playwriter interdits).
+  Pour candidater sur SEEK : allumer le relais Playwriter, et l'utilisateur passe lui-même la vérification humaine.
+- Répondre dans l'ancien fil = reprise de session = Gemini rejoue l'historique et répond en 6 s sans agir. Toujours « Nouvelle mission ».
+- `AGENT_PLATFORM_AUTO_SEND=1` est actif (envois approuvés sans fenêtre) ; la règle LinkedIn (aucun clic, brouillons seulement) reste.
+- Ancienne interface `apps/web` supprimée (`a26f14e`) ; un seul front : http://127.0.0.1:5173 ; 4310 renvoie vers lui.
+- Serveur 4310 relancé à 20:22 avec tous les correctifs, détaché, variables : TIMEOUT 900000, OWNER 1, AUTO_SEND 1, LIVE 1, BROWSER playwriter.
+- Gemini : 4,91 $ sur 5 $, aucune mission Gemini lancée le 29/10. Rien n'est poussé depuis `ee2ecf8` (back) / `6329356` (front) : environ 22 commits en avance.
+- Défauts connus non corrigés : `owner-browser` sensible à la charge machine (échec au 1er passage sous charge 7, vert ensuite) ;
+  débordement de 4 à 5 px des éléments `spread` ; le correctif de reprise accepte une reprise « qui devait agir » sans action (étiquetée « sans nouvelle navigation »).
+
+### Prochaine action
+Si l'utilisateur autorise : démarrer Playwriter, lancer `.manager/reports/seek-apply-01-evidence/real-probe.mjs` (lecture seule : navigate + snapshot, rien n'est rempli ni envoyé) et consigner le résultat. Sinon : rester BLOQUE sur ce point.
+
 ## 000000. Journée du 28/10 — test réel, diagnostic, nouvel affichage (À LIRE EN PREMIER, prime sur § 00000)
 
 ### État à 19:50 (Sydney)

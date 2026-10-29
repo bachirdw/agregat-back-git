@@ -30,6 +30,13 @@ et les lignes lus** dans le rapport, compare à notre code, puis implémente che
    dans un message) ; ajouter les cas manquants en tests.
 5. **Navigateur** : `Playwriter`, `Playwright MCP` (snapshots, attente de chargement, reconnexion à l'extension). Notre défaut passé :
    snapshot « Loading », relais éteint → Chrome isolé. Comparer, corriger seulement un écart prouvé par un test rouge.
+6. **Réponse qui dit plus que les preuves** (mission `f859f652`, 29/10 20:27, session reprise) : demande « va sur YouTube et cherche medtech ».
+   L'agent n'a fait AUCUN appel `browser_*` dans ce tour (les 4 appels à 20:27:41.8 sont la relecture d'historique de la mission Halcyon) ;
+   il a utilisé `google_web_search` (recherche Google native) et a répondu « Recherche effectuée pour MedTech **sur YouTube** » avec une
+   liste de chaînes. Le Bilan dit « aucune action observée », ce qui est exact, mais le texte de l'agent affirme YouTube sans l'avoir ouvert.
+   Regarde comment les projets inspirants relient la source d'une affirmation à l'outil utilisé ; ajoute au Bilan une ligne factuelle
+   « Source : recherche web native (google_web_search), YouTube non ouvert » quand la demande nomme un site/URL et qu'aucun `browser_*`
+   du tour n'y a navigué. Texte factuel seulement, aucun blocage.
 
 ## Rapport `.manager/reports/fix-inspire-01.md` (au fil de l'eau, heures `date +%H:%M`)
 Pour chaque point : projet + fichier:lignes lus · ce qu'il fait · ce que fait notre code · écart · correctif ou « rien à reprendre ».

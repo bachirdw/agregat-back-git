@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { validateWorkflow } from '../workflow-engine/definition.js';
+import { loadSkillManifest, selectSkillIntents } from './skill-router.js';
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const schema = z.object({
   dag: z.unknown().optional(),
@@ -44,6 +45,8 @@ export const packs = ['core', 'najah', 'career-ops'].map((id) => {
   // `dags` lists every workflow of the pack; `dag` stays the default one.
   pack.dags = [...(pack.dag ? [pack.dag] : []), ...(pack.dags ?? [])];
   for (const d of pack.dags) validateWorkflow(d); // fail fast on an invalid pack DAG
+  if (existsSync(resolve(ROOT, 'domain-packs', id, 'skill-manifest.yaml')))
+    pack.skillManifest = loadSkillManifest(id);
   return pack;
 });
 export const skillDefinitions = packs.flatMap((p) =>
@@ -84,6 +87,10 @@ export function getPack(id, objective = '') {
   const p =
     id === 'auto'
       ? (packs.find(
+          (pack) =>
+            pack.skillManifest && selectSkillIntents(objective, [pack.skillManifest]).length,
+        ) ??
+        packs.find(
           (p) =>
             p.id === 'career-ops' &&
             /career-ops|career_(?:read|write|script|offer_save|document)|modes\/_profile\.md|jd-skill-gap|cv-title-check|verify-cv-facts|trouve des offres|[ée]value cette offre|postule|\b(?:offres? d['’ ]emploi|jobs?|postes?|candidatures?|cv|profils?)\b/i.test(

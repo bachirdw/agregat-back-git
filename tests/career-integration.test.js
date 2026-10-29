@@ -800,6 +800,30 @@ test('Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill', 
   );
   assert.match(result.summary, /Consigne prioritaire FICTIVE reçue avant le Skill/);
 });
+test('Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prompt', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  const run = await app.engine.create({
+    prompt: 'FICTIF_ROUTEUR trouve des offres',
+    agent: 'fixture',
+    pack: 'career-ops',
+  });
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
+  assert.match(app.store.get(run.id).result.summary, /Scanner les portails du Skill.*non exécutée/);
+});
 test('Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé', async (t) => {
   const { career, app } = fixture(t);
   reviewCareer(career, app.skills);
@@ -845,6 +869,22 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
       assert.match(privateResult.summary, /candidature \(aucun appel de formulaire\)/);
     if (prompt.includes('FICTIF_RECHERCHE'))
       assert.doesNotMatch(privateResult.summary, /Notes non vérifiées/);
+    if (prompt.includes('FICTIF_RECHERCHE')) {
+      const progress = app.store.get(run.id).skillProgress;
+      assert.equal(progress.steps.find((step) => step.id === 'save-offer').state, 'done');
+      assert.match(
+        progress.steps.find((step) => step.id === 'save-offer').toolCallId,
+        /^[a-f0-9-]{36}$/,
+      );
+      assert.equal(progress.steps.find((step) => step.id === 'scan').state, 'pending');
+      assert.match(privateResult.summary, /Étapes du Skill/);
+      assert.match(app.store.get(run.id).result.summary, /Non exécuté|non exécutée/);
+      assert.ok(
+        app.store
+          .events(run.id)
+          .some((event) => event.type === 'skill_progress' && event.data.state === 'done'),
+      );
+    }
     if (scope)
       assert.match(
         app.store.events(run.id).find((e) => e.type === 'verification').data.scope,

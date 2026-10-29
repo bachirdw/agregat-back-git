@@ -1,0 +1,94 @@
+pack: career-ops
+intents:
+  - id: evaluate
+    title: Évaluer une annonce
+    priority: 90
+    phrases: [évalue cette offre, evalue cette offre, évaluer une annonce, note cette offre]
+    steps:
+      - id: read-offer
+        title: Lire réellement l'annonce
+        tool: career_read
+        argument: jds/
+        precondition: Annonce identifiée
+        done: Lecture d'une annonce enregistrée terminée
+        optional: false
+      - id: save-evaluation
+        title: Enregistrer l'évaluation
+        tool: career_offer_save
+        precondition: Annonce lue
+        done: Rapport enregistré par l'outil
+        optional: false
+  - id: search
+    title: Chercher des offres
+    priority: 100
+    phrases: [trouve des offres, recherche des offres, cherche des offres, offres d'emploi]
+    keywords: [offres, jobs]
+    steps:
+      - id: scan
+        title: Scanner les portails du Skill
+        tool: career_script
+        argument: scan
+        precondition: Portails configurés
+        done: Script scan terminé avec code zéro
+        optional: false
+      - id: save-offer
+        title: Enregistrer les offres retenues
+        tool: career_offer_save
+        precondition: Résultat de recherche disponible
+        done: Offre enregistrée par l'outil
+        optional: false
+  - id: documents
+    title: Préparer des documents
+    priority: 70
+    phrases: [rédige mon cv, rédige une lettre, prépare mon cv, cv + lettre]
+    keywords: []
+    steps:
+      - id: write
+        title: Rédiger le document
+        tool: career_write
+        precondition: Profil et demande disponibles
+        done: Écriture terminée
+        optional: false
+      - id: document
+        title: Produire le document final
+        tool: career_document
+        precondition: Brouillon rédigé
+        done: Document produit
+        optional: false
+  - id: apply
+    title: Préparer une candidature
+    priority: 60
+    phrases: [postule, candidature, apply]
+    keywords: [postuler]
+    steps:
+      - id: open
+        title: Ouvrir le formulaire
+        tool: browser_navigate
+        precondition: Offre identifiée
+        done: Navigation terminée
+        optional: false
+      - id: fill
+        title: Préparer les champs
+        tool: browser_fillForm
+        precondition: Formulaire visible
+        done: Champs remplis
+        optional: false
+      - id: review
+        title: Relire avant soumission
+        tool: browser_snapshot
+        requiresStep: fill
+        precondition: Champs préparés
+        done: Instantané de relecture obtenu
+        optional: false
+  - id: linkedin
+    title: Préparer un brouillon LinkedIn
+    priority: 50
+    phrases: [linkedin, profil linkedin]
+    keywords: [linkedin]
+    steps:
+      - id: draft
+        title: Rédiger le brouillon LinkedIn
+        tool: linkedin_draft
+        precondition: Profil disponible
+        done: Brouillon créé
+        optional: false

@@ -91,6 +91,16 @@ const app = agent({ name: 'career-FICTIF' })
         await send('Consigne prioritaire FICTIVE reçue avant le Skill.');
         return { stopReason: 'end_turn' };
       }
+      if (request.objective.includes('FICTIF_ROUTEUR')) {
+        if (
+          !request.instructions.includes('Ordre des étapes du Skill') ||
+          request.instructions.indexOf('career_script') >
+            request.instructions.indexOf('career_offer_save')
+        )
+          throw new Error('Ordre du Skill absent du prompt FICTIF');
+        await send('Ordre du Skill FICTIF reçu.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_ACTION_ECHOUEE')) {
         await connection.client.notify(methods.client.session.update, {
           sessionId: session.sessionId,

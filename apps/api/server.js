@@ -407,13 +407,28 @@ export function createApp({
           engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
           !control?.promptStarted ||
           control.abort.signal.aborted ||
-          store.get(id)?.workspace !== 'career-ops'
+          !store.get(id)
         )
           throw new Error('Bilan d’outil non autorisé');
-        control.turnTruth.recordGatewayTool(body.name, body.status, {
-          jdRead: body.jdRead === true,
-          sent: body.sent,
-        });
+        if (
+          body.toolCallId != null &&
+          (typeof body.toolCallId !== 'string' || !/^[a-f0-9-]{36}$/.test(body.toolCallId))
+        )
+          throw new Error('Identifiant d’appel invalide');
+        if (store.get(id)?.workspace === 'career-ops')
+          control.turnTruth.recordGatewayTool(body.name, body.status, {
+            jdRead: body.jdRead === true,
+            sent: body.sent,
+          });
+        if (body.toolCallId != null) {
+          control.skillProgress?.observe({
+            sessionUpdate: 'tool_call',
+            toolCallId: body.toolCallId,
+            title: body.name,
+            rawInput: { command: body.argument, path: body.argument },
+            status: body.status,
+          });
+        }
         return json(res, 200, { ok: true });
       }
       const browserFallback = path.match(/^\/api\/internal\/browser-fallback\/([a-f0-9-]{36})$/);

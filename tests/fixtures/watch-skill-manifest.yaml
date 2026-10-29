@@ -1,0 +1,19 @@
+pack: watch
+intents:
+  - id: monitor
+    title: Veille fictive
+    priority: 50
+    phrases: [surveille les articles, veille sur]
+    steps:
+      - id: fetch
+        title: Lire la source fictive
+        tool: watch_fetch
+        precondition: Source définie
+        done: Appel terminé
+        optional: false
+      - id: digest
+        title: Résumer les articles fictifs
+        tool: watch_digest
+        precondition: Source lue
+        done: Appel terminé
+        optional: false

@@ -1,5 +1,6 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayToolOutcome } from '../career-ops/truth.js';
+import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -63,7 +64,7 @@ async function meter(dimension, units = 1) {
 // The workflow executor premeters its own calls. Agent-initiated calls are metered here,
 // including tools registered by a domain pack, before their handlers run.
 const register = server.registerTool.bind(server);
-async function reportToolOutcome(name, status, args, sent) {
+async function reportToolOutcome(name, status, args, sent, toolCallId) {
   const url = process.env.RELAY_TOOL_OUTCOME_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return;
   await fetch(url, {
@@ -76,6 +77,13 @@ async function reportToolOutcome(name, status, args, sent) {
     body: JSON.stringify({
       name,
       status,
+      toolCallId,
+      argument:
+        name === 'career_script' && String(args?.command ?? args?.script ?? '').includes('scan')
+          ? 'scan'
+          : name === 'career_read' && String(args?.path ?? '').startsWith('jds/')
+            ? 'jds/'
+            : null,
       jdRead: name === 'career_read' && /^jds\//.test(args?.path ?? ''),
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
     }),
@@ -92,6 +100,7 @@ server.registerTool = (name, definition, handler) =>
         : z.object(definition.inputSchema ?? {}).strict(),
     },
     async (args, extra) => {
+      const toolCallId = randomUUID();
       let result;
       try {
         if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
@@ -101,7 +110,7 @@ server.registerTool = (name, definition, handler) =>
         result = failure(e);
       }
       const outcome = gatewayToolOutcome(name, result);
-      await reportToolOutcome(name, outcome.status, args, outcome.sent).catch(() => {});
+      await reportToolOutcome(name, outcome.status, args, outcome.sent, toolCallId).catch(() => {});
       return result;
     },
   );

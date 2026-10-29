@@ -611,6 +611,13 @@ test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt
   ])
     assert.match(CAREER_INSTRUCTIONS, rule);
 });
+test('Instructions career-ops : scan des portails d’abord, recherche live en complément', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  assert.match(
+    CAREER_INSTRUCTIONS,
+    /pour toute recherche[^.]*career_script scan d'abord[^.]*jobs_search_live[^.]*en complément/i,
+  );
+});
 test('Instructions CV et lettre : contrôles, manques, questions et aucune candidature', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
   for (const rule of [

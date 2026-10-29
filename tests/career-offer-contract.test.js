@@ -59,6 +59,33 @@ test('Le schéma MCP accepte une offre découverte sans UUID ni évaluation', as
   });
 });
 
+test('Outils career : wait_for_previous connu est ignoré, les autres arguments restent refusés', async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-wait-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const client = await connectMcp({
+    command: process.execPath,
+    args: [resolve('packages/mcp-gateway/server.js'), 'career-ops'],
+    env: [{ name: 'RELAY_CAREER_WORKSPACE', value: root }],
+  });
+  t.after(() => client.close());
+  const tools = (await client.listTools()).tools;
+  assert.ok(
+    tools
+      .filter((tool) => /^(career_|email_send|linkedin_draft)/.test(tool.name))
+      .every((tool) => tool.inputSchema.properties.wait_for_previous),
+  );
+  const accepted = await client.callTool({
+    name: 'career_offer_save',
+    arguments: { ...discovered(), wait_for_previous: true },
+  });
+  assert.equal(accepted.isError, undefined);
+  const rejected = await client.callTool({
+    name: 'career_offer_save',
+    arguments: { ...discovered(), unknown_field: true },
+  });
+  assert.equal(rejected.isError, true);
+});
+
 test('Évaluation incomplète refusée par la plateforme même si le JSON Schema perd refine', () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-contract-FICTIF-')));
   try {

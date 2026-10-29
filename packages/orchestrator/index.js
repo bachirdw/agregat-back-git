@@ -580,6 +580,7 @@ export class Orchestrator {
       events = 0;
     let browserToolObserved = false;
     const toolTimers = new Map();
+    const toolTitles = new Map();
     let promptStarted = false;
     const turnTruth = createTurnTruth();
     control.turnTruth = turnTruth;
@@ -627,7 +628,11 @@ export class Orchestrator {
       const id = update.toolCallId;
       clearTimeout(toolTimers.get(id));
       toolTimers.delete(id);
-      if (['completed', 'failed', 'cancelled'].includes(update.status)) return;
+      if (update.title === 'Searching the web') toolTitles.set(id, 'Searching the web');
+      if (['completed', 'failed', 'cancelled'].includes(update.status)) {
+        toolTitles.delete(id);
+        return;
+      }
       toolTimers.set(
         id,
         setTimeout(() => {
@@ -635,6 +640,7 @@ export class Orchestrator {
           const error = new Error('Outil sans mise à jour');
           error.code = 'tool_stalled';
           error.afterMs = this.toolIdleMs;
+          error.toolTitle = toolTitles.get(id);
           control.abort.abort(error);
         }, this.toolIdleMs),
       );
@@ -916,23 +922,27 @@ export class Orchestrator {
         finishedAt: new Date().toISOString(),
       });
     } catch (e) {
+      const reason = control.abort.signal.reason;
+      const failureMessage =
+        plan.pack.id === 'career-ops'
+          ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
+          : String(reason?.message ?? e.message ?? e).slice(0, 1000);
       if (skillProgress.started) {
         const skillResult = skillProgress.finish();
         this.store.update(run.id, {
           skillProgress: skillResult,
-          ...(skillResult.steps.length
-            ? {
-                result: {
-                  simulated: !!plan.simulated,
-                  summary: 'Bilan\n' + formatSkillBilan(skillResult),
-                  evidence: [],
-                },
-              }
-            : {}),
+          result: {
+            simulated: !!plan.simulated,
+            summary:
+              (plan.pack.id === 'career-ops' ? formatCareerBilan(run.prompt, turnTruth) : 'Bilan') +
+              (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '') +
+              '\n- Cause : ' +
+              failureMessage,
+            evidence: [],
+          },
         });
       }
       recordDiagnostic();
-      const reason = control.abort.signal.reason;
       if (!plan.simulated && control.runtime && !control.runtime.sessionId && !control.cancelled)
         saveProbe(this.dataDir, plan.agent.id, {
           handshake: !!control.runtime.info,
@@ -945,10 +955,7 @@ export class Orchestrator {
         });
       this.store.update(run.id, {
         state: control.cancelled ? 'cancelled' : 'failed',
-        error:
-          plan.pack.id === 'career-ops'
-            ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
-            : String(reason?.message ?? e.message ?? e).slice(0, 1000),
+        error: failureMessage,
         finishedAt: new Date().toISOString(),
       });
     } finally {

@@ -144,12 +144,29 @@ const app = agent({ name: 'fake-acp' })
     if (cfg.diagnosticText) process.stderr.write(cfg.diagnosticText);
     await guard('session/prompt');
     if (cfg.stallTool) {
+      if (cfg.stallToolPrelude)
+        for (const [index, name, status] of [
+          [1, 'browser_navigate', 'completed'],
+          [2, 'browser_snapshot', 'completed'],
+          [3, 'browser_extract', 'completed'],
+          [4, 'browser_extract', 'failed'],
+        ])
+          await connection.client.notify(methods.client.session.update, {
+            sessionId: ctx.params.sessionId,
+            update: {
+              sessionUpdate: 'tool_call',
+              toolCallId: `FICTIF-prelude-${index}`,
+              title: name,
+              kind: 'fetch',
+              status,
+            },
+          });
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
         update: {
           sessionUpdate: 'tool_call',
           toolCallId: 'FICTIF-stalled',
-          title: 'Recherche web FICTIVE',
+          title: cfg.stallToolTitle ?? 'Recherche web FICTIVE',
           kind: 'fetch',
           status: 'in_progress',
         },

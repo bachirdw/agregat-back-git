@@ -11,5 +11,9 @@ export function careerFailureMessage({ cancelled = false, reason, error } = {}) 
   if (error?.code === 'timeout') return 'Délai de réponse de l’agent dépassé';
   if (error?.code === 'exited' || /^Agent arrêté : /.test(error?.message ?? ''))
     return 'Agent arrêté';
+  if (/^Navigation non prouvée\b/.test(error?.message ?? ''))
+    return 'Navigation non prouvée : aucune page ouverte puis observée.';
+  if (/^Réponse non structurée de l’agent\b/.test(error?.message ?? ''))
+    return 'Réponse non structurée de l’agent.';
   return 'Exécution privée échouée ; consulter les détails techniques.';
 }

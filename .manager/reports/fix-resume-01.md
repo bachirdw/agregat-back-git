@@ -19,3 +19,16 @@
 - Le résumé de secours vient uniquement de la prose hors bloc JSON ; recopier le JSON brut produirait un résumé inutile. Le résultat purement JSON avec `summary: ""` reste hors contrat faute de texte exploitable. Aucun garde-fou retiré.
 - 19:57 — Pré-commit point 2 : `npm run check` code 0 ; `npm run format:check` code 1 (`packages/orchestrator/result.js`). Correction de format automatique ciblée avant de relancer les contrôles.
 - 19:58 — Point 2 pré-commit : après formatage ciblé (`prettier` code 0), `npm run check` code 0, `npm run format:check` code 0, tests ciblés code 0 (12/12), `CHROME_PATH=/nonexistent npm test` code 0 (`point2-test.log`, dernier groupe 58 réussites, 59 ignorés sans Chrome). État : opérationnel sur faux agent ACP ; aucun test de modèle réel.
+- 19:59 — Commit local du point 2 : `0d44702`. Point 3 : test de `careerFailureMessage` rouge, code 1 (2/3, `point3-red.log`) pour deux causes connues. Ajout de libellés constants dans `packages/orchestrator/failure.js`, sans recopier l’extrait privé ; test ciblé vert (3/3).
+- 19:59 — Test intégré privé ajouté pour « Navigation non prouvée » : premier passage rouge, code 1 (`point3-green.log` écrasé ensuite). Diagnostic temporaire (`point3-diagnostic.log`) : espace temporaire sous lien `/var` → `/private/var`, donc « Espace de travail symbolique ou invalide » ; `realpathSync` corrige la fixture. Instrumentation temporaire retirée. Second passage vert, code 0 (4/4, `point3-green.log`). Aucune donnée réelle dans ces diagnostics.
+- 20:00 — Pré-commit point 3 : `npm run check` code 0, `npm run format:check` code 1 sur `tests/career-failure.test.js` ; formatage ciblé requis et relance des gates.
+- 20:03 — Point 3 pré-commit : formatage ciblé code 0 ; `npm run check` code 0 (`point3-check.log`), `npm run format:check` code 0 (`point3-format.log`), `node --test tests/career-failure.test.js` code 0 (4/4, `point3-green.log`), `CHROME_PATH=/nonexistent npm test` code 0 (`point3-test.log`, dernier groupe 58 réussites et 59 ignorés sans Chrome). `git diff --check` code 0. Aucun appel Gemini, aucune mission ni site réel, aucun serveur démarré par ces tests.
+
+## État final
+- **Opérationnel sur fixtures** : reprise ACP sans nouvelle navigation acceptée et signalée ; nouveau navigateur appelé sans preuves toujours refusé ; mission neuve sans navigation refusée.
+- **Opérationnel sur fixtures** : résumé vide complété par la prose finale hors JSON, limitée à 2 000 caractères et expurgée des secrets connus. JSON seul avec résumé vide reste hors contrat.
+- **Opérationnel sur fixtures** : causes « Navigation non prouvée » et « Réponse non structurée de l’agent » affichées pour les échecs privés sans extrait privé.
+- **Non vérifié** : navigation Chrome réelle et modèle réel (interdits/indisponibles dans ce brief). Le manager peut relancer la suite avec Chrome hors bac à sable.
+
+## Questions / reste
+- Aucun point fonctionnel restant sur le brief. Contrôle du manager avec Chrome souhaité selon les règles communes.

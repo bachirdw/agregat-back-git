@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { careerFailureMessage } from '../packages/orchestrator/failure.js';
 import { createApp } from '../apps/api/server.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -29,6 +29,23 @@ test('échec privé : délai, annulation et arrêt de l’agent sont nommés san
   assert.equal(
     careerFailureMessage({ error: new Error('CV et secret privé') }),
     'Exécution privée échouée ; consulter les détails techniques.',
+  );
+});
+
+test('échec privé : navigation non prouvée et réponse non structurée visibles sans extrait', () => {
+  assert.equal(
+    careerFailureMessage({
+      error: new Error('Navigation non prouvée : CV SECRET FICTIF'),
+    }),
+    'Navigation non prouvée : aucune page ouverte puis observée.',
+  );
+  assert.equal(
+    careerFailureMessage({
+      error: new Error(
+        'Réponse non structurée de l’agent (refus ou texte libre) : CV SECRET FICTIF',
+      ),
+    }),
+    'Réponse non structurée de l’agent.',
   );
 });
 
@@ -67,6 +84,51 @@ test('échec privé intégré : le délai du run est visible dans le fil sans do
     assert.equal(app.store.get(run.id).state, 'failed');
     assert.equal(app.store.get(run.id).error, 'Délai maximal dépassé');
     assert.doesNotMatch(JSON.stringify(app.store.get(run.id)), /CV SECRET/);
+  } finally {
+    await app.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('échec privé intégré : navigation non prouvée nommée sans prompt privé', async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-navigation-FICTIF-')));
+  const career = new CareerWorkspace({ root, roots: [root] });
+  const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: true });
+  const run = {
+    id: randomUUID(),
+    state: 'queued',
+    cwd: root,
+    prompt: 'CV SECRET FICTIF',
+    model: '',
+    mode: 'agent',
+    budgetCents: 0,
+    workspace: 'career-ops',
+  };
+  app.store.create({ ...run, prompt: 'Mission privée dans l’espace de candidature' });
+  const plan = {
+    simulated: true,
+    skills: [],
+    browserWorkflow: true,
+    agent: {
+      id: 'fixture',
+      command: process.execPath,
+      args: [resolve('tests/fixtures/fake-acp.js')],
+      env: [],
+      safeModes: [],
+      fixedEnv: {
+        FAKE_ACP: JSON.stringify({ result: { simulated: true, summary: 'FICTIF', evidence: [] } }),
+      },
+    },
+    pack: { id: 'career-ops', workflow: { steps: [] } },
+  };
+  const control = { abort: new AbortController(), runtime: null };
+  app.engine.active.set(run.id, control);
+  try {
+    await app.engine.execute(run, plan, control, null);
+    const done = app.store.get(run.id);
+    assert.equal(done.state, 'failed');
+    assert.equal(done.error, 'Navigation non prouvée : aucune page ouverte puis observée.');
+    assert.doesNotMatch(JSON.stringify(done), /CV SECRET/);
   } finally {
     await app.close();
     rmSync(root, { recursive: true, force: true });

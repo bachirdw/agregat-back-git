@@ -86,11 +86,6 @@ export function createApp({
     ownerMode,
     career,
   });
-  const files = {
-    '/': ['index.html', 'text/html'],
-    '/app.js': ['app.js', 'text/javascript'],
-    '/style.css': ['style.css', 'text/css'],
-  };
   const json = (res, status, data) => {
     res.writeHead(status, { 'content-type': 'application/json' });
     res.end(JSON.stringify(data));
@@ -157,19 +152,11 @@ export function createApp({
             : readFileSync(target),
         );
       }
-      if (!webDir && req.method === 'GET' && files[path]) {
-        const [name, type] = files[path];
-        res.writeHead(200, { 'content-type': type + '; charset=utf-8' });
-        const content = readFileSync(resolve(ROOT, 'apps/web', name));
+      if (!webDir && req.method === 'GET' && path === '/') {
+        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
         return res.end(
-          ownerMode && name === 'index.html'
-            ? content
-                .toString()
-                .replace(
-                  '<body>',
-                  '<body><aside role="alert" class="owner-warning"><mark><strong>Mode propriétaire local : protections désactivées</strong></mark></aside>',
-                )
-            : content,
+          (ownerMode ? 'Mode propriétaire local : protections désactivées\n' : '') +
+            'API Relay. Cette adresse ne sert pas d\u2019interface : ouvrir le frontend (http://127.0.0.1:5173).\n',
         );
       }
       if (req.method === 'GET' && path === '/api/catalog')

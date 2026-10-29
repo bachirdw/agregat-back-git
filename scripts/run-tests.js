@@ -11,7 +11,6 @@ const BROWSER = new Set([
   'browser-field-review.test.js',
   'browser-gateway.test.js',
   'approval-bridge.test.js',
-  'e2e-ui.test.js',
   'owner-browser.test.js',
 ]);
 const files = readdirSync('tests')

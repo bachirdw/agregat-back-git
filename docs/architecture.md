@@ -5,13 +5,13 @@
 
 ## Modules et exécution existants
 
-Un processus HTTP sur `127.0.0.1` sert `apps/web`, l'API et l'orchestration. Le diagnostic CLI est dans
+Un processus HTTP sur `127.0.0.1` sert l'API et l'orchestration. Le diagnostic CLI est dans
 `apps/companion` ; aucun companion distant n'est déployé. Un SQLite conserve runs, événements, étapes,
 Skills et ledger. Les agents et le serveur MCP stdio sont des processus enfants.
 
 ```mermaid
 flowchart TD
-  UI["apps/web : prompt, agent, modèle, Skills, plan"] --> API["apps/api : HTTP et SSE locaux"]
+  UI["agregat-front (dépôt séparé) : prompt, agent, modèle, Skills, plan"] --> API["apps/api : HTTP et SSE locaux"]
   API --> ORCH["packages/orchestrator : plan, permissions, usage, reprise"]
   ORCH --> ROUTER["agent-runtime : découverte et routeur Auto"]
   ORCH --> DAG["workflow-engine : DAG durable SQLite"]

@@ -62,3 +62,19 @@ test('dist optionnel : fichiers confinés, MIME, API et protections HTTP conserv
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('sans dist : la racine indique où est l’interface, aucune ancienne page n’est servie', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'relay-no-web-'));
+  const app = createApp({ dataDir: join(dir, 'data') });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  try {
+    const root = await fetch(base);
+    assert.equal(root.status, 200);
+    assert.match(await root.text(), /5173/);
+    for (const old of ['/app.js', '/style.css'])
+      assert.equal((await fetch(base + old)).status, 404);
+  } finally {
+    await app.close();
+  }
+});

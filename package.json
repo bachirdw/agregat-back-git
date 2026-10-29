@@ -15,7 +15,7 @@
     "test:live": "node scripts/live-probe.js",
     "format": "prettier --write apps packages domain-packs tests scripts/*.js",
     "format:check": "prettier --check apps packages domain-packs tests scripts/*.js",
-    "test:browser": "node --test --test-concurrency=1 --test-timeout=120000 tests/browser-gateway.test.js tests/approval-bridge.test.js tests/e2e-ui.test.js",
+    "test:browser": "node --test --test-concurrency=1 --test-timeout=120000 tests/browser-gateway.test.js tests/approval-bridge.test.js",
     "test:live:najah": "node scripts/live-run.js"
   },
   "dependencies": {

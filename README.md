@@ -140,14 +140,14 @@ partiels (deux titres). Aucune inférence renouvelée par docs-01. Tests : `test
 | ------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------- |
 | ![Plan](docs/screenshots/plan-workflow-auto.png) | ![Najah](docs/screenshots/najah-offres-reelles.png) | ![Brouillon](docs/screenshots/brouillon-approbation.png) |
 
-Captures générées par `node scripts/screenshots.js` (Chrome headless, données réelles enregistrées le 25/10/2026,
+Captures historiques (ancienne interface intégrée, supprimée le 29/10 ; le front actuel est `agregat-front`), générées par un script retiré (Chrome headless, données réelles enregistrées le 25/10/2026,
 analyse par le démonstrateur sans modèle).
 
 ## Fonctionnalités et limites (état au 26 octobre 2026)
 
 | Fonction                                                                                               | État                                                                                                                                                     | Preuve                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel**                                                                                                                                         | Parcours démonstrateur et approbations : `tests/e2e-ui.test.js` ; sélection/modèles côté API et runtime : `tests/api-agents.test.js`, `tests/runtime.test.js`                            |
+| Interface : prompt, agent, modèle, Skills, mode workflow, budget, plan, étapes en direct, approbations | **Opérationnel**                                                                                                                                         | Parcours testé dans `agregat-front/tests/e2e.test.mjs` ; sélection/modèles côté API et runtime : `tests/api-agents.test.js`, `tests/runtime.test.js`                            |
 | Runtime ACP (délais réels, crash, env en liste blanche, modes sûrs, modèles)                           | **Opérationnel**                                                                                                                                         | `tests/runtime.test.js` et sondes historiques                                                                                                                                            |
 | Codex · Claude · Gemini CLI · OpenCode                                                                 | Sessions réelles documentées pour les 4 ; accès et inférence fournisseur à revérifier selon disponibilité/conditions                                     | `docs/research/live-probe.json`, `docs/validation.md` (historiques ; aucune inférence au sprint 09)                                                                                      |
 | Mode Auto par exigences et capacités                                                                   | **Opérationnel**                                                                                                                                         | `tests/runtime.test.js`, `tests/api-agents.test.js`                                                                                                                                      |
@@ -222,7 +222,6 @@ Les tests n'appellent aucun modèle et ne nécessitent pas de CLI fournisseur. `
 ## Organisation
 
 ```text
-apps/web/                     Interface sans framework ni compilation
 apps/api/                     Serveur HTTP local, SSE, ponts internes d'approbation et d'usage
 apps/companion/               Diagnostic des CLI (companion fusionné avec l'API au MVP)
 packages/agent-runtime/       Runtime ACP, profils, découverte, env en liste blanche, routeur Auto, sondes
@@ -313,7 +312,6 @@ Tests hors ligne (aucun modèle ni envoi réel) :
 
 ```sh
 node --test tests/career-workspace.test.js tests/career-integration.test.js tests/career-sends.test.js
-node --test tests/e2e-ui.test.js  # Chrome isolé, CV et formulaires FICTIFS
 npm test && npm run check && npm run format:check
 ```
 

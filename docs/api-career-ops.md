@@ -61,7 +61,7 @@ métadonnées de contrôle y restent pour la reprise et l’audit. Rien n’est 
 
 ## Validation frontend
 
-L’interface intégrée `apps/web` couvre dépôt CV, édition YAML, offres/notes/rapport A–H, brouillons Gmail,
-LinkedIn avec copie et lien, et file d’envois. Le frontend séparé peut reproduire ces routes et
-continuer à utiliser le plan, le streaming SSE et les permissions existantes. Aucun HTML de CV,
+Le frontend séparé (`agregat-front`) couvre dépôt CV, édition YAML, offres/notes/rapport A–H, brouillons Gmail,
+LinkedIn avec copie et lien, et file d’envois. Il utilise ces routes et
+continue à utiliser le plan, le streaming SSE et les permissions existantes. Aucun HTML de CV,
 d’offre ou de message ne doit être injecté dans le DOM : afficher comme texte.

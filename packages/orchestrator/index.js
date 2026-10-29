@@ -652,6 +652,7 @@ export class Orchestrator {
           armSilence();
           watchTool(update);
           if (
+            promptStarted &&
             update.sessionUpdate === 'tool_call' &&
             /\bbrowser[_\.][a-z]/i.test(
               String(update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? ''),
@@ -765,15 +766,22 @@ export class Orchestrator {
           .events(run.id)
           .filter((e) => e.type === 'browser_evidence')
           .map((e) => e.data);
+        const answeredWithoutNavigation = previous && !browserToolObserved && observed.length === 0;
         if (
-          !observed.some((e) => e.capability === 'browser.navigate') ||
-          !observed.some((e) => ['browser.extract', 'browser.snapshot'].includes(e.capability))
+          !answeredWithoutNavigation &&
+          (!observed.some((e) => e.capability === 'browser.navigate') ||
+            !observed.some((e) => ['browser.extract', 'browser.snapshot'].includes(e.capability)))
         )
           throw new Error(
             'Navigation non prouvée : aucune page ouverte par browser.navigate puis observée par browser.snapshot ou browser.extract. Ce parcours est exigé pour vérifier une mission du pack navigateur.',
           );
-        value.evidence = observed;
-        value.provenance.data = 'navigateur réel';
+        if (answeredWithoutNavigation) {
+          value.summary = `Réponse sans nouvelle navigation. ${value.summary}`;
+          value.provenance.data = 'réponse sans nouvelle navigation';
+        } else {
+          value.evidence = observed;
+          value.provenance.data = 'navigateur réel';
+        }
       }
       await verifyPack(plan.pack.id, value, run.prompt);
       if (plan.pack.id === 'career-ops') {

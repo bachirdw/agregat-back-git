@@ -95,6 +95,17 @@ const app = agent({ name: 'fake-acp' })
   })
   .onRequest(methods.agent.session.load, async (ctx) => {
     await guard('session/load');
+    if (cfg.replayBrowserToolOnLoad)
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'FICTIF-history-browser',
+          title: 'browser.navigate',
+          kind: 'fetch',
+          status: 'completed',
+        },
+      });
     if (cfg.replayOnLoad)
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
@@ -165,6 +176,17 @@ const app = agent({ name: 'fake-acp' })
         update: {
           sessionUpdate: 'agent_message_chunk',
           content: { type: 'text', text: cfg.eventText },
+        },
+      });
+    if (cfg.promptBrowserTool)
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'FICTIF-current-browser',
+          title: cfg.promptBrowserTool,
+          kind: 'fetch',
+          status: 'completed',
         },
       });
     if (cfg.permissionSecret)

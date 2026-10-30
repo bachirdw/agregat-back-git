@@ -46,21 +46,26 @@ export class AcpRuntime {
     timeouts = {},
     env = process.env,
     ownerMode = false,
+    requestedMode = '',
     agentHome = null, // platform-owned directory for CLIs that persist settings (isolated home)
   }) {
     Object.assign(this, { definition, cwd, onEvent, onPermission, sourceEnv: env, agentHome });
     this.ownerMode = ownerMode;
+    if (requestedMode && /bypass|yolo/i.test(requestedMode))
+      throw new Error('Mode ACP incompatible avec les décisions sensibles explicites');
     if (ownerMode && !definition.simulated)
       this.definition = {
         ...definition,
         safeModes:
           {
             codex: ['workspace-write'],
-            claude: ['bypassPermissions', 'acceptEdits', 'default'],
-            gemini: ['yolo', 'autoEdit', 'default'],
+            claude: ['default'],
+            gemini: ['default'],
             opencode: ['build'],
           }[definition.id] ?? definition.safeModes,
       };
+    if (requestedMode && !definition.simulated)
+      this.definition = { ...this.definition, safeModes: [requestedMode] };
     this.timeouts = { ...defaultTimeouts, ...timeouts };
     this.sessionId = null;
     this.ready = false;

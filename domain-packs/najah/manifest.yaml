@@ -2,6 +2,7 @@ id: najah
 name: Najah AI
 version: 0.1.0
 description: Recherche d'offres réelles (sources publiques citées), vérification du registre UK des sponsors, classement explicable ; démonstrateur fictif inclus.
+dataMode: fixture
 keywords: [emploi, offres, job, carrière, recrutement, sponsor, najah]
 skills:
   - id: opportunity-analysis
@@ -73,6 +74,7 @@ policies:
 # Additional workflows. `opportunity-discovery-live` uses REAL public sources with citations.
 dags:
   - id: opportunity-discovery-live
+    dataMode: live
     title: Offres réelles, registre UK des sponsors, classement vérifié
     keywords:
       [
@@ -142,6 +144,7 @@ dags:
         kind: aggregate
         dependsOn: [verify, analysis]
   - id: application-draft
+    dataMode: user
     title: Brouillon de lettre de candidature (relecture humaine, aucun envoi)
     keywords: [lettre, motivation, candidature, cover, letter, brouillon, rédiger, candidater]
     steps:

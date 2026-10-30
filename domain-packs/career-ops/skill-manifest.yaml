@@ -33,7 +33,7 @@ intents:
     title: Chercher des offres
     priority: 100
     phrases: [trouve des offres, recherche des offres, cherche des offres, offres d'emploi]
-    keywords: [offres, jobs]
+    keywords: [offres, jobs, job, emploi]
     steps:
       - id: scan
         title: Scanner les portails du Skill

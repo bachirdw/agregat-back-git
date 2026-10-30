@@ -95,17 +95,12 @@ test('les URL FICTIVES ne changent pas l’intention explicite', () => {
   );
 });
 
-test('ordre injecté : evaluate et search évitent la recherche web native en mode ACP', () => {
-  const instruction =
-    "n'utilise pas l'outil de recherche web natif : il se bloque en mode ACP ; lis la page avec `browser_navigate`, `browser_snapshot`, `browser_extract`.";
-  for (const prompt of ['Mode oferta. Lis cette annonce FICTIVE.', 'Trouve des offres FICTIVES.'])
-    assert.ok(formatSkillOrder(selectSkillIntents(prompt, [career])).includes(instruction));
-  assert.equal(
-    formatSkillOrder(selectSkillIntents('Postule à cette offre FICTIVE.', [career])).includes(
-      instruction,
-    ),
-    false,
-  );
+test('manifeste de suivi : la méthode et les outils natifs restent ceux du Skill', () => {
+  for (const prompt of ['Mode oferta. Lis cette annonce FICTIVE.', 'Trouve des offres FICTIVES.']) {
+    const order = formatSkillOrder(selectSkillIntents(prompt, [career]));
+    assert.match(order, /Le manifeste suivant sert au suivi, sans imposer une méthode ni un ordre/);
+    assert.doesNotMatch(order, /n'utilise pas l'outil de recherche web natif/);
+  }
 });
 
 test('suivi du tour : preuve réelle, ordre observé, échec, absence et doublon', () => {

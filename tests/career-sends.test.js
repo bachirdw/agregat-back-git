@@ -152,7 +152,7 @@ test('SMTP : sans configuration brouillon et URL Gmail, aucune approbation ni tr
     }),
   );
 });
-test('Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn bloqués', async () => {
+test('Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn autorisé sur décision', async () => {
   const url = 'https://jobs.example.test/';
   const provider = new FixturePageProvider({
     [url]: {
@@ -190,8 +190,26 @@ test('Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn blo
   await assert.rejects(clickRef(gateway, '#apply'), /modifié/);
   provider.url = 'https://www.linkedin.com/in/fictif/';
   provider.pages[provider.url] = provider.pages[url];
-  await assert.rejects(clickRef(gateway, '#apply'), /LinkedIn/);
-  assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 1);
+  provider.submissionPreview = async () => ({ fields: ['FICTIF'] });
+  await clickRef(gateway, '#apply');
+  assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 2);
+  assert.equal(decisions, 4);
+  let standardDecisions = 0;
+  const standard = new BrowserGateway({
+    provider,
+    policy: new RunPolicy({
+      allowedDomains: ['linkedin.com'],
+      capabilities: ['browser.click'],
+      resolveHost: async () => ['1.1.1.1'],
+    }),
+    approve: async (request) => {
+      standardDecisions++;
+      assert.equal(request.actionClass, 'send');
+      return true;
+    },
+  });
+  await clickRef(standard, '#apply');
+  assert.equal(standardDecisions, 1);
   assert.equal(linkedInDraft({ url: provider.url, text: 'Message FICTIF' }).manualSendOnly, true);
   for (const url of [
     'https://linkedin.com.evil.test/in/fictif',

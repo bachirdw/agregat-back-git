@@ -127,18 +127,13 @@ export function selectSkillIntents(prompt, manifests) {
 export function formatSkillOrder(selection) {
   if (!selection.length) return '';
   return (
-    'Ordre des étapes du Skill (observer et rapporter toute différence) :\n' +
+    'Lis le mode pertinent du Skill via career_read et suis exactement sa méthode. Le manifeste suivant sert au suivi, sans imposer une méthode ni un ordre :\n' +
     selection
       .map(
         ({ pack, intent }) =>
           `${pack} / ${intent.title} : ${intent.steps.map((step, index) => `${index + 1}. ${step.title} avec ${step.tool}${step.alternativeTools?.length ? ' ou ' + step.alternativeTools.join(' ou ') : ''}${step.argument ? ' (' + step.argument + ')' : ''} ; précondition : ${step.precondition} ; fait si : ${step.done}${step.optional ? ' ; facultatif' : ''}`).join(' → ')}`,
       )
-      .join('\n') +
-    (selection.some(
-      ({ pack, intent }) => pack === 'career-ops' && ['evaluate', 'search'].includes(intent.id),
-    )
-      ? "\nn'utilise pas l'outil de recherche web natif : il se bloque en mode ACP ; lis la page avec `browser_navigate`, `browser_snapshot`, `browser_extract`."
-      : '')
+      .join('\n')
   );
 }
 

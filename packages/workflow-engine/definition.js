@@ -36,6 +36,7 @@ export const workflowSchema = z
     id,
     title: z.string().min(1).max(200),
     version: z.string().max(20).default('1'),
+    dataMode: z.enum(['fixture', 'live', 'user', 'unverified']).optional(),
     concurrency: z.number().int().min(1).max(8).default(3),
     // Words that make the planner propose this workflow automatically (pack-declared, data only).
     keywords: z.array(z.string().min(2).max(40)).max(30).default([]),

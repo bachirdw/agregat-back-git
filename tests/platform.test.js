@@ -150,6 +150,7 @@ test('API complète : plan → ACP → MCP → résultat, SSE replay et protecti
     const plan = await (await post('/api/plan', input)).json();
     assert.equal(plan.pack, 'Najah AI');
     assert.equal(plan.simulated, true);
+    assert.equal(plan.dataMode, 'fixture');
     const response = await post('/api/runs', input);
     assert.equal(response.status, 201);
     const run = await response.json();

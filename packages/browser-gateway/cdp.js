@@ -535,8 +535,6 @@ export class CdpBrowser {
           return route.abort('blockedbyclient');
         }
         if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
-        const host = new URL(request.url()).hostname;
-        if (/(^|\.)linkedin\.com$/.test(host)) return route.abort('blockedbyclient');
         const body = request.postData() ?? '';
         let pageUrl = '';
         try {

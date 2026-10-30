@@ -29,12 +29,16 @@ const FAKE = resolve(ROOT, 'tests/fixtures/fake-acp.js');
 const temporary = () => mkdtempSync(join(tmpdir(), 'relay-runtime-'));
 const fast = { initialize: 1500, session: 1500, request: 1500, prompt: 3000 };
 
-function fake(cfg, { id = 'fake', safeModes = [], env = ['FAKE_ACP'], extraEnv = {} } = {}) {
+function fake(
+  cfg,
+  { id = 'fake', safeModes = [], requestedMode = '', env = ['FAKE_ACP'], extraEnv = {} } = {},
+) {
   let text = '';
   const runtime = new AcpRuntime({
     definition: { id, name: 'Fake', command: process.execPath, args: [FAKE], env, safeModes },
     cwd: temporary(),
     timeouts: fast,
+    requestedMode,
     env: { ...process.env, FAKE_ACP: JSON.stringify(cfg), ...extraEnv },
     onEvent: (u) => {
       if (u.sessionUpdate === 'agent_message_chunk') text += u.content.text;
@@ -244,6 +248,24 @@ test('mode sûr via configOptions (style OpenCode)', async () => {
       assert.ok(report.calls.includes('session/set_config_option'));
     },
   );
+});
+
+test('mode ACP explicitement choisi : sélection annoncée, mode interdit refusé', async () => {
+  await withRuntime(
+    fake(
+      { modes: 'modes', modeIds: ['read-only', 'workspace-write'] },
+      {
+        safeModes: ['read-only'],
+        requestedMode: 'workspace-write',
+      },
+    ),
+    async (runtime) => {
+      await runtime.start();
+      await runtime.session([]);
+      assert.equal(runtime.mode, 'workspace-write');
+    },
+  );
+  assert.throws(() => fake({}, { requestedMode: 'bypassPermissions' }), /décisions sensibles/);
 });
 
 test('mode sûr absent : refus de lancer', async () => {
@@ -666,6 +688,19 @@ test('sondes : fusion — une sonde de session n’efface pas le résultat d’i
   const p = loadProbes(dir).gemini;
   assert.equal(p.inference, true);
   assert.equal(p.session, true);
+  assert.ok(p.inferenceAt);
+  assert.ok(p.sessionAt);
+});
+
+test('sondes : une nouvelle session réussie efface une ancienne erreur sans masquer la date d’inférence', () => {
+  const dir = temporary();
+  saveProbe(dir, 'codex', { session: false, error: 'Ancien échec FICTIF', inference: true });
+  const before = loadProbes(dir).codex.inferenceAt;
+  saveProbe(dir, 'codex', { session: true, models: { options: [] } });
+  const p = loadProbes(dir).codex;
+  assert.equal(p.error, null);
+  assert.equal(p.inference, true);
+  assert.equal(p.inferenceAt, before);
 });
 
 test('sécurité : échec du mode sûr interdit ensuite le prompt et start après close', async () => {

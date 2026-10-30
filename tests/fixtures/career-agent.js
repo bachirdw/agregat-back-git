@@ -50,12 +50,19 @@ const app = agent({ name: 'career-FICTIF' })
     const request = JSON.parse(ctx.params.prompt[0].text);
     const mcp = await connectMcp(session.mcpServers[0]);
     try {
-      const native = await connection.client.request(methods.client.session.requestPermission, {
-        sessionId: session.sessionId,
-        toolCall: { toolCallId: 'FICTIF-native', title: 'Shell FICTIF interdit', kind: 'execute' },
-        options: [{ optionId: 'allow', name: 'Autoriser', kind: 'allow_once' }],
-      });
-      if (native.outcome.outcome !== 'cancelled') throw new Error('Shell natif non bloqué');
+      if (!request.ownerMode) {
+        const native = await connection.client.request(methods.client.session.requestPermission, {
+          sessionId: session.sessionId,
+          toolCall: {
+            toolCallId: 'FICTIF-native',
+            title: 'Shell FICTIF interdit',
+            kind: 'execute',
+          },
+          options: [{ optionId: 'allow', name: 'Autoriser', kind: 'allow_once' }],
+        });
+        if (native.outcome.outcome !== 'cancelled')
+          throw new Error('Permission native contraire au mode FICTIF');
+      }
       const call = async (name, args) => {
         const r = await mcp.callTool({ name, arguments: args });
         if (r.isError) throw new Error(r.content[0].text);
@@ -82,9 +89,9 @@ const app = agent({ name: 'career-FICTIF' })
       if (request.objective.includes('FICTIF_PRIORITE')) {
         const instructions = request.instructions ?? '';
         if (
-          !instructions.startsWith('Si un mode du Skill') ||
-          !instructions.includes('clique le bouton final seulement si le prompt') ||
-          instructions.indexOf('clique le bouton final seulement si le prompt') >
+          !instructions.startsWith('Le prompt de l’utilisateur décide') ||
+          !instructions.includes('clique le bouton final') ||
+          instructions.indexOf('Le prompt de l’utilisateur décide') >
             instructions.indexOf('Active le Skill')
         )
           throw new Error('Priorité de la plateforme absente du prompt FICTIF');
@@ -93,8 +100,8 @@ const app = agent({ name: 'career-FICTIF' })
       }
       if (request.objective.includes('FICTIF_ROUTEUR')) {
         if (
-          !request.instructions.includes('Ordre des étapes du Skill') ||
-          !request.instructions.includes("n'utilise pas l'outil de recherche web natif") ||
+          !request.instructions.includes('Le manifeste suivant sert au suivi') ||
+          !request.instructions.includes('suis exactement sa méthode') ||
           request.instructions.indexOf('career_script') >
             request.instructions.indexOf('career_offer_save')
         )

@@ -55,17 +55,15 @@ flowchart TD
 - Un **Skill** fournit une méthode dans `SKILL.md`, sans devenir une autorisation d'exécuter du code.
 - Un **Workflow** décrit dépendances, étapes et vérification. Le moteur exécute les DAG déclarés des packs.
 - Un **Agent** conduit une session ACP ; son runtime et son modèle sont deux choix distincts.
-- Un **Domain Pack** distribue manifest, Skills, DAG, outils, politiques et évaluations. Seuls les packs
-  locaux approuvés par `packages/orchestrator/packs.js` sont chargés comme code ; Najah ne contrôle pas le runtime.
+- Un **Domain Pack** distribue manifest, Skills, DAG, outils, politiques et évaluations. Les packs
+  présents dans `domain-packs/` avec un manifest valide sont découverts au démarrage. Ce répertoire local reste réservé au code approuvé par le propriétaire ; Najah ne contrôle pas le runtime.
 
 ## Mode propriétaire local : chemin distinct et explicite
 
 `AGENT_PLATFORM_OWNER_MODE=1` active le live et impose l'écoute `127.0.0.1`. Il force le fournisseur
-Playwriter, JavaScript et contexte partagé, accorde les sept capacités navigateur, supprime les décisions
-sur écritures/sensibilité et auto-approuve les permissions ACP (sauf annulation). Les tarifs plateforme
+Playwriter par défaut, JavaScript et contexte partagé, accorde les capacités navigateur déclarées. La mission peut choisir Chrome isolé et restreindre les domaines. Les envois, soumissions et permissions ACP demandent une décision ; les actions courantes du navigateur sont automatiques. Les tarifs plateforme
 sont remis à zéro et le plafond mensuel retiré ; les compteurs et le ledger continuent. Les modes ACP
-sont choisis parmi ceux annoncés : Codex `workspace-write`, Claude `bypassPermissions` puis alternatives,
-Gemini `yolo` puis alternatives, OpenCode `build` (voir [ADR 008](adr/008-local-owner-mode.md)).
+sont choisis parmi ceux annoncés : Codex `workspace-write`, Claude `default`, Gemini `default`, OpenCode `build` par défaut en mode propriétaire. L'utilisateur peut choisir un autre mode annoncé pour la mission, sauf ceux qui contournent les décisions sensibles (voir [ADR 008](adr/008-local-owner-mode.md)).
 
 ```mermaid
 flowchart LR

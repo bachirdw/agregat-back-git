@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
@@ -24,6 +24,7 @@ const schema = z.object({
   name: z.string(),
   version: z.string(),
   description: z.string(),
+  dataMode: z.enum(['fixture', 'live', 'user', 'unverified']).optional(),
   keywords: z.array(z.string()),
   skills: z.array(z.object({ id: z.string(), file: z.string() })),
   workflow: z.object({
@@ -38,17 +39,24 @@ const schema = z.object({
     ),
   }),
 });
-export const packs = ['core', 'najah', 'career-ops'].map((id) => {
-  const pack = schema.parse(
-    parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8')),
-  );
-  // `dags` lists every workflow of the pack; `dag` stays the default one.
-  pack.dags = [...(pack.dag ? [pack.dag] : []), ...(pack.dags ?? [])];
-  for (const d of pack.dags) validateWorkflow(d); // fail fast on an invalid pack DAG
-  if (existsSync(resolve(ROOT, 'domain-packs', id, 'skill-manifest.yaml')))
-    pack.skillManifest = loadSkillManifest(id);
-  return pack;
-});
+export const packs = readdirSync(resolve(ROOT, 'domain-packs'), { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() && existsSync(resolve(ROOT, 'domain-packs', entry.name, 'manifest.yaml')),
+  )
+  .map((entry) => entry.name)
+  .sort((a, b) => (a === 'core' ? -1 : b === 'core' ? 1 : a.localeCompare(b)))
+  .map((id) => {
+    const pack = schema.parse(
+      parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8')),
+    );
+    // `dags` lists every workflow of the pack; `dag` stays the default one.
+    pack.dags = [...(pack.dag ? [pack.dag] : []), ...(pack.dags ?? [])];
+    for (const d of pack.dags) validateWorkflow(d); // fail fast on an invalid pack DAG
+    if (existsSync(resolve(ROOT, 'domain-packs', id, 'skill-manifest.yaml')))
+      pack.skillManifest = loadSkillManifest(id);
+    return pack;
+  });
 export const skillDefinitions = packs.flatMap((p) =>
   p.skills.map((s) => ({
     id: s.id,
@@ -83,19 +91,18 @@ export function getDag(pack, id) {
   if (!dag) throw new Error(`Workflow inconnu pour ${pack.name} : ${id}`);
   return dag;
 }
-export function getPack(id, objective = '') {
+export function getPack(id, objective = '', selectedSkills = []) {
+  const skillPacks = packs.filter((pack) =>
+    pack.skills.some((skill) => selectedSkills.includes(skill.id)),
+  );
+  if (id === 'auto' && skillPacks.length > 1)
+    throw new Error('Skills de plusieurs Domain Packs : choisir un pack explicitement');
   const p =
     id === 'auto'
-      ? (packs.find(
+      ? (skillPacks[0] ??
+        packs.find(
           (pack) =>
             pack.skillManifest && selectSkillIntents(objective, [pack.skillManifest]).length,
-        ) ??
-        packs.find(
-          (p) =>
-            p.id === 'career-ops' &&
-            /career-ops|career_(?:read|write|script|offer_save|document)|modes\/_profile\.md|jd-skill-gap|cv-title-check|verify-cv-facts|trouve des offres|[ée]value cette offre|postule|\b(?:offres? d['’ ]emploi|jobs?|postes?|candidatures?|cv|profils?)\b/i.test(
-              objective,
-            ),
         ) ??
         packs.find((p) => p.keywords.some((k) => objective.toLowerCase().includes(k))) ??
         packs[0])

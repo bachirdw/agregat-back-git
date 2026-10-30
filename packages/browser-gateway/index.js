@@ -110,11 +110,6 @@ export class BrowserGateway {
       !step &&
       (element.inForm ||
         this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
-    const linkedIn = pageBefore && /(^|\.)linkedin\.com$/.test(new URL(pageBefore).hostname);
-    if (linkedIn && cap.effect !== 'read')
-      throw new Error(
-        'LinkedIn : écriture automatisée interdite ; ouvrir le profil et copier le brouillon manuellement',
-      );
     const preview = sending ? await this.provider.submissionPreview?.(target) : null;
     if (sending || (cap.effect !== 'read' && !this.policy.ownerMode)) {
       const needsHuman = sending || sensitive || !this.autoApprove.has(capabilityId);

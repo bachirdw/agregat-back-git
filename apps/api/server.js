@@ -51,12 +51,17 @@ export function publicAgents(agents, probes) {
       probe: p
         ? {
             at: p.at,
+            sessionAt: p.sessionAt ?? null,
+            inferenceAt: p.inferenceAt ?? null,
             handshake: p.handshake,
             session: p.session,
+            inference: p.inference ?? null,
+            inferenceError: p.inferenceError ?? null,
             error: p.error ?? null,
             models: p.models?.options ?? [],
             currentModel: p.models?.current ?? null,
             mode: p.modes?.current ?? null,
+            modes: p.modes?.options ?? [],
           }
         : null,
     };
@@ -147,7 +152,7 @@ export function createApp({
           ownerMode && extension === '.html'
             ? readFileSync(target, 'utf8').replace(
                 '<body>',
-                '<body><aside role="alert" class="owner-warning"><mark><strong>Mode propriétaire local : protections désactivées</strong></mark></aside>',
+                '<body><aside role="alert" class="owner-warning"><mark><strong>Mode propriétaire local : navigation étendue, actions sensibles soumises à décision</strong></mark></aside>',
               )
             : readFileSync(target),
         );
@@ -155,7 +160,9 @@ export function createApp({
       if (!webDir && req.method === 'GET' && path === '/') {
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
         return res.end(
-          (ownerMode ? 'Mode propriétaire local : protections désactivées\n' : '') +
+          (ownerMode
+            ? 'Mode propriétaire local : navigation étendue, actions sensibles soumises à décision\n'
+            : '') +
             'API Relay. Cette adresse ne sert pas d\u2019interface : ouvrir le frontend (http://127.0.0.1:5173).\n',
         );
       }
@@ -326,6 +333,9 @@ export function createApp({
           cost: p.cost,
           permissions: p.permissions,
           simulated: p.simulated,
+          dataMode: p.dataMode,
+          browser: p.input?.browser,
+          agentMode: p.input?.agentMode,
           routing: p.routing,
           models: p.models,
           workflow: p.workflow
@@ -355,6 +365,9 @@ export function createApp({
                 : (body.attachments ?? old.attachments ?? []),
               ...(old.workspace ? { workspace: old.workspace } : {}),
               model: old.model,
+              browser: old.browser ?? 'auto',
+              agentMode: old.agentMode ?? '',
+              browserDomains: old.browserDomains ?? [],
               budgetCents: old.budgetCents,
             },
             old,

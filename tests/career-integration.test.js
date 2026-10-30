@@ -171,12 +171,16 @@ const offer = () => ({
   simulated: true,
 });
 
-test('Modèle career-ops : choisit l’identifiant annoncé, refuse l’ancien alias absent', () => {
+test('Modèle career-ops : conserve le défaut annoncé, refuse un identifiant absent', () => {
   const models = {
     current: 'gemini-3.1-flash-lite',
     options: [{ id: 'gemini-3.5-flash-lite' }, { id: 'gemini-3.8-flash' }],
   };
-  assert.equal(selectAnnouncedCareerModel('', models), 'gemini-3.5-flash-lite');
+  assert.equal(selectAnnouncedCareerModel('', models), '');
+  assert.equal(
+    selectAnnouncedCareerModel('', { ...models, current: 'gemini-3.8-flash' }),
+    'gemini-3.8-flash',
+  );
   assert.equal(selectAnnouncedCareerModel('gemini-3.8-flash', models), 'gemini-3.8-flash');
   assert.throws(() => selectAnnouncedCareerModel('gemini-3.1-flash-lite', models), /non annoncé/);
 });
@@ -261,6 +265,37 @@ test('Outils privés : lecture/écriture confinées, secrets et scripts refusés
   mkdirSync(join(root, 'elsewhere'));
   symlinkSync(join(root, 'elsewhere'), join(root, 'output'));
   assert.throws(() => tools.write('output/cv.md', 'FICTIF'), /symbolique/);
+});
+test('Script tiers FICTIF : revue et accord explicite avant exécution en mode propriétaire', async (t) => {
+  const { root, career } = fixture(t);
+  mkdirSync(join(root, 'scripts'));
+  writeFileSync(
+    join(root, 'scripts', 'preuve.mjs'),
+    'process.stdout.write("SCRIPT_FICTIF_EXÉCUTÉ")',
+  );
+  mkdirSync(join(root, 'relay'), { recursive: true });
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const decisions = [];
+  let allowed = false;
+  const tools = new CareerTools(career, {
+    ownerMode: true,
+    approve: async (request) => {
+      decisions.push(request);
+      return allowed;
+    },
+  });
+  await assert.rejects(tools.script({ command: 'scripts/preuve.mjs' }), /refusée/);
+  assert.equal(decisions.length, 1);
+  assert.equal(decisions[0].actionClass, 'execute');
+  assert.equal(decisions[0].sensitive, true);
+  allowed = true;
+  const result = await tools.script({ command: 'scripts/preuve.mjs' });
+  assert.equal(result.exitCode, 0);
+  assert.match(result.text, /SCRIPT_FICTIF_EXÉCUTÉ/);
+  await assert.rejects(tools.script({ command: 'scripts/../preuve.mjs' }), /non autorisée/);
+  writeFileSync(join(root, 'scripts', 'preuve.mjs'), 'process.stdout.write("CHANGÉ")');
+  await assert.rejects(tools.script({ command: 'scripts/preuve.mjs' }), /modifié/);
+  assert.equal(decisions.length, 2, 'une source modifiée ne demande pas une décision inutile');
 });
 test('Offres : note 1–5, A–H complet, provenance et données fictives obligatoires', (t) => {
   const { root, tools } = fixture(t);
@@ -380,6 +415,10 @@ test('Auto : trouve des offres, évalue cette offre et postule routés vers le p
   for (const prompt of ['trouve des offres', 'évalue cette offre', 'postule'])
     assert.equal(getPack('auto', prompt).id, 'career-ops');
 });
+test('Auto : un Skill explicitement choisi détermine son pack avant les mots-clés', () => {
+  assert.equal(getPack('auto', 'emploi python sql', ['opportunity-analysis']).id, 'najah');
+  assert.equal(getPack('auto', 'emploi python sql').id, 'career-ops');
+});
 test('Auto : demandes d’emploi et de profil courantes routées vers career-ops', () => {
   for (const prompt of [
     'Trouve-moi des offres d’emploi qui correspondent à mon profil',
@@ -412,11 +451,11 @@ test('Auto propriétaire : profil et fichiers career-ops utilisent le pack priv�
   });
   assert.equal(selected.pack.id, 'career-ops');
 });
-test('Agent explicitement incompatible : Gemini proposé clairement dans le plan', async (t) => {
+test('Agent explicite compatible ACP : career-ops conserve Codex sans imposer de clé Gemini', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
   const old = process.env.GEMINI_API_KEY;
-  process.env.GEMINI_API_KEY = 'FICTIF-cle-de-test-sans-appel';
+  delete process.env.GEMINI_API_KEY;
   try {
     const plan = await app.engine.plan({
       prompt: 'Crée modes/_profile.md FICTIF',
@@ -424,9 +463,9 @@ test('Agent explicitement incompatible : Gemini proposé clairement dans le plan
       pack: 'auto',
     });
     assert.equal(plan.pack.id, 'career-ops');
-    assert.equal(plan.agent.id, 'gemini');
-    assert.equal(plan.input.agent, 'gemini');
-    assert.match(plan.routing.reasons.join(' '), /codex.*Gemini/i);
+    assert.equal(plan.agent.id, 'codex');
+    assert.equal(plan.input.agent, 'codex');
+    assert.deepEqual(plan.routing.reasons, ['Agent choisi manuellement']);
   } finally {
     if (old === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = old;
@@ -741,7 +780,7 @@ test('Reprise FICTIVE rapide sans navigateur : résultat privé signale l’abse
   assert.ok(app.store.events(second.id).some((event) => event.type === 'career_no_browser_action'));
 });
 
-test('Modèle choisi dans l’interface : appliqué à la mission career-ops (env et session ACP)', async (t) => {
+test('Modèle choisi dans l’interface : appliqué via la session ACP sans variable Gemini pour un autre agent', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
   const attachment = await career.upload(Buffer.from('CV FICTIF'), 'CV.md', 'text/markdown');
@@ -775,37 +814,30 @@ test('Modèle choisi dans l’interface : appliqué à la mission career-ops (en
   assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
   assert.equal(app.store.get(run.id).model, 'gemini-FICTIF-capable');
   const result = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
-  assert.match(result.summary, /env=gemini-FICTIF-capable session=gemini-FICTIF-capable/);
+  assert.match(result.summary, /env=undefined session=gemini-FICTIF-capable/);
 });
 
-test('Instructions career-ops : candidature menée jusqu’au clic final, arrêt seulement sur blocage nommé', async () => {
+test('Instructions career-ops : méthode du Skill et résultat véridique', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
   for (const rule of [
-    /Si l'utilisateur demande une note, des points forts ou des manques/,
-    /modes\/oferta\.md/,
-    /Le mode scan ne fait que découvrir/,
-    /G \(légitimité de l'annonce\)/,
-    /H \(réponses de candidature, seulement si la note vaut 5\)/,
-    /JUSQU'AU BOUT/,
-    /refais browser_snapshot après CHAQUE clic/,
-    /Une capture n'est jamais une fin/,
-    /loading:true/,
-    /accord de l'utilisateur/,
-    /ne l'invente jamais/,
-    /l'étape, le champ et la cause exacte/,
+    /Le prompt de l’utilisateur décide/,
+    /lis son mode pertinent via career_read/,
+    /suis exactement sa méthode/,
+    /page de relecture/,
+    /ne fabrique ni source, ni évaluation, ni action/,
+    /indique quel outil a fourni chaque source/,
+    /simulated:boolean,summary:string,evidence:array/,
   ])
     assert.match(CAREER_INSTRUCTIONS, rule);
+  assert.doesNotMatch(CAREER_INSTRUCTIONS, /JUSQU'AU BOUT|modes\/oferta\.md|career_script scan/);
 });
-test('Instructions career-ops : priorité de la plateforme avant la lecture du Skill', async () => {
+test('Instructions career-ops : le prompt détermine la soumission avant le Skill', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
-  const clause = 'Si un mode du Skill';
+  const clause = 'Le prompt de l’utilisateur décide';
   assert.ok(CAREER_INSTRUCTIONS.includes(clause));
   assert.ok(CAREER_INSTRUCTIONS.indexOf(clause) < CAREER_INSTRUCTIONS.indexOf('Active le Skill'));
   assert.match(CAREER_INSTRUCTIONS, /page de relecture/);
-  assert.match(
-    CAREER_INSTRUCTIONS,
-    /bouton final seulement si le prompt de l'utilisateur le demande explicitement/,
-  );
+  assert.match(CAREER_INSTRUCTIONS, /si le prompt ne la demande pas, arrête-toi avant/);
   assert.doesNotMatch(CAREER_INSTRUCTIONS, /career_script verify-cv-facts/);
 });
 test('Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill', async (t) => {
@@ -1049,29 +1081,22 @@ test('Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés', a
   app.engine.active.delete(id);
   app.engine.approvalTokens.delete(id);
 });
-test('Instructions career-ops : scan des portails d’abord, recherche live en complément', async () => {
+test('Instructions career-ops : méthode du Skill sans ordre métier codé dans la plateforme', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  assert.match(CAREER_INSTRUCTIONS, /suis exactement sa méthode, ses scripts, son ordre/);
+  assert.doesNotMatch(CAREER_INSTRUCTIONS, /career_script scan d'abord|jobs_search_live/);
+});
+test('Instructions career-ops : aucune source ou action inventée', async () => {
+  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
+  assert.match(CAREER_INSTRUCTIONS, /ne fabrique ni source, ni évaluation, ni action/);
+  assert.match(CAREER_INSTRUCTIONS, /Signale les manques et les erreurs réels/);
+});
+test('Instructions career-ops : contenu privé conservé et questions en cas de manque', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
   assert.match(
     CAREER_INSTRUCTIONS,
-    /pour toute recherche[^.]*career_script scan d'abord[^.]*jobs_search_live[^.]*en complément/i,
+    /Si une information manque, pose toutes les questions nécessaires/,
   );
-});
-test('Instructions career-ops : aucune adresse de destinataire devinée', async () => {
-  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
-  assert.match(
-    CAREER_INSTRUCTIONS,
-    /adresse de destinataire[^.]*offre[^.]*CV[^.]*fichier source[^.]*ne la devine jamais/i,
-  );
-});
-test('Instructions CV et lettre : contrôles, manques, questions et aucune candidature', async () => {
-  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
-  for (const rule of [
-    /jds\/<slug>\.md/,
-    /career_script jd-skill-gap/,
-    /career_script cv-title-check/,
-    /modes\/cover\.md/,
-    /questions numérotées dans summary/,
-    /aucun envoi, aucune candidature/,
-  ])
-    assert.match(CAREER_INSTRUCTIONS, rule);
+  assert.match(CAREER_INSTRUCTIONS, /Enregistre les documents privés dans l’espace de travail/);
+  assert.doesNotMatch(CAREER_INSTRUCTIONS, /jds\/<slug>\.md|career_script cv-title-check/);
 });

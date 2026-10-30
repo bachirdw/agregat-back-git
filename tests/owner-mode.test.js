@@ -39,6 +39,9 @@ test('propriétaire : tous domaines HTTP/HTTPS publics, JS actif, JSON fidèle ;
   const privatePolicy = new RunPolicy({ ownerMode: true, resolveHost: async () => ['127.0.0.1'] });
   await assert.rejects(privatePolicy.assertUrl('http://internal.example'), /réseau privé/);
   assert.throws(() => new RunPolicy({ ownerMode: '1' }), /booléennes/);
+  const narrowed = new RunPolicy({ ownerMode: true, allowedDomains: ['example.com'] });
+  assert.equal(narrowed.domainAllowed('example.com'), true);
+  assert.equal(narrowed.domainAllowed('other.org'), false);
 });
 
 test('propriétaire : refus synchrone de toute écoute sauf 127.0.0.1, bandeau et catalogue explicites', async () => {
@@ -56,7 +59,7 @@ test('propriétaire : refus synchrone de toute écoute sauf 127.0.0.1, bandeau e
     const origin = `http://127.0.0.1:${app.server.address().port}`;
     assert.match(
       await (await fetch(origin)).text(),
-      /Mode propriétaire local : protections désactivées/,
+      /Mode propriétaire local : navigation étendue, actions sensibles soumises à décision/,
     );
     const catalog = await (await fetch(origin + '/api/catalog')).json();
     assert.equal(catalog.ownerMode, true);
@@ -161,11 +164,15 @@ test('propriétaire : prix configurés neutralisés, budget zéro, ledger toujou
       { optionId: 'reject', kind: 'reject_once' },
       { optionId: 'allow', kind: 'allow_once' },
     ];
-    assert.deepEqual(app.engine.permission(id, { options }, false, signal.signal), {
+    const pending = app.engine.permission(id, { options }, false, signal.signal);
+    assert.equal(app.engine.permissions.size, 1);
+    app.engine.decide([...app.engine.permissions.keys()][0], 'allow');
+    assert.deepEqual(await pending, {
       outcome: { outcome: 'selected', optionId: 'allow' },
     });
+    assert.equal(app.engine.permissions.size, 0);
     signal.abort();
-    assert.deepEqual(app.engine.permission(id, { options }, false, signal.signal), {
+    assert.deepEqual(await app.engine.permission(id, { options }, false, signal.signal), {
       outcome: { outcome: 'cancelled' },
     });
     assert.equal(app.engine.permissions.size, 0);
@@ -176,8 +183,8 @@ test('propriétaire : prix configurés neutralisés, budget zéro, ledger toujou
 
 for (const [id, modeIds, expected] of [
   ['codex', ['read-only', 'workspace-write', 'agent-full-access'], 'workspace-write'],
-  ['claude', ['default', 'acceptEdits', 'bypassPermissions'], 'bypassPermissions'],
-  ['gemini', ['default', 'autoEdit', 'yolo'], 'yolo'],
+  ['claude', ['default', 'acceptEdits', 'bypassPermissions'], 'default'],
+  ['gemini', ['default', 'autoEdit', 'yolo'], 'default'],
 ]) {
   test(`ACP propriétaire ${id} : sélection d’un mode réellement annoncé, jamais full access`, async () => {
     const runtime = new AcpRuntime({

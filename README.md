@@ -44,7 +44,7 @@ npm run doctor                   # détection et compatibilité ACP, sans sessio
 AGENT_PLATFORM_LIVE=1 npm start   # interface avec agents réels, aucun appel modèle au démarrage
 ```
 
-Les modèles proposés dans l'interface sont ceux annoncés au dernier test (`.data/agent-probes.json`).
+Les modèles proposés dans l'interface sont ceux annoncés au dernier test (`.data/agent-probes.json`). Le nom affiché pour une mission est le modèle demandé ou annoncé par ACP ; le modèle effectivement servi n'est pas attesté si le fournisseur le substitue.
 Les modèles gratuits d'OpenCode refusent d'être utilisés comme moteur d'un autre service (ADR 005).
 
 Les commandes suivantes restent optionnelles et distinctes des démarrages vérifiés.
@@ -67,17 +67,17 @@ La reprise crée un nouveau run lié au même identifiant fournisseur/cwd, seule
 Les outils MCP navigateur fournis aux agents exposent des capacités typées (`browser_navigate`, `browser_snapshot`,
 `browser_extract`, `browser_click`, `browser_fillForm`, `browser_check`, `browser_select`, `browser_type`, `browser_press`,
 `browser_upload`, `browser_download`) contrôlées par la
-gateway : domaines autorisés du pack, HTTPS, anti-SSRF, redirections revérifiées, fichiers confinés au
+gateway : domaines du pack ou saisis pour la mission, HTTPS hors mode propriétaire, anti-SSRF, redirections revérifiées, fichiers confinés au
 dossier du run. Toute action d'écriture demande une décision dans l'interface ; les actions sensibles
 (postuler, envoyer, payer, mot de passe, fichier) la demandent toujours. Aucun script arbitraire n'est exposé.
 
 ```sh
-AGENT_PLATFORM_BROWSER=fixture npm start                    # défaut : sans réseau ni navigateur
+AGENT_PLATFORM_BROWSER=fixture npm start                    # démonstration : sans navigateur réel
 AGENT_PLATFORM_BROWSER=isolated AGENT_PLATFORM_CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" AGENT_PLATFORM_LIVE=1 npm start
 AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 npm start   # relais Playwriter local (extension requise)
 ```
 
-Le démarrage `isolated` ou `playwriter` est paresseux : il ne lance/connecte le navigateur qu'au premier
+Le choix du navigateur et des domaines se fait aussi dans les réglages de chaque mission. En mode réel, le défaut est Chrome isolé ; en mode propriétaire, Playwriter. Un navigateur fictif avec un agent réel est refusé. Le démarrage `isolated` ou `playwriter` est paresseux : il ne lance/connecte le navigateur qu'au premier
 outil navigateur. Les trois commandes ci-dessus démarrent l'API ; la commande Playwriter ne prouve pas la
 présence du relais ou de l'extension. Le contrôle docs-01 a revérifié le démarrage et les réponses HTTP des trois
 modes sur des ports libres ; voir les sorties brutes dans [.manager/reports/docs-01.md](.manager/reports/docs-01.md).
@@ -110,8 +110,8 @@ métadonnées du relais sont lus ; aucune page utilisateur n'est inspectée. Voi
 AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 npm start
 ```
 
-Active les exceptions locales décrites dans [ADR 008](docs/adr/008-local-owner-mode.md) : tous les domaines publics HTTP/HTTPS, JavaScript actif, clics, saisie et
-préparation de formulaires automatique ; **chaque envoi/soumission exige un accord ponctuel**, permissions ACP ordinaires auto-approuvées, budget non bloquant (le ledger continue
+Active les exceptions locales décrites dans [ADR 008](docs/adr/008-local-owner-mode.md) : tous les domaines publics HTTP/HTTPS, ou une liste réduite choisie pour la mission, JavaScript actif, clics, saisie et
+préparation de formulaires automatique ; **chaque envoi/soumission et permission ACP exige un accord ponctuel**, budget non bloquant (le ledger continue
 d'enregistrer). Le navigateur est le Chrome de l'utilisateur via l'extension Playwriter, à travers un proxy CDP
 local qui ne laisse passer que les onglets créés par la plateforme (les onglets existants ne sont pas touchés) ;
 si l'établissement initial du proxy échoue, tente Chrome isolé et signale le repli dans les résultats.
@@ -122,9 +122,8 @@ sans confirmation. Ne pas utiliser ce mode pour plusieurs utilisateurs.
 
 Un contrôle des requêtes HTTP d’écriture est imposé dans les onglets contrôlés, indépendamment du mode propriétaire. Les gardes réseau générales restent relâchées dans ce mode : les contrôles d'URL à l'entrée des outils ne
 filtrent pas toutes les ressources, redirections, workers ou WebSockets d'une page. Les modes ACP deviennent
-plus permissifs parmi les modes annoncés (Codex `workspace-write`, Claude `bypassPermissions` en priorité,
-Gemini `yolo` en priorité, OpenCode `build`). Les prix plateforme sont neutralisés ; les coûts fournisseur
-restent possibles. Une clé Gemini peut être fournie dans l'environnement, sans être nécessaire au démarrage.
+choisis parmi les modes annoncés (Codex `workspace-write`, Claude `default`, Gemini `default`, OpenCode `build`). Les modes `bypassPermissions` et `yolo` ne sont pas sélectionnés automatiquement. Les prix plateforme sont neutralisés ; les coûts fournisseur
+restent possibles. Le mode ACP peut aussi être choisi pour chaque mission parmi ceux annoncés par la session ; les modes qui contournent les décisions sensibles sont refusés. Une clé Gemini peut être fournie dans l'environnement, sans être nécessaire au démarrage.
 
 Preuve historique vérifiée en lecture seule dans SQLite (25/10/2026, 23:08 AEDT) : run
 `b2035e5a-8753-4f1a-92f2-a5d8dbf989ab`, Gemini réel, provider `playwriter-owner`, `simulated:false`,

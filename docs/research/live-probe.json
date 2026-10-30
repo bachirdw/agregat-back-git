@@ -2,78 +2,15 @@
   {
     "agent": "gemini",
     "version": "0.65.0",
-    "at": "2026-10-24T16:05:19.045Z",
+    "at": "2026-10-29T21:11:38.788Z",
     "handshake": true,
-    "session": true,
-    "agentInfo": {
-      "name": "gemini-cli",
-      "title": "Gemini CLI",
-      "version": "0.65.0"
-    },
-    "capabilities": {
-      "loadSession": true,
-      "mcp": {
-        "stdio": true,
-        "http": true,
-        "sse": true
-      },
-      "image": true,
-      "sessionList": false,
-      "sessionResume": false,
-      "authMethods": [
-        "oauth-personal",
-        "gemini-api-key",
-        "vertex-ai",
-        "gateway"
-      ]
-    },
-    "models": {
-      "source": "models",
-      "current": "auto",
-      "options": [
-        {
-          "id": "auto",
-          "name": "Auto"
-        },
-        {
-          "id": "gemini-3.1-pro-preview",
-          "name": "gemini-3.1-pro-preview"
-        },
-        {
-          "id": "gemini-3-flash-preview",
-          "name": "gemini-3-flash-preview"
-        },
-        {
-          "id": "gemini-2.5-pro",
-          "name": "gemini-2.5-pro"
-        },
-        {
-          "id": "gemini-3.8-flash",
-          "name": "gemini-3.8-flash"
-        },
-        {
-          "id": "gemini-3.5-flash-lite",
-          "name": "gemini-3.5-flash-lite"
-        }
-      ]
-    },
-    "modes": {
-      "source": "modes",
-      "current": "default",
-      "options": [
-        "default",
-        "autoEdit",
-        "yolo",
-        "plan"
-      ]
-    },
-    "mode": "default",
-    "prompt": "non exécuté"
+    "session": false,
+    "error": "Gemini API key is missing or not configured."
   },
   {
     "agent": "opencode",
     "version": "1.19.4",
-    "at": "2026-10-24T16:05:58.224Z",
+    "at": "2026-10-29T21:11:40.628Z",
     "handshake": true,
     "session": true,
     "agentInfo": {
@@ -97,7 +34,7 @@
     "models": {
       "source": "configOptions",
       "configId": "model",
-      "current": "opencode/deepseek-v4.1-flash-free",
+      "current": "opencode/big-pickle",
       "options": [
         {
           "id": "opencode/beam-free",
@@ -147,23 +84,12 @@
       ]
     },
     "mode": "plan",
-    "prompt": {
-      "model": "opencode/deepseek-v4.1-flash-free",
-      "stopReason": "end_turn",
-      "usage": {
-        "inputTokens": 9607,
-        "outputTokens": 2,
-        "totalTokens": 9865,
-        "cachedReadTokens": 256
-      },
-      "text": "OK",
-      "ms": 3010
-    }
+    "prompt": "non exécuté"
   },
   {
     "agent": "codex",
     "version": "codex-cli 0.163.0",
-    "at": "2026-10-24T16:06:18.287Z",
+    "at": "2026-10-29T21:13:30.555Z",
     "handshake": true,
     "session": true,
     "agentInfo": {
@@ -189,7 +115,7 @@
     "models": {
       "source": "configOptions",
       "configId": "model",
-      "current": "gpt-6-astra",
+      "current": "gpt-6-sol",
       "options": [
         {
           "id": "gpt-6.1-sol",
@@ -198,6 +124,10 @@
         {
           "id": "gpt-6-astra",
           "name": "6 Astra"
+        },
+        {
+          "id": "gpt-6.1-terra",
+          "name": "6.1 Terra"
         },
         {
           "id": "gpt-6-sol",
@@ -233,12 +163,25 @@
       ]
     },
     "mode": "read-only",
-    "prompt": "non exécuté"
+    "prompt": {
+      "model": "gpt-6-sol",
+      "stopReason": "end_turn",
+      "usage": {
+        "totalTokens": 19871,
+        "inputTokens": 7066,
+        "cachedReadTokens": 12800,
+        "cachedWriteTokens": 0,
+        "outputTokens": 5,
+        "thoughtTokens": 0
+      },
+      "text": "OK",
+      "ms": 4605
+    }
   },
   {
     "agent": "claude",
-    "version": "2.1.207 (Claude Code)",
-    "at": "2026-10-24T16:06:19.153Z",
+    "version": "2.1.114 (Claude Code)",
+    "at": "2026-10-29T21:14:01.048Z",
     "handshake": true,
     "session": true,
     "agentInfo": {
@@ -268,20 +211,20 @@
           "name": "Default (recommended)"
         },
         {
+          "id": "sonnet[1m]",
+          "name": "Sonnet 4.6 (1M context)"
+        },
+        {
           "id": "opus[1m]",
-          "name": "Opus 4.8"
-        },
-        {
-          "id": "claude-fable-5-1[1m]",
-          "name": "Fable 5.1"
-        },
-        {
-          "id": "sonnet",
-          "name": "Sonnet 5"
+          "name": "Opus 4.7"
         },
         {
           "id": "haiku",
           "name": "Haiku 4.5"
+        },
+        {
+          "id": "claude-fable-5-1[1m]",
+          "name": "Fable 5.1"
         }
       ]
     },
@@ -298,6 +241,6 @@
       ]
     },
     "mode": "default",
-    "prompt": "non exécuté"
+    "error": "Authentication required"
   }
 ]

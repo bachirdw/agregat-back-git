@@ -118,7 +118,10 @@ export class RunPolicy {
   }
   domainAllowed(hostname) {
     const h = hostname.toLowerCase();
-    return this.ownerMode || this.allowedDomains.some((d) => h === d || h.endsWith('.' + d));
+    return (
+      (this.ownerMode && this.allowedDomains.length === 0) ||
+      this.allowedDomains.some((d) => h === d || h.endsWith('.' + d))
+    );
   }
   // Synchronous checks; `assertUrl` adds DNS resolution against private networks (SSRF/rebinding).
   checkUrlShape(raw) {

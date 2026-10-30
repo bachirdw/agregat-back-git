@@ -64,9 +64,14 @@ const validatePath = (path, write = false) => {
   return path;
 };
 export class CareerTools {
-  constructor(career, { scriptTimeoutMs = 60000 } = {}) {
+  constructor(
+    career,
+    { scriptTimeoutMs = 60000, ownerMode = false, approve = async () => false } = {},
+  ) {
     this.career = career;
     this.scriptTimeoutMs = scriptTimeoutMs;
+    this.ownerMode = ownerMode;
+    this.approve = approve;
   }
   read(path, { offset = 0, maxChars = 100000 } = {}) {
     if (
@@ -147,7 +152,63 @@ export class CareerTools {
   }
   // Only audited entry points, never shell text from a model. The three CV checks are local,
   // read-only and isolated from network/filesystem writes. User .env is refused here.
-  async script({ command, query = '', path = '' }, signal) {
+  async script({ command, query = '', path = '', args: scriptArgs = [] }, signal) {
+    const root = this.career.path();
+    if (this.ownerMode && /^scripts\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(?:mjs|js|sh)$/.test(command)) {
+      if (
+        query ||
+        path ||
+        !Array.isArray(scriptArgs) ||
+        scriptArgs.length > 30 ||
+        scriptArgs.some((arg) => typeof arg !== 'string' || arg.length > 1000)
+      )
+        throw new Error('Arguments de script invalides');
+      const names = readdirSync(resolve(root, 'scripts'));
+      if (
+        !names.includes(command.slice('scripts/'.length)) ||
+        lstatSync(resolve(root, command)).isSymbolicLink()
+      )
+        throw new Error('Script absent ou lien symbolique');
+      const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
+      if (JSON.stringify(review) !== JSON.stringify(sourceSnapshot(root)))
+        throw new Error('Code tiers modifié depuis la revue ; nouvelle revue nécessaire');
+      if (signal?.aborted) throw new Error('Script annulé');
+      const approved = await this.approve({
+        capability: 'career.script',
+        actionClass: 'execute',
+        sensitive: true,
+        args: { command, args: scriptArgs },
+      });
+      if (approved !== true || signal?.aborted)
+        throw new Error('Exécution du script refusée ou annulée');
+      try {
+        const result = await exec(
+          command.endsWith('.sh') ? '/bin/sh' : process.execPath,
+          [resolve(root, command), ...scriptArgs],
+          {
+            cwd: root,
+            env: buildChildEnv({ env: [] }, process.env, {
+              CAREER_OPS_ROOT: root,
+              CAREER_OPS_DATA_DIR: root,
+            }),
+            signal,
+            timeout: this.scriptTimeoutMs,
+            maxBuffer: 200000,
+          },
+        );
+        return { text: result.stdout, exitCode: 0, untrusted: true };
+      } catch (error) {
+        if (Number.isInteger(error.code) && !signal?.aborted)
+          return {
+            text: error.stdout || error.stderr || '',
+            exitCode: error.code,
+            untrusted: true,
+          };
+        throw new Error(
+          'Commande career-ops échouée, annulée ou expirée ; consulter la configuration locale',
+        );
+      }
+    }
     const controls = {
       'jd-skill-gap': { pattern: /^jds\/[\p{L}\p{N}_ .-]+\.md$/u, flags: [] },
       'cv-title-check': { pattern: /^output\/[\p{L}\p{N}_ .-]+\.json$/u, flags: [] },
@@ -158,7 +219,8 @@ export class CareerTools {
     };
     if (!['scan', 'find'].includes(command) && !controls[command])
       throw new Error('Commande career-ops non autorisée');
-    const root = this.career.path();
+    if (scriptArgs.length)
+      throw new Error('Arguments supplémentaires non autorisés pour cette commande');
     if (controls[command]) {
       if (query || !controls[command].pattern.test(path))
         throw new Error('Chemin de contrôle hors du périmètre career-ops');
@@ -193,7 +255,7 @@ export class CareerTools {
       };
       validate(config);
     }
-    const args = controls[command]
+    const execArgs = controls[command]
       ? [
           '--permission',
           `--allow-fs-read=${root}`,
@@ -210,7 +272,7 @@ export class CareerTools {
     if (!controls[command] && (query.length > 500 || query.startsWith('-')))
       throw new Error('Requête de recherche invalide');
     try {
-      const result = await exec(process.execPath, args, {
+      const result = await exec(process.execPath, execArgs, {
         cwd: root,
         env: buildChildEnv({ env: [] }, process.env, {
           CAREER_OPS_ROOT: root,
@@ -259,7 +321,7 @@ export function sourceSnapshot(root) {
       const st = lstatSync(resolve(root, path));
       if (st.isSymbolicLink()) throw new Error('Lien symbolique dans le code tiers');
       if (st.isDirectory()) visit(path);
-      else if (['.mjs', '.js', '.json'].includes(extname(name)))
+      else if (['.mjs', '.js', '.json', '.sh'].includes(extname(name)))
         files[path] = createHash('sha256')
           .update(readConfined(root, path, 2000000))
           .digest('hex');
@@ -270,9 +332,9 @@ export function sourceSnapshot(root) {
 }
 export function registerCareerTools(
   server,
-  { career, approve, meter, config, signal, openProfile } = {},
+  { career, approve, meter, config, signal, openProfile, ownerMode = false } = {},
 ) {
-  const tools = new CareerTools(career);
+  const tools = new CareerTools(career, { ownerMode, approve });
   const email = new EmailGateway({
     career,
     approve,
@@ -332,12 +394,13 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    'Scanner ou chercher, et contrôler les manques de l’offre, les titres et les faits d’un CV fictif ou privé via des scripts revus. Un exitCode non nul signale un contrôle échoué.',
+    'Lancer un script revu du dossier scripts/ ou un outil historique. Un exitCode non nul signale un échec.',
     z
       .object({
-        command: z.enum(['scan', 'find', 'jd-skill-gap', 'cv-title-check', 'verify-cv-facts']),
+        command: z.string().min(1).max(200),
         query: z.string().max(500).default(''),
         path: pathSchema.optional(),
+        args: z.array(z.string().max(1000)).max(30).default([]),
       })
       .strict(),
     (args, signal) => tools.script(args, signal),

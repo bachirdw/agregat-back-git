@@ -15,13 +15,11 @@ prétend pas restaurer les garanties de l'ADR 006.
 
 - Activation explicite, désactivée par défaut. API limitée strictement à `127.0.0.1`, bandeau HTML et
   catalogue `ownerMode` visibles ; mode live activé implicitement.
-- Orchestrateur : fournisseur Playwriter forcé, toutes les capacités navigateur, domaines publics
+- Orchestrateur : Playwriter par défaut, fournisseur et domaines modifiables par mission, toutes les capacités navigateur, domaines publics
   HTTP/HTTPS, ports publics et IP publiques admis. Les schémas, refus d'identifiants URL, vérification DNS
   aux frontières de la gateway et confinement des fichiers persistent.
-- JavaScript et contexte utilisateur actifs sans consentement. Écritures, actions sensibles et permissions
-  ACP auto-approuvées ; signal annulé respecté. Choix ACP parmi modes annoncés : Codex `workspace-write`
-  (jamais `agent-full-access`), Claude `bypassPermissions`/`acceptEdits`/`default`, Gemini
-  `yolo`/`autoEdit`/`default`, OpenCode `build`. Mode non annoncé : refus.
+- JavaScript et contexte utilisateur actifs pour Playwriter. Navigation et actions courantes du navigateur automatiques ; envois, soumissions et permissions ACP soumis à décision. Choix ACP parmi modes annoncés : Codex `workspace-write`
+  (jamais `agent-full-access`), Claude `default`, Gemini `default`, OpenCode `build`. La mission peut demander un autre mode ACP annoncé ; mode non annoncé ou contournant les décisions sensibles : refus.
 - `owner-transport.js` crée une cible marquée dans le relais local, expose une vue CDP limitée aux cibles
   et sessions qu'il a créées, synthétise l'auto-attachement et refuse les commandes globales (dont fermeture
   du navigateur et réglage global des téléchargements). Playwright se connecte avec `noDefaults` et

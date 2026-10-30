@@ -1,7 +1,7 @@
 id: career-ops
 name: Candidatures — compatible career-ops
 version: 0.1.0
-description: Espace privé, CV et profil, recherche et évaluation Gemini, brouillons et envois approuvés un par un.
+description: Espace privé, CV et profil, recherche et évaluation avec l'agent choisi, brouillons et envois approuvés un par un.
 keywords:
   [
     career-ops,
@@ -11,6 +11,14 @@ keywords:
     postule,
     candidature,
     cv joint,
+    cv,
+    profil,
+    offres d'emploi,
+    jobs,
+    job,
+    poste,
+    postes,
+    parcours,
   ]
 skills: []
 workflow:
@@ -22,7 +30,7 @@ workflow:
     - tool: jobs_search_live
       title: Rechercher des offres sourcées
     - tool: career_offer_save
-      title: Évaluer avec Gemini et enregistrer le rapport A–G (H si la note vaut 5)
+      title: Évaluer avec l'agent choisi et enregistrer le rapport A–G (H si la note vaut 5)
     - tool: email_send
       title: Préparer un envoi (aucun envoi sans accord)
 policies:

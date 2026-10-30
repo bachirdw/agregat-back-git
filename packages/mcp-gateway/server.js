@@ -231,6 +231,7 @@ if (pack.id === 'career-ops') {
     career: new CareerWorkspace({ root, roots: [root] }),
     approve,
     meter,
+    ownerMode: JSON.parse(process.env.RELAY_POLICY ?? '{}').ownerMode === true,
     openProfile: browserGateway
       ? (url) => browserGateway.call('browser.navigate', { url })
       : undefined,

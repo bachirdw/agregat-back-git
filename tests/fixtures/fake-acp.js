@@ -143,6 +143,11 @@ const app = agent({ name: 'fake-acp' })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
     if (cfg.diagnosticText) process.stderr.write(cfg.diagnosticText);
     await guard('session/prompt');
+    if (cfg.expectBrowserResumeGuidance) {
+      const request = JSON.parse(ctx.params.prompt[0].text);
+      if (!request.instructions?.includes('about:blank'))
+        throw new RequestError(-32000, 'Consigne de reprise navigateur FICTIVE absente');
+    }
     if (cfg.stallTool) {
       if (cfg.stallToolPrelude)
         for (const [index, name, status] of [

@@ -1,0 +1,13 @@
+
+> agre-agent-frontend@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.5 /Users/diaw/Downloads/agregat-front
+
+
+ Test Files  7 passed (7)
+      Tests  99 passed (99)
+   Start at  06:40:47
+   Duration  6.14s (environment 47%, tests 40%, import 10%, transform 3%)
+

@@ -1,0 +1,139 @@
+
+> agre-agent-frontend@0.1.0 test:e2e
+> npm run build && node --test --test-concurrency=1 tests/e2e.test.mjs
+
+
+> agre-agent-frontend@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 2377 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                           0.52 kB │ gzip:   0.32 kB
+dist/assets/index-OV8fXgdU.css                           24.76 kB │ gzip:   6.27 kB
+dist/assets/array-BifhSqXX.js                             0.10 kB │ gzip:   0.11 kB
+dist/assets/pie-XZMESJXO-Bboeu_VW.js                      0.10 kB │ gzip:   0.12 kB
+dist/assets/info-OHQRW6UA-ACalnJOm.js                     0.10 kB │ gzip:   0.12 kB
+dist/assets/radar-ABXABTNO-CRFkSxqa.js                    0.10 kB │ gzip:   0.12 kB
+dist/assets/packet-JDAUHWVQ-BbBE_238.js                   0.11 kB │ gzip:   0.12 kB
+dist/assets/cynefin-EF2NZ3EQ-DBfhcCvG.js                  0.11 kB │ gzip:   0.12 kB
+dist/assets/treemap-SAJKECNS-D4YI7aeH.js                  0.11 kB │ gzip:   0.12 kB
+dist/assets/wardley-7MLQ67FV-Coc37QIu.js                  0.11 kB │ gzip:   0.12 kB
+dist/assets/gitGraph-VSP46ZUC-o2nWGtod.js                 0.11 kB │ gzip:   0.12 kB
+dist/assets/railroad-I3PHUGI6-TDh63lBZ.js                 0.11 kB │ gzip:   0.12 kB
+dist/assets/treeView-D4JQ5SDB-CXkNCalT.js                 0.11 kB │ gzip:   0.12 kB
+dist/assets/channel-DtyCVgzn.js                           0.11 kB │ gzip:   0.12 kB
+dist/assets/railroad-peg-JR7BVNR7-C81knU6x.js             0.11 kB │ gzip:   0.12 kB
+dist/assets/architecture-WOLXFQ4H-DqJMN-9-.js             0.11 kB │ gzip:   0.12 kB
+dist/assets/railroad-abnf-LNEFI6M7-CLEpqrXM.js            0.11 kB │ gzip:   0.12 kB
+dist/assets/railroad-ebnf-DWYD2UWJ-Gq1qpWXG.js            0.11 kB │ gzip:   0.13 kB
+dist/assets/eventmodeling-K75KTNOO-roblc9dH.js            0.11 kB │ gzip:   0.13 kB
+dist/assets/init-C-OQMol4.js                              0.14 kB │ gzip:   0.12 kB
+dist/assets/chunk-Y2CYZVJY-DsF7k-Jl.js                    0.15 kB │ gzip:   0.14 kB
+dist/assets/chunk-2Q5K7J3B-C1jixKkw.js                    0.19 kB │ gzip:   0.16 kB
+dist/assets/chunk-JWPE2WC7-DVXcaiue.js                    0.22 kB │ gzip:   0.17 kB
+dist/assets/chunk-XXDRQBXY-DaJ0CPzz.js                    0.26 kB │ gzip:   0.22 kB
+dist/assets/chunk-5VM5RSS4-ZNzvKenW.js                    0.36 kB │ gzip:   0.27 kB
+dist/assets/flowDiagram-IUGLLWBU-9mEPzLqg.js              0.56 kB │ gzip:   0.31 kB
+dist/assets/chunk-VQ5W62QI-Dw_MwnrJ.js                    0.57 kB │ gzip:   0.39 kB
+dist/assets/chunk-J5ZVWO5B-oDCd-gWO.js                    0.63 kB │ gzip:   0.43 kB
+dist/assets/infoDiagram-MVDRKAX5-CTr_sPm3.js              0.65 kB │ gzip:   0.41 kB
+dist/assets/swimlanesDiagram-AYQRV4AK-DKYPIvax.js         0.83 kB │ gzip:   0.48 kB
+dist/assets/sizeCapture-INFHLROL-3uHXrFqA.js              0.87 kB │ gzip:   0.51 kB
+dist/assets/chunk-DUW6YSOI-Dgx8z5s3.js                    0.89 kB │ gzip:   0.46 kB
+dist/assets/line-OHKl0Iy1.js                              0.94 kB │ gzip:   0.47 kB
+dist/assets/ordinal-BDEzSJ7C.js                           1.17 kB │ gzip:   0.56 kB
+dist/assets/chunk-ZAUX2LTX-jdye81hk.js                    1.41 kB │ gzip:   0.79 kB
+dist/assets/railroadDiagram-Y72NRBL7-B3FaDbE_.js          1.65 kB │ gzip:   0.76 kB
+dist/assets/abnfDiagram-WEYOIA3C-D5-XG1Cd.js              1.84 kB │ gzip:   0.89 kB
+dist/assets/chunk-UHW7PFBP-DRdkyLvk.js                    1.95 kB │ gzip:   0.95 kB
+dist/assets/chunk-55XCU76K-BGZGNtZJ.js                    1.97 kB │ gzip:   0.88 kB
+dist/assets/pegDiagram-ECIUJNBX-KXuApC-3.js               2.01 kB │ gzip:   0.94 kB
+dist/assets/ebnfDiagram-V4P3TTPT-BfCw_f8n.js              2.05 kB │ gzip:   0.88 kB
+dist/assets/dist-Cmy_SMA3.js                              2.16 kB │ gzip:   0.96 kB
+dist/assets/path-fybaL0A-.js                              2.27 kB │ gzip:   0.98 kB
+dist/assets/arc-Cwp0DHbJ.js                               3.47 kB │ gzip:   1.46 kB
+dist/assets/diagram-I5XIIV2D-BewDrdJ2.js                  4.34 kB │ gzip:   1.89 kB
+dist/assets/defaultLocale-BFoDCU3G.js                     4.63 kB │ gzip:   2.12 kB
+dist/assets/chunk-4EMNKR2T-DOf5ZNve.js                    5.43 kB │ gzip:   2.50 kB
+dist/assets/linear-BcCDBgIH.js                            5.51 kB │ gzip:   2.25 kB
+dist/assets/chunk-YZO67HFG-BI0kVoRp.js                    5.83 kB │ gzip:   2.68 kB
+dist/assets/diagram-RJA3I4VV-CCdgmWzT.js                  6.07 kB │ gzip:   2.56 kB
+dist/assets/pieDiagram-GNMPY74T-DzijhsvO.js               6.22 kB │ gzip:   2.59 kB
+dist/assets/diagram-ODIL2UCW-BR6_QPw6.js                  8.12 kB │ gzip:   3.64 kB
+dist/assets/cynefinDiagram-WF24UDRP-BySG5nQh.js           9.94 kB │ gzip:   3.51 kB
+dist/assets/chunk-ZCHMQSOR-D9UeJPZj.js                   10.38 kB │ gzip:   4.31 kB
+dist/assets/diagram-PFBEJUXE-DD91TBcM.js                 10.92 kB │ gzip:   4.25 kB
+dist/assets/chunk-HNE4Q36P-D_Fsa8-H.js                   14.84 kB │ gzip:   4.19 kB
+dist/assets/chunk-2E7WHVMD-5SklHz9A.js                   15.64 kB │ gzip:   4.35 kB
+dist/assets/diagram-CBK3MWTC-DssCDZi2.js                 15.75 kB │ gzip:   5.52 kB
+dist/assets/mermaid-parser.core-ypMtuHBy.js              16.44 kB │ gzip:   3.91 kB
+dist/assets/ishikawaDiagram-HPEHV2GE-Dihzz7pg.js         17.30 kB │ gzip:   6.53 kB
+dist/assets/kanban-definition-FNSA4HC5-DHqdLFyL.js       20.26 kB │ gzip:   7.15 kB
+dist/assets/sankeyDiagram-SY24JHO5-BL-8h76P.js           22.79 kB │ gzip:   8.25 kB
+dist/assets/journeyDiagram-BOSHW7O7-C6a8NZ15.js          23.15 kB │ gzip:   8.16 kB
+dist/assets/mindmap-definition-6OY57UG3-BBo2bEk9.js      23.66 kB │ gzip:   8.06 kB
+dist/assets/graphlib-DS17s2tU.js                         23.90 kB │ gzip:   8.31 kB
+dist/assets/wardleyDiagram-IVAIDKWA-BYw4BCGd.js          25.20 kB │ gzip:   6.54 kB
+dist/assets/rough.esm-Dy-Kn_BL.js                        27.10 kB │ gzip:   8.85 kB
+dist/assets/gitGraphDiagram-PDYL7XHY-CLgfkaLc.js         29.01 kB │ gzip:   8.55 kB
+dist/assets/chunk-7S6XSTFO-spwOjCLA.js                   30.36 kB │ gzip:   8.44 kB
+dist/assets/timeline-definition-JXYKGLGB-CDQmr2N3.js     30.45 kB │ gzip:  10.03 kB
+dist/assets/erDiagram-KYQIGQAA-DOokj5mA.js               30.65 kB │ gzip:  10.57 kB
+dist/assets/requirementDiagram-EQYSW5RA-CHFbbTG8.js      31.07 kB │ gzip:   9.82 kB
+dist/assets/quadrantDiagram-D57K4MC3-2-rjkUb-.js         33.52 kB │ gzip:   9.74 kB
+dist/assets/chunk-WQQL4CDK-6PnKObla.js                   37.88 kB │ gzip:   8.20 kB
+dist/assets/vennDiagram-Q3Y3IDCW-EZ4UfoHq.js             41.18 kB │ gzip:  15.11 kB
+dist/assets/stateDiagram-v2-A6IESKWZ-WsDlPDC1.js         41.55 kB │ gzip:  13.89 kB
+dist/assets/blockDiagram-RJAE7QA3-uyGFK5Gj.js            42.42 kB │ gzip:  13.87 kB
+dist/assets/xychartDiagram-4URNHDU4-CS5nVQrD.js          44.52 kB │ gzip:  12.35 kB
+dist/assets/src-BiFJ0SSJ.js                              45.66 kB │ gzip:  15.99 kB
+dist/assets/dagre-NK4GIZVX-BO5IOsB6.js                   47.83 kB │ gzip:  17.10 kB
+dist/assets/classDiagram-v2-4MYWR3UA-BKC6Dvb4.js         49.70 kB │ gzip:  16.15 kB
+dist/assets/chunk-AQDTSKZB-FQAo79d4.js                   51.23 kB │ gzip:  16.63 kB
+dist/assets/chunk-NQOKRVIF-DqbXXnt8.js                   62.79 kB │ gzip:  20.36 kB
+dist/assets/c4Diagram-XDPPPE54-CcEl9UVJ.js               65.08 kB │ gzip:  18.60 kB
+dist/assets/ganttDiagram-R7GPNTJY-D7Bw-jn4.js            70.01 kB │ gzip:  23.00 kB
+dist/assets/diagram-TYUNFSNR-SwxjvMUN.js                 80.44 kB │ gzip:  25.15 kB
+dist/assets/cose-bilkent-JH36ORCC-BfZq0pYE.js            81.21 kB │ gzip:  21.52 kB
+dist/assets/mermaid.core-DzDbKrwp.js                     84.65 kB │ gzip:  29.30 kB
+dist/assets/swimlanes-B3ENRKFQ-MG7PAlL3.js              106.42 kB │ gzip:  36.21 kB
+dist/assets/chunk-HAGFOTED-4nh1FsGY.js                  115.46 kB │ gzip:  29.24 kB
+dist/assets/sequenceDiagram-BLEHNHQU-B53Pcb_j.js        117.67 kB │ gzip:  31.39 kB
+dist/assets/architectureDiagram-ZHVYKT53-C-7GlMy-.js    148.87 kB │ gzip:  41.10 kB
+dist/assets/usecaseDiagram-WPOLBNNX-B0dA938q.js         187.90 kB │ gzip:  49.20 kB
+dist/assets/chunk-DSNLSHJZ-DmiwghsS.js                  241.36 kB │ gzip:  40.32 kB
+dist/assets/katex-B_JcIwqj.js                           258.80 kB │ gzip:  77.65 kB
+dist/assets/cytoscape.esm-Bn1wUjr1.js                   434.71 kB │ gzip: 137.73 kB
+dist/assets/index-DZXknSjN.js                           450.29 kB │ gzip: 138.17 kB
+dist/assets/chunk-NGNAAXSQ-Bw6tHVuc.js                  629.04 kB │ gzip: 127.32 kB
+dist/assets/elk-QONTBCTQ-BYbYiTkL.js                  1,462.86 kB │ gzip: 455.86 kB
+
+✓ built in 1.16s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+(node:49659) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ CV FICTIF : dépôt sur la fenêtre et bouton d'ajout visible en mode compact (8818.951125ms)
+✔ production réelle : accueil, filtres, plan → SSE → résultats, historique et galeries (17208.372541ms)
+✔ accord du workflow application-draft, refus puis reprise en place (25978.839042ms)
+✔ budget réel : estimation puis refus serveur, aucune mission créée (15914.028125ms)
+✔ thème sombre persistant, mobile sans débordement et navigation clavier (11986.440417ms)
+✔ proxy Vite : mutation avec Origin frontend réécrit, sécurité backend maintenue (20504.370583ms)
+✔ SSE réel : coupure réseau, reconnexion et revue après réouverture de la mission (36034.848875ms)
+✔ Markdown non fiable et Mermaid sous CSP de production, sans chargement externe (7174.857125ms)
+✔ Skills réels : source Git refusée, quarantaine, revue par hash et activation (9761.350292ms)
+✔ permission ACP réelle : décision ponctuelle, autorisation permanente masquée (14736.698667ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 168983.887792

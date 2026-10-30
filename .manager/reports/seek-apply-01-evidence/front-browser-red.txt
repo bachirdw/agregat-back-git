@@ -1,0 +1,39 @@
+
+ RUN  v5.0.5 /Users/diaw/Downloads/agregat-front
+
+ ❯ src/components.test.tsx (32 tests | 1 failed | 31 skipped) 212ms
+   ❯ rendu fiable (20)
+     × permet de choisir le navigateur avant le plan 210ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components.test.tsx > rendu fiable > permet de choisir le navigateur avant le plan
+AssertionError: expected <button type="button" disabled></button> to be null
+
+- Expected:
+null
+
++ Received:
+<button
+  disabled=""
+  type="button"
+>
+  Choisir un navigateur · bientôt
+</button>
+
+ ❯ src/components.test.tsx:138:77
+    136|       expect.objectContaining({ browser: "isolated" }),
+    137|     );
+    138|     expect(screen.queryByRole("button", { name: /Choisir un navigateur…
+       |                                                                             ^
+    139|   });
+    140|   it("propose les modes ACP annoncés sans mode qui contourne les décis…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 6 skipped (7)
+      Tests  1 failed | 98 skipped (99)
+   Start at  06:36:20
+   Duration  3.01s (environment 74%, import 17%, transform 6%, worker 1%, tests 1%)
+

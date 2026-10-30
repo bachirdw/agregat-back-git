@@ -1,0 +1,20 @@
+(node:50490) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ chargement FICTIF : délai borné, indicateurs persistants et réseau continu
+  ✔ /busy (9441.801792ms)
+  ✔ /alert (8124.435541ms)
+  ✔ /progress (8098.962417ms)
+  ✔ /ready (1101.536666ms)
+  ✔ /failed (548.605ms)
+  ✔ /error (543.584541ms)
+  ✔ /impossible (542.315959ms)
+  ✔ /loading-fr (8069.351667ms)
+✔ chargement FICTIF : délai borné, indicateurs persistants et réseau continu (36618.770459ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37181.719083

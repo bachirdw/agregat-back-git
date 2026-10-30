@@ -544,7 +544,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT ?? 4310);
   app.server.listen(port, '127.0.0.1', () =>
     console.log(
-      `Agent Platform : http://127.0.0.1:${app.server.address().port} — ${app.engine.ownerMode ? 'Mode propriétaire local : protections désactivées' : app.engine.live ? 'BYOA réel disponible' : 'mode démonstration'}`,
+      `Agent Platform : http://127.0.0.1:${app.server.address().port} — ${app.engine.ownerMode ? 'Mode propriétaire local : navigation étendue, actions sensibles soumises à décision' : app.engine.live ? 'BYOA réel disponible' : 'mode démonstration'}`,
     ),
   );
   for (const signal of ['SIGINT', 'SIGTERM'])

@@ -8,7 +8,12 @@ test('La provenance de vérification décrit honnêtement le type de mission', (
     verificationScope('core', false, true),
     'Page naviguée et observée ; autres affirmations non vérifiées',
   );
+  assert.equal(verificationScope('core', true, true), 'Structure seulement ; faits non vérifiés');
   assert.match(verificationScope('career-ops', false), /non vérifi/);
+  assert.equal(
+    verificationScope('career-ops', false, true),
+    'Page naviguée et observée ; autres affirmations non vérifiées',
+  );
   assert.doesNotMatch(verificationScope('career-ops', false), /fixture/i);
   assert.match(verificationScope('career-ops', true), /fictif|simul/i);
   assert.match(verificationScope('najah', true), /fixture/i);

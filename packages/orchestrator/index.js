@@ -22,7 +22,11 @@ import { ROOT, getDag, getPack, packs, proposeDag, verifyPack } from './packs.js
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
 import { executionResult, parseAgentResult } from './result.js';
-import { browserObservationFailure, readableBrowserObservation } from './browser-proof.js';
+import {
+  browserObservationFailure,
+  readableBrowserObservation,
+  verifiedBrowserVisit,
+} from './browser-proof.js';
 import { careerFailureMessage } from './failure.js';
 import {
   createTurnTruth,
@@ -69,10 +73,9 @@ export const inputSchema = z
   .strict();
 export { parseAgentResult } from './result.js';
 export function verificationScope(packId, simulated, observedBrowser = false) {
-  if (packId === 'core')
-    return observedBrowser
-      ? 'Page naviguée et observée ; autres affirmations non vérifiées'
-      : 'Structure seulement ; faits non vérifiés';
+  if (observedBrowser && !simulated)
+    return 'Page naviguée et observée ; autres affirmations non vérifiées';
+  if (packId === 'core') return 'Structure seulement ; faits non vérifiés';
   if (packId === 'najah') return 'Classement et provenance comparés aux fixtures';
   if (simulated) return 'Résultat fictif ; structure vérifiée seulement';
   return 'Structure vérifiée ; offres et évaluations non vérifiées';
@@ -418,7 +421,7 @@ export class Orchestrator {
             'Préparer les Skills',
             ...(browserWorkflow
               ? ['Naviguer, observer et agir avec les outils browser.*']
-              : pack.workflow.steps.map((s) => s.title)),
+              : ['Exécuter l’objectif avec l’agent et les outils autorisés']),
             'Vérifier le résultat',
           ],
       cost: (() => {
@@ -825,6 +828,7 @@ export class Orchestrator {
       let response;
       try {
         control.browserEvidenceCapabilities?.clear();
+        control.browserEvidence = [];
         promptStarted = true;
         control.promptStarted = true;
         skillProgress.start();
@@ -889,6 +893,10 @@ export class Orchestrator {
       await verifyPack(plan.pack.id, value, run.prompt);
       if (plan.pack.id === 'career-ops') {
         const agentAnswer = value.summary.trim();
+        const browserProof = verifiedBrowserVisit(control.browserEvidence);
+        if (browserProof.length)
+          value.provenance.data =
+            plan.simulated || run.browser === 'fixture' ? 'navigateur simulé' : 'navigateur réel';
         const currentBrowserEvidence = ['browser.snapshot', 'browser.extract'].some((capability) =>
           control.browserEvidenceCapabilities?.has(capability),
         );
@@ -936,7 +944,7 @@ export class Orchestrator {
           '\n' +
           formatCareerBilan(run.prompt, turnTruth) +
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
-        value.evidence = [];
+        value.evidence = browserProof;
         for (const key of Object.keys(value))
           if (!['simulated', 'summary', 'evidence', 'agent', 'provenance'].includes(key))
             delete value[key];

@@ -250,7 +250,7 @@ export class CdpBrowser {
     endpoint = null,
     launch = null,
     navigationTimeoutMs = 20000,
-    startupTimeoutMs = 30000,
+    startupTimeoutMs = 45000,
     chromium = null,
     fallbackLaunch = null,
   } = {}) {

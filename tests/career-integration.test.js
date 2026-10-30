@@ -466,6 +466,11 @@ test('Agent explicite compatible ACP : career-ops conserve Codex sans imposer de
     assert.equal(plan.agent.id, 'codex');
     assert.equal(plan.input.agent, 'codex');
     assert.deepEqual(plan.routing.reasons, ['Agent choisi manuellement']);
+    assert.deepEqual(plan.steps, [
+      'Préparer les Skills',
+      'Exécuter l’objectif avec l’agent et les outils autorisés',
+      'Vérifier le résultat',
+    ]);
   } finally {
     if (old === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = old;
@@ -1007,20 +1012,39 @@ test('Preuve navigateur FICTIVE : capacité du tour en mémoire, contenu privé 
     app.engine.approvalTokens.delete(id);
   });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
-  const response = await fetch(
-    `http://127.0.0.1:${app.server.address().port}/api/internal/evidence/${id}`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-platform-request': '1',
-        'x-relay-token': 'JETON_FICTIF',
-      },
-      body: JSON.stringify({ capability: 'browser.snapshot', text: 'DONNÉE_PRIVÉE_FICTIVE' }),
+  const endpoint = `http://127.0.0.1:${app.server.address().port}/api/internal/evidence/${id}`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-platform-request': '1',
+      'x-relay-token': 'JETON_FICTIF',
     },
-  );
+    body: JSON.stringify({
+      capability: 'browser.navigate',
+      url: 'https://example.test/job/123?token=SECRET_FICTIF',
+    }),
+  });
   assert.equal(response.status, 200);
+  const observed = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-platform-request': '1',
+      'x-relay-token': 'JETON_FICTIF',
+    },
+    body: JSON.stringify({
+      capability: 'browser.snapshot',
+      url: 'https://example.test/job/123?token=SECRET_FICTIF',
+      snapshot: 'DONNÉE_PRIVÉE_FICTIVE',
+      loading: false,
+    }),
+  });
+  assert.equal(observed.status, 200);
   assert.equal(control.browserEvidenceCapabilities.has('browser.snapshot'), true);
+  assert.equal(control.browserEvidence.length, 2);
+  assert.equal(control.browserEvidence[1].readable, true);
+  assert.doesNotMatch(JSON.stringify(control.browserEvidence), /DONNÉE_PRIVÉE|SECRET_FICTIF/);
   assert.doesNotMatch(JSON.stringify(app.store.events(id)), /DONNÉE_PRIVÉE_FICTIVE/);
   app.engine.active.delete(id);
   app.engine.approvalTokens.delete(id);

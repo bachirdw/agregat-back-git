@@ -1,0 +1,11 @@
+(node:42622) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Agent explicite compatible ACP : career-ops conserve Codex sans imposer de clé Gemini (2884.086875ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3425.99075

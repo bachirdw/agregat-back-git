@@ -1,0 +1,291 @@
+
+> agent-platform@0.1.0 test
+> node scripts/run-tests.js
+
+
+▶ unitaires et intégration (parallèle) : 47 fichier(s)
+(node:43421) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ résultat agent : JSON brut, clôturé, entouré de prose (2.519375ms)
+✔ résultat agent : refus en texte libre rapporté avec extrait (1.37825ms)
+✔ résultat agent : vide, JSON invalide, hors contrat (0.755167ms)
+✔ résultat agent : extrait borné à 300 caractères (0.353125ms)
+✔ résumé absent : prose récupérée, secret masqué et JSON seul toujours refusé (1.188ms)
+✔ provenance : runtime fait autorité et données Najah restent fictives (0.49375ms)
+✔ mode agent core : exécution faux ACP sans modèle, provenance réelle imposée (476.143334ms)
+✔ résultat agent : après une reprise de session, le dernier bloc JSON est la réponse (0.375125ms)
+✔ résultat agent : deux objets JSON successifs gardent le dernier résultat vérifié (0.624875ms)
+(node:43422) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ agent silencieux : avertissement, arrêt reprenable et diagnostic conservé (759.718708ms)
+✔ délai et annulation après début du tour gardent un Bilan et une cause privés (2483.164958ms)
+(node:43423) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ publicAgents : ni commande, ni chemins, ni environnement ; résumé de sonde (7.001834ms)
+✔ catalogue HTTP : agents publics, sondes du dataDir (4417.593709ms)
+✔ plan Auto en démonstration : fixture, raisons et rejets visibles (4304.282583ms)
+✔ API sans agent : Auto explicite, démonstration signalée hors mode réel (4713.914292ms)
+✔ navigateur choisi pour le run : plan et MCP utilisent le même fournisseur (9159.745459ms)
+✖ tests/api-agents.test.js (26315.308709ms)
+(node:43424) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ API : Unicode FICTIF coupé à chaque octet de transport reste intact (259.6315ms)
+✔ API : UTF-8 invalide est refusé, sans remplacement silencieux du prompt (110.043542ms)
+✔ API : la limite porte sur les octets, avec refus avant planification (16.108083ms)
+✔ probe audit : pair muet arrêté, puis session fictive sans authentification ni prompt (21469.866584ms)
+(node:43450) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ tarifs : aucun prix inventé par défaut, BYOA jamais facturable, validation stricte (2.277208ms)
+✔ estimation : lignes par catégorie, externe BYOA inconnu et non refacturé (1.643792ms)
+✔ ledger chaîné : vérification, modification, suppression et ligne non chaînée détectées (19.457ms)
+✔ résumé par mètre : facturable / non facturable séparés (0.572667ms)
+✔ plafond mensuel : dépassement refusé sans écriture partielle (6.367125ms)
+✔ estimation au-dessus du budget : lancement refusé avant toute action (8807.824541ms)
+✔ plafond mensuel atteint pendant un workflow : exécution arrêtée, événement et raison visibles (5467.574666ms)
+✔ mesure depuis la gateway : jeton, mètres autorisés, 402 si budget dépassé (95.738708ms)
+✔ gateway de données : mesure refusée → aucune requête réseau (1.158208ms)
+✔ sécurité facturation : mètres propres, unités finies, BYOA gratuit même à la couche stockage (10.129959ms)
+✔ ledger : suppression de queue détectée après réouverture et écriture suivante refusée (19.424584ms)
+✔ agent : appels MCP facturés avant action et arrêt au budget, aucun double comptage du workflow (5784.883709ms)
+✔ estimation : les retries de lecture sont inclus, aucune relance automatique de write (0.435542ms)
+✔ ledger : compteur et identifiant v2 liés à l’empreinte ; suppression totale détectée (8.294709ms)
+✔ monnaie : un ledger non vide ne change pas de devise implicitement (7.9185ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (url-denied) (13.360166ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (filename-error) (7.430625ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (oversized) (1.865667ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (existing-file) (1.463209ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (path-error) (1.097625ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (click-error) (1.109292ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (late-click-error) (10.037042ms)
+✔ téléchargement FICTIF : nettoyage du temporaire (success) (2.77625ms)
+✔ autorisation de téléchargement FICTIF : success (2.221708ms)
+✔ autorisation de téléchargement FICTIF : click-error (1.661209ms)
+✔ autorisation de téléchargement FICTIF : event-timeout (1.917958ms)
+✔ contrat FICTIF : fillForm, une clé de valeur par type de champ, erreurs françaises (5.319917ms)
+✔ gateway FICTIVE : un seul accord pour tout le formulaire, texte jamais transmis (1.618208ms)
+✔ gateway FICTIVE : refus, champ sensible et champ introuvable avant toute action (1.482875ms)
+✔ gateway FICTIVE : un seul champ modifié pendant l’accord annule tout le remplissage (0.445125ms)
+✔ propriétaire FICTIF : fillForm automatique, sans accord (0.331667ms)
+✔ contrat FICTIF : messages français pour les erreurs de forme et de longueur (5.185125ms)
+✔ contrat FICTIF : le schéma JSON des modèles dit quelle clé de valeur va avec quel kind (34.452208ms)
+✔ une page lue dans le tour est une preuve, avec ou sans navigate séparé (1.558292ms)
+✔ historique, onglet vide et chargement ne prouvent pas une lecture (0.382417ms)
+✔ preuve privée FICTIVE : URL nettoyée, contenu absent et visite liée à sa capture (1.106ms)
+✔ référence : une panne de résolution conserve sa cause réelle (1.866958ms)
+✔ référence : une cible absente demande un nouveau snapshot (0.655208ms)
+✔ référence : erreur Playwright de cible disparue traduite en français (0.34375ms)
+✔ fermeture avant la microtâche de lancement : aucun processus même fictif démarré (9.484833ms)
+✔ CV Markdown → HTML : titres, gras, listes ; HTML et liens neutralisés (3.13925ms)
+(node:43486) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ échec privé : délai, annulation et arrêt de l’agent sont nommés sans détail privé (2.145875ms)
+✔ échec privé : navigation non prouvée et réponse non structurée visibles sans extrait (0.439708ms)
+✔ échec privé intégré : le délai du run est visible dans le fil sans donnée privée (40.79925ms)
+✔ échec privé intégré : navigation non prouvée nommée sans prompt privé (197.352333ms)
+(node:43497) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé (2.465625ms)
+✔ Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécutée (6.10875ms)
+✔ Bilan FICTIF : appels réels mixtes comptés sans contradiction ni doublon ACP (0.557334ms)
+✔ Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon (0.744291ms)
+✔ Modèle career-ops : conserve le défaut annoncé, refuse un identifiant absent (0.260334ms)
+✔ Reprise privée : un nouveau CV joint est transmis avec les pièces existantes, les IDs invalides sont refusés (5191.161541ms)
+✔ Plan career-ops : rapport A–G et accord explicite avant tout envoi (0.639084ms)
+✔ Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés (12.482959ms)
+✔ Script tiers FICTIF : revue et accord explicite avant exécution en mode propriétaire (89.359125ms)
+✔ Offres : note 1–5, A–H complet, provenance et données fictives obligatoires (18.393ms)
+✔ Registre : quarantaine, revue liée au hash natif, mutation du Skill ou configuration bloque (18.783292ms)
+✔ Scripts : liste fermée, code modifié, arguments et secrets implicites refusés (65.213166ms)
+✔ Contrôles CV FICTIFS : manque et fait inventé détectés, chemins et délais imposés (206.755ms)
+✔ Contrôles CV FICTIFS : réseau et écriture hors espace bloqués (177.902208ms)
+✔ Auto : trouve des offres, évalue cette offre et postule routés vers le pack privé (2.252666ms)
+✔ Auto : un Skill explicitement choisi détermine son pack avant les mots-clés (0.371209ms)
+✔ Auto : demandes d’emploi et de profil courantes routées vers career-ops (3.435584ms)
+✖ tests/career-integration.test.js (18574.364917ms)
+✔ Le schéma MCP accepte une offre découverte sans UUID ni évaluation (1433.564167ms)
+✖ tests/career-offer-contract.test.js (3542.646666ms)
+(node:43590) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SMTP FICTIF : refus = zéro, approbation = exactement un, répétition et reprise refusées (61.317542ms)
+✔ SMTP : double demande, annulation, budget et résultat incertain ne relancent jamais (23.526292ms)
+✔ SMTP : sans configuration brouillon et URL Gmail, aucune approbation ni transmission (19.605583ms)
+✔ Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn autorisé sur décision (6.014542ms)
+✔ Pont : envoi obligatoire même propriétaire, aperçu absent du journal persistant, refus et annulation (15.511625ms)
+✔ API propriétaire → deux MCP → SMTP FICTIF : refus puis course interprocessus, un seul message (2073.315208ms)
+✖ tests/career-timeout.test.js (103.326958ms)
+✖ tests/career-truth.test.js
+✖ tests/career-workspace.test.js
+✖ tests/fix-browser-event.test.js
+✖ tests/fix-browser-summary.test.js
+✖ tests/fix-resume.test.js
+✖ tests/live-scripts.test.js
+✖ tests/mcp-contract.test.js
+✖ tests/najah-evals.test.js
+✖ tests/najah-live.test.js
+✖ tests/network-policy.test.js
+✖ tests/owner-mode.test.js
+✖ tests/owner-send-filter.test.js
+✖ tests/owner-transport.test.js
+✖ tests/platform.test.js
+✖ tests/playwriter-live.test.js
+✖ tests/policy-files.test.js
+✖ tests/process-liveness.test.js
+✖ tests/resume-probe.test.js
+✖ tests/runtime.test.js
+✖ tests/skill-registry.test.js
+✖ tests/skill-router.test.js
+✖ tests/sse-after-end.test.js
+✖ tests/test-runner.test.js
+✖ tests/tool-watchdog.test.js
+✖ tests/verification-scope.test.js
+✖ tests/web-dir.test.js
+✖ tests/workflow-engine.test.js
+✖ tests/workflow-resume.test.js
+✖ tests/workflow-review.test.js
+✖ tests/workflow-run.test.js
+ℹ tests 123
+ℹ suites 0
+ℹ pass 89
+ℹ fail 0
+ℹ cancelled 34
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26328.263792
+
+✖ failing tests:
+
+test at tests/api-agents.test.js:1:1
+✖ tests/api-agents.test.js (26315.308709ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/career-integration.test.js:1:1
+✖ tests/career-integration.test.js (18574.364917ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/career-offer-contract.test.js:1:1
+✖ tests/career-offer-contract.test.js (3542.646666ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/career-timeout.test.js:1:1
+✖ tests/career-timeout.test.js (103.326958ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/career-truth.test.js:1:1
+✖ tests/career-truth.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/career-workspace.test.js:1:1
+✖ tests/career-workspace.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/fix-browser-event.test.js:1:1
+✖ tests/fix-browser-event.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/fix-browser-summary.test.js:1:1
+✖ tests/fix-browser-summary.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/fix-resume.test.js:1:1
+✖ tests/fix-resume.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/live-scripts.test.js:1:1
+✖ tests/live-scripts.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/mcp-contract.test.js:1:1
+✖ tests/mcp-contract.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/najah-evals.test.js:1:1
+✖ tests/najah-evals.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/najah-live.test.js:1:1
+✖ tests/najah-live.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/network-policy.test.js:1:1
+✖ tests/network-policy.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/owner-mode.test.js:1:1
+✖ tests/owner-mode.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/owner-send-filter.test.js:1:1
+✖ tests/owner-send-filter.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/owner-transport.test.js:1:1
+✖ tests/owner-transport.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/platform.test.js:1:1
+✖ tests/platform.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/playwriter-live.test.js:1:1
+✖ tests/playwriter-live.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/policy-files.test.js:1:1
+✖ tests/policy-files.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/process-liveness.test.js:1:1
+✖ tests/process-liveness.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/resume-probe.test.js:1:1
+✖ tests/resume-probe.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/runtime.test.js:1:1
+✖ tests/runtime.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/skill-registry.test.js:1:1
+✖ tests/skill-registry.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/skill-router.test.js:1:1
+✖ tests/skill-router.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/sse-after-end.test.js:1:1
+✖ tests/sse-after-end.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/test-runner.test.js:1:1
+✖ tests/test-runner.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/tool-watchdog.test.js:1:1
+✖ tests/tool-watchdog.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/verification-scope.test.js:1:1
+✖ tests/verification-scope.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/web-dir.test.js:1:1
+✖ tests/web-dir.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/workflow-engine.test.js:1:1
+✖ tests/workflow-engine.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/workflow-resume.test.js:1:1
+✖ tests/workflow-resume.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/workflow-review.test.js:1:1
+✖ tests/workflow-review.test.js
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at tests/workflow-run.test.js:1:1
+✖ tests/workflow-run.test.js
+  'Promise resolution is still pending but the event loop has already resolved'

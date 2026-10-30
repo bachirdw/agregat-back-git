@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { Store, terminal } from '../../packages/storage/index.js';
 import { SkillRegistry } from '../../packages/skill-registry/index.js';
 import { Orchestrator } from '../../packages/orchestrator/index.js';
+import { compactBrowserEvidence } from '../../packages/orchestrator/browser-proof.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
 import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
 import { summarize, meters } from '../../packages/billing/index.js';
@@ -472,11 +473,17 @@ export function createApp({
           engine.active.get(id).abort.signal.aborted
         )
           throw new Error('Journal navigateur non autorisé');
-        if (store.get(id)?.workspace === 'career-ops')
-          engine.active.get(id).browserEvidenceCapabilities ??= new Set();
-        if (store.get(id)?.workspace === 'career-ops')
-          engine.active.get(id).browserEvidenceCapabilities.add(body.capability);
-        else store.event(id, 'browser_evidence', body);
+        if (store.get(id)?.workspace === 'career-ops') {
+          const control = engine.active.get(id);
+          control.browserEvidenceCapabilities ??= new Set();
+          control.browserEvidenceCapabilities.add(body.capability);
+          const compact = compactBrowserEvidence(body);
+          if (compact) {
+            control.browserEvidence ??= [];
+            control.browserEvidence.push(compact);
+            if (control.browserEvidence.length > 32) control.browserEvidence.shift();
+          }
+        } else store.event(id, 'browser_evidence', body);
         return json(res, 200, { ok: true });
       }
       const usage = path.match(/^\/api\/internal\/usage\/([a-f0-9-]{36})$/);

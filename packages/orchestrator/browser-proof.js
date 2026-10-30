@@ -14,6 +14,44 @@ export function readableBrowserObservation(evidence) {
   return typeof content === 'string' && content.trim().length > 0;
 }
 
+// Private runs keep only the source URL without credentials, query or fragment and a
+// boolean observation. Never persist page text or the full MCP response in the public run.
+export function compactBrowserEvidence(output) {
+  if (!['browser.navigate', 'browser.snapshot', 'browser.extract'].includes(output?.capability))
+    return null;
+  let url;
+  try {
+    url = new URL(output.url);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return null;
+  const provider = /^[a-z0-9-]{1,64}$/.test(output.provider ?? '') ? output.provider : 'unknown';
+  return {
+    capability: output.capability,
+    url: url.origin + url.pathname,
+    provider,
+    loading: output.loading === true,
+    readable: readableBrowserObservation(output),
+  };
+}
+
+export function verifiedBrowserVisit(evidence = []) {
+  let navigation = null;
+  let verified = [];
+  for (const item of evidence) {
+    if (item.capability === 'browser.navigate') navigation = item;
+    if (
+      navigation &&
+      ['browser.snapshot', 'browser.extract'].includes(item.capability) &&
+      item.readable &&
+      item.url === navigation.url
+    )
+      verified = [navigation, item];
+  }
+  return verified;
+}
+
 export function browserObservationFailure(evidence) {
   const last = [...evidence]
     .reverse()

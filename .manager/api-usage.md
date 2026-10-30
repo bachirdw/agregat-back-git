@@ -50,3 +50,10 @@ Lecture des traces locales `session-2026-10-27*.jsonl` et `session-2026-10-28*.j
 **Correction du comptage** : plusieurs entrées du journal Gemini répètent un même tour (même session, horodatage et tokens). Le total du 26 au 28/10 après la reprise est **199 tours distincts observés** (153 + 13 + 33), pas 543 tours. Le chiffre de 543 communiqué initialement au propriétaire comptait des entrées brutes et était faux. Les traces hors de ce dossier peuvent encore manquer. Le propriétaire a autorisé 600 tours sur la base de cette surestimation ; ce relèvement est conservé mais aucun nouveau run n'est impliqué par cette autorisation.
 
 | 18:00 | reprise `43f5696c` | gemini-3.5-flash-lite | Scan portals.yml puis deux évaluations, session reprise ; aucun envoi | 649 626 entrée (dont 524 421 cache) / 1 133 sortie + 1 850 réflexion, **8 tours distincts** | ≈ 0,061 $ après déduplication ; ≈ 0,165 $ si les 22 entrées répétées sont toutes comptées | ≈ 4,91 $ conservateurs, hors tests directs non relevés |
+
+## Reprise du 31/10 — plafond additionnel demandé : 5 $ maximum
+
+| Heure Sydney | Sprint | Agent et modèle | But et état | Jetons entrée/sortie | Frais supplémentaires | Cumul Gemini connu |
+|---|---|---|---|---|---|---|
+| 06:03 | seek-apply-01 | Codex ACP ; défaut du fournisseur, session annonçant `gpt-6-sol` ; modèle servi non confirmé | Lecture seule du titre et de l'URL Seek via Playwriter ; mission `3f05a7a5-f405-4c3b-a462-3cf75fe0b393` terminée, un tour BYOA | Inconnus | Plateforme 0,00 € ; fournisseur/abonnement non mesuré | ≈ 4,91 $ ; aucun appel Gemini nouveau |
+| 06:27 | seek-apply-01 | Codex ACP ; défaut du fournisseur, modèle servi non confirmé | Deuxième lecture seule Seek via Playwriter ; mission `d57649aa-43ed-4b23-bc67-07a67ffc5b93` terminée, un tour BYOA | Inconnus | Plateforme 0,00 € ; fournisseur/abonnement non mesuré | ≈ 4,91 $ ; aucun appel Gemini nouveau |

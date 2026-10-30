@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-30T06:23:53.628Z",
+  "url": "https://www.seek.com.au/job/95484078/apply",
+  "actions": [
+    "browser.navigate",
+    "browser.snapshot"
+  ],
+  "privacy": "Libellés génériques seulement ; valeurs personnelles exclues.",
+  "elapsedMs": 8261,
+  "loading": true,
+  "finalUrl": "https://au.seek.com/job/95484078/apply",
+  "provider": "playwriter-owner",
+  "loadingAlert": false,
+  "snapshot": "            - button \"Choose documents\" [ref=f1e92]\n            - button \"Answer employer questions\"\n            - button \"Update SEEK Profile\"\n            - button \"Review and submit\"\n            - heading \"Resumé\" [level=3] [ref=f1e161]\n            - heading \"Cover letter\" [level=3] [ref=f1e463]\n              - radio \"Write a cover letter\" [checked] [ref=f1e475] [cursor=pointer]\n              - radio \"Don't include a cover letter\" [ref=f1e496] [cursor=pointer]",
+  "formControls": 33
+}

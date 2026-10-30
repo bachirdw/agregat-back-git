@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-30T06:24:38.621Z",
+  "url": "https://www.seek.com.au/job/95484078/apply",
+  "actions": [
+    "browser.navigate",
+    "browser.snapshot"
+  ],
+  "privacy": "Libellés génériques seulement ; valeurs personnelles exclues.",
+  "elapsedMs": 8125,
+  "loading": true,
+  "finalUrl": "https://au.seek.com/job/95484078/apply",
+  "provider": "playwriter-owner",
+  "loadingAlert": true,
+  "snapshot": "",
+  "formControls": 0,
+  "readinessSignals": {
+    "readyState": "interactive",
+    "visibleBusy": [],
+    "visibleLoading": [
+      {
+        "tag": "div",
+        "role": "alert"
+      }
+    ]
+  }
+}

@@ -1,3 +1,10 @@
+> **REPRISE (30/10 12:50)** : une session précédente (lancée hors du lanceur) s'est arrêtée à 08:25 sur la limite d'usage Codex, en plein
+> travail. Lis `.manager/reports/fix-open-01.md` : les 23 fichiers modifiés NON commités de l'arbre sont son travail. Relis ce diff
+> (`git diff`), garde ce qui est bon et prouvé, jette le reste, puis continue. Attention : la hiérarchie veut que le mode propriétaire
+> n'ajoute AUCUNE demande d'accord ; si tu retires le choix automatique de `bypassPermissions`/`yolo`, prouve par un test qu'aucune
+> permission ACP ne reste en attente en mode propriétaire (auto-approbation), sinon garde ce choix automatique.
+> Fichier local non versionné `.data/agents.json` : ne le modifie pas (chemins des CLI de l'utilisateur).
+
 # fix-open-01 — mode propriétaire sans restriction : retirer les blocages de la plateforme
 
 > **DÉCISION EXPLICITE DE L'UTILISATEUR (30/10, propriétaire et seul gestionnaire de l'application) — prioritaire sur le reste** :

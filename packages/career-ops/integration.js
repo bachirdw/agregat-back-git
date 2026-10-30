@@ -51,18 +51,20 @@ export function reviewCareer(career, registry) {
     sourceFiles: Object.keys(sourceSnapshot(root)).length,
   };
 }
-export function assertCareerReview(career, registry) {
+export function assertCareerReview(career, registry, { agentId = 'gemini' } = {}) {
   const root = career.path();
   const scan = scanSkillDir(resolve(root, '.agents/skills/career-ops'));
   const entry = registry.list().find((s) => s.id === 'career-ops');
   if (!entry?.active || !entry.reviewed || !entry.integrity || entry.hash !== scan.hash)
     throw new Error('Skill career-ops non revu, inactif ou modifié : lancer la préparation');
-  const settings = JSON.parse(readConfined(root, 'relay/gemini-settings.json', 5000));
-  if (
-    settings.tools?.core !== undefined ||
-    settings.hooksConfig?.enabled !== false ||
-    settings.admin?.extensions?.enabled !== false
-  )
-    throw new Error('Configuration Gemini de confinement modifiée');
+  if (agentId === 'gemini') {
+    const settings = JSON.parse(readConfined(root, 'relay/gemini-settings.json', 5000));
+    if (
+      settings.tools?.core !== undefined ||
+      settings.hooksConfig?.enabled !== false ||
+      settings.admin?.extensions?.enabled !== false
+    )
+      throw new Error('Configuration Gemini de confinement modifiée');
+  }
   return root;
 }

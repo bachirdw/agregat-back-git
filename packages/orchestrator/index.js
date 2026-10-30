@@ -287,7 +287,6 @@ export class Orchestrator {
       delete v.workflow;
       if (v.skills.some((id) => id !== 'career-ops'))
         throw new Error('L’espace privé charge uniquement le Skill career-ops revu');
-      assertCareerReview(this.career, this.skills);
     }
     if (v.workspace) this.career.path();
     const browserWorkflow =
@@ -325,6 +324,7 @@ export class Orchestrator {
         probes,
       });
     const id = routing?.id ?? v.agent;
+    if (pack.id === 'career-ops') assertCareerReview(this.career, this.skills, { agentId: id });
     const agent = agents.find((a) => a.id === id);
     if (!agent?.installed) throw new Error('Agent non détecté sur cette machine');
     if (!agent.compatible) throw new Error(agent.reason ?? 'Adaptateur ACP absent');

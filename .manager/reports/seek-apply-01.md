@@ -11,7 +11,8 @@
 - 18:02 Sydney : commit 416524d — [seek-apply-01] Attendre le chargement avant snapshot et extraction. Sonde : node .manager/reports/seek-apply-01-evidence/real-probe.mjs (sortie 0), transport playwriter-owner ; nouveau snapshot en 5598 ms, loading=false, aucun alert Loading. Page finale https://au.seek.com/job/95484078/apply ; Choose documents, Resumé, Cover letter, Continue et 37 contrôles détectés. Aucune interaction, aucun envoi. Onglet et connexion de la sonde fermés ; aucun serveur redémarré.
 
 ## Commandes et état final
-- Baseline : npm test > evidence/baseline.txt ; code 0. Tests ciblés : node --test --test-name-pattern="chargement différé FICTIF" tests/owner-browser.test.js (rouge, deux assertions formulaire absentes), puis --test-name-pattern="chargement.*FICTIF" (vert, 8/8).
+
+- Baseline : npm test > evidence/baseline.txt ; code 0. Tests ciblés : node --test --test-name-pattern="chargement différé FICTIF" tests/owner-browser.test.js (rouge, deux assertions formulaire absentes), puis --test-name-pattern="chargement.\*FICTIF" (vert, 8/8).
 - Correction et tests formatés avec prettier --write ; suite/check/format avant commit tous codes 0. Logs complets dans seek-apply-01-evidence/{baseline,red,green,suite,check,format}.txt.
 - État : opérationnel, vérifié sur Chrome isolé et Seek réel. La sonde utilise directement le module commité ; le serveur déjà démarré n’a pas été rechargé.
 - Preuve réelle : seek-apply-01-evidence/real-snapshot.txt, sortie filtrée (libellés génériques seulement). Dépense 0 $, aucun appel Gemini ; aucun e-mail, submit, push ou lecture de secrets.env.
@@ -21,6 +22,7 @@
 - 18:45 Sydney : reprise après interruption avec contexte incomplet : suite relancée inutilement avant constat du commit 416524d et des preuves existantes. Sortie isolée dans recheck.txt ; baseline originale préservée. Aucun changement de code.
 
 ## Étape B (manager Claude, Codex à court de quota) — 26/10 soir
+
 - B0 : `recheck.txt` supprimé (361/0/1 relu) ; rapport A + preuve réelle commités (`1b8753d`).
 - B1 `4ae9e7a` : régression de 416524d corrigée — `extract` retrouve un budget total de 10 s (≥ 2 s après l'attente de chargement) pour un élément tardif SANS indicateur ; `ariaSnapshot` 5 s. Test « élément tardif » rouge (TimeoutError à 1,5 s, `b1-red.txt`) → vert. Suite 364/0/1.
 - B2 : test Chrome isolé « formulaire multi-étapes FICTIF » (gateway + CdpBrowser, pas de faux ACP : on vise le filtre directement) : chargement différé, upload, radio, saisie avec autosave, 2 × Continue, Submit avec faux jeton/CSRF, statistiques POST vers une autre origine toutes les 300 ms.
@@ -31,12 +33,14 @@
 - Le serveur 4310 tourne encore avec l'ancien code : à redémarrer avant toute mission réelle.
 
 ## Étape C (manager Claude) — 26/10 soir
+
 - Point 4, modèle par mission : AUCUN défaut. Le modèle choisi passe par `run.model` → `GEMINI_MODEL` + `selectModel` (session ACP), et la reprise (réponse à l'agent) réutilise `old.model`. Ajout d'un test de bout en bout (API → faux ACP qui annonce deux modèles) : env et session reçoivent `gemini-FICTIF-capable`. Le faux agent `tests/fixtures/career-agent.js` annonce maintenant un sélecteur de modèle.
 - Point 3, persévérance : `CAREER_INSTRUCTIONS` réécrit pour candidater — boucle snapshot → remplir → Continue → re-snapshot après chaque clic, capture jamais finale (loading:true → jusqu'à 3 nouvelles captures), clic final soumis à l'accord, arrêt seulement sur blocage nommé (étape, champ, cause), questions employeur sans réponse posées, jamais inventées. Test de présence des règles.
 - Suite 368/0/1, check et format verts. Défaut de modèle inchangé (`GEMINI_MODEL` du script).
 - Reste : mission réelle Seek (serveur 4310 à redémarrer, corrections du CV à valider par l'utilisateur), point 5 (relecture `ownerSendGuard` hors ce qui a été revu en B2).
 
 ## Mission réelle 212d4ade (gemini-3.8-flash, promo jusqu'au 31/12/2026) — 26/10 soir
+
 - Serveur 4310 redémarré avec le code de l'étape C. Session neuve. Page Seek chargée, utilisateur reconnu, documents trouvés.
 - Blocage réel, étape 1 « Choose documents » : le compte Seek a atteint la limite de 10 CV ; Seek exige une suppression avant tout téléversement.
 - L'agent a voulu cliquer « Delete » sur le plus ancien CV du compte : demande d'accord REFUSÉE par le manager (suppression irréversible hors demande). Aucun envoi, aucune suppression.
@@ -70,3 +74,11 @@
 ### Verdict de la contre-vérification
 
 - **VALIDÉ pour le bug précis « un snapshot pris pendant Loading est présenté comme formulaire prêt »** : le navigateur indique `loading:true` lorsqu'il voit encore l'alerte, puis une nouvelle lecture peut obtenir `loading:false` et le formulaire réel. Rouge→vert historique et suite Chrome actuelle attestés. **INCOMPLET pour le parcours de candidature de bout en bout** : ni formulaire rempli, ni agent réel sur Seek, ni envoi ; l'agent devra gérer le chargement variable et les décisions de l'utilisateur. Blocage connu du compte (limite de CV) rapporté historiquement, non revérifié aujourd'hui.
+
+## Reprise CTO — 31/10/2026
+
+- 00:17 Sydney — API relancée sur `127.0.0.1:4310` après contrôle de `/api/runs` (aucune mission active). Plan Career Ops/Codex/Playwriter en lecture seule sur Seek refusé avant ACP : HTTP 400, « Configuration Gemini de confinement modifiée ». Contrôle limité aux trois indicateurs de sécurité du fichier privé : `tools.core` présent, hooks et extensions désactivés ; aucune valeur personnelle, CV ou authentification lue ni copiée. Chrome via l'automatisation d'interface indique que le Mac est encore verrouillé, malgré la réponse de l'utilisateur ; demande de déverrouillage renouvelée.
+- 00:18 Sydney — Cause : `assertCareerReview` vérifiait le fichier de configuration de confinement Gemini pour tout agent, avant même de choisir Codex. Codex ne reçoit pas `GEMINI_CLI_SYSTEM_SETTINGS_PATH` ; ce refus est donc hors portée. Ajout d'une régression dans `tests/career-integration.test.js` : Codex passe, Gemini reste bloqué avec `tools.core` modifié. Rouge : 0/1, erreur attendue « Configuration Gemini de confinement modifiée » (`codex-config-red.txt`). Correction dans `packages/career-ops/integration.js` et `packages/orchestrator/index.js` : revue du Skill toujours obligatoire pour tous ; contrôle du fichier Gemini seulement si l'agent sélectionné est Gemini. Vert ciblé : 1/1 (`codex-config-green.txt`). Suite complète, check, format et preuve réelle restent à faire avant commit.
+- Décision : ne pas modifier le fichier privé ni assouplir le contrôle Gemini. Coût de cette étape : 0 $ ; aucun appel modèle.
+- 05:54 Sydney — Reprise autonome demandée par le propriétaire jusqu'à 10 h, plafond supplémentaire de 5 $ et corrections isolées. Branche créée `codex/browser-audit-31-10` à partir de `nuit-29-10` sans modifier l'historique. Premier `npm test` après correction : phase principale 363/364 (1 ignoré), Chrome 129/130 (1 échec). Échec exact : `tests/browser-gateway.test.js:1608`, délai de démarrage navigateur dépassé à 30 s dans la redirection `navigate`; fichier `codex-config-suite.txt`. Reprise isolée du même cas : 1/1 en 2,08 s (`codex-config-chrome-retry.txt`). L'API locale démarrée pour le diagnostic a été arrêtée avant la relance afin d'alléger la machine ; aucune mission n'était active. La suite complète est relancée dans `codex-config-suite-retry.txt`, résultat en attente. Aucun appel modèle ou frais engagés par cette reprise.
+- 06:01 Sydney — Deuxième `npm test` terminé code 0 : phase principale 363/364 (1 ignoré), Chrome 130/130, zéro échec (`codex-config-suite-retry.txt`). `npm run check`, `npm run format:check`, `git diff --check` codes 0 ; test Career Ops ciblé 38/38. API redémarrée sur le nouveau code après les tests ; plan Career Ops/Codex/Playwriter désormais accepté. Le plan révèle une autre imprécision : il affiche les quatre étapes statiques du manifeste (CV, recherche, évaluation, envoi) pour un prompt limité au titre d'une offre. Cette annonce n'est pas une preuve d'action ; audit à poursuivre sans prétendre que ces étapes ont été exécutées. Coût modèle : 0 $.

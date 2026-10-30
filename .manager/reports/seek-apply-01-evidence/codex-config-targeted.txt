@@ -1,0 +1,48 @@
+(node:30515) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé (5.218166ms)
+✔ Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécutée (6.840667ms)
+✔ Bilan FICTIF : appels réels mixtes comptés sans contradiction ni doublon ACP (3.586542ms)
+✔ Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon (0.23125ms)
+✔ Modèle career-ops : conserve le défaut annoncé, refuse un identifiant absent (0.640125ms)
+✔ Reprise privée : un nouveau CV joint est transmis avec les pièces existantes, les IDs invalides sont refusés (3789.781542ms)
+✔ Plan career-ops : rapport A–G et accord explicite avant tout envoi (0.589875ms)
+✔ Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés (15.910541ms)
+✔ Script tiers FICTIF : revue et accord explicite avant exécution en mode propriétaire (60.551667ms)
+✔ Offres : note 1–5, A–H complet, provenance et données fictives obligatoires (25.275583ms)
+✔ Registre : quarantaine, revue liée au hash natif, mutation du Skill ou configuration bloque (17.158334ms)
+✔ Scripts : liste fermée, code modifié, arguments et secrets implicites refusés (54.493333ms)
+✔ Contrôles CV FICTIFS : manque et fait inventé détectés, chemins et délais imposés (170.126084ms)
+✔ Contrôles CV FICTIFS : réseau et écriture hors espace bloqués (133.304791ms)
+✔ Auto : trouve des offres, évalue cette offre et postule routés vers le pack privé (1.827208ms)
+✔ Auto : un Skill explicitement choisi détermine son pack avant les mots-clés (0.238208ms)
+✔ Auto : demandes d’emploi et de profil courantes routées vers career-ops (2.512583ms)
+✔ Auto propriétaire : profil et fichiers career-ops utilisent le pack privé avant le navigateur (11623.509209ms)
+✔ Agent explicite compatible ACP : career-ops conserve Codex sans imposer de clé Gemini (2418.806916ms)
+✔ Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini (4673.307916ms)
+✔ API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refusé, rien de privé dans SQLite (3439.957125ms)
+✔ Espace privé actif : deuxième mission et modification du CV/profil refusées (2216.989416ms)
+✔ Lecture privée paginée et script annulé : sortie bornée, processus arrêté (8.146917ms)
+✔ Propriétaire local : les étapes de l’agent career-ops sont diffusées en direct (6290.382041ms)
+✔ Réponse en texte libre (questions intake) : mission réussie, texte en résultat privé (5312.685833ms)
+✔ Fixture career : questions puis réponse dans la même session ACP (6366.737333ms)
+✔ Reprise FICTIVE rapide sans navigateur : résultat privé signale l’absence d’action (6021.910625ms)
+✔ Modèle choisi dans l’interface : appliqué via la session ACP sans variable Gemini pour un autre agent (5559.849709ms)
+✔ Instructions career-ops : méthode du Skill et résultat véridique (1.216875ms)
+✔ Instructions career-ops : le prompt détermine la soumission avant le Skill (0.339167ms)
+✔ Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill (3099.463167ms)
+✔ Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prompt (3487.300208ms)
+✔ Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé (8889.388791ms)
+✔ Preuve navigateur FICTIVE : capacité du tour en mémoire, contenu privé absent des événements (8.083458ms)
+✔ Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés (14.106042ms)
+✔ Instructions career-ops : méthode du Skill sans ordre métier codé dans la plateforme (0.180625ms)
+✔ Instructions career-ops : aucune source ou action inventée (0.075125ms)
+✔ Instructions career-ops : contenu privé conservé et questions en cas de manque (0.078625ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74779.650708

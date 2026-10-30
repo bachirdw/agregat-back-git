@@ -1,0 +1,25 @@
+(node:29977) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini (31.759167ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 634.763875
+
+✖ failing tests:
+
+test at tests/career-integration.test.js:474:1
+✖ Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini (31.759167ms)
+  Error: Configuration Gemini de confinement modifiée
+      at assertCareerReview (file:///Users/diaw/Downloads/agregat-back/packages/career-ops/integration.js:66:11)
+      at Orchestrator.plan (file:///Users/diaw/Downloads/agregat-back/packages/orchestrator/index.js:290:7)
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/career-integration.test.js:481:33)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)

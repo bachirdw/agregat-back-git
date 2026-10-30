@@ -471,6 +471,28 @@ test('Agent explicite compatible ACP : career-ops conserve Codex sans imposer de
     else process.env.GEMINI_API_KEY = old;
   }
 });
+test('Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini', async (t) => {
+  const { root, career, app } = fixture(t, true);
+  reviewCareer(career, app.skills);
+  writeFileSync(
+    join(root, 'relay/gemini-settings.json'),
+    JSON.stringify({
+      tools: { core: [] },
+      hooksConfig: { enabled: false },
+      admin: { extensions: { enabled: false } },
+    }),
+  );
+  const plan = await app.engine.plan({
+    prompt: 'Lis un titre FICTIF',
+    agent: 'codex',
+    pack: 'career-ops',
+  });
+  assert.equal(plan.agent.id, 'codex');
+  await assert.rejects(
+    app.engine.plan({ prompt: 'Lis un titre FICTIF', agent: 'gemini', pack: 'career-ops' }),
+    /Configuration Gemini de confinement modifiée/,
+  );
+});
 test('API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refusé, rien de privé dans SQLite', async (t) => {
   const { root, career, app } = fixture(t);
   mkdirSync(join(root, 'jds'));

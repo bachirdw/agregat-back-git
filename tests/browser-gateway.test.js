@@ -187,6 +187,7 @@ function fixtureGateway(extra = {}) {
   const gw = new BrowserGateway({
     provider: new FixturePageProvider(pages),
     policy: new RunPolicy({
+      ownerMode: extra.ownerMode ?? false,
       allowedDomains: ['example.com'],
       capabilities: ALL,
       workspace: ws,
@@ -198,6 +199,29 @@ function fixtureGateway(extra = {}) {
   });
   return { gw, approvals, meters, ws };
 }
+
+test('propriétaire : lecture et clic ordinaire automatiques, données sensibles soumises à décision', async () => {
+  const { gw, approvals, ws } = fixtureGateway({ ownerMode: true });
+  await gw.call('browser.navigate', { url: 'https://jobs.example.com/' });
+  await clickRef(gw, '#filter');
+  assert.equal(approvals.length, 0);
+  await assert.rejects(
+    gw.call('browser.type', { ref: await refFor(gw, '#pw'), text: 'FICTIF secret' }),
+    /refusée par l’utilisateur/,
+  );
+  writeFileSync(join(ws, 'cv.txt'), 'FICTIF CV');
+  await assert.rejects(
+    gw.call('browser.upload', { ref: await refFor(gw, '#file'), path: 'cv.txt' }),
+    /refusée par l’utilisateur/,
+  );
+  assert.deepEqual(
+    approvals.map((request) => request.capability),
+    ['browser.type', 'browser.upload'],
+  );
+  assert.ok(approvals.every((request) => request.sensitive));
+  assert.ok(!JSON.stringify(approvals).includes('FICTIF secret'));
+  assert.equal(gw.provider.actions.filter((action) => action.id === 'browser.upload').length, 0);
+});
 
 test('gateway : lecture sans approbation, contenu marqué non fiable, mesure', async () => {
   const { gw, approvals, meters } = fixtureGateway();

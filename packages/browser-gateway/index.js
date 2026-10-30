@@ -104,6 +104,7 @@ export class BrowserGateway {
       args.path = real;
     }
     const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
+    if (step && this.policy.ownerMode) sensitive = false;
     const sending =
       ['browser.click', 'browser.download'].includes(capabilityId) &&
       !!element &&
@@ -111,7 +112,7 @@ export class BrowserGateway {
       (element.inForm ||
         this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     const preview = sending ? await this.provider.submissionPreview?.(target) : null;
-    if (sending || (cap.effect !== 'read' && !this.policy.ownerMode)) {
+    if (sending || sensitive || (cap.effect !== 'read' && !this.policy.ownerMode)) {
       const needsHuman = sending || sensitive || !this.autoApprove.has(capabilityId);
       if (needsHuman) {
         const approved = await this.approve({

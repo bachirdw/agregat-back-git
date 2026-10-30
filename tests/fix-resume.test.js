@@ -119,6 +119,12 @@ test('capture lisible du tour : preuve même sans navigate séparé', async (t) 
   });
   assert.equal(done.state, 'completed', done.error);
   assert.equal(done.result.evidence.length, 1);
+  assert.equal(done.result.simulated, true);
+  assert.equal(done.result.provenance.data, 'navigateur simulé');
+  assert.equal(
+    done.testEvents.find((event) => event.type === 'verification')?.data.scope,
+    'Structure seulement ; faits non vérifiés',
+  );
 });
 
 test('capture about:blank du tour : refus précis sans résultat inventé', async (t) => {

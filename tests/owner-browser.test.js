@@ -561,7 +561,7 @@ test(
       workspace = temporary();
     const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
     t.after(() => provider.close());
-    let approvals = 0;
+    const approvals = [];
     const policy = new RunPolicy({
       ownerMode: true,
       runId: 'FICTIF',
@@ -573,9 +573,11 @@ test(
       provider,
       policy,
       approve: async (request) => {
-        approvals++;
-        assert.equal(request.actionClass, 'send');
-        assert.equal(request.preview.fields[0].type, 'submit');
+        approvals.push(request);
+        if (request.capability === 'browser.send') {
+          assert.equal(request.actionClass, 'send');
+          assert.equal(request.preview.fields[0].type, 'submit');
+        }
         return true;
       },
     });
@@ -620,7 +622,11 @@ test(
     );
     await clickRef(gateway, '#send');
     assert.equal(fixture.posts(), 1);
-    assert.equal(approvals, 1);
+    assert.deepEqual(
+      approvals.map((request) => request.capability),
+      ['browser.upload', 'browser.click'],
+    );
+    assert.equal(approvals[1].actionClass, 'send');
   },
 );
 
@@ -1098,7 +1104,7 @@ test(
       }),
       approve: async (request) => {
         approvals.push(request);
-        return answer;
+        return request.actionClass !== 'send' || answer;
       },
     });
     const fill = async () => {
@@ -1119,10 +1125,14 @@ test(
       assert.match((await gateway.call('browser.snapshot', {})).snapshot, /Review and submit/);
       // Stats keep posting in the background; none of it may reach the approval queue.
       await new Promise((r) => setTimeout(r, 1000));
-      assert.equal(approvals.length, 0, JSON.stringify(approvals.map((a) => a.capability)));
+      assert.deepEqual(
+        approvals.map((request) => request.capability),
+        ['browser.upload'],
+      );
     };
 
     await fill();
+    approvals.length = 0;
     await clickRef(gateway, '#submit');
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(approvals.length, 1);
@@ -1132,6 +1142,7 @@ test(
     approvals.length = 0;
     answer = true;
     await fill();
+    approvals.length = 0;
     await clickRef(gateway, '#submit');
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(fixture.counts.apply, 1);

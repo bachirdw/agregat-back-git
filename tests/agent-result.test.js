@@ -101,3 +101,16 @@ test('résultat agent : après une reprise de session, le dernier bloc JSON est 
   assert.equal(result.ok, true);
   assert.equal(result.value.summary, 'NOUVEAU tour FICTIF');
 });
+
+test('résultat agent : deux objets JSON successifs gardent le dernier résultat vérifié', () => {
+  const progress = { simulated: false, summary: 'Je vérifie.', evidence: [] };
+  const final = {
+    simulated: false,
+    summary: 'Titre observé : Example Domain',
+    evidence: [{ url: 'https://example.com/', title: 'Example Domain' }],
+  };
+  const parsed = parseAgentResult(JSON.stringify(progress) + JSON.stringify(final));
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.value, final);
+  assert.match(parseAgentResult(JSON.stringify(progress) + '{"summary":').reason, /JSON invalide/);
+});

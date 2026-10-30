@@ -36,7 +36,8 @@ import {
   formatSkillOrder,
   formatSkillBilan,
 } from './skill-router.js';
-import { capabilityIds } from '../capability-registry/index.js';
+import { capabilityIds, getCapability } from '../capability-registry/index.js';
+import { redact } from '../agent-runtime/env.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
@@ -67,8 +68,11 @@ export const inputSchema = z
   })
   .strict();
 export { parseAgentResult } from './result.js';
-export function verificationScope(packId, simulated) {
-  if (packId === 'core') return 'Structure seulement ; faits non vérifiés';
+export function verificationScope(packId, simulated, observedBrowser = false) {
+  if (packId === 'core')
+    return observedBrowser
+      ? 'Page naviguée et observée ; autres affirmations non vérifiées'
+      : 'Structure seulement ; faits non vérifiés';
   if (packId === 'najah') return 'Classement et provenance comparés aux fixtures';
   if (simulated) return 'Résultat fictif ; structure vérifiée seulement';
   return 'Structure vérifiée ; offres et évaluations non vérifiées';
@@ -432,7 +436,7 @@ export class Orchestrator {
       permissions: (() => {
         if (this.ownerMode)
           return [
-            'Mode propriétaire local : navigation et actions courantes du navigateur automatiques ; permissions ACP et envois soumis à votre décision',
+            'Mode propriétaire local : navigation et actions courantes automatiques ; permissions ACP hors navigateur, saisies sensibles, téléversements et envois soumis à votre décision',
             `Navigateur choisi : ${v.browser}${v.browserDomains.length ? ` ; domaines demandés : ${v.browserDomains.join(', ')}` : ' ; tous domaines publics'}`,
           ];
         // Derived from what the run can actually do, never a generic label.
@@ -603,6 +607,7 @@ export class Orchestrator {
     let browserToolObserved = false;
     const toolTimers = new Map();
     const toolTitles = new Map();
+    const recentToolCalls = new Map();
     let promptStarted = false;
     const turnTruth = createTurnTruth();
     control.turnTruth = turnTruth;
@@ -732,6 +737,11 @@ export class Orchestrator {
           // session/load replays old updates before the new prompt. They are not work,
           // usage, permissions or evidence from this run.
           if (!promptStarted) return;
+          if (update.sessionUpdate === 'tool_call' && update.toolCallId) {
+            recentToolCalls.set(update.toolCallId, update);
+            if (recentToolCalls.size > 128)
+              recentToolCalls.delete(recentToolCalls.keys().next().value);
+          }
           armSilence();
           watchTool(update);
           if (promptStarted) turnTruth.observe(update);
@@ -760,7 +770,14 @@ export class Orchestrator {
             this.store.event(run.id, 'agent', update);
           if (update.sessionUpdate === 'tool_call') this.meter(run.id, 'tool_observed', 1);
         },
-        onPermission: (p) => this.permission(run.id, p, plan.simulated, control.abort.signal),
+        onPermission: (p) =>
+          this.permission(
+            run.id,
+            p,
+            plan.simulated,
+            control.abort.signal,
+            recentToolCalls.get(p.toolCall?.toolCallId),
+          ),
       });
       control.runtime = runtime;
       const info = await runtime.start();
@@ -863,7 +880,10 @@ export class Orchestrator {
           value.provenance.data = 'réponse sans nouvelle navigation';
         } else {
           value.evidence = observed;
-          value.provenance.data = 'navigateur réel';
+          value.provenance.data =
+            plan.simulated || plan.dataMode === 'fixture' || run.browser === 'fixture'
+              ? 'navigateur simulé'
+              : 'navigateur réel';
         }
       }
       await verifyPack(plan.pack.id, value, run.prompt);
@@ -937,8 +957,11 @@ export class Orchestrator {
       this.store.event(run.id, 'verification', {
         valid: true,
         scope:
-          verificationScope(plan.pack.id, plan.simulated) +
-          (turnTruth.failedActions().length ? ' ; actions échouées' : ''),
+          verificationScope(
+            plan.pack.id,
+            plan.simulated,
+            value.provenance.data === 'navigateur réel',
+          ) + (turnTruth.failedActions().length ? ' ; actions échouées' : ''),
       });
       recordDiagnostic();
       this.store.update(run.id, {
@@ -996,8 +1019,31 @@ export class Orchestrator {
       this.approvalTokens.delete(run.id);
     }
   }
-  permission(runId, p, simulated, signal) {
+  permission(runId, p, simulated, signal, observedTool) {
     if (simulated || signal.aborted) return { outcome: { outcome: 'cancelled' } };
+    const run = this.store.get(runId);
+    const rawInput = observedTool?.rawInput;
+    const capabilityId =
+      typeof rawInput?.tool === 'string' ? rawInput.tool.replace('_', '.') : null;
+    const allowed = p.options?.find((option) => option.kind === 'allow_once');
+    if (
+      this.ownerMode &&
+      ['isolated', 'playwriter'].includes(run?.browser) &&
+      observedTool?.sessionUpdate === 'tool_call' &&
+      observedTool?.toolCallId === p.toolCall?.toolCallId &&
+      observedTool?._meta?.is_mcp_tool_call === true &&
+      rawInput?.server === 'platform' &&
+      capabilityId?.startsWith('browser.') &&
+      capabilityIds.includes(capabilityId) &&
+      getCapability(capabilityId).schema.safeParse(rawInput.arguments).success &&
+      allowed
+    ) {
+      this.store.event(runId, 'permission_auto', {
+        toolCallId: p.toolCall.toolCallId,
+        capability: capabilityId,
+      });
+      return { outcome: { outcome: 'selected', optionId: allowed.optionId } };
+    }
     const id = randomUUID();
     this.store.update(runId, { state: 'waiting_permission' });
     return new Promise((resolve) => {
@@ -1024,11 +1070,19 @@ export class Orchestrator {
       const options = p.options.filter((o) =>
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
       );
+      const tool = {
+        ...(p.toolCall ?? {}),
+        ...(observedTool?.sessionUpdate === 'tool_call' &&
+        observedTool.toolCallId === p.toolCall?.toolCallId &&
+        typeof observedTool.title === 'string'
+          ? { title: redact(observedTool.title).slice(0, 200) }
+          : {}),
+      };
       this.permissions.set(id, {
         id,
         runId,
         options,
-        tool: p.toolCall ?? null,
+        tool,
         actionClass: p.actionClass ?? null,
         expiresAt: Date.now() + 60000,
         finish,
@@ -1039,7 +1093,7 @@ export class Orchestrator {
         'permission',
         {
           id,
-          tool: p.toolCall,
+          tool,
           options,
           expiresAt: Date.now() + 60000,
         },

@@ -69,7 +69,7 @@ test('propriétaire : refus synchrone de toute écoute sauf 127.0.0.1, bandeau e
   }
 });
 
-test('propriétaire : envoi approuvé et saisie automatique ; garde des arguments et injections conservée', async () => {
+test('propriétaire : envoi et saisie sensible approuvés ; garde des arguments et injections conservée', async () => {
   const url = 'https://example.com/';
   const provider = new FixturePageProvider({
     [url]: {
@@ -81,8 +81,8 @@ test('propriétaire : envoi approuvé et saisie automatique ; garde des argument
       },
     },
   });
-  let approvals = 0,
-    metered = 0;
+  const approvals = [];
+  let metered = 0;
   const gateway = new BrowserGateway({
     provider,
     policy: new RunPolicy({
@@ -91,8 +91,8 @@ test('propriétaire : envoi approuvé et saisie automatique ; garde des argument
       resolveHost: async () => ['1.1.1.1'],
     }),
     approve: async (request) => {
-      approvals++;
-      assert.equal(request.actionClass, 'send');
+      approvals.push(request);
+      assert.ok(['browser.click', 'browser.type'].includes(request.capability));
       return true;
     },
     meter: () => metered++,
@@ -103,7 +103,10 @@ test('propriétaire : envoi approuvé et saisie automatique ; garde des argument
   const result = await gateway.call('browser.extract');
   assert.equal(result.untrusted, true);
   assert.match(result.text, /FICTIF/);
-  assert.equal(approvals, 1);
+  assert.deepEqual(
+    approvals.map((request) => request.capability),
+    ['browser.click', 'browser.type'],
+  );
   assert.equal(metered, 4);
   await assert.rejects(clickRef(gateway, ''));
   await assert.rejects(
@@ -176,6 +179,93 @@ test('propriétaire : prix configurés neutralisés, budget zéro, ledger toujou
       outcome: { outcome: 'cancelled' },
     });
     assert.equal(app.engine.permissions.size, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('permission ACP MCP navigateur autorisée par le plan : décision automatique sans demande générique', async () => {
+  const app = createApp({ dataDir: temporary(), ownerMode: true });
+  const id = crypto.randomUUID();
+  const signal = new AbortController();
+  try {
+    app.store.create({ id, state: 'running', browser: 'playwriter', budgetCents: 0 });
+    const pending = app.engine.permission(
+      id,
+      {
+        toolCall: { toolCallId: 'FICTIF-browser', kind: 'execute', status: 'pending' },
+        options: [
+          { optionId: 'cancel', name: 'Cancel', kind: 'reject_once' },
+          { optionId: 'allow_once', name: 'Allow', kind: 'allow_once' },
+        ],
+      },
+      false,
+      signal.signal,
+      {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'FICTIF-browser',
+        title: 'mcp.platform.browser_snapshot',
+        kind: 'execute',
+        status: 'in_progress',
+        rawInput: { server: 'platform', tool: 'browser_snapshot', arguments: {} },
+        _meta: { is_mcp_tool_call: true },
+      },
+    );
+    const actual = await Promise.race([
+      pending,
+      new Promise((resolve) => setTimeout(() => resolve('timeout'), 100)),
+    ]);
+    assert.deepEqual(actual, { outcome: { outcome: 'selected', optionId: 'allow_once' } });
+    assert.equal(app.engine.permissions.size, 0);
+  } finally {
+    signal.abort();
+    await app.close();
+  }
+});
+
+test('permission ACP : appel non prouvé, mauvais navigateur ou arguments invalides exigent une décision', async () => {
+  const app = createApp({ dataDir: temporary(), ownerMode: true });
+  try {
+    for (const [label, browser, change] of [
+      ['autre serveur', 'playwriter', { rawInput: { server: 'untrusted' } }],
+      ['appel différent', 'playwriter', { toolCallId: 'FICTIF-other' }],
+      ['arguments invalides', 'playwriter', { rawInput: { arguments: { unexpected: true } } }],
+      ['navigateur fictif', 'fixture', {}],
+    ]) {
+      const id = crypto.randomUUID();
+      const signal = new AbortController();
+      app.store.create({ id, state: 'running', browser, budgetCents: 0 });
+      const observed = {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'FICTIF-browser',
+        title: 'mcp.platform.browser_snapshot',
+        rawInput: { server: 'platform', tool: 'browser_snapshot', arguments: {} },
+        _meta: { is_mcp_tool_call: true },
+        ...change,
+      };
+      if (change.rawInput) observed.rawInput = { ...observed.rawInput, ...change.rawInput };
+      const pending = app.engine.permission(
+        id,
+        {
+          toolCall: { toolCallId: 'FICTIF-browser', kind: 'execute', status: 'pending' },
+          options: [{ optionId: 'allow_once', name: 'Allow', kind: 'allow_once' }],
+        },
+        false,
+        signal.signal,
+        observed,
+      );
+      try {
+        assert.equal(app.engine.permissions.size, 1, label);
+        const permission = [...app.engine.permissions.values()][0];
+        assert.equal(
+          permission.tool.title,
+          label === 'appel différent' ? undefined : 'mcp.platform.browser_snapshot',
+        );
+      } finally {
+        signal.abort();
+        assert.deepEqual(await pending, { outcome: { outcome: 'cancelled' } });
+      }
+    }
   } finally {
     await app.close();
   }

@@ -53,6 +53,7 @@ Son dernier fil s'arrête sur la limite d'usage (reprise annoncée à 15:57), sa
 
 ### Changement non commité constaté à 12:27, pas du manager
 `AGENTS.md` modifié (12:27) : chemin `agent-repos-agregat/` et « aucun plafond bloquant pendant la phase de tests ». Auteur et décision non vérifiés ; demander à l'utilisateur avant de s'y fier ou de le commiter.
+Le dossier des dépôts inspirants a été renommé `~/Downloads/agent-repos-agregat` (brief `fix-inspire-01` corrigé).
 
 ### Git et services à 11:50
 - Back : `codex/browser-audit-31-10` ; `main` = origin/main = `60a216b`. Front : même branche, `8b98ec6` ; `main` = `e7fa33e`. `nuit-29-10` est ancêtre de la branche dans les deux dépôts. Rien de poussé.

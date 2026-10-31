@@ -1,8 +1,8 @@
 # fix-perms-01 — mode propriétaire : plus de clic pour ce qui n'est pas un envoi, et vraie nature de chaque demande
 
 > **BRANCHE** : `codex/browser-audit-31-10` (back et front). Vérifie-la d'abord ; si `git status` montre un travail de code non commité, ou si une
-> autre session Codex écrit dans ces dépôts, arrête-toi et écris-le dans le rapport sans rien modifier (les rapports `api-usage.md`, `seek-apply-01.md`
-> et les captures `front-01-screens/` non commités ne sont pas à toi : n'y touche pas, ne les commite pas).
+> autre session Codex écrit dans ces dépôts, arrête-toi et écris-le dans le rapport sans rien modifier (`AGENTS.md`, les rapports `api-usage.md`, `seek-apply-01.md`
+> et les captures `front-01-screens/` non commités ne sont pas à toi et ne t'arrêtent pas : n'y touche pas, ne les commite pas).
 > Ne merge pas, ne touche pas à `main`, ne pousse rien. Ne modifie ni la bibliothèque career-ops, ni son Skill, ni les CV. Moins de fichiers possible.
 > Aucun appel Gemini, aucune mission réelle, aucun site réel ; serveurs de test ≥ 4320 (pas 4310, 5173, 19988). Prends ton temps.
 

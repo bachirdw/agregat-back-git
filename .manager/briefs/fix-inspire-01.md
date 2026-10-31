@@ -6,7 +6,7 @@
 > Aucun appel Gemini réel, aucune mission réelle, aucun site réel ; serveurs de test ≥ 4320 uniquement (pas 4310, 5173, 19988).
 
 Lis `.manager/briefs/_audit-common.md`, `docs/open-source-research.md` et `.manager/reports/fix-router-03.md`.
-Les dépôts inspirants sont déjà clonés en lecture : `/Users/diaw/Downloads/agent-repos/` (SHA épinglés dans la recherche).
+Les dépôts inspirants sont déjà clonés en lecture : `/Users/diaw/Downloads/agent-repos-agregat/` (SHA épinglés dans la recherche).
 Licence : « S'inspirer » = reprendre l'idée et la logique, **réécrire** avec notre style ; aucune copie de fichier ; pour `multicli`,
 `multiagents` (licence absente ou ambiguë) : lire seulement, jamais copier de code.
 

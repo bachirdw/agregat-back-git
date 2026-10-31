@@ -3,6 +3,51 @@
 Une seule passation, tenue à jour. À lire avec `CLAUDE.md`, `AGENTS.md`, `.manager/MISSION.md`, `.manager/PLAN.md`. Les rapports Codex restent dans `.manager/reports/`.
 Anciennes passations (26–29/10), supprimées le 31/10 à la demande de l'utilisateur : `git show b71f1da:.manager/HANDOFF.md`.
 
+## Complément de clôture Codex — 31/10, 16:03 Sydney (à lire en premier)
+
+Passation demandée explicitement par l'utilisateur dans ce fil. Ce complément décrit **mes essais de 05:54 à 11:15 et leur clôture**, pas une contre-validation des corrections faites depuis par Claude. Mes derniers messages disant Claude/Gemini bloqués et permissions répétitives décrivaient l'ancien serveur : les mises à jour du manager ci-dessous et les commits `4b5ea21`, `92e508c`, `ff155e7` les ont dépassés. Ne pas annuler ces corrections.
+
+### Décisions et périmètre à conserver
+
+- Plateforme universelle : agents CLI interchangeables par ACP, outils MCP et navigateur typés, Skills portables, Domain Packs ; Career Ops est le premier parcours métier. L'utilisateur refuse les règles métier codées en dur dans le moteur.
+- Faire les essais réels dans son Chrome visible, avec Playwriter et ses sessions autorisées. Une fixture doit rester explicitement fictive ; présence dans le PATH, session ACP ouverte, outil réussi et résultat vérifié sont quatre preuves distinctes.
+- Cible demandée : analyse du CV fourni, recherche d'offres adaptées, sélection et préparation d'une candidature complète. Questions manquantes à poser plutôt que compléter par supposition. Les informations personnelles et le fichier fourni restent dans l'espace privé et la conversation, jamais dans Git ou les rapports ; consulter la mission privée pour les critères exacts. Pas de compatibilité de visa ni de sponsoring déduits sans preuve.
+- Le dernier AGENTS.md fourni par le propriétaire remplace les versions précédentes : clones sous `~/Downloads/agent-repos-agregat/`, aucun plafond bloquant pendant les tests, appels utiles seulement et journal de coûts après chaque appel. L'ancien plafond additionnel de 5 $ explique les décisions du matin, il n'est plus la règle actuelle. Aucun nouveau Gemini lancé **par ce fil** ; d'autres sessions en ont lancé depuis.
+- Envoi final : décision/clic explicite de l'utilisateur selon la passation manager. Aucun envoi de candidature, e-mail, message ou paiement réalisé par ce fil. Aucune modification de bibliothèque/Skill Career Ops ; aucun push par ce fil. Branche jetable et corrections minimales demandées.
+- Ne pas appliquer la proposition d'architecture gelée ci-dessous sans validation et ordre explicite. Préférer `gpt-6-sol` lorsque réellement annoncé et sélectionnable ; modèle demandé/sélectionné n'est pas une confirmation du modèle servi.
+
+### Code livré dans ce fil et preuves associées
+
+| Dépôt / commit | Fichiers fonctionnels et comportement |
+|---|---|
+| back `ef2c0b7` | `packages/career-ops/integration.js`, `packages/orchestrator/index.js` : contrôle de confinement Gemini limité à l'agent Gemini ; il bloquait Codex avant ACP avec « Configuration Gemini de confinement modifiée ». Revue du Skill toujours requise. |
+| back `054eca7` | `packages/orchestrator/index.js`, `packages/orchestrator/browser-proof.js`, `apps/api/server.js` : étapes génériques au lieu de promettre CV/recherche/envoi pour une lecture ; preuves compactes privées sans texte de page ni paramètres d'URL ; navigation suivie de snapshot/extract lisible requise pour la portée « page observée ». Cas simulés exclus de cette portée. `packages/browser-gateway/cdp.js` : démarrage Chrome 30 → 45 s après expirations sous charge. Tests de régression associés. |
+| back `25345d7`, `d1a6ddd` | Rapports, consommation et preuves des essais réels/automatisés ; pas de nouveau comportement. |
+| front `f6ac7a5` | `src/Composer.tsx`, `src/components.test.tsx` : ancien bouton navigateur « bientôt » retiré alors que le sélecteur réel fonctionnait déjà. |
+| front `8b98ec6` | `src/App.tsx`, `src/App.test.tsx`, `tests/e2e.test.mjs` : boucle réduction/ouverture du composeur. La réduction agrandissait le fil flex ; Chrome bornait scrollTop au nouveau bas et cela rouvrait le composeur. Ignorer ce défilement de redimensionnement, rouvrir sur descente explicite/focus/retour en bas. Pas de nouvelle animation ni dépendance. |
+
+- **Tests à ces commits, pas sur les brouillons actuels** : backend 364 réussis/1 ignoré puis Chrome 130/130 ; `check`, `format:check` et diff verts. Test ignoré : Playwriter réel « incompatibilité sûre et onglets inchangés ». Deux suites avaient échoué sur démarrage Chrome à 30 s, puis groupe isolé et suite corrigée verts ; une suite interrompue volontairement code 130 est conservée comme telle.
+- Front final de mon correctif : unitaires 99/99, build réussi (avertissement de taille de chunks), E2E 11/11. Régression composeur rouge puis verte, Chrome utilisateur observé, Chrome isolé desktop et mobile avec animations actives. Premier E2E ciblé échoué : voile latéral mobile interceptant le geste dans le scénario ; barre masquée dans le test, reprise verte. Les E2E utilisent de **vrais navigateurs avec agents/données fictifs**, pas une inférence réelle.
+- Preuves : back `.manager/reports/seek-apply-01.md` et `seek-apply-01-evidence/` ; front `.manager/reports/fix-open-01.md` et `scroll-*.txt`. Les rapports listent les rouges, timeouts, retries et limites. Les captures historiques front sont laissées hors de mes commits.
+
+### Parcours réels de ce fil
+
+- Codex/Playwriter : `3f05a7a5` puis `d57649aa` (Seek, lecture seule), `f46aadf1` (IANA) terminés. Deuxième Seek avec preuves compactes réelles ; IANA navigate + extract, mais résumé sans URL demandée (URL présente dans les preuves). Historique et preuves IANA rouverts dans Chrome déverrouillé. Coût plateforme affiché 0, fournisseur BYOA inconnu.
+- Dernière sonde Seek du matin : `seek-apply-01-evidence/handoff-seek-readonly-2026-10-31.txt`, `playwriter-owner`, `loading:false`, aucun Loading visible, 33 contrôles après 5 035 ms. Prouve la lecture du formulaire, aucune candidature.
+- `3d86b8a3` : recherche préliminaire arrêtée avec Stop pour repartir du CV demandé par l'utilisateur. Annulation réelle confirmée dans l'UI et l'API (`cancelled`). Ne plus classer toute annulation réelle comme non testée : celle d'une mission attendant une permission a été observée ; pas celle d'un envoi en vol.
+- CV joint à `c6128625` via sélecteur **natif macOS** après refus `fileChooser.setFiles` par l'extension ChatGPT (accès aux URL de fichiers non autorisé). Aucun réglage de sécurité changé. Conversion locale et lecture réelle du PDF réussies ; documents et critères lus mais non recopiés dans ce dépôt.
+- `c6128625` : final API `failed`, `evidence:[]`, candidature et enregistrement des offres non exécutés. Scanner : « Code tiers modifié depuis la revue ; nouvelle revue nécessaire » ; fichiers optionnels absents, dont `_custom.md` (ENOENT) ; recherche publique de repli appelée sans offre vérifiée dans le résultat final. **Attention : ma conclusion précédente citait surtout le scanner, cause intermédiaire ; le manager a identifié ensuite la limite d'usage Codex comme cause terminale à 11:15.** Voir ses preuves et `ff155e7`, ne pas confondre les deux.
+- Les accords du matin étaient des demandes **distinctes** (IDs d'appel différents) pour chaque lecture, pas la même permission rejouée. L'UI n'indiquait pas clairement le chemin et cachait les cartes dans « Détails techniques ». Cette situation historique ne prouve pas un défaut persistant après `fix-perms-01`.
+
+### État de travail à la clôture et suite pour Claude
+
+- Back actuel observé : branche `codex/browser-audit-31-10`, HEAD `ff155e7`. Front HEAD `8b98ec6` sur la même branche. Des sessions ont continué à écrire depuis mes commits : relire Git avant d'agir.
+- Brouillons back étrangers à ce fil : `.claude/launch.json`, `.envforme` (ne pas lire ni ajouter : potentiellement secret), briefs `arch-01`, `review-arch-01`, `skill-01`, `docs/architecture-cible.md`, `docs/validation-architecture.md`. Front : `src/App.tsx`, `src/style.css`, `src/types.ts`, `src/ConnectionsPanel.tsx`, `src/ConnectionsPanel.test.tsx` et captures modifiés/non suivis ; je ne les ai ni relus ni validés ni inclus dans cette passation documentaire.
+- API à 16:03 : aucune mission active ; les trois dernières missions listées sont Gemini et `completed` (`2594cd0b`, `92c97b74`, `1893a673`), leurs résultats n'ont pas été audités par ce fil. Services écoutant sur 127.0.0.1 : 4310 PID 8402, front 5173 PID 15976, relais 19988 PID 2602. Aucun redémarrage pour rédiger cette passation. L'ancien PID API lancé par moi n'est plus celui qui écoute.
+- Automatisation `audit-navigateur-jusqu-10-h` mise en pause lors de la prise en main ; ne pas la relancer ni lancer une chaîne en double. Vérifier le runner manager annoncé ci-dessous avant toute exécution concurrente.
+- Priorité : lire les rapports `fix-perms-01` et les preuves récentes du manager, vérifier le diff courant du panneau Connexions, puis reprendre le parcours utilisateur à la dernière preuve réelle. Ne pas relancer aveuglément l'ancien prompt ou requalifier une recherche réussie en candidature complète. Examiner la différence d'empreinte du scanner avant toute nouvelle revue ; ne pas réécrire `source-review.json` pour effacer le blocage.
+- Restes issus de ce fil : vérifier le libellé « Skills non transmis » (API de mission contenait `skills:[career-ops]`), et le retour transitoire d'une nouvelle mission vers l'ancienne après annulation (course asynchrone observée, pas encore reproduite par un test). Aucune garantie « tous prompts/tous agents fonctionnent ». Pas de nouvelle suite ni de modèle lancé pour cette clôture documentaire.
+
 ## État du 31/10, 11:55 Sydney — manager Claude, faits revérifiés
 
 Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le manager.

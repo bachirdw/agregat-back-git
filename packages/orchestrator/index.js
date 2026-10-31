@@ -881,8 +881,6 @@ export class Orchestrator {
         throw e;
       }
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
-      const expiredPermission = this.expiredPermissionError(run.id);
-      if (expiredPermission) throw expiredPermission;
       if (!plan.simulated && response.stopReason === 'end_turn')
         saveProbe(this.dataDir, plan.agent.id, { inference: true, inferenceError: null });
       if (response.stopReason !== 'end_turn')
@@ -1006,6 +1004,10 @@ export class Orchestrator {
             .failedActions()
             .map(({ name, cause }) => `${name} — ${cause}`)
             .join(' ; ');
+      // An unanswered request stays blocked; it never discards the work the agent finished.
+      const expiredPermission = this.expiredPermissionError(run.id);
+      if (expiredPermission)
+        value.summary += `\n${expiredPermission.message} ; action non effectuée, personne ne l’a annulée.`;
       if (sessionReset)
         value.summary +=
           '\nSession : la session précédente était introuvable, nouvelle session sans son historique.';

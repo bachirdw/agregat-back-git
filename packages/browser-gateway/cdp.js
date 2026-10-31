@@ -569,18 +569,28 @@ export class CdpBrowser {
         const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
-        const approved =
-          granted ||
-          (await this.approve?.({
-            capability: 'browser.send',
-            sensitive: true,
-            actionClass: 'send',
-            args: {
-              url: previewUrl(request.url()),
-              method: request.method(),
-              body: previewBody(body),
-            },
-          }));
+        // A page can fire a burst of requests after one click: they share a single question, and a
+        // refused or expired answer blocks them all. An approval only ever frees the request it showed.
+        while (!granted && this.sendDecision)
+          if ((await this.sendDecision) !== true) return route.abort('blockedbyclient');
+        let approved = granted;
+        if (!granted) {
+          const decision = Promise.resolve(
+            this.approve?.({
+              capability: 'browser.send',
+              sensitive: true,
+              actionClass: 'send',
+              args: {
+                url: previewUrl(request.url()),
+                method: request.method(),
+                body: previewBody(body),
+              },
+            }),
+          ).catch(() => false);
+          this.sendDecision = decision;
+          approved = await decision;
+          if (this.sendDecision === decision) this.sendDecision = null;
+        }
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         return route.continue();
       };

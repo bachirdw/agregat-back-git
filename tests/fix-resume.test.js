@@ -17,6 +17,7 @@ async function runFixture(
     simulated = true,
     timeoutMs,
     onControl = () => {},
+    duringPrompt = null,
   } = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), 'fix-resume-FICTIF-'));
@@ -59,6 +60,14 @@ async function runFixture(
         clearInterval(evidenceTimer);
       }, 5)
     : null;
+  const promptTimer = duringPrompt
+    ? setInterval(() => {
+        if (!control.promptStarted) return;
+        duringPrompt(app, run);
+        clearInterval(promptTimer);
+      }, 5)
+    : null;
+  t.after(() => clearInterval(promptTimer));
   try {
     await app.engine.execute(run, plan, control, previous);
     onControl(control);
@@ -256,4 +265,18 @@ test('session introuvable et nouvelle session refusée : vraie cause affichée',
   });
   assert.equal(done.state, 'failed');
   assert.match(done.error, /Fake API key is missing/);
+});
+
+test('accord expiré pendant la mission : le travail est gardé, l’action reste non effectuée', async (t) => {
+  const done = await runFixture(t, {
+    browserWorkflow: false,
+    config: { result: answer, lateMs: 100 },
+    duringPrompt: (app, run) => app.engine.expiredPermissions.set(run.id, 'browser.send'),
+  });
+  assert.equal(done.state, 'completed');
+  assert.match(done.result.summary, /Voici cinq liens FICTIF/);
+  assert.match(
+    done.result.summary,
+    /Accord expiré sans réponse \(60 s\) : browser\.send ; action non effectuée, personne ne l’a annulée/,
+  );
 });

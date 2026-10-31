@@ -1185,6 +1185,47 @@ test(
 );
 
 test(
+  'propriétaire FICTIF : rafale de POST après un clic, une seule demande et aucun envoi',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const fixture = await site(t);
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const approvals = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-rafale',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [fixture.origin],
+      }),
+      approve: async (request) => {
+        approvals.push(request);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return false;
+      },
+    });
+    await gateway.call('browser.navigate', { url: fixture.origin });
+    provider.lastClickEnd = Date.now();
+    const statuses = await provider.page.evaluate(() =>
+      Promise.all(
+        [1, 2, 3, 4, 5].map((n) =>
+          fetch('/rafale-' + n, { method: 'POST', body: 'FICTIF' }).then(
+            () => 'parti',
+            () => 'bloqué',
+          ),
+        ),
+      ),
+    );
+    assert.deepEqual(statuses, ['bloqué', 'bloqué', 'bloqué', 'bloqué', 'bloqué']);
+    assert.equal(approvals.length, 1);
+    assert.equal(approvals[0].actionClass, 'send');
+    assert.equal(fixture.posts(), 0);
+  },
+);
+
+test(
   'propriétaire FICTIF : garde d’envoi réinstallée après reconnexion, refus sans POST',
   { skip: !existsSync(CHROME) },
   async (t) => {

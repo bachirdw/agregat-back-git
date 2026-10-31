@@ -54,3 +54,9 @@ Brouillons d'autres sessions non lus, non modifiés, non commités. `.manager/HA
 2. `career_script` : le blocage « Code tiers modifié » vient de la bibliothèque ou de sa revue. `relay/source-review.json` n'a pas été réécrit. Une nouvelle revue reste à faire.
 3. Mission Claude à 4,36 $ annoncés : vérifier si c'est réellement facturé.
 4. Candidature complète jusqu'au clic : toujours pas testée.
+
+## 19:40 à 19:47 — Revue career-ops et scan, sur ordre du propriétaire
+- Alerte « Code tiers modifié » : 412 fichiers de la revue inchangés, dépôt de la bibliothèque propre. Le commit Relay `a16cb96` (30/10) a ajouté `.sh` à l'empreinte ; `batch/batch-runner.sh` et `scripts/followup-sweep.sh`, déjà présents, faisaient donc échouer le contrôle.
+- Lus : `followup-sweep.sh` en entier (brouillons seulement, lance `claude -p`) ; `batch-runner.sh` partiellement (80 premières lignes et recherche de motifs sur 2260 lignes). Aucun motif d'envoi ou de secret repéré. Le scan ne les exécute pas.
+- `relay/source-review.json` mis à jour sur ordre, sans lancer `reviewCareer`, après contrôle strict (seuls ces 2 ajouts, sinon rien d'écrit). Copie : `relay/source-review.avant-31-10.json`.
+- Mission `e1f1481d`, Claude `haiku`, career-ops : `completed` en 19 s, `career_script` une fois, 1 accord automatique, 0 demande, aucun envoi en attente. 0,15 $ annoncés par ACP.

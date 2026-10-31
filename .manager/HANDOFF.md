@@ -13,21 +13,25 @@ Relevé fait par `git`, `ps`, `/api/runs` et lecture du code à cette heure. Le 
 - Tout le travail sur branche séparée, jamais sur `main`, jamais de push sans ordre explicite. L'utilisateur teste puis garde ou supprime.
 - **Ne jamais toucher** au CV, au Skill ni à la bibliothèque career-ops (`~/Downloads/agregat-career-ops`) ; aucun contrôle ajouté sur les CV.
 - **Hiérarchie validée mot pour mot par l'utilisateur le 30/10** (mémoire `agent-no-restrictions-prompt-skill-hierarchy`) :
-  1. le prompt décide de ce qui est fait (« envoie » → envoie, « postule » → jusqu'au bout, « ne soumets pas » → s'arrête avant), la plateforme n'ajoute ni refus ni confirmation ;
+  1. le prompt décide de ce qui est fait (« envoie » → envoie, « postule » → jusqu'au bout, « ne soumets pas » → s'arrête avant), la plateforme n'ajoute aucun refus ; **exception du 31/10 : l'envoi final attend l'accord de l'utilisateur** ;
   2. le Skill décide de la manière (étapes, scripts, formats) ; si le mode `apply` dit « ne soumets pas » et le prompt « envoie », le prompt l'emporte et la méthode reste suivie ;
   3. la plateforme n'invente aucune méthode : outils, modes du Skill, observation, Bilan ; le routeur constate, ne bloque ni ne réordonne.
 - Citation de l'ordre : « Enlève tout ça… Active les automatisations des navigations. Active les browsers natifs… Ne restreins rien, ne limite rien. » (mode propriétaire).
 - Restent hors de ce retrait : robustesse technique (chemins confinés, expiration d'outil figé), véracité du Bilan, aucun contournement anti-robot/CAPTCHA (`--patchright`, `cloud` de Playwriter interdits), aucun secret exposé. Mode non propriétaire : politique d'origine.
 - Priorité demandée le 30/10 : d'abord faire marcher le travail de la nuit (test réel Halcyon), PUIS les inspirations GitHub.
 
-### ÉCART MAJEUR À TRANCHER : `fix-open-01` n'applique pas la hiérarchie ci-dessus sur les envois
-Lu dans le code et le rapport le 31/10, sans contre-test :
-- `AGENT_PLATFORM_AUTO_SEND` a été **retiré du code** (`a16cb96`) ; le serveur tourne avec `AUTO_SEND=0`. `browser-gateway/index.js:115` exige un accord si `sending || sensitive`, y compris en mode propriétaire.
-- `ownerSendGuard` et la garde réseau restent (`cdp.js:530`, `:587`) ; le rapport l'assume (`fix-open-01.md:25`, `:53` : « l'accord explicite sur l'envoi demeure exigé par la demande actuelle »).
-- `career_script` : liste fermée toujours présente (`career-ops/tools.js:212-220`, scan, find + 3 contrôles), contrairement au point 4 du brief (le rapport `:62` décrit des scripts revus par hash avec décision par invocation : **à vérifier, le code lu et le rapport divergent**).
-- `linkedin_draft` : toujours « Rédiger uniquement » (`tools.js:416`). `sends.js` restauré à l'identique (accord SMTP, preuve du destinataire).
-- Retirés comme demandé : refus LinkedIn codé en dur et abandon réseau LinkedIn en mode propriétaire. La phrase « n'utilise pas la recherche web native » de `fix-router-03` n'est plus trouvée dans `packages/orchestrator` ni dans le pack.
-- Non établi : le rapport cite une « demande actuelle » et une « demande complémentaire du propriétaire » (08:25) passées directement à Codex. **Demander à l'utilisateur** s'il a changé d'avis sur les envois avant de faire corriger.
+### Décision du 31/10 : l'accord avant envoi est GARDÉ (l'utilisateur : « Non, garder l'accord »)
+Elle prime sur le point 1 de la hiérarchie pour les envois : en mode propriétaire, un envoi final attend toujours l'accord de l'utilisateur.
+Ne pas réactiver `AGENT_PLATFORM_AUTO_SEND`, ne pas retirer `ownerSendGuard`. Le brief `fix-open-01.md` est périmé sur ce point.
+État du code lu le 31/10 :
+- Refus LinkedIn codé en dur et abandon réseau LinkedIn retirés en mode propriétaire. `linkedin_draft` reste « Rédiger uniquement » (`tools.js:416`).
+- `career_script` : tout `scripts/*` est lançable, confiné au dossier, avec un accord par exécution (`tools.js:165-185`). Les commandes courtes gardent leur liste (`:212-220`).
+
+### Défaut trouvé par l'audit, NON couvert par la décision ci-dessus : trop d'accords, mal étiquetés
+Mission `c6128625` : **10 demandes d'accord en 2 min 36, toutes affichées « Envoi : aperçu privé disponible pendant la demande »**.
+En mode propriétaire, seuls les appels MCP `browser.*` sont auto-approuvés (`orchestrator/index.js:1037-1054`) ; tout autre outil attend un clic, avec expiration à 60 s.
+Le libellé vient probablement de `privatePreview`, vrai pour tout run career-ops (`index.js:1110`) : à confirmer. Conséquence : un clic pour des lectures probables, et une mission bloquée si l'utilisateur est absent. La nature exacte des 10 outils n'a pas été relevée.
+À décider avec l'utilisateur : auto-approuver ce qui n'est pas un envoi, et étiqueter les demandes avec leur vraie nature.
 
 ### Git (rien de poussé depuis `main`)
 | Dépôt | Branche active | HEAD | `main` = origin/main | Autres |
@@ -57,16 +61,16 @@ Lu dans le code et le rapport le 31/10, sans contre-test :
 
 ### État des services à 11:20
 - API 4310 lancée à 10:57 sur `d1a6ddd`, `OWNER_MODE=1`, `LIVE=1`, `BROWSER=playwriter`, `TIMEOUT 900000`, `AUTO_SEND=0`, **sans `--env-file-if-exists=.manager/secrets.env`** : c'est sans doute la cause du refus Gemini (hypothèse à vérifier). Front Vite 5173 actif, relais Playwriter 19988 actif (0.7.0).
-- **Chaîne manager encore vivante à arrêter ou décider** : `.manager/run-inspire.sh` (PID 88856, `caffeinate` 88858) → `run-until-done.sh fix-open-01` (PID 88859) dort jusqu'au **2026-11-04 17:51**, puis relancerait `fix-open-01` et `fix-inspire-01` sur la branche active à ce moment. `caffeinate -s` garde le Mac éveillé d'ici là. Arrêt : `pkill -f run-inspire.sh; pkill -f run-until-done.sh`.
+- Chaîne manager `.manager/run-inspire.sh` **arrêtée le 31/10** : elle aurait relancé le brief périmé `fix-open-01` le 4/11. Aucune mission Codex n'est en file.
 
 ### Budget
 Gemini : voir `.manager/api-usage.md` (section « Reprise du 31/10 », plafond additionnel 5 $ selon Codex ; le cumul précédent était ≈ 4,91 $ sur 5 $). `scripts/live-probe.js` peut encore dépenser sans contrôle de budget.
 
 ### Prochaines actions, dans l'ordre
-1. Décider avec l'utilisateur de l'écart sur les envois, puis arrêter ou réorienter la chaîne en attente.
-2. Auditer `git diff 350f0bb..d1a6ddd` (back) et `31cc691..8b98ec6` (front) ; rejouer les rouges/verts ; rendre un verdict pour `fix-open-01`.
-3. Brief correctif si l'écart est confirmé : retirer les accords d'envoi en mode propriétaire, `career_script` sur tous les scripts, `linkedin_draft`.
-4. Relancer le serveur si aucune mission active, avec `--env-file-if-exists=.manager/secrets.env` si Gemini est voulu, puis faire rejouer à l'utilisateur le prompt Halcyon exact, en « Nouvelle mission ». Critère de VALIDE : cinq lignes d'exigences et Bilan juste.
+1. Finir l'audit de `git diff 350f0bb..d1a6ddd` (back) et `31cc691..8b98ec6` (front) et rendre le verdict de `fix-open-01`.
+2. Faire décider l'utilisateur sur le défaut « trop d'accords, mal étiquetés », puis brief Codex.
+3. Relancer le serveur si aucune mission active, avec `--env-file-if-exists=.manager/secrets.env` si Gemini est voulu.
+4. Faire rejouer à l'utilisateur le prompt Halcyon exact, en « Nouvelle mission » (limite Codex levée à 15:57 selon le fournisseur). Critère de VALIDE : cinq lignes d'exigences et Bilan juste.
 5. Lancer `fix-inspire-01` (brief prêt, **à corriger** : il cite encore la branche `nuit-29-10`). Dépôts déjà clonés dans `~/Downloads/agent-repos`. Six points : outil natif figé → reprise, relecture d'historique, agent mort, routage, navigateur, réponse qui dépasse les preuves.
 6. Ouverts par ordre de gravité : `live-probe.js` sans contrôle de budget ; `selectSkillIntents` garde une seule intention (`slice(0,1)`) ; Bilan et `truth.js` spécifiques à career-ops alors que le moteur doit rester générique ; génération de manifestes pour installer d'autres Skills ; atomicité SQLite état/événement ; preuve navigateur échouée après action réussie ; `Target.createTarget` tardif ; débordement de 4–5 px sur `spread`.
 

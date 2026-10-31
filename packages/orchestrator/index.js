@@ -81,6 +81,8 @@ export function verificationScope(packId, simulated, observedBrowser = false) {
   if (simulated) return 'Résultat fictif ; structure vérifiée seulement';
   return 'Structure vérifiée ; offres et évaluations non vérifiées';
 }
+const SESSION_LOST =
+  /invalid session|unknown session|no such session|session[^.]{0,40}(?:not found|introuvable|does not exist)/i;
 // Tool name only: titles and inputs can quote private arguments.
 function permissionToolName(p, observedTool) {
   const input = observedTool?.rawInput ?? p.toolCall?.rawInput;
@@ -812,12 +814,14 @@ export class Orchestrator {
         session = await runtime.session(mcpServers, previous?.sessionId);
       } catch (e) {
         if (!previous || control.abort.signal.aborted) throw e;
-        // The agent no longer has this session: keep the mission going in a new one, and say so.
+        // The previous session cannot be reloaded: keep the mission going in a new one, and say why.
+        const lost = SESSION_LOST.test(String(e.message));
         this.store.event(run.id, 'session_reset', {
+          lost,
           ...(plan.pack.id === 'career-ops' ? {} : { cause: String(e.message).slice(0, 300) }),
         });
         previous = null;
-        sessionReset = true;
+        sessionReset = lost ? 'lost' : 'reload_failed';
         session = await runtime.session(mcpServers);
       }
       // session/load replays the previous conversation as updates: only this turn's answer counts.
@@ -1009,8 +1013,7 @@ export class Orchestrator {
       if (expiredPermission)
         value.summary += `\n${expiredPermission.message} ; action non effectuée, personne ne l’a annulée.`;
       if (sessionReset)
-        value.summary +=
-          '\nSession : la session précédente était introuvable, nouvelle session sans son historique.';
+        value.summary += `\nSession : la session précédente ${sessionReset === 'lost' ? 'était introuvable' : 'n’a pas pu être rechargée'}, nouvelle session sans son historique.`;
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible).';

@@ -247,6 +247,19 @@ test('session introuvable à la reprise : nouvelle session dans la même mission
   assert.notEqual(done.sessionId, 'FICTIF-perdue');
 });
 
+test('session non rechargée pour une autre cause : le Bilan ne dit pas « introuvable »', async (t) => {
+  const done = await runFixture(t, {
+    previous: { sessionId: 'FICTIF-lente' },
+    browserWorkflow: false,
+    config: { loadError: 'Délai FICTIF de rechargement dépassé', result: answer },
+  });
+  assert.equal(done.state, 'completed');
+  assert.match(done.result.summary, /session précédente n’a pas pu être rechargée/);
+  assert.doesNotMatch(done.result.summary, /introuvable/);
+  const reset = done.testEvents.find((e) => e.type === 'session_reset');
+  assert.equal(reset.data.lost, false);
+});
+
 test('reprise réussie : aucune mention de session perdue', async (t) => {
   const done = await runFixture(t, {
     previous: { sessionId: 'FICTIF-gardee' },

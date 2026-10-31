@@ -1034,13 +1034,17 @@ export class Orchestrator {
       const reason = control.abort.signal.reason;
       const expired = control.cancelled ? null : this.expiredPermissionError(run.id);
       const usageLimit = control.cancelled ? null : usageLimitMessage(plan.agent.name, text, e);
+      const cause =
+        usageLimit ??
+        (plan.pack.id === 'career-ops'
+          ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
+          : String(reason?.message ?? e.message ?? e).slice(0, 1000));
+      // An expired request explains a bare stop; a limit, deadline or server stop stays the cause.
       const failureMessage = expired
-        ? expired.message
-        : usageLimit
-          ? usageLimit
-          : plan.pack.id === 'career-ops'
-            ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
-            : String(reason?.message ?? e.message ?? e).slice(0, 1000);
+        ? usageLimit || reason
+          ? `${cause} ; ${expired.message}`
+          : expired.message
+        : cause;
       if (skillProgress.started) {
         const skillResult = skillProgress.finish();
         this.store.update(run.id, {

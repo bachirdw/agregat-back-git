@@ -280,3 +280,16 @@ test('accord expiré pendant la mission : le travail est gardé, l’action rest
     /Accord expiré sans réponse \(60 s\) : browser\.send ; action non effectuée, personne ne l’a annulée/,
   );
 });
+
+test('accord expiré puis autre échec : la cause terminale reste affichée', async (t) => {
+  const done = await runFixture(t, {
+    config: {
+      limitText: 'You’ve hit your usage limit. Upgrade or try again at 3:57 PM.\n\n',
+      lateMs: 100,
+    },
+    duringPrompt: (app, run) => app.engine.expiredPermissions.set(run.id, 'career_read'),
+  });
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /^Limite d’usage de .+ atteinte/);
+  assert.match(done.error, /Accord expiré sans réponse \(60 s\) : career_read/);
+});

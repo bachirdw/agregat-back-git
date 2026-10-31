@@ -14,9 +14,12 @@ l'échec ne vient pas de l'agent (relais absent, API arrêtée). Aucun envoi : n
 
 ## 0. Avant tout
 - Dans les deux dépôts, `git status` et `git log -1 --format=%h` : au moins back `918afdf` et front `85d6352`. Sinon
-  `git pull --no-edit origin codex/browser-audit-31-10`. S'il y a des modifications non commitées autres que les captures
-  `front-01-screens/*.png`, ou une autre session Codex qui écrit (`pgrep -fl "codex exec"`, `pgrep -fl run-until-done`) :
-  arrête-toi et écris-le dans le rapport.
+  `git pull --no-edit origin codex/browser-audit-31-10`. Si une autre session Codex écrit (`pgrep -fl "codex exec"`,
+  `pgrep -fl run-until-done`) : arrête-toi et écris-le dans le rapport.
+- Modifications non commitées déjà présentes (brouillons d'autres sessions) : ne les lis pas, ne les modifie pas, ne les
+  mets pas de côté, ne les commite pas ; ne lis jamais `.envforme`. Décision de l'utilisateur (31/10) : elles ne t'arrêtent
+  que si l'une touche `apps/`, `packages/`, `domain-packs/`, `tests/`, `scripts/`, `package.json` ou `package-lock.json`,
+  car elle changerait ce qui est testé. Dans ce cas, liste ces fichiers sans les ouvrir et arrête-toi.
 - Lance hors bac à sable (escalade) les commandes qui démarrent Chrome, l'API ou un agent : dans le bac à sable, Chrome
   avorte (`SIGABRT`).
 - CV : vérifie seulement que `~/Downloads/agregat-career-ops/cv.md` existe, sans l'ouvrir. S'il manque, arrête-toi et
@@ -70,5 +73,6 @@ Commandes et codes de sortie, résultats du § 1, PID et commande de l'API (sans
 identifiant, agent, modèle servi s'il est connu, état, durée, tableau du § 4 rempli avec ses preuves (types et nombres
 d'événements). **Jamais** le CV, le profil, le texte du Bilan ni de paramètres d'URL : seulement des états, des nombres, des
 noms d'outils, des causes, le nombre d'offres et les domaines. Un défaut trouvé est décrit avec sa preuve, pas corrigé.
-Commit local `[essai-reel-01]` du rapport, de ses preuves et de `api-usage.md` seulement.
+Commit local `[essai-reel-01]` du rapport, de ses preuves et de `api-usage.md` seulement ; si `api-usage.md` contenait déjà
+des lignes non commitées, laisse-le hors du commit et dis-le.
 Dernier message ≤ 12 lignes : CONTRÔLE · API · GEMINI · CLAUDE · DÉFAUTS · RESTE.

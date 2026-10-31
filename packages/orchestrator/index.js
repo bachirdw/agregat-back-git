@@ -27,7 +27,7 @@ import {
   readableBrowserObservation,
   verifiedBrowserVisit,
 } from './browser-proof.js';
-import { careerFailureMessage } from './failure.js';
+import { careerFailureMessage, SERVER_STOPPED } from './failure.js';
 import {
   createTurnTruth,
   formatCareerBilan,
@@ -40,7 +40,7 @@ import {
   formatSkillOrder,
   formatSkillBilan,
 } from './skill-router.js';
-import { capabilityIds, getCapability } from '../capability-registry/index.js';
+import { capabilityIds } from '../capability-registry/index.js';
 import { redact } from '../agent-runtime/env.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
@@ -80,6 +80,16 @@ export function verificationScope(packId, simulated, observedBrowser = false) {
   if (simulated) return 'Résultat fictif ; structure vérifiée seulement';
   return 'Structure vérifiée ; offres et évaluations non vérifiées';
 }
+// Tool name only: titles and inputs can quote private arguments.
+function permissionToolName(p, observedTool) {
+  const input = observedTool?.rawInput ?? p.toolCall?.rawInput;
+  const name =
+    input?.capability ??
+    (typeof input?.tool === 'string' ? input.tool.replace('_', '.') : null) ??
+    String(observedTool?.title ?? p.toolCall?.title ?? '').split(/[\s(]/)[0];
+  return redact(String(name || p.toolCall?.kind || 'outil')).slice(0, 80);
+}
+
 export class Orchestrator {
   constructor(
     store,
@@ -107,6 +117,8 @@ export class Orchestrator {
     });
     this.active = new Map();
     this.permissions = new Map();
+    this.expiredPermissions = new Map();
+    this.permissionTimeoutMs = 60000;
     this.career = career;
     // Read access to durable step state; each workflow run drives its own engine instance.
     this.workflows = new WorkflowEngine({ store, executors: {} });
@@ -608,6 +620,7 @@ export class Orchestrator {
     let text = '',
       events = 0;
     let browserToolObserved = false;
+    this.expiredPermissions.delete(run.id);
     const toolTimers = new Map();
     const toolTitles = new Map();
     const recentToolCalls = new Map();
@@ -847,6 +860,8 @@ export class Orchestrator {
         throw e;
       }
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
+      const expiredPermission = this.expiredPermissionError(run.id);
+      if (expiredPermission) throw expiredPermission;
       if (!plan.simulated && response.stopReason === 'end_turn')
         saveProbe(this.dataDir, plan.agent.id, { inference: true, inferenceError: null });
       if (response.stopReason !== 'end_turn')
@@ -858,6 +873,12 @@ export class Orchestrator {
         result = {
           ok: true,
           value: { simulated: !!plan.simulated, summary: text.trim(), evidence: [] },
+        };
+      // Any other real agent may answer in prose too: shown as its answer, with no evidence.
+      if (!result.ok && !plan.simulated && result.reason.includes('non structurée') && text.trim())
+        result = {
+          ok: true,
+          value: { simulated: false, summary: redact(text.trim()), evidence: [] },
         };
       if (!result.ok) {
         this.store.event(run.id, 'agent_output_rejected', {
@@ -876,12 +897,18 @@ export class Orchestrator {
           .events(run.id)
           .filter((e) => e.type === 'browser_evidence')
           .map((e) => e.data);
-        const answeredWithoutNavigation = previous && !browserToolObserved && observed.length === 0;
+        // A page named by URL must be read; any other answer given without the browser is labelled.
+        const answeredWithoutNavigation =
+          (previous || !/https?:\/\//i.test(run.prompt)) &&
+          !browserToolObserved &&
+          observed.length === 0;
         if (!answeredWithoutNavigation && !observed.some(readableBrowserObservation))
           throw new Error(browserObservationFailure(observed));
         if (answeredWithoutNavigation) {
-          value.summary = `Réponse sans nouvelle navigation. ${value.summary}`;
-          value.provenance.data = 'réponse sans nouvelle navigation';
+          const label = previous ? 'Réponse sans nouvelle navigation' : 'Réponse sans navigation';
+          value.summary = `${label}. ${value.summary}`;
+          value.provenance.data = label.toLowerCase();
+          value.evidence = [];
         } else {
           value.evidence = observed;
           value.provenance.data =
@@ -979,8 +1006,10 @@ export class Orchestrator {
       });
     } catch (e) {
       const reason = control.abort.signal.reason;
-      const failureMessage =
-        plan.pack.id === 'career-ops'
+      const expired = control.cancelled ? null : this.expiredPermissionError(run.id);
+      const failureMessage = expired
+        ? expired.message
+        : plan.pack.id === 'career-ops'
           ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
           : String(reason?.message ?? e.message ?? e).slice(0, 1000);
       if (skillProgress.started) {
@@ -1029,26 +1058,13 @@ export class Orchestrator {
   }
   permission(runId, p, simulated, signal, observedTool) {
     if (simulated || signal.aborted) return { outcome: { outcome: 'cancelled' } };
-    const run = this.store.get(runId);
-    const rawInput = observedTool?.rawInput;
-    const capabilityId =
-      typeof rawInput?.tool === 'string' ? rawInput.tool.replace('_', '.') : null;
+    const toolName = permissionToolName(p, observedTool);
     const allowed = p.options?.find((option) => option.kind === 'allow_once');
-    if (
-      this.ownerMode &&
-      ['isolated', 'playwriter'].includes(run?.browser) &&
-      observedTool?.sessionUpdate === 'tool_call' &&
-      observedTool?.toolCallId === p.toolCall?.toolCallId &&
-      observedTool?._meta?.is_mcp_tool_call === true &&
-      rawInput?.server === 'platform' &&
-      capabilityId?.startsWith('browser.') &&
-      capabilityIds.includes(capabilityId) &&
-      getCapability(capabilityId).schema.safeParse(rawInput.arguments).success &&
-      allowed
-    ) {
+    // Owner mode: only a final send waits for the owner's click.
+    if (this.ownerMode && p.actionClass !== 'send' && allowed) {
       this.store.event(runId, 'permission_auto', {
-        toolCallId: p.toolCall.toolCallId,
-        capability: capabilityId,
+        toolCallId: p.toolCall?.toolCallId,
+        capability: toolName,
       });
       return { outcome: { outcome: 'selected', optionId: allowed.optionId } };
     }
@@ -1057,7 +1073,7 @@ export class Orchestrator {
     return new Promise((resolve) => {
       let finished = false;
       const onAbort = () => finish();
-      const finish = (optionId) => {
+      const finish = (optionId, reason) => {
         if (finished) return;
         finished = true;
         signal.removeEventListener('abort', onAbort);
@@ -1069,12 +1085,17 @@ export class Orchestrator {
               ? 'waiting_permission'
               : 'running',
           });
-        this.store.event(runId, 'permission_resolved', { id, optionId: optionId ?? null });
+        if (reason === 'expired') this.expiredPermissions.set(runId, toolName);
+        this.store.event(runId, 'permission_resolved', {
+          id,
+          optionId: optionId ?? null,
+          ...(reason ? { reason } : {}),
+        });
         resolve({
           outcome: optionId ? { outcome: 'selected', optionId } : { outcome: 'cancelled' },
         });
       };
-      const timer = setTimeout(() => finish(), 60000);
+      const timer = setTimeout(() => finish(undefined, 'expired'), this.permissionTimeoutMs);
       const options = p.options.filter((o) =>
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
       );
@@ -1092,7 +1113,7 @@ export class Orchestrator {
         options,
         tool,
         actionClass: p.actionClass ?? null,
-        expiresAt: Date.now() + 60000,
+        expiresAt: Date.now() + this.permissionTimeoutMs,
         finish,
       });
       signal.addEventListener('abort', onAbort, { once: true });
@@ -1103,14 +1124,20 @@ export class Orchestrator {
           id,
           tool,
           options,
-          expiresAt: Date.now() + 60000,
+          expiresAt: Date.now() + this.permissionTimeoutMs,
         },
         {
-          privatePreview:
-            p.actionClass === 'send' || this.store.get(runId)?.workspace === 'career-ops',
+          privatePreview: p.actionClass === 'send',
+          storedToolTitle: this.store.get(runId)?.workspace === 'career-ops' ? toolName : null,
         },
       );
     });
+  }
+  expiredPermissionError(runId) {
+    const toolName = this.expiredPermissions.get(runId);
+    if (!toolName) return null;
+    const seconds = Math.ceil(this.permissionTimeoutMs / 1000);
+    return new Error(`Accord expiré sans réponse (${seconds} s) : ${toolName}`);
   }
   decide(id, optionId) {
     const p = this.permissions.get(id);
@@ -1128,7 +1155,7 @@ export class Orchestrator {
     c.abort.abort(new Error('Annulée par l’utilisateur'));
   }
   async close() {
-    for (const [id] of this.active) this.cancel(id);
+    for (const control of this.active.values()) control.abort.abort(new Error(SERVER_STOPPED));
     while (this.active.size) await new Promise((r) => setTimeout(r, 20));
   }
 }

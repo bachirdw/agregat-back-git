@@ -8,7 +8,14 @@ import { createApp } from '../apps/api/server.js';
 
 async function runFixture(
   t,
-  { previous = null, config = {}, browserWorkflow = true, observedEvidence = null } = {},
+  {
+    previous = null,
+    config = {},
+    browserWorkflow = true,
+    observedEvidence = null,
+    prompt = 'Montre les liens FICTIFS',
+    simulated = true,
+  } = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), 'fix-resume-FICTIF-'));
   const app = createApp({ dataDir: root, ownerMode: true });
@@ -20,14 +27,14 @@ async function runFixture(
     id: randomUUID(),
     state: 'queued',
     cwd: root,
-    prompt: 'Montre les liens FICTIFS',
+    prompt,
     model: '',
     mode: 'agent',
     budgetCents: 0,
   };
   app.store.create(run);
   const plan = {
-    simulated: true,
+    simulated,
     skills: [],
     browserWorkflow,
     agent: {
@@ -101,8 +108,19 @@ test('reprise ACP : nouvel appel navigateur sans preuve reste refusé', async (t
   assert.match(done.error, /Navigation non prouvée/);
 });
 
-test('nouvelle mission navigateur sans navigation reste refusée', async (t) => {
+test('nouvelle mission sans outil navigateur : réponse marquée sans navigation ni preuve', async (t) => {
   const done = await runFixture(t, { config: { result: answer } });
+  assert.equal(done.state, 'completed');
+  assert.match(done.result.summary, /^Réponse sans navigation\. /);
+  assert.equal(done.result.provenance.data, 'réponse sans navigation');
+  assert.deepEqual(done.result.evidence, []);
+});
+
+test('nouvelle mission nommant une URL sans navigation reste refusée', async (t) => {
+  const done = await runFixture(t, {
+    prompt: 'Ouvre https://exemple.invalid et résume',
+    config: { result: answer },
+  });
   assert.equal(done.state, 'failed');
   assert.match(done.error, /Navigation non prouvée/);
 });
@@ -154,4 +172,24 @@ test('résumé vide : le texte final utile de l’agent est repris et borné', a
   assert.equal(done.state, 'completed', done.error);
   assert.match(done.result.summary, /^Voici les liens FICTIFS/);
   assert.ok(done.result.summary.length <= 2000);
+});
+
+test('agent réel en texte libre : texte affiché comme réponse, sans preuve', async (t) => {
+  const done = await runFixture(t, {
+    simulated: false,
+    browserWorkflow: false,
+    config: { result: 'La capitale FICTIVE est Exempleville.' },
+  });
+  assert.equal(done.state, 'completed');
+  assert.match(done.result.summary, /La capitale FICTIVE est Exempleville\./);
+  assert.deepEqual(done.result.evidence, []);
+});
+
+test('agent simulé en texte libre : toujours refusé', async (t) => {
+  const done = await runFixture(t, {
+    browserWorkflow: false,
+    config: { result: 'Texte libre FICTIF' },
+  });
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /non structurée/);
 });

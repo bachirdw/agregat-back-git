@@ -167,7 +167,12 @@ test('propriétaire : prix configurés neutralisés, budget zéro, ledger toujou
       { optionId: 'reject', kind: 'reject_once' },
       { optionId: 'allow', kind: 'allow_once' },
     ];
-    const pending = app.engine.permission(id, { options }, false, signal.signal);
+    const pending = app.engine.permission(
+      id,
+      { options, actionClass: 'send' },
+      false,
+      signal.signal,
+    );
     assert.equal(app.engine.permissions.size, 1);
     app.engine.decide([...app.engine.permissions.keys()][0], 'allow');
     assert.deepEqual(await pending, {
@@ -223,7 +228,7 @@ test('permission ACP MCP navigateur autorisée par le plan : décision automatiq
   }
 });
 
-test('permission ACP : appel non prouvé, mauvais navigateur ou arguments invalides exigent une décision', async () => {
+test('permission ACP hors envoi : décision automatique quel que soit l’appel ou le navigateur', async () => {
   const app = createApp({ dataDir: temporary(), ownerMode: true });
   try {
     for (const [label, browser, change] of [
@@ -244,7 +249,7 @@ test('permission ACP : appel non prouvé, mauvais navigateur ou arguments invali
         ...change,
       };
       if (change.rawInput) observed.rawInput = { ...observed.rawInput, ...change.rawInput };
-      const pending = app.engine.permission(
+      const outcome = await app.engine.permission(
         id,
         {
           toolCall: { toolCallId: 'FICTIF-browser', kind: 'execute', status: 'pending' },
@@ -254,17 +259,12 @@ test('permission ACP : appel non prouvé, mauvais navigateur ou arguments invali
         signal.signal,
         observed,
       );
-      try {
-        assert.equal(app.engine.permissions.size, 1, label);
-        const permission = [...app.engine.permissions.values()][0];
-        assert.equal(
-          permission.tool.title,
-          label === 'appel différent' ? undefined : 'mcp.platform.browser_snapshot',
-        );
-      } finally {
-        signal.abort();
-        assert.deepEqual(await pending, { outcome: { outcome: 'cancelled' } });
-      }
+      assert.deepEqual(
+        outcome,
+        { outcome: { outcome: 'selected', optionId: 'allow_once' } },
+        label,
+      );
+      assert.equal(app.engine.permissions.size, 0, label);
     }
   } finally {
     await app.close();

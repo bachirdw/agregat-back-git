@@ -98,7 +98,7 @@ test('échec privé intégré : navigation non prouvée nommée sans prompt priv
     id: randomUUID(),
     state: 'queued',
     cwd: root,
-    prompt: 'CV SECRET FICTIF',
+    prompt: 'CV SECRET FICTIF https://exemple.invalid',
     model: '',
     mode: 'agent',
     budgetCents: 0,

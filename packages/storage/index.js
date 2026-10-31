@@ -65,12 +65,14 @@ export class Store extends EventEmitter {
     if (patch.state) this.event(id, 'state', { state: patch.state });
     return run;
   }
-  event(id, type, data, { privatePreview = false } = {}) {
+  event(id, type, data, { privatePreview = false, storedToolTitle = null } = {}) {
     const at = new Date().toISOString();
     const encoded = JSON.stringify(
       privatePreview
         ? { ...data, tool: { title: 'Envoi : aperçu privé disponible pendant la demande' } }
-        : data,
+        : storedToolTitle
+          ? { ...data, tool: { title: storedToolTitle } }
+          : data,
     );
     if (Buffer.byteLength(encoded) > 262144) throw new Error('Événement trop volumineux');
     const row = this.db

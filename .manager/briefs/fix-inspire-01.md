@@ -1,6 +1,6 @@
 # fix-inspire-01 — reprendre la logique des projets GitHub qui nous inspirent, là où NOTRE code casse
 
-> **BRANCHE (consigne de l'utilisateur)** : tout ton travail reste sur la branche `nuit-29-10` (back ET front). Ne change pas de branche,
+> **BRANCHE (consigne de l'utilisateur)** : tout ton travail reste sur la branche `codex/browser-audit-31-10` (back ET front). Ne change pas de branche,
 > ne merge pas, ne touche pas à `main`, ne pousse rien. **Prends ton temps : qualité et preuves avant vitesse.**
 > Ne modifie ni la bibliothèque career-ops, ni son Skill, ni les CV. N'ajoute AUCUN garde-fou (veracité et robustesse seulement).
 > Aucun appel Gemini réel, aucune mission réelle, aucun site réel ; serveurs de test ≥ 4320 uniquement (pas 4310, 5173, 19988).

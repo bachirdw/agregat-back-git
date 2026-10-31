@@ -6,7 +6,7 @@
 > Ne merge pas, ne touche pas à `main`, ne pousse rien. Ne modifie ni la bibliothèque career-ops, ni son Skill, ni les CV. Moins de fichiers possible.
 > Aucun appel Gemini, aucune mission réelle, aucun site réel ; serveurs de test ≥ 4320 (pas 4310, 5173, 19988). Prends ton temps.
 
-Lis `.manager/HANDOFF.md` § 00000000 et `.manager/briefs/_audit-common.md`. Le brief `fix-open-01.md` est périmé, ne t'y fie pas.
+Lis `CLAUDE.md`, `.manager/HANDOFF.md` et `.manager/briefs/_audit-common.md`.
 
 ## Constat prouvé (mission réelle `c6128625`, 31/10)
 10 demandes d'accord en 2 min 36 : 8 `career_read`, 1 `career_script`, 1 `jobs_search_live`, toutes affichées « Envoi : aperçu privé disponible pendant

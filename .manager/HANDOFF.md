@@ -3,7 +3,7 @@
 Une seule passation, tenue à jour. À lire avec `CLAUDE.md`, `AGENTS.md`, `.manager/MISSION.md`, `.manager/PLAN.md`. Les rapports Codex restent dans `.manager/reports/`.
 Anciennes passations (26–29/10), supprimées le 31/10 à la demande de l'utilisateur : `git show b71f1da:.manager/HANDOFF.md`.
 
-## État du 31/10, 11:50 Sydney — manager Claude, faits revérifiés
+## État du 31/10, 11:55 Sydney — manager Claude, faits revérifiés
 
 Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le manager.
 
@@ -26,10 +26,13 @@ Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le man
 | `career_script` | tout `scripts/*` lançable, confiné, un accord par exécution (`tools.js:165-185`) ; commandes courtes en liste (`:212-220`) |
 | Bug « Loading » SEEK | sonde réelle du 30/10 (`real-snapshot-2026-10-30.txt`), sans doute d'autres lectures Codex depuis |
 | `fix-router-03` | rouge 10/15 → vert 15/15 ; le prompt Halcyon est classé `evaluate` |
-| Rouges/verts du travail Codex postérieur | **non rejoués** par le manager |
+| Rouges du travail Codex (`350f0bb` + tests de `d1a6ddd`, sans Chrome) | **rejeu partiel, interrompu à la passation** : au moins 18 échecs avant correction, dont `browser-proof`, permissions, modèle, consignes Skill. À relancer pour le total ; certains peuvent venir de l'absence de Chrome |
 
 ### Fini selon les rapports Codex, non rejoué
 Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f05a7a5`, `d57649aa` (Seek, lecture seule), `f46aadf1` (IANA). `/api/runs` confirme leur état, les preuves n'ont pas été relues. Découverte des packs sans liste codée (`packs.js`), preuve de navigation (`browser-proof.js`), agent choisi conservé au lieu de forcer Gemini, composeur stabilisé (`8b98ec6`, demande de l'utilisateur du 31/10).
+
+### Codex n'a pas conclu
+Son dernier fil s'arrête sur la limite d'usage (reprise annoncée à 15:57), sans bilan final. Sa dernière entrée de `seek-apply-01.md` dit : « Résultat non encore validé ». Ces lignes et `api-usage.md` ne sont pas commitées : les relire, puis les commiter avec sa conclusion. L'envoi de fichier par automatisation Chrome a été bloqué (`fileChooser.setFiles`, option « Allow access to file URLs » de l'extension) : le CV de `c6128625` a été joint autrement, détail dans le rapport.
 
 ### Pas fini
 1. **Trop d'accords, mal étiquetés (prouvé).** Mission `c6128625` : 10 accords en 2 min 36, soit 8 `career_read`, 1 `career_script`, 1 `jobs_search_live`, tous affichés « Envoi : aperçu privé ». Causes : en mode propriétaire seuls les `browser.*` passent seuls (`orchestrator/index.js:1037-1054`), et le libellé est forcé pour tout run career-ops (`storage/index.js:72`, `index.js:1110`). Expiration à 60 s. L'utilisateur l'a signalé à Codex (« à chaque fois ils reviennent ») ; Codex l'a noté sans le corriger.
@@ -51,7 +54,7 @@ Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f0
 ### Git et services à 11:50
 - Back : `codex/browser-audit-31-10` ; `main` = origin/main = `60a216b`. Front : même branche, `8b98ec6` ; `main` = `e7fa33e`. `nuit-29-10` est ancêtre de la branche dans les deux dépôts. Rien de poussé.
 - Non commités, pas du manager : back `.manager/api-usage.md`, `.manager/reports/seek-apply-01.md` (11:09–11:11) ; front : captures `front-01-screens/*.png`.
-- API 4310 lancée à 10:57, `OWNER_MODE=1`, `LIVE=1`, `BROWSER=playwriter`, sans secrets. La variable `AUTO_SEND=0` de son environnement n'a plus d'effet : le code ne la lit plus. Front 5173 et relais 19988 actifs. Aucune mission active. Automatisation Codex : `PAUSED`. Chaîne manager : `run-until-done.sh fix-perms-01`, programmée pour 16:05 (`pkill -f run-until-done.sh` pour l'annuler).
+- API 4310 lancée à 10:57, `OWNER_MODE=1`, `LIVE=1`, `BROWSER=playwriter`, sans secrets. La variable `AUTO_SEND=0` de son environnement n'a plus d'effet : le code ne la lit plus. Front 5173 et relais 19988 actifs. Aucune mission active. Automatisation Codex : `PAUSED`. **Chaîne manager vivante : `run-until-done.sh fix-perms-01`, démarrage à 16:05 sur la branche active** (`pkill -f run-until-done.sh` pour l'annuler ; à vérifier si l'utilisateur relance Codex depuis l'app, pour éviter deux sessions).
 
 ### Verdict : `fix-open-01` A CORRIGER
 Tests verts, travail conservé, mais le parcours réel se bloque en clics et le Skill career-ops n'a pas abouti de bout en bout.

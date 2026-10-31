@@ -83,12 +83,17 @@ export function verificationScope(packId, simulated, observedBrowser = false) {
 }
 const SESSION_LOST =
   /invalid session|unknown session|no such session|session[^.]{0,40}(?:not found|introuvable|does not exist)/i;
+// browser_navigate is the MCP spelling of browser.navigate; other tools keep their own name.
+function registryName(tool) {
+  const id = tool.replace('_', '.');
+  return capabilityIds.includes(id) ? id : tool;
+}
 // Tool name only: titles and inputs can quote private arguments.
 function permissionToolName(p, observedTool) {
   const input = observedTool?.rawInput ?? p.toolCall?.rawInput;
   const name =
     input?.capability ??
-    (typeof input?.tool === 'string' ? input.tool.replace('_', '.') : null) ??
+    (typeof input?.tool === 'string' ? registryName(input.tool) : null) ??
     String(observedTool?.title ?? p.toolCall?.title ?? '').split(/[\s(]/)[0];
   return redact(String(name || p.toolCall?.kind || 'outil')).slice(0, 80);
 }

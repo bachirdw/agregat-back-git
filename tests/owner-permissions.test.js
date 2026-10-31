@@ -36,6 +36,16 @@ const formats = {
     },
     'browser.navigate',
   ],
+  'outil career-ops au format Codex': [
+    { toolCallId: 'c4', title: 'jobs_search_live' },
+    {
+      toolCallId: 'c4',
+      sessionUpdate: 'tool_call',
+      rawInput: { server: 'platform', tool: 'jobs_search_live', arguments: { q: 'secret' } },
+      _meta: { is_mcp_tool_call: true },
+    },
+    'jobs_search_live',
+  ],
   'format Gemini': [
     {
       toolCallId: 'mcp_platform_browser_navigate__call_1',

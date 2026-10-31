@@ -34,5 +34,30 @@ agent réel (Codex/Claude/Gemini absents), aucun site réel, aucun serveur 4310/
 - Délai de l'agent : `timeouts` fusionné avec les valeurs par défaut (`agent-runtime/index.js:69`).
 - `/api/runs` : le titre de repli ne révèle rien de plus, le run complet (prompt compris) y figurait déjà.
 
+## Corrections demandées par l'utilisateur (31/10, branche locale `codex/browser-audit-31-10`)
+Décision de l'utilisateur sur le n° 3 : un envoi par les outils propres de l'agent sans clic n'est pas un problème pour
+l'instant ; seules certaines décisions finales vraiment sensibles attendront un clic. Rien n'est changé.
+
+| n° | commit | test rouge → vert |
+|---|---|---|
+| 1 | `d934a64` | `fix-resume` : « accord expiré puis autre échec » |
+| 2 | `6b3af83` | `workflow-run` : « les deux causes restent dites » (étape) et « l'échec final garde… » (mission ; rouge sans la modification de `index.js`) |
+| 6 | `a254987` | `career-failure` : « une réponse qui parle de limites… » ; seule la dernière annonce de l'agent compte |
+| 9 | back `d56fc46`, front `85d6352` | `fix-resume` : « session non rechargée pour une autre cause » ; `ConnectionsPanel.test.tsx` : libellé « non rechargée » si `lost: false` |
+| 10 | `3ab729e` | `fix-resume` : trace vidée en fin de mission |
+| 8 | `f98db33` | `owner-permissions` : `jobs_search_live` garde son nom (était `jobs.search_live`) |
+
+Contrôle après corrections (`*-after.log`, `front-*.log`) : back `npm test` 396/401, 1 ignoré, mêmes 4 échecs d'environnement
+qu'avant (Codex absent ×2, SIGKILL de groupe ×2) ; Chrome 127/128, `owner-browser` coupé à 120 s sous charge puis 33/33
+seul ; `check` et `format:check` à 0. Front : `npm test` 137/137, `prettier --check src` à 0, `npm run test:e2e` 14/14
+(avec `AGENT_PLATFORM_BACKEND_DIR` et un lien temporaire vers le Chromium du conteneur, car `tests/e2e.test.mjs:14` fixe
+le chemin Chrome de macOS).
+
+Essai réel (étape 3) **non fait** : le conteneur cloud n'a ni Gemini CLI, ni `.data/agents.json`, ni secrets, ni CV, ni
+Chrome Playwriter. À faire sur le Mac.
+
+Non corrigés, faute de défaut avéré : n° 4 (comportement voulu, seul le titre du commit est inexact), n° 5 (réponse
+étiquetée, pas mensongère), n° 7 (fragilité, aucun scénario rouge aujourd'hui).
+
 ## Verdict : `fix-perms-01` VALIDE avec réserves
 Point 1 corrigé ici, commit local `[audit-claude-cloud]`, non poussé. Point 3 à trancher par l'utilisateur. Le reste est de faible gravité.

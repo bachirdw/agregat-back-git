@@ -78,6 +78,7 @@ async function runFixture(
     ...app.store.get(run.id),
     testEvents: app.store.events(run.id),
     testUsage: app.store.usage(run.id),
+    testApp: app,
   };
 }
 
@@ -292,6 +293,8 @@ test('accord expiré pendant la mission : le travail est gardé, l’action rest
     done.result.summary,
     /Accord expiré sans réponse \(60 s\) : browser\.send ; action non effectuée, personne ne l’a annulée/,
   );
+  const app = done.testApp;
+  assert.equal(app.engine.expiredPermissions.has(done.id), false, 'trace vidée en fin de mission');
 });
 
 test('accord expiré puis autre échec : la cause terminale reste affichée', async (t) => {

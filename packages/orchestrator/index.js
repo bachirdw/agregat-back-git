@@ -1091,6 +1091,7 @@ export class Orchestrator {
       control.runtime?.close();
       this.active.delete(run.id);
       this.approvalTokens.delete(run.id);
+      this.expiredPermissions.delete(run.id);
     }
   }
   permission(runId, p, simulated, signal, observedTool) {

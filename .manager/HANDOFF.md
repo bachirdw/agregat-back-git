@@ -3,87 +3,71 @@
 Document de reprise pour la prochaine session (manager Claude ou Codex). À lire avec `AGENTS.md`,
 `CLAUDE.md`, `.manager/MISSION.md`, `.manager/PLAN.md`, `docs/mvp-plan.md`.
 
-## 00000000. Passation du 31/10, 11:20 Sydney — manager Claude (À LIRE EN PREMIER, prime sur § 0000000)
+## 00000000. Passation du 31/10, 11:50 Sydney — manager Claude, faits revérifiés (À LIRE EN PREMIER, prime sur § 0000000)
 
-Relevé fait par `git`, `ps`, `/api/runs` et lecture du code à cette heure. Le manager Claude N'A PAS audité le travail Codex postérieur au 30/10 12:48
-(tout ce qui est marqué « rapport Codex » ci-dessous n'a pas de contre-vérification du manager).
+Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le manager. Remplace les versions `c6b21b7`, `c04be35`, `cb95791`, qui contenaient des erreurs.
 
-### Rôles et décisions de l'utilisateur (toujours en vigueur)
-- Claude supervise, Codex code. Preuves rejouées avant tout verdict (VALIDE / A CORRIGER / BLOQUE) ; résumé honnête à chaque mission ; économie de tokens.
-- Tout le travail sur branche séparée, jamais sur `main`, jamais de push sans ordre explicite. L'utilisateur teste puis garde ou supprime.
-- **Ne jamais toucher** au CV, au Skill ni à la bibliothèque career-ops (`~/Downloads/agregat-career-ops`) ; aucun contrôle ajouté sur les CV.
-- **Hiérarchie validée mot pour mot par l'utilisateur le 30/10** (mémoire `agent-no-restrictions-prompt-skill-hierarchy`) :
-  1. le prompt décide de ce qui est fait (« envoie » → envoie, « postule » → jusqu'au bout, « ne soumets pas » → s'arrête avant), la plateforme n'ajoute aucun refus ; **exception du 31/10 : l'envoi final attend l'accord de l'utilisateur** ;
-  2. le Skill décide de la manière (étapes, scripts, formats) ; si le mode `apply` dit « ne soumets pas » et le prompt « envoie », le prompt l'emporte et la méthode reste suivie ;
-  3. la plateforme n'invente aucune méthode : outils, modes du Skill, observation, Bilan ; le routeur constate, ne bloque ni ne réordonne.
-- Citation de l'ordre : « Enlève tout ça… Active les automatisations des navigations. Active les browsers natifs… Ne restreins rien, ne limite rien. » (mode propriétaire).
-- Restent hors de ce retrait : robustesse technique (chemins confinés, expiration d'outil figé), véracité du Bilan, aucun contournement anti-robot/CAPTCHA (`--patchright`, `cloud` de Playwriter interdits), aucun secret exposé. Mode non propriétaire : politique d'origine.
-- Priorité demandée le 30/10 : d'abord faire marcher le travail de la nuit (test réel Halcyon), PUIS les inspirations GitHub.
+### Rôles et décisions de l'utilisateur
+- Claude supervise, Codex code. Preuves rejouées avant tout verdict (VALIDE / A CORRIGER / BLOQUE). Résumé honnête à chaque mission.
+- Branche séparée, jamais `main`, aucun push sans ordre explicite. Modifier le moins de fichiers possible. Ne jamais toucher au CV, au Skill ni à la bibliothèque career-ops.
+- Hiérarchie validée le 30/10 : le prompt décide de ce qui est fait ; le Skill décide de la manière ; la plateforme fournit outils et Bilan, sans méthode propre.
+- « Vu que la plateforme sera universelle, je veux rien coder en dur » (à Codex, 30/10). Plafond de 5 $ de plus (à Codex, 30/10).
+- 31/10 : **continuer le travail de Codex qui retire ce qui contraint l'envoi et l'automatisation de la navigation ; ne rien annuler.**
 
-### Décision du 31/10 : l'accord avant envoi est GARDÉ (l'utilisateur : « Non, garder l'accord »)
-Elle prime sur le point 1 de la hiérarchie pour les envois : en mode propriétaire, un envoi final attend toujours l'accord de l'utilisateur.
-Ne pas réactiver `AGENT_PLATFORM_AUTO_SEND`, ne pas retirer `ownerSendGuard`. Le brief `fix-open-01.md` est périmé sur ce point.
-L'utilisateur a aussi confirmé le 31/10 : le travail de Codex qui a retiré des autorisations est **conservé** (« tu gardes ce travail-là »). Ne rien annuler ; l'audit corrige seulement les défauts prouvés.
-État du code lu le 31/10 :
-- Refus LinkedIn codé en dur et abandon réseau LinkedIn retirés en mode propriétaire. `linkedin_draft` reste « Rédiger uniquement » (`tools.js:416`).
-- `career_script` : tout `scripts/*` est lançable, confiné au dossier, avec un accord par exécution (`tools.js:165-185`). Les commandes courtes gardent leur liste (`:212-220`).
+### QUESTION OUVERTE, à reposer avant tout correctif sur les envois
+Quand le prompt dit « envoie », l'envoi part-il directement ou attend-il un clic ? Les messages se contredisent :
+- 30/10 au manager : « Si le prompt dit envoyer, il faut qu'il envoie », aucune confirmation ajoutée.
+- 30/10 à Codex : « Sans mon autorisation explicite, tu peux tester les candidature, envoie e-mail, et linkdin », phrase ambiguë, que Codex a lue comme un accord à conserver.
+- 31/10 au manager : bouton « Non, garder l'accord », suivi de « tu gardes ce travail-là » et « je veux continuer ce travail » de retrait des contraintes. **Il a pu vouloir dire « garder le travail » et non « garder l'accord ». Ne pas tenir cette réponse pour acquise.**
+État actuel du code : l'accord est exigé. Aucune action réelle d'envoi n'a été testée.
 
-### Défaut trouvé par l'audit, NON couvert par la décision ci-dessus : trop d'accords, mal étiquetés
-Mission `c6128625` : **10 demandes d'accord en 2 min 36, toutes affichées « Envoi : aperçu privé disponible pendant la demande »**.
-En mode propriétaire, seuls les appels MCP `browser.*` sont auto-approuvés (`orchestrator/index.js:1037-1054`) ; tout autre outil attend un clic, avec expiration à 60 s.
-Le libellé vient probablement de `privatePreview`, vrai pour tout run career-ops (`index.js:1110`) : à confirmer. Conséquence : un clic pour des lectures probables, et une mission bloquée si l'utilisateur est absent. La nature exacte des 10 outils n'a pas été relevée.
-À décider avec l'utilisateur : auto-approuver ce qui n'est pas un envoi, et étiqueter les demandes avec leur vraie nature.
+### Ce qui est fini et vérifié par le manager le 31/10
+| Élément | Preuve |
+|---|---|
+| Code `d1a6ddd`, copie propre, relancé au calme | principal 363/364 + 1 ignoré ; 1 échec `describe()` (délai de 1,5 s), vert seul ; Chrome 130/130 ; `check`, `format:check` à 0 |
+| Front `8b98ec6` | `npm test` 99/99 |
+| Refus LinkedIn et abandon réseau LinkedIn retirés | absents de `browser-gateway` |
+| `career_script` | tout `scripts/*` lançable, confiné, un accord par exécution (`tools.js:165-185`) ; commandes courtes en liste (`:212-220`) |
+| Bug « Loading » SEEK | sonde réelle du 30/10 (`real-snapshot-2026-10-30.txt`), sans doute d'autres lectures Codex depuis |
+| `fix-router-03` | rouge 10/15 → vert 15/15 ; le prompt Halcyon est classé `evaluate` |
+| Rouges/verts du travail Codex postérieur | **non rejoués** par le manager |
 
-### Git (rien de poussé depuis `main`)
-| Dépôt | Branche active | HEAD | `main` = origin/main | Autres |
-|---|---|---|---|---|
-| back | `codex/browser-audit-31-10` | `d1a6ddd` | `60a216b` | `nuit-29-10` = `a4455ed`, ancêtre de HEAD |
-| front | `codex/browser-audit-31-10` | `8b98ec6` | `e7fa33e` | `nuit-29-10` = `2da487c` |
-- La branche `codex/browser-audit-31-10` a été créée le 31/10 à 05:54 à partir de `nuit-29-10` (reprise autonome de Codex, plafond additionnel Gemini de 5 $ selon `api-usage.md` et le rapport).
-- Non commités, à ne pas écraser, pas du manager : back `.manager/api-usage.md`, `.manager/reports/seek-apply-01.md` (11:12) ; front : captures `.manager/reports/front-01-screens/*.png`.
+### Fini selon les rapports Codex, non rejoué
+Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f05a7a5`, `d57649aa` (Seek, lecture seule), `f46aadf1` (IANA). `/api/runs` confirme leur état, les preuves n'ont pas été relues. Découverte des packs sans liste codée (`packs.js`), preuve de navigation (`browser-proof.js`), agent choisi conservé au lieu de forcer Gemini, composeur stabilisé (`8b98ec6`, demande de l'utilisateur du 31/10).
 
-### Verdicts du manager (preuves rejouées par lui)
-| Étape | Verdict | Preuve |
-|---|---|---|
-| Nuit du 29→30 : `night2-back`, `night2-front`, `fix-truth-01`, `skill-router-01`, `front-anim-07` | VALIDE sur fixtures, parcours réel A CORRIGER | suite 346/347, Chrome 129/129 hors bac à sable ; routeur rouge 4/10 → vert 10/10. Les « 68 échecs Chrome » du `NIGHT2-REPORT` sont un artefact du bac à sable |
-| `fix-router-03` (URL hors intention, Bilan d'échec) | VALIDE sur tests, réel non rejoué | rouge 10/15 → vert 15/15 ; prompt Halcyon exact → `evaluate`. Suite Chrome : 8 échecs sous charge 12,5, relancés seuls 134/135, le dernier dû à l'absence de `.data/agents.json` dans la copie de test (vert avec `AGENT_PLATFORM_AGENTS_CONFIG`) |
-| Bug « Loading » SEEK, preuve réelle | VALIDE | sonde `real-probe.mjs` sur code propre `350f0bb`, Chrome connecté, lecture seule : `loading:false`, 33 contrôles, 7,3 s (`seek-apply-01-evidence/real-snapshot-2026-10-30.txt`) |
-| Mission réelle Halcyon `0dd34420` (Gemini) | A CORRIGER | mauvaise intention (URL), recherche native figée, Bilan incomplet ; à rejouer, jamais refait depuis |
-| Mission `f859f652` (Gemini, YouTube) | A CORRIGER | reprise de session, 4 `browser_*` = relecture ; `google_web_search` puis « sur YouTube » sans l'ouvrir ; correctif prévu au point 6 de `fix-inspire-01` |
-| Mission `7cdb1e4e` (Codex, YouTube) | BLOQUE par la limite Codex | navigation réelle `playwriter-owner` prouvée, coupée par la limite d'usage |
-| `fix-open-01` et `seek-apply-01` postérieurs au 30/10 12:48 | **Pas de verdict** | voir ci-dessous, à auditer |
+### Pas fini
+1. **Trop d'accords, mal étiquetés (prouvé).** Mission `c6128625` : 10 accords en 2 min 36, soit 8 `career_read`, 1 `career_script`, 1 `jobs_search_live`, tous affichés « Envoi : aperçu privé ». Causes : en mode propriétaire seuls les `browser.*` passent seuls (`orchestrator/index.js:1037-1054`), et le libellé est forcé pour tout run career-ops (`storage/index.js:72`, `index.js:1110`). Expiration à 60 s. L'utilisateur l'a signalé à Codex (« à chaque fois ils reviennent ») ; Codex l'a noté sans le corriger.
+2. **Parcours demandé par l'utilisateur non abouti** : recherche de stage/CDD à Sydney (Software / AI engineer) à partir de son CV, dans son Chrome. `c6128625` a échoué à 11:15 sur la limite Codex (« try again at 3:57 PM »), `3d86b8a3` a été annulée par l'utilisateur.
+3. **Candidature complète jamais testée.** Aucun envoi réel, aucun test LinkedIn.
+4. **Prompt Halcyon jamais rejoué** sur le nouveau code : `0dd34420` reste le dernier essai connu ; les objectifs relus depuis ne le contiennent pas.
+5. **« Rien en dur » incomplet** : `orchestrator/index.js` importe encore career-ops (`CareerWorkspace`, `formatCareerBilan`, `workspace: z.enum(['career-ops'])`) ; 45 lignes y citent career/seek/linkedin, 12 dans `apps/api/server.js`.
+6. **Gemini et Claude bloqués** (rapport Codex) : Gemini « API key is missing » ; serveur lancé sans secrets (rapport), cause non prouvée. Claude « Authentication required ». OpenCode sans prompt réel. Seul Codex a de vraies preuves depuis le 30/10.
+7. **`fix-inspire-01` jamais lancé.** Brief à corriger : il cite `nuit-29-10`. Son point 1 repose sur un défaut Gemini.
+8. `linkedin_draft` reste « Rédiger uniquement », `sends.js` inchangé (dépend de la question ouverte).
+9. Déjà connus : `live-probe.js` sans contrôle de budget ; `selectSkillIntents` garde une intention ; atomicité SQLite ; preuve échouée après action réussie ; `Target.createTarget` tardif.
 
-### Travail Codex postérieur, selon ses rapports (NON contre-vérifié)
-- Back suite 364/365 et Chrome 130/130 (`proof-suite-retry.txt`) ; front 99/99, E2E 10/10 avec agents fictifs. Une suite intermédiaire a eu 9 échecs Chrome (lancement expiré à 30 s, `owner-browser.test.js:959`) : réduit par stress, cause non prouvée.
-- `ef2c0b7` : contrôle de confinement Gemini limité à Gemini (bloquait Codex). Modifie un contrôle : à relire.
-- Missions réelles Codex + Playwriter : `3f05a7a5`, `d57649aa` (Seek, lecture seule), `f46aadf1` (IANA), `9bf5a5a8` (example.com). Sonde Seek du 31/10 : `loading:false`, 33 contrôles (`handoff-seek-readonly-2026-10-31.txt`).
-- Dernières missions : `3d86b8a3` annulée par l'utilisateur ; `c6128625` (analyse de CV puis trois annonces) **échouée à 11:15 Sydney sur la limite Codex** (« try again at 3:57 PM »).
-- Bloqués selon le rapport : Gemini (« API key is missing », la session l'a refusée), Claude (« Authentication required »), OpenCode (prompt non lancé).
+### Travaux mélangés
+- Trois fils Codex ont écrit sur les mêmes fichiers : mes briefs (`run-until-done`), une session de l'app lancée par l'utilisateur à 07:52 avec sa propre mission, puis une session de l'app avec l'automatisation d'audit `audit-navigateur-jusqu-10-h`.
+- Les préfixes ne suffisent pas : `[fix-open-01]` couvre aussi la mission de l'app, et le rapport écarte le brief (« l'auto-approbation… a été écartée »). Le front porte `[fix-open-01]` sur `8b98ec6`.
+- `nuit-29-10` contient donc plus que la nuit (`a4455ed` back, `2da487c` front).
+- Mon brief `fix-open-01.md` ne décrit pas le travail réel : ne pas s'y fier. `.manager/run-inspire.sh` : arrêté le 31/10, ne pas relancer.
 
-### État des services à 11:20
-- API 4310 lancée à 10:57 sur `d1a6ddd`, `OWNER_MODE=1`, `LIVE=1`, `BROWSER=playwriter`, `TIMEOUT 900000`, `AUTO_SEND=0`, **sans `--env-file-if-exists=.manager/secrets.env`** : c'est sans doute la cause du refus Gemini (hypothèse à vérifier). Front Vite 5173 actif, relais Playwriter 19988 actif (0.7.0).
-- Chaîne manager `.manager/run-inspire.sh` **arrêtée le 31/10** : elle aurait relancé le brief périmé `fix-open-01` le 4/11. Aucune mission Codex n'est en file.
+### Git et services à 11:50
+- Back : `codex/browser-audit-31-10` ; `main` = origin/main = `60a216b`. Front : même branche, `8b98ec6` ; `main` = `e7fa33e`. `nuit-29-10` est ancêtre de la branche dans les deux dépôts. Rien de poussé.
+- Non commités, pas du manager : back `.manager/api-usage.md`, `.manager/reports/seek-apply-01.md` (11:09–11:11) ; front : captures `front-01-screens/*.png`.
+- API 4310 lancée à 10:57, `OWNER_MODE=1`, `LIVE=1`, `BROWSER=playwriter`, sans secrets. La variable `AUTO_SEND=0` de son environnement n'a plus d'effet : le code ne la lit plus. Front 5173 et relais 19988 actifs. Aucune mission active. Automatisation Codex : `PAUSED`. Aucune chaîne manager.
 
-### Budget
-Gemini : voir `.manager/api-usage.md` (section « Reprise du 31/10 », plafond additionnel 5 $ selon Codex ; le cumul précédent était ≈ 4,91 $ sur 5 $). `scripts/live-probe.js` peut encore dépenser sans contrôle de budget.
+### Verdict : `fix-open-01` A CORRIGER
+Tests verts, travail conservé, mais le parcours réel se bloque en clics et le Skill career-ops n'a pas abouti de bout en bout.
 
-### Prochaines actions, dans l'ordre
-1. Finir l'audit de `git diff 350f0bb..d1a6ddd` (back) et `31cc691..8b98ec6` (front) et rendre le verdict de `fix-open-01`.
-2. Faire décider l'utilisateur sur le défaut « trop d'accords, mal étiquetés », puis brief Codex.
-3. Relancer le serveur si aucune mission active, avec `--env-file-if-exists=.manager/secrets.env` si Gemini est voulu.
-4. Faire rejouer à l'utilisateur le prompt Halcyon exact, en « Nouvelle mission » (limite Codex levée à 15:57 selon le fournisseur). Critère de VALIDE : cinq lignes d'exigences et Bilan juste.
-5. Lancer `fix-inspire-01` (brief prêt, **à corriger** : il cite encore la branche `nuit-29-10`). Dépôts déjà clonés dans `~/Downloads/agent-repos`. Six points : outil natif figé → reprise, relecture d'historique, agent mort, routage, navigateur, réponse qui dépasse les preuves.
-6. Ouverts par ordre de gravité : `live-probe.js` sans contrôle de budget ; `selectSkillIntents` garde une seule intention (`slice(0,1)`) ; Bilan et `truth.js` spécifiques à career-ops alors que le moteur doit rester générique ; génération de manifestes pour installer d'autres Skills ; atomicité SQLite état/événement ; preuve navigateur échouée après action réussie ; `Target.createTarget` tardif ; débordement de 4–5 px sur `spread`.
+### Prochaines actions
+1. Reposer la question des envois. 2. Brief Codex : auto-approuver ce qui n'est pas un envoi et afficher la vraie nature de chaque demande. 3. Reprendre `c6128625` en Nouvelle mission, limite Codex levée. 4. Rejouer Halcyon. 5. Sortir career-ops du moteur. 6. `fix-inspire-01`.
 
-### Pièges appris
-- Reprise de session : Gemini rejoue l'historique (événements à la même seconde) et répond sans agir. Toujours « Nouvelle mission » ; ne compter que les appels après `promptStarted` et les `browser_evidence`.
-- `run-until-done.sh` n'écrit pas de fichier `.done` : attendre `fin <id>` dans `.manager/logs/<id>-runner.log`.
-- L'utilisateur lance aussi Codex depuis l'app, hors du lanceur : vérifier `git status`, les rapports et `~/.codex/sessions` avant toute reprise, pour ne pas lancer deux sessions. La limite Codex de l'app et des missions ACP est la même.
-- Tests de timing sensibles à la charge (l'app Codex peut prendre plus de 100 % CPU) : relancer seuls avant de conclure. Une copie `git worktree` n'a pas `.data/agents.json`.
-- Dans `/api/runs`, le champ est `state`, pas `status` ; `/events` est un flux SSE.
-
-### Fichiers clés de cette session
-Briefs : `.manager/briefs/fix-router-03.md`, `fix-open-01.md`, `fix-inspire-01.md`. Rapports : `.manager/reports/NIGHT2-REPORT.md`, `fix-router-03.md`, `fix-open-01.md`, `seek-apply-01.md`. Lanceur : `.manager/run-inspire.sh`. Code : `packages/orchestrator/{index,skill-router,failure}.js`, `packages/browser-gateway/{index,cdp}.js`, `packages/career-ops/{tools,sends,truth,integration}.js`, `domain-packs/career-ops/skill-manifest.yaml`, `apps/api/server.js` ; front `src/Composer.tsx`.
+### Pièges
+- Vérifier `~/.codex/sessions` et `git status` avant toute reprise : l'utilisateur pilote aussi Codex depuis l'app.
+- Reprise de session : l'agent rejoue l'historique ; ne compter que les appels après `promptStarted` et les `browser_evidence`.
+- `run-until-done.sh` n'écrit pas de `.done` : lire `fin <id>` dans le journal. `/api/runs` : champ `state` ; `/events` : SSE.
+- Copie `git worktree` : passer `AGENT_PLATFORM_AGENTS_CONFIG=<dépôt>/.data/agents.json`. Tests de timing : relancer seuls avant de conclure.
 
 ## 0000000. Journée du 29/10 — supervision Codex, état réel (À LIRE EN PREMIER, prime sur § 000000)
 

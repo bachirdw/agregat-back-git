@@ -13,6 +13,7 @@ import { compactBrowserEvidence } from '../../packages/orchestrator/browser-proo
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
 import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
 import { summarize, meters } from '../../packages/billing/index.js';
+import { missionTitle } from '../../packages/orchestrator/title.js';
 // Local skill imports are limited to configured roots (never an arbitrary path from the browser).
 export function allowedSkillPath(
   p,
@@ -177,7 +178,12 @@ export function createApp({
           meters,
           pricing: engine.pricing,
         });
-      if (req.method === 'GET' && path === '/api/runs') return json(res, 200, store.list());
+      if (req.method === 'GET' && path === '/api/runs')
+        return json(
+          res,
+          200,
+          store.list().map((run) => ({ ...run, title: run.title ?? missionTitle(run.prompt) })),
+        );
       const match = path.match(/^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume))?$/);
       if (match) {
         const [, id, action] = match;
@@ -217,6 +223,7 @@ export function createApp({
         if (req.method === 'GET' && !action)
           return json(res, 200, {
             ...run,
+            title: run.title ?? missionTitle(run.prompt),
             usage: {
               currency: engine.pricing.currency,
               ...store.usage(id),

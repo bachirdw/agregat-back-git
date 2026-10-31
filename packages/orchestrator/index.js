@@ -28,6 +28,7 @@ import {
   verifiedBrowserVisit,
 } from './browser-proof.js';
 import { careerFailureMessage, SERVER_STOPPED } from './failure.js';
+import { missionTitle } from './title.js';
 import {
   createTurnTruth,
   formatCareerBilan,
@@ -531,6 +532,11 @@ export class Orchestrator {
       createdAt: new Date().toISOString(),
       state: 'queued',
       ...plan.input,
+      title:
+        previous?.title ??
+        (plan.input.workspace === 'career-ops' && !this.ownerMode
+          ? 'Candidature'
+          : missionTitle(plan.input.prompt)),
       cwd,
       simulated: plan.simulated,
       dataMode: plan.dataMode,
@@ -722,6 +728,8 @@ export class Orchestrator {
           ),
         });
       const runtime = new AcpRuntime({
+        // The run owns the deadline: the runtime default was cutting long missions short.
+        timeouts: { prompt: this.timeoutFor(plan.pack.id) },
         definition:
           plan.pack.id === 'career-ops'
             ? {

@@ -15,10 +15,12 @@ async function runFixture(
     observedEvidence = null,
     prompt = 'Montre les liens FICTIFS',
     simulated = true,
+    timeoutMs,
+    onControl = () => {},
   } = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), 'fix-resume-FICTIF-'));
-  const app = createApp({ dataDir: root, ownerMode: true });
+  const app = createApp({ dataDir: root, ownerMode: true, timeoutMs });
   t.after(async () => {
     await app.close();
     rmSync(root, { recursive: true, force: true });
@@ -59,6 +61,7 @@ async function runFixture(
     : null;
   try {
     await app.engine.execute(run, plan, control, previous);
+    onControl(control);
   } finally {
     if (evidenceTimer) clearInterval(evidenceTimer);
   }
@@ -192,4 +195,14 @@ test('agent simulé en texte libre : toujours refusé', async (t) => {
   });
   assert.equal(done.state, 'failed');
   assert.match(done.error, /non structurée/);
+});
+
+test('le délai de la mission commande aussi le tour de l’agent', async (t) => {
+  let prompt;
+  await runFixture(t, {
+    timeoutMs: 1234567,
+    config: { result: answer },
+    onControl: (control) => (prompt = control.runtime.timeouts.prompt),
+  });
+  assert.equal(prompt, 1234567);
 });

@@ -26,7 +26,7 @@ Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le man
 | `career_script` | tout `scripts/*` lançable, confiné, un accord par exécution (`tools.js:165-185`) ; commandes courtes en liste (`:212-220`) |
 | Bug « Loading » SEEK | sonde réelle du 30/10 (`real-snapshot-2026-10-30.txt`), sans doute d'autres lectures Codex depuis |
 | `fix-router-03` | rouge 10/15 → vert 15/15 ; le prompt Halcyon est classé `evaluate` |
-| Rouges du travail Codex (`350f0bb` + tests de `d1a6ddd`, sans Chrome) | **rejeu partiel, interrompu à la passation** : au moins 18 échecs avant correction, dont `browser-proof`, permissions, modèle, consignes Skill. À relancer pour le total ; certains peuvent venir de l'absence de Chrome |
+| Rouges du travail Codex (`350f0bb` + tests de `d1a6ddd`, sans Chrome) | **rejeu partiel, arrêté par le manager à 12:21** (journal immobile depuis 11:32, un test bloqué sur l'ancien code) : au moins 18 échecs avant correction, dont `browser-proof`, permissions, modèle, consignes Skill. À relancer pour le total ; certains peuvent venir de l'absence de Chrome |
 
 ### Fini selon les rapports Codex, non rejoué
 Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f05a7a5`, `d57649aa` (Seek, lecture seule), `f46aadf1` (IANA). `/api/runs` confirme leur état, les preuves n'ont pas été relues. Découverte des packs sans liste codée (`packs.js`), preuve de navigation (`browser-proof.js`), agent choisi conservé au lieu de forcer Gemini, composeur stabilisé (`8b98ec6`, demande de l'utilisateur du 31/10).

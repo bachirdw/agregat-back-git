@@ -1,0 +1,58 @@
+{
+  "permissionAutoMapping": [
+    {
+      "seq": 12964,
+      "at": "2026-10-31T07:42:42.370Z",
+      "label": "\"career-ops\":",
+      "toolInCallId": "activate_skill"
+    },
+    {
+      "seq": 12970,
+      "at": "2026-10-31T07:42:48.769Z",
+      "label": "career_read",
+      "toolInCallId": "career_read"
+    },
+    {
+      "seq": 12973,
+      "at": "2026-10-31T07:42:48.840Z",
+      "label": "career_read",
+      "toolInCallId": "career_read"
+    },
+    {
+      "seq": 12980,
+      "at": "2026-10-31T07:42:58.138Z",
+      "label": "career_read",
+      "toolInCallId": "career_read"
+    },
+    {
+      "seq": 12983,
+      "at": "2026-10-31T07:42:58.166Z",
+      "label": "career_read",
+      "toolInCallId": "career_read"
+    },
+    {
+      "seq": 12988,
+      "at": "2026-10-31T07:43:12.997Z",
+      "label": "scan",
+      "toolInCallId": "career_script"
+    },
+    {
+      "seq": 12995,
+      "at": "2026-10-31T07:43:19.997Z",
+      "label": "jobs_search_live",
+      "toolInCallId": "jobs_search_live"
+    }
+  ],
+  "stalledTool": "google_web_search",
+  "stalledAfterMs": 120000,
+  "lastReportedContextUsed": 62969,
+  "contextCapacity": 1048576,
+  "usageMeaning": "Occupation de contexte ACP ; pas des tokens facturés entrée/sortie",
+  "apiLogComparison": {
+    "bytes": 600,
+    "lines": 6,
+    "terminalCauseLogged": false,
+    "errorMarkers": 0,
+    "listenerPreviouslyVerified": true
+  }
+}

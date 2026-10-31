@@ -1,0 +1,50 @@
+{
+  "curlExit": 0,
+  "http": "200",
+  "agent": "Claude Code",
+  "simulated": false,
+  "dataMode": "unverified",
+  "browser": "playwriter",
+  "cost": {
+    "platformCents": 0,
+    "externalCents": null,
+    "currency": "EUR",
+    "lines": [
+      {
+        "dimension": "workflow_run",
+        "units": 1,
+        "cents": 0
+      }
+    ],
+    "budgetCents": 0,
+    "withinBudget": true,
+    "description": "1 tour(s) d’agent BYOA : consommation de votre fournisseur, inconnue et non refacturée"
+  },
+  "models": {
+    "source": "configOptions",
+    "configId": "model",
+    "current": "default",
+    "options": [
+      {
+        "id": "default",
+        "name": "Default (recommended)"
+      },
+      {
+        "id": "sonnet",
+        "name": "Sonnet 5"
+      },
+      {
+        "id": "claude-fable-5[1m]",
+        "name": "Fable 5"
+      },
+      {
+        "id": "opus",
+        "name": "Opus 4.8"
+      },
+      {
+        "id": "haiku",
+        "name": "Haiku 4.5"
+      }
+    ]
+  }
+}

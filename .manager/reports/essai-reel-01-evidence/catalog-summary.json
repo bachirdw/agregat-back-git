@@ -1,0 +1,40 @@
+{
+  "catalogCurlExit": 0,
+  "apiListenerExit": 0,
+  "live": true,
+  "ownerMode": true,
+  "agents": [
+    {
+      "id": "fixture",
+      "name": "Démonstrateur ACP",
+      "available": null,
+      "simulated": true
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "available": null,
+      "simulated": null
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "available": null,
+      "simulated": null
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "available": null,
+      "simulated": null
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "available": null,
+      "simulated": null
+    }
+  ],
+  "relayLsofExit": 0,
+  "sessionListExit": 0
+}

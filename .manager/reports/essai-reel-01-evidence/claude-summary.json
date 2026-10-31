@@ -1,0 +1,77 @@
+{
+  "id": "455ec995-5895-4da6-bb7b-31af697dc23f",
+  "agent": "claude",
+  "requestedModel": "",
+  "state": "failed",
+  "createdAt": "2026-10-31T07:49:24.531Z",
+  "finishedAt": "2026-10-31T07:49:33.142Z",
+  "durationSeconds": 8.611,
+  "error": "Exécution privée échouée ; consulter les détails techniques.",
+  "eventCount": 54,
+  "eventTypes": {
+    "state": 3,
+    "session": 1,
+    "skill_progress": 2,
+    "agent": 47,
+    "agent_diagnostic": 1
+  },
+  "permissionAutoTools": {},
+  "permissions": [],
+  "browserProviders": {},
+  "browserCapabilities": {},
+  "browserDomains": {},
+  "readableObservations": 0,
+  "uniqueNavigatedPages": 0,
+  "uniqueReadablePages": 0,
+  "summaryUniqueHttpLinks": 0,
+  "summaryLinkDomains": {},
+  "summaryLinksWithNavigateProof": 0,
+  "summaryLinksWithReadableProof": 0,
+  "rankMarkers": [],
+  "agentUpdateTypes": {
+    "available_commands_update": 1,
+    "session_info_update": 1,
+    "usage_update": 4,
+    "agent_thought_chunk": 35,
+    "tool_call": 1,
+    "tool_call_update": 4,
+    "agent_message_chunk": 1
+  },
+  "modelMetadata": [
+    {
+      "field": "_claude/model",
+      "value": "claude-sonnet-4-6",
+      "observations": 4
+    }
+  ],
+  "usage": {
+    "currency": "EUR",
+    "platformCents": 0,
+    "entries_count": 2,
+    "dimensions": {
+      "workflow_run": 1,
+      "tool_observed": 1
+    }
+  },
+  "summaryFlags": {
+    "expiredPermissionMentioned": false,
+    "isolatedChromeMentioned": false
+  },
+  "privateDataExcluded": true,
+  "reportedExternalCost": {
+    "amount": 0.199544,
+    "currency": "USD",
+    "source": "ACP usage_update ; ne constitue pas une facture"
+  },
+  "reportedContext": {
+    "used": 49293,
+    "size": 200000,
+    "billableInputOutputTokensKnown": false
+  },
+  "terminalCauseFromMetadata": {
+    "status": "rejected",
+    "rateLimitType": "five_hour",
+    "overageDisabledReason": "out_of_credits",
+    "resetsAtSydney": "2026-10-31T18:50:00+11:00"
+  }
+}

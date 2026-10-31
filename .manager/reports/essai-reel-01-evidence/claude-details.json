@@ -1,0 +1,32 @@
+{
+  "servedModelMetadata": {
+    "claude-sonnet-4-6": 4
+  },
+  "rateLimits": [
+    {
+      "status": "rejected",
+      "resetsAt": 1793433000,
+      "rateLimitType": "five_hour",
+      "overageStatus": "rejected",
+      "overageDisabledReason": "out_of_credits",
+      "isUsingOverage": false,
+      "resetsAtSydney": "2026-10-31T18:50:00+11:00"
+    }
+  ],
+  "reportedCosts": [
+    {
+      "amount": 0.199544,
+      "currency": "USD"
+    }
+  ],
+  "limitMessages": [],
+  "apiLogComparison": {
+    "bytes": 600,
+    "lines": 6,
+    "matchingCauseMarkers": {
+      "rate limit": 0,
+      "out_of_credits": 0,
+      "five_hour": 0
+    }
+  }
+}

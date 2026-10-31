@@ -1,0 +1,9 @@
+{
+  "curlExit": 0,
+  "http": "201",
+  "id": "455ec995-5895-4da6-bb7b-31af697dc23f",
+  "agent": "claude",
+  "state": "queued",
+  "simulated": false,
+  "model": ""
+}

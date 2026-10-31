@@ -1,0 +1,12 @@
+{
+  "bytes": 600,
+  "lines": 6,
+  "errorMarkers": {
+    "error": 0,
+    "Outil sans mise à jour": 0,
+    "timeout": 0,
+    "rate limit": 0,
+    "out_of_credits": 0,
+    "EADDRINUSE": 0
+  }
+}

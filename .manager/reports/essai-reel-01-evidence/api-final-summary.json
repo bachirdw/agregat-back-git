@@ -1,0 +1,10 @@
+{
+  "runsCurlExit": 0,
+  "pendingCurlExit": 0,
+  "apiLsofExit": 0,
+  "activeRuns": [],
+  "pendingType": "dict",
+  "pendingCount": 0,
+  "apiPid": 29862,
+  "finalCriticalModifiedPaths": []
+}

@@ -1,0 +1,9 @@
+{
+  "curlExit": 0,
+  "http": "201",
+  "id": "5927e9a8-2a66-49c7-9610-d6e6b1956eec",
+  "agent": "gemini",
+  "state": "queued",
+  "simulated": false,
+  "model": "auto"
+}

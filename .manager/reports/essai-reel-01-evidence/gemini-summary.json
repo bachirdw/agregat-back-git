@@ -1,0 +1,62 @@
+{
+  "id": "5927e9a8-2a66-49c7-9610-d6e6b1956eec",
+  "agent": "gemini",
+  "requestedModel": "auto",
+  "state": "failed",
+  "createdAt": "2026-10-31T07:42:25.717Z",
+  "finishedAt": "2026-10-31T07:47:27.516Z",
+  "durationSeconds": 301.799,
+  "error": "Outil sans mise à jour depuis 120 s ; relancer.",
+  "eventCount": 61,
+  "eventTypes": {
+    "state": 3,
+    "session": 1,
+    "skill_progress": 3,
+    "agent": 44,
+    "permission_auto": 7,
+    "agent_silent": 2,
+    "tool_stalled": 1
+  },
+  "permissionAutoTools": {
+    "\"career-ops\":": 1,
+    "career_read": 4,
+    "scan": 1,
+    "jobs_search_live": 1
+  },
+  "permissions": [],
+  "browserProviders": {},
+  "browserCapabilities": {},
+  "browserDomains": {},
+  "readableObservations": 0,
+  "uniqueNavigatedPages": 0,
+  "uniqueReadablePages": 0,
+  "summaryUniqueHttpLinks": 0,
+  "summaryLinkDomains": {},
+  "summaryLinksWithNavigateProof": 0,
+  "summaryLinksWithReadableProof": 0,
+  "rankMarkers": [],
+  "agentUpdateTypes": {
+    "available_commands_update": 1,
+    "agent_thought_chunk": 13,
+    "usage_update": 7,
+    "tool_call": 12,
+    "tool_call_update": 11
+  },
+  "modelMetadata": [],
+  "usage": {
+    "currency": "EUR",
+    "platformCents": 0,
+    "entries_count": 20,
+    "dimensions": {
+      "workflow_run": 1,
+      "tool_observed": 12,
+      "tool_call": 6,
+      "data_search": 1
+    }
+  },
+  "summaryFlags": {
+    "expiredPermissionMentioned": false,
+    "isolatedChromeMentioned": false
+  },
+  "privateDataExcluded": true
+}

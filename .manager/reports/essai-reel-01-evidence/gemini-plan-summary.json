@@ -1,0 +1,53 @@
+{
+  "curlExit": 0,
+  "http": "200",
+  "agent": "Gemini CLI",
+  "simulated": false,
+  "dataMode": "unverified",
+  "browser": "playwriter",
+  "cost": {
+    "platformCents": 0,
+    "externalCents": null,
+    "currency": "EUR",
+    "lines": [
+      {
+        "dimension": "workflow_run",
+        "units": 1,
+        "cents": 0
+      }
+    ],
+    "budgetCents": 0,
+    "withinBudget": true,
+    "description": "1 tour(s) d’agent BYOA : consommation de votre fournisseur, inconnue et non refacturée"
+  },
+  "models": {
+    "source": "models",
+    "current": "auto",
+    "options": [
+      {
+        "id": "auto",
+        "name": "Auto"
+      },
+      {
+        "id": "gemini-3.1-pro-preview-customtools",
+        "name": "gemini-3.1-pro-preview"
+      },
+      {
+        "id": "gemini-3-flash-preview",
+        "name": "gemini-3-flash-preview"
+      },
+      {
+        "id": "gemini-2.5-pro",
+        "name": "gemini-2.5-pro"
+      },
+      {
+        "id": "gemini-3.8-flash",
+        "name": "gemini-3.8-flash"
+      },
+      {
+        "id": "gemini-3.5-flash-lite",
+        "name": "gemini-3.5-flash-lite"
+      }
+    ]
+  }
+}

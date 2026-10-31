@@ -1,0 +1,69 @@
+Dépôt : /Users/diaw/Downloads/agregat-back
+$ git status --short
+ M .manager/HANDOFF.md
+?? .claude/launch.json
+?? .envforme
+?? .manager/briefs/arch-01.md
+?? .manager/briefs/review-arch-01.md
+?? .manager/briefs/skill-01.md
+?? docs/architecture-cible.md
+?? docs/validation-architecture.md
+Code de sortie : 0
+$ git branch --show-current
+codex/browser-audit-31-10
+Code de sortie : 0
+$ git log -1 --format=%h
+918afdf
+Code de sortie : 0
+$ git merge-base --is-ancestor 918afdf HEAD
+
+Code de sortie : 0
+Dépôt : /Users/diaw/Downloads/agregat-front
+$ git status --short
+ M .manager/reports/front-01-screens/01-accueil.png
+ M .manager/reports/front-01-screens/02-mission-comparer-4.png
+ M .manager/reports/front-01-screens/02-mission-lettre-3.png
+ M .manager/reports/front-01-screens/02-mission-offres-2.png
+ M .manager/reports/front-01-screens/02-mission-senior-0.png
+ M .manager/reports/front-01-screens/02-mission-veille-1.png
+ M .manager/reports/front-01-screens/03-agents.png
+ M .manager/reports/front-01-screens/03-modeles.png
+ M .manager/reports/front-01-screens/04-skills-quarantaine.png
+ M .manager/reports/front-01-screens/04-skills.png
+ M .manager/reports/front-01-screens/05-domain-packs.png
+ M .manager/reports/front-01-screens/06-consommation.png
+ M .manager/reports/front-01-screens/07-suggestion-remplie.png
+ M .manager/reports/front-01-screens/08-plan.png
+ M .manager/reports/front-01-screens/09-execution.png
+ M .manager/reports/front-01-screens/10-execution-suite.png
+ M .manager/reports/front-01-screens/11-filtre-1-agent.png
+ M ".manager/reports/front-01-screens/11-filtre-2-mod\303\250le.png"
+ M .manager/reports/front-01-screens/11-filtre-3-skills.png
+ M .manager/reports/front-01-screens/11-filtre-4-pack.png
+ M .manager/reports/front-01-screens/11-filtre-5-mode.png
+ M .manager/reports/front-01-screens/12-theme-sombre.png
+ M .manager/reports/front-01-screens/13-mobile.png
+ M .manager/reports/front-01-screens/14-markdown-mermaid.png
+ M .manager/reports/front-01-screens/15-permission-acp.png
+ M .manager/reports/front-01-screens/v2-mission-active.png
+ M .manager/reports/front-01-screens/v2-mission-sombre.png
+ M .manager/reports/front-01-screens/v3-parametres.png
+ M .manager/reports/front-01-screens/v3-suivi-details.png
+Code de sortie : 0
+$ git branch --show-current
+codex/browser-audit-31-10
+Code de sortie : 0
+$ git log -1 --format=%h
+85d6352
+Code de sortie : 0
+$ git merge-base --is-ancestor 85d6352 HEAD
+
+Code de sortie : 0
+$ pgrep -fl "codex exec"
+
+Code de sortie : 1
+$ pgrep -fl "run-until-done"
+
+Code de sortie : 1
+$ test -f /Users/diaw/Downloads/agregat-career-ops/cv.md
+Code de sortie : 0

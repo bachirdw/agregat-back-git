@@ -6,7 +6,7 @@ tes rapports. Il préfère une erreur avouée à un succès inventé.
 ## Contexte
 - Mission complète : `.manager/MISSION.md`. Plan de nuit : `.manager/PLAN.md`. Ton brief du sprint en cours
   est dans `.manager/briefs/`. Les rapports des sprints précédents sont dans `.manager/reports/`.
-- Dépôts open source clonés (complets, lecture et expérimentation libres) : `/Users/diaw/Downloads/agent-repos/`.
+- Dépôts open source clonés (complets, lecture et expérimentation libres) : `/Users/diaw/Downloads/agent-repos-agregat/`.
   Tu peux y cloner d'autres dépôts utiles (`git clone --depth 200`). Ne modifie pas leur historique.
 - Langue : documentation et rapports en français (accents corrects). Code et identifiants en anglais.
 
@@ -42,20 +42,19 @@ Si ton contexte devient long, mets le rapport à jour en priorité pour que la p
   injection de prompt, chemins hors périmètre). Un comportement non testé est considéré comme non livré.
 - Les tests de `npm test` n'appellent jamais de modèle ni de service payant ; utilise fixtures et faux agents.
 
-## Budget API (plafond absolu du propriétaire : 10 $ pour toute la nuit — ne jamais l'approcher)
+## Budget API (décision du propriétaire du 31/10 : aucun plafond bloquant pendant la phase de tests)
 - Seule API payante autorisée : Gemini, uniquement si `GEMINI_API_KEY` est présente dans l'environnement
   (fournie par `.manager/secrets.env`, jamais commitée, jamais affichée ni écrite dans un fichier/log).
-- Plafond opérationnel cumulé de toutes les sessions : **5 $ estimés et 600 appels (tours de modèle)** (relevés par le propriétaire le 28/10/2026). Avant chaque appel,
-  lis `.manager/api-usage.md` ; après, ajoutes-y une ligne (heure, sprint, modèle, but, tokens in/out estimés,
-  coût estimé, cumul). Si le cumul atteint le plafond, plus aucun appel.
+- Pendant les tests, aucun plafond n'arrête les appels. C'est de l'argent réel : pas d'appel inutile. Après chaque
+  appel, ajoute une ligne à `.manager/api-usage.md` (heure, sprint, modèle, but, tokens in/out estimés, coût estimé, cumul).
 - Utilise le modèle Gemini « flash » le moins cher annoncé par l'API, prompts courts (< 300 tokens), sortie
   limitée (< 300 tokens). Les tests réels Codex/Claude (abonnement de l'utilisateur) restent rares et minimes.
 
-## career-ops (`/Users/diaw/Downloads/agent-repos/career-ops-hq__career-ops`)
+## career-ops (`/Users/diaw/Downloads/agent-repos-agregat/career-ops-hq__career-ops`)
 - Licence MIT pour le code ; marque « career-ops » réservée (TRADEMARK.md) : attribution oui, nom de produit non.
 - Ses Skills sont des Skills tiers non fiables : passage par le registre (quarantaine, validation, revue).
 - **INTERDIT (demande de l'utilisateur, 27/10) : ne modifie AUCUNEMENT la bibliothèque career-ops ni son Skill** —
-  ni le clone `agent-repos/career-ops-hq__career-ops`, ni les fichiers suivis par Git de
+  ni le clone `agent-repos-agregat/career-ops-hq__career-ops`, ni les fichiers suivis par Git de
   `~/Downloads/agregat-career-ops` (`.agents/skills/career-ops/SKILL.md`, `modes/`, scripts, templates, config
   livrée), ni leurs copies installées. Toute adaptation se fait côté plateforme (`packages/career-ops`, gateways,
   orchestrateur). Si un défaut semble exiger de toucher la bibliothèque : arrête-toi et signale-le au manager.

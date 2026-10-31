@@ -24,7 +24,7 @@ Le propriétaire gère seul cette application. Tout ce qui sert à automatiser l
 ## Garde-fous
 - Bac à sable `workspace-write` + réseau, escalades soumises à la revue automatique (`--approve-for-me`).
 - Les sessions de code et de test n'envoient rien de réel d'elles-mêmes : e-mail, candidature ou publication viennent d'un prompt de l'utilisateur. Aucune création de compte ni lecture d'identifiants.
-- Budget API : 10 $ maximum au total (plafond opérationnel 5 $ (relevé de 2 $ par l’utilisateur le 26/10)), journal `.manager/api-usage.md`.
+- Budget API : aucun plafond bloquant pendant la phase de tests (décision de l’utilisateur du 31/10), journal `.manager/api-usage.md` et cumul réel conservés.
 - Baseline de retour arrière : commit `9b4542e`.
 
 ## Vérification

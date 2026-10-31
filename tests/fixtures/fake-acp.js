@@ -237,6 +237,7 @@ const app = agent({ name: 'fake-acp' })
       throw new RequestError(-32603, 'Internal error');
     }
     if (cfg.limitText) {
+      if (cfg.lateMs) await new Promise((resolve) => setTimeout(resolve, cfg.lateMs));
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
         update: {

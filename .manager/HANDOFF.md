@@ -23,6 +23,7 @@ Relevé fait par `git`, `ps`, `/api/runs` et lecture du code à cette heure. Le 
 ### Décision du 31/10 : l'accord avant envoi est GARDÉ (l'utilisateur : « Non, garder l'accord »)
 Elle prime sur le point 1 de la hiérarchie pour les envois : en mode propriétaire, un envoi final attend toujours l'accord de l'utilisateur.
 Ne pas réactiver `AGENT_PLATFORM_AUTO_SEND`, ne pas retirer `ownerSendGuard`. Le brief `fix-open-01.md` est périmé sur ce point.
+L'utilisateur a aussi confirmé le 31/10 : le travail de Codex qui a retiré des autorisations est **conservé** (« tu gardes ce travail-là »). Ne rien annuler ; l'audit corrige seulement les défauts prouvés.
 État du code lu le 31/10 :
 - Refus LinkedIn codé en dur et abandon réseau LinkedIn retirés en mode propriétaire. `linkedin_draft` reste « Rédiger uniquement » (`tools.js:416`).
 - `career_script` : tout `scripts/*` est lançable, confiné au dossier, avec un accord par exécution (`tools.js:165-185`). Les commandes courtes gardent leur liste (`:212-220`).

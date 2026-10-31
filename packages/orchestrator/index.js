@@ -27,7 +27,7 @@ import {
   readableBrowserObservation,
   verifiedBrowserVisit,
 } from './browser-proof.js';
-import { careerFailureMessage, SERVER_STOPPED } from './failure.js';
+import { careerFailureMessage, SERVER_STOPPED, usageLimitMessage } from './failure.js';
 import { missionTitle } from './title.js';
 import {
   createTurnTruth,
@@ -626,6 +626,7 @@ export class Orchestrator {
     let text = '',
       events = 0;
     let browserToolObserved = false;
+    let sessionReset = false;
     this.expiredPermissions.delete(run.id);
     const toolTimers = new Map();
     const toolTitles = new Map();
@@ -806,7 +807,19 @@ export class Orchestrator {
       control.runtime = runtime;
       const info = await runtime.start();
       const mcpServers = [this.mcpServerFor(run, plan.pack)];
-      const session = await runtime.session(mcpServers, previous?.sessionId);
+      let session;
+      try {
+        session = await runtime.session(mcpServers, previous?.sessionId);
+      } catch (e) {
+        if (!previous || control.abort.signal.aborted) throw e;
+        // The agent no longer has this session: keep the mission going in a new one, and say so.
+        this.store.event(run.id, 'session_reset', {
+          ...(plan.pack.id === 'career-ops' ? {} : { cause: String(e.message).slice(0, 300) }),
+        });
+        previous = null;
+        sessionReset = true;
+        session = await runtime.session(mcpServers);
+      }
       // session/load replays the previous conversation as updates: only this turn's answer counts.
       text = '';
       await runtime.selectModel(run.model);
@@ -993,6 +1006,9 @@ export class Orchestrator {
             .failedActions()
             .map(({ name, cause }) => `${name} — ${cause}`)
             .join(' ; ');
+      if (sessionReset)
+        value.summary +=
+          '\nSession : la session précédente était introuvable, nouvelle session sans son historique.';
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible).';
@@ -1015,11 +1031,14 @@ export class Orchestrator {
     } catch (e) {
       const reason = control.abort.signal.reason;
       const expired = control.cancelled ? null : this.expiredPermissionError(run.id);
+      const usageLimit = control.cancelled ? null : usageLimitMessage(plan.agent.name, text, e);
       const failureMessage = expired
         ? expired.message
-        : plan.pack.id === 'career-ops'
-          ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
-          : String(reason?.message ?? e.message ?? e).slice(0, 1000);
+        : usageLimit
+          ? usageLimit
+          : plan.pack.id === 'career-ops'
+            ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
+            : String(reason?.message ?? e.message ?? e).slice(0, 1000);
       if (skillProgress.started) {
         const skillResult = skillProgress.finish();
         this.store.update(run.id, {

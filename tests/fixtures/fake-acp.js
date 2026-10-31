@@ -95,6 +95,7 @@ const app = agent({ name: 'fake-acp' })
   })
   .onRequest(methods.agent.session.load, async (ctx) => {
     await guard('session/load');
+    if (cfg.loadError) throw new RequestError(-32603, 'Internal error', { details: cfg.loadError });
     if (cfg.replayBrowserToolOnLoad)
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
@@ -222,6 +223,16 @@ const app = agent({ name: 'fake-acp' })
         },
         options: [{ optionId: 'no', name: 'Non', kind: 'reject_once' }],
       });
+    if (cfg.limitText) {
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: cfg.limitText },
+        },
+      });
+      throw new RequestError(-32603, 'Internal error');
+    }
     if (cfg.errorText) throw new RequestError(-32000, cfg.errorText);
     if (cfg.permissionHang) {
       await connection.client.request(methods.client.session.requestPermission, {

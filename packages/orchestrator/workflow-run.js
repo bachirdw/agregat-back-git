@@ -1,3 +1,4 @@
+import { usageLimitMessage } from './failure.js';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AcpRuntime, saveProbe } from '../agent-runtime/index.js';
@@ -202,7 +203,8 @@ export async function executeWorkflow(orch, run, plan, control) {
               inference: false,
               inferenceError: String(e.message).slice(0, 120),
             });
-          throw orch.expiredPermissionError(run.id) ?? e;
+          const usageLimit = usageLimitMessage(definition.name, text, e);
+          throw orch.expiredPermissionError(run.id) ?? (usageLimit ? new Error(usageLimit) : e);
         }
         const expiredPermission = orch.expiredPermissionError(run.id);
         if (expiredPermission) throw expiredPermission;

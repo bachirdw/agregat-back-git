@@ -1,5 +1,19 @@
 export const SERVER_STOPPED = 'Serveur arrêté pendant la mission';
 
+const LIMIT_TEXT =
+  /\b(?:usage|rate|session|weekly|daily)[ -]limit\b|hit your (?:\w+ )?limit|quota (?:exceeded|exhausted)|exceeded your (?:current )?quota/i;
+
+// Agents announce a provider limit as text, then end with a bare protocol error: name the real cause.
+// Only the limit itself and its retry time are kept, never the agent's text.
+export function usageLimitMessage(agentName, text, error) {
+  const message = String(error?.message ?? '');
+  const bareFailure = /^(?:Internal error|Agent arrêté\b)/i.test(message);
+  const source = LIMIT_TEXT.test(message) ? message : bareFailure ? String(text ?? '') : '';
+  if (!LIMIT_TEXT.test(source)) return null;
+  const retry = source.match(/(?:try again at|resets?(?: at)?)\s+([^.\n]{1,40})/i)?.[1]?.trim();
+  return `Limite d’usage de ${agentName} atteinte${retry ? ` : réessayer à ${retry}` : ''}. Choisir un autre agent ou attendre.`;
+}
+
 // Only platform-owned causes are safe to show for a private career run.
 export function careerFailureMessage({ cancelled = false, reason, error } = {}) {
   if (cancelled) return 'Annulée par l’utilisateur';

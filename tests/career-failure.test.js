@@ -1,3 +1,4 @@
+import { usageLimitMessage } from '../packages/orchestrator/failure.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { careerFailureMessage } from '../packages/orchestrator/failure.js';
@@ -133,4 +134,26 @@ test('échec privé intégré : navigation non prouvée nommée sans prompt priv
     await app.close();
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('limite d’usage : seule la cause sort, jamais le texte privé de l’agent', () => {
+  const error = new Error('Internal error');
+  assert.equal(
+    usageLimitMessage(
+      'Codex',
+      'CV SECRET FICTIF. You’ve hit your usage limit, try again at 3:57 PM.',
+      error,
+    ),
+    'Limite d’usage de Codex atteinte : réessayer à 3:57 PM. Choisir un autre agent ou attendre.',
+  );
+  assert.equal(usageLimitMessage('Codex', 'CV SECRET FICTIF', error), null);
+  // A page quoting a limit must not disguise another failure.
+  assert.equal(
+    usageLimitMessage('Codex', 'rate limit cité par une page', new Error('Navigation non prouvée')),
+    null,
+  );
+  assert.match(
+    usageLimitMessage('Gemini', '', new Error('Quota exceeded for model')),
+    /^Limite d’usage de Gemini/,
+  );
 });

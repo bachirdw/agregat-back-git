@@ -206,3 +206,54 @@ test('le délai de la mission commande aussi le tour de l’agent', async (t) =>
   });
   assert.equal(prompt, 1234567);
 });
+
+test('limite d’usage annoncée en texte : vraie cause au lieu de « Internal error »', async (t) => {
+  const done = await runFixture(t, {
+    config: {
+      limitText: 'You’ve hit your usage limit. Upgrade or try again at 3:57 PM.\n\n',
+    },
+  });
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /^Limite d’usage de .+ atteinte : réessayer à 3:57 PM\./);
+  assert.doesNotMatch(done.error, /Internal error|Upgrade/);
+});
+
+test('erreur interne sans limite annoncée : message d’origine conservé', async (t) => {
+  const done = await runFixture(t, {
+    config: { limitText: 'Une réponse partielle FICTIVE.' },
+  });
+  assert.equal(done.state, 'failed');
+  assert.equal(done.error, 'Internal error');
+});
+
+test('session introuvable à la reprise : nouvelle session dans la même mission, signalée', async (t) => {
+  const done = await runFixture(t, {
+    previous: { sessionId: 'FICTIF-perdue' },
+    browserWorkflow: false,
+    onControl: (control) => assert.notEqual(control.runtime.sessionId, 'FICTIF-perdue'),
+    config: { loadError: 'Invalid session identifier "FICTIF-perdue".', result: answer },
+  });
+  assert.equal(done.state, 'completed');
+  assert.match(done.result.summary, /session précédente était introuvable/);
+  assert.notEqual(done.sessionId, 'FICTIF-perdue');
+});
+
+test('reprise réussie : aucune mention de session perdue', async (t) => {
+  const done = await runFixture(t, {
+    previous: { sessionId: 'FICTIF-gardee' },
+    browserWorkflow: false,
+    config: { result: answer },
+  });
+  assert.equal(done.state, 'completed');
+  assert.doesNotMatch(done.result.summary, /session précédente/);
+  assert.equal(done.sessionId, 'FICTIF-gardee');
+});
+
+test('session introuvable et nouvelle session refusée : vraie cause affichée', async (t) => {
+  const done = await runFixture(t, {
+    previous: { sessionId: 'FICTIF-perdue' },
+    config: { loadError: 'Invalid session identifier', authRequired: true },
+  });
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /Fake API key is missing/);
+});

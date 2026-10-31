@@ -100,6 +100,10 @@ export class AcpRuntime {
   }
   safeError(error) {
     const e = error instanceof Error ? error : new Error(String(error));
+    // JSON-RPC agents put the real cause in data.details behind a bare « Internal error ».
+    const details = typeof e.data?.details === 'string' ? e.data.details.trim() : '';
+    if (details && !e.message.includes(details))
+      e.message = `${e.message} : ${details.replace(/\s+/g, ' ').slice(0, 300)}`;
     e.message = redact(e.message, this.secrets);
     if (e.stack) e.stack = redact(e.stack, this.secrets);
     if (e.data) e.data = redactValue(e.data, this.secrets);

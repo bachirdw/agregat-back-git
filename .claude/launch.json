@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "front-v2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "/Users/diaw/Downloads/agregat-front-v2", "run", "dev", "--", "--port", "5174"],
+      "port": 5174
+    }
+  ]
+}

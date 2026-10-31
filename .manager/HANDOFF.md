@@ -3,6 +3,59 @@
 Une seule passation, tenue à jour. À lire avec `CLAUDE.md`, `AGENTS.md`, `.manager/MISSION.md`, `.manager/PLAN.md`. Les rapports Codex restent dans `.manager/reports/`.
 Anciennes passations (26–29/10), supprimées le 31/10 à la demande de l'utilisateur : `git show b71f1da:.manager/HANDOFF.md`.
 
+## Front-end, design v3 — 31/10, après 16:05 Sydney (à lire pour tout travail sur le front)
+
+Dépôt séparé : `~/Downloads/agregat-front` (Vite, React 19, TypeScript). Cette section vaut pour le front ; le reste de la passation couvre surtout le back.
+
+### Où en est le code
+- **Le v3 est sur `main` : `main` = `origin/main` = `00bc9d6`.** Copie de travail à jour : `~/Downloads/agregat-front-v2`, branche `front-v2`, même commit, propre.
+- **Piège : le dossier principal `agregat-front` n'est pas sur le v3.** Il reste sur `codex/browser-audit-31-10` à `8b98ec6`, 4 commits derrière `main`. Le port 5173 (PID 15976) sert ce dossier, donc l'ancien visuel. Le v3 se voit sur 5174 (PID 98511, lancé depuis `agregat-front-v2`), branché sur l'API réelle 4310 : une mission lancée de là est réelle.
+- **Bascule à faire, sur ordre de l'utilisateur** (question posée, sans réponse à ce stade) : passer `agregat-front` sur `main`, puis relancer E2E et 5173. `main` n'est extraite nulle part et `front-v2` a sa propre branche : pas de conflit de worktree.
+- **Brouillons de `agregat-front` sans valeur propre (vérifié avec `cmp`)** : `src/App.tsx`, `style.css`, `types.ts`, `ConnectionsPanel.tsx`, `ConnectionsPanel.test.tsx` sont identiques à `d95374a`, donc déjà contenus dans `main`. Ils bloquent seulement le changement de branche. Captures `front-01-screens/*.png` modifiées et non commitées, origine non établie : les regarder avant de les écarter.
+
+### Commits, dans l'ordre
+| Commit | Contenu |
+|---|---|
+| `d95374a` | Instantané du travail d'une autre conversation sur le panneau Connexions locales, pris comme base |
+| `47bdc93` | Visuel v3 sur les données réelles de l'API |
+| `e23ca47` | Le tableau garde outils et états sur les longues missions : la limite de 500 événements ne vise plus que les morceaux de texte de l'agent (`api.ts`, `App.tsx`) |
+| `00bc9d6` | Session perdue signalée dans le tableau des événements (`ConnectionsPanel.tsx`) |
+
+`e23ca47` et `00bc9d6` ne viennent pas de la conversation qui a implanté le v3 : lus par leur diff seulement.
+
+### Fichiers
+- **`src/v2.css` (nouveau, importé après `style.css` dans `main.tsx`)** : tout le visuel v3. Retirer l'import rend l'ancien visuel, à structure de page près.
+- **Nouveaux** : `MissionPill.tsx` (Arrêter et file d'instructions), `Tracker.tsx` (carte « Suivi de la mission »), `Settings.tsx` (Profil, Utilisation, Disponible ; le reste « Bientôt »), `ConnectionsPanel.tsx`, `v2.test.tsx`, `ConnectionsPanel.test.tsx`.
+- **Modifiés** : `App.tsx` (page Paramètres, compte en bas de barre latérale, lueur, envoi de la file, composeur masqué pendant une mission), `Career.tsx` (durée des outils, Copier), `Mission.tsx` (classe `stop-mission`), `Icon.tsx`, `api.ts`, `types.ts`, `style.css`, `App.test.tsx`, `tests/e2e.test.mjs`.
+- **Référence** : `design/maquette-v3.html` ; captures `v2-*`, `v3-*` dans `.manager/reports/front-01-screens/`. Pas de rapport `.manager/reports` dédié au v3 : cette section en tient lieu.
+
+### Décisions
+Demandes de l'utilisateur : remplacer le front par la maquette Claude Design sans casser l'existant, avec les tests ; `claude-design-agregatv3.html` (Téléchargements) remplace la v2 ; l'autre conversation a la priorité sur les fichiers communs.
+
+Choix d'implantation, à ne pas « corriger » sans décision de l'utilisateur :
+- **Aucune donnée inventée** (`AGENTS.md`) : « Pro · 12 % », limites hebdomadaires et missions d'exemple de la maquette écartés. Le compte affiche « Local · BYOA », l'onglet Utilisation la vraie consommation, l'onglet Disponible les vrais agents.
+- **Sans API** : interrupteurs d'outils, CV et LinkedIn marqués « Bientôt » ; liste des domaines autorisés absente.
+- **« Toujours autoriser » absent** : un test existant exige que l'autorisation permanente reste masquée.
+- **File d'instructions** : elle part seule uniquement si la mission est `completed` et reprenable, vérifié sur une copie fraîche du run. Sinon rien n'est envoyé, le texte revient dans la saisie avec une erreur.
+- **Accords** : carte teintée dans le fil, boutons absents du suivi pour éviter le doublon.
+- **Conservés malgré la maquette** : étape de plan avant lancement ; liens Agents, Skills, Domain Packs, Consommation.
+
+### Tests
+- Relancés à 16:04 sur `00bc9d6` : `npx vitest run` 136/136, `tsc --noEmit` propre.
+- **E2E non relancés sur `00bc9d6`.** Dernier résultat : 14/14 avant `e23ca47` et `00bc9d6`, sur backend fixture et Chrome système, donc sans agent réel. Commande : `npm run test:e2e`.
+- Base de `d95374a`, avant le v3 : 105 unitaires, 11 E2E (99 unitaires à `8b98ec6` selon le rapport Codex).
+- **Le v3 n'a jamais été éprouvé sur une vraie mission par la conversation qui l'a implanté** : à faire sur 5174, notamment suivi, pastille Arrêter, file d'instructions et accord réel.
+
+### Pièges déjà rencontrés
+- Ne pas remettre `.main > :not(.glow){z-index:1}` : la zone de défilement recouvrait la barre haute. Règle actuelle : `.scroll-content{position:relative;z-index:1}`.
+- Classe `.activity` partagée entre le tableau du panneau et la liste de l'agent : contournée dans `v2.css`, sans renommage.
+- `findLast` absent de la cible TS : `[...x].reverse().find`.
+- Le test E2E mobile a dépassé 60 s une fois sous forte charge, puis est repassé sans changement : cause probable, non prouvée.
+- Bundle : `npm run build` avertit sur la taille des chunks (déjà signalé par Codex), sans échec.
+
+### Restes
+1. Bascule de `agregat-front` sur `main` et E2E. 2. Essai réel du v3. 3. Codex a signalé, sans test : libellé « Skills non transmis » alors que l'API contient `skills:[career-ops]`, et retour transitoire vers l'ancienne mission après annulation ; à revérifier sur le v3. 4. `.envforme` (back) non ignoré par Git : ne pas lire, ne pas ajouter ; éviter `git add -A`.
+
 ## Complément de clôture Codex — 31/10, 16:03 Sydney (à lire en premier)
 
 Passation demandée explicitement par l'utilisateur dans ce fil. Ce complément décrit **mes essais de 05:54 à 11:15 et leur clôture**, pas une contre-validation des corrections faites depuis par Claude. Mes derniers messages disant Claude/Gemini bloqués et permissions répétitives décrivaient l'ancien serveur : les mises à jour du manager ci-dessous et les commits `4b5ea21`, `92e508c`, `ff155e7` les ont dépassés. Ne pas annuler ces corrections.
@@ -137,9 +190,13 @@ Relais Playwriter : `playwriter session new`. Sans relais, repli sur un Chrome v
 - `codex exec` : pas de `--sandbox` avec `--approve-for-me` ; stdin fermé (`</dev/null`). Limites d'usage fréquentes : rapports au fil de l'eau, un commit par correction.
 - Horodatages : toujours `date`. Ne jamais afficher `.manager/secrets.env` ni lire `~/.codex/auth.json`, `~/.claude*`, le trousseau.
 
-### Architecture : proposition gelée (31/10, 13:32, session d'architecture)
-Décision de l'utilisateur : **ne pas appliquer le changement d'architecture** avant validation par un modèle puissant (`gpt-6-astra`) et son ordre explicite. Le reste du travail continue.
-- Proposition : `docs/architecture-cible.md`. Dossier à envoyer, autonome : `docs/validation-architecture.md`. Code exporté sans données privées : `exports/relay-code-8c369c4.zip`.
-- Relecture prête, non lancée : `MODEL=gpt-6-astra EFFORT=xhigh .manager/run-sprint.sh review-arch-01`.
-- Briefs `arch-01` et `skill-01` écrits et **gelés** : ne pas les lancer. Le déplacement de `.manager` attend aussi.
-- Mission Sydney (`c6128625`, prompt d'origine, Codex, Chrome, candidature et envoi interdits par ce prompt) programmée à 16:00 par la session d'architecture : `pkill -f mission-sydney.mjs` pour l'annuler. Elle ne part pas si une mission est active ou si une mission privée a déjà tourné depuis 13:30.
+### Architecture : proposition gelée (31/10, 19:45, session d'architecture)
+Décision de l'utilisateur : **ne pas appliquer le changement d'architecture** avant validation par un modèle puissant (`gpt-6-astra`) et son ordre explicite. Cette session ne code pas : elle prépare le dossier, demande à Codex ce qui manque, puis l'envoie à Astra.
+- Proposition : `docs/architecture-cible.md`. Dossier autonome, à jour de `3fa09a5` : `docs/validation-architecture.md`. Code exporté : `exports/relay-code-3fa09a5.zip`. Tous hors Git.
+- Réponses de Codex : `.manager/reports/archi-questions-01.md`, reprises en annexe B du dossier.
+- Relecture Astra lancée à 19:46 : `MODEL=gpt-6-astra EFFORT=xhigh .manager/run-sprint.sh review-arch-01`, réponse attendue dans `.manager/reports/review-arch-01.md`.
+- Briefs `arch-01` et `skill-01` **gelés** : ne pas les lancer. Le déplacement de `.manager` attend aussi.
+- La mission programmée à 16:00 n'est pas partie : d'autres missions privées avaient déjà tourné. Les résultats réels relus sont en section 7 du dossier.
+- **Le refus « Code tiers modifié » du scan vient de la plateforme, pas de la bibliothèque.** `a16cb96` (30/10) a ajouté `.sh` à `sourceSnapshot` ; les seuls écarts avec `relay/source-review.json` (26/10) sont `batch/batch-runner.sh` et `scripts/followup-sweep.sh`, suivis et inchangés depuis les 23 et 24/10. Ceci précise le point 2 de `reprise-claude-01`. Non corrigé, revue non refaite.
+- Non corrigé, seulement décrit au dossier : relecture Gemini 0.65 arrivée après `promptStarted` et comptée au Bilan (`537e112b`) ; liens cités non confrontés aux pages lues (`03deaf51`).
+- `.envforme` n'est pas ignoré par Git : ne jamais utiliser `git add -A` tant que c'est le cas.

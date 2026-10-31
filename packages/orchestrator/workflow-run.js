@@ -1,4 +1,4 @@
-import { usageLimitMessage } from './failure.js';
+import { rateLimitState, usageLimitMessage } from './failure.js';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AcpRuntime, saveProbe } from '../agent-runtime/index.js';
@@ -133,13 +133,16 @@ export async function executeWorkflow(orch, run, plan, control) {
           ),
         });
       let text = '',
-        events = 0;
+        events = 0,
+        rateLimit = null;
       const runtime = new AcpRuntime({
         definition,
         ownerMode: orch.ownerMode,
         cwd,
         agentHome: resolve(orch.dataDir, 'agent-homes', definition.id),
         onEvent: (update) => {
+          rateLimit =
+            rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
           if (++events > 4000) {
             control.abort.abort(new Error('Trop d’événements'));
             return;
@@ -203,7 +206,7 @@ export async function executeWorkflow(orch, run, plan, control) {
               inference: false,
               inferenceError: String(e.message).slice(0, 120),
             });
-          const usageLimit = usageLimitMessage(definition.name, text, e);
+          const usageLimit = usageLimitMessage(definition.name, text, e, rateLimit);
           const expired = orch.expiredPermissionError(run.id);
           // The limit stays the cause; an earlier unanswered request is added, never substituted.
           if (usageLimit)

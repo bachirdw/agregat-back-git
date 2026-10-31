@@ -223,6 +223,19 @@ const app = agent({ name: 'fake-acp' })
         },
         options: [{ optionId: 'no', name: 'Non', kind: 'reject_once' }],
       });
+    if (cfg.rateLimit) {
+      for (const info of [].concat(cfg.rateLimit))
+        await connection.client.notify(methods.client.session.update, {
+          sessionId: ctx.params.sessionId,
+          update: {
+            sessionUpdate: 'usage_update',
+            used: 1,
+            size: 2,
+            _meta: { '_fictif/rateLimit': info },
+          },
+        });
+      throw new RequestError(-32603, 'Internal error');
+    }
     if (cfg.limitText) {
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,

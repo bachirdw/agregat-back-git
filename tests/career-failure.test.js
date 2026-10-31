@@ -174,3 +174,30 @@ test('limite d’usage : une réponse qui parle de limites ne devient pas la cau
     /^Limite d’usage de Codex atteinte : réessayer à 3:57 PM\./,
   );
 });
+
+test('limite d’usage : préfixes annoncés par le SDK reconnus', () => {
+  const error = new Error('Internal error');
+  for (const text of [
+    "You've reached your limit",
+    'You’re out of usage credits',
+    'Your org is out of usage for this period',
+    "Your seat type doesn't include usage of this model",
+    'Your usage allocation has been used',
+  ])
+    assert.match(usageLimitMessage('Claude', text, error), /^Limite d’usage de Claude/, text);
+});
+
+test('limite signalée par les métadonnées : cause sûre pour une mission privée', () => {
+  const resetsAt = Date.UTC(2030, 0, 2, 7, 50) / 1000;
+  const message = usageLimitMessage('Claude', 'CV SECRET FICTIF', new Error('Internal error'), {
+    status: 'rejected',
+    resetsAt,
+  });
+  assert.match(message, /^Limite d’usage de Claude atteinte : réessayer/);
+  assert.doesNotMatch(message, /CV SECRET/);
+  // A failure the platform can prove stays its own cause.
+  assert.equal(
+    usageLimitMessage('Claude', '', new Error('Navigation non prouvée'), { status: 'rejected' }),
+    null,
+  );
+});

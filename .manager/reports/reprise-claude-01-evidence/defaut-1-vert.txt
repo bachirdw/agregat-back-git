@@ -1,0 +1,79 @@
+(node:32392) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ échec privé : délai, annulation et arrêt de l’agent sont nommés sans détail privé (0.623084ms)
+✔ échec privé : navigation non prouvée et réponse non structurée visibles sans extrait (0.171292ms)
+✔ échec privé intégré : le délai du run est visible dans le fil sans donnée privée (15.713125ms)
+✔ échec privé intégré : navigation non prouvée nommée sans prompt privé (138.256667ms)
+✔ limite d’usage : seule la cause sort, jamais le texte privé de l’agent (0.705292ms)
+✔ limite d’usage : une réponse qui parle de limites ne devient pas la cause d’une erreur interne (0.284917ms)
+✔ limite d’usage : préfixes annoncés par le SDK reconnus (0.125125ms)
+✔ limite signalée par les métadonnées : cause sûre pour une mission privée (6.209875ms)
+(node:32393) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reprise ACP : outils navigateur rejoués, réponse sans navigation acceptée (147.3255ms)
+✔ reprise ACP : nouvel appel navigateur sans preuve reste refusé (97.020916ms)
+✔ nouvelle mission sans outil navigateur : réponse marquée sans navigation ni preuve (101.708791ms)
+✔ nouvelle mission nommant une URL sans navigation reste refusée (106.782042ms)
+✔ capture lisible du tour : preuve même sans navigate séparé (194.20275ms)
+✔ capture about:blank du tour : refus précis sans résultat inventé (180.662709ms)
+✔ résumé vide : le texte final utile de l’agent est repris et borné (91.273334ms)
+✔ agent réel en texte libre : texte affiché comme réponse, sans preuve (91.847208ms)
+✔ agent simulé en texte libre : toujours refusé (76.563958ms)
+✔ le délai de la mission commande aussi le tour de l’agent (77.136167ms)
+✔ limite d’usage annoncée en texte : vraie cause au lieu de « Internal error » (77.775459ms)
+✔ erreur interne sans limite annoncée : message d’origine conservé (79.74825ms)
+✔ session introuvable à la reprise : nouvelle session dans la même mission, signalée (78.066458ms)
+✔ session non rechargée pour une autre cause : le Bilan ne dit pas « introuvable » (78.942541ms)
+✔ reprise réussie : aucune mention de session perdue (85.51675ms)
+✔ session introuvable et nouvelle session refusée : vraie cause affichée (80.925667ms)
+✔ accord expiré pendant la mission : le travail est gardé, l’action reste non effectuée (181.666041ms)
+✖ accord expiré puis autre échec : la cause terminale reste affichée (97.266042ms)
+✔ limite signalée par les métadonnées : vraie cause et heure de reprise (83.535542ms)
+✔ limite levée avant la fin : plus annoncée comme cause (87.210583ms)
+✔ simple avertissement de limite : pas présenté comme la cause (79.133708ms)
+(node:32394) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ plan workflow : DAG Najah affiché avec agents, niveaux et étape optionnelle (1817.97875ms)
+✔ workflow Najah complet : outils MCP réels, agent, vérification indépendante, agrégat (2435.141708ms)
+✔ workflow général (core) : agent requis puis vérification de structure (2448.633625ms)
+✔ workflow : annulation pendant l’exécution → cancelled, étapes annulées (1847.429958ms)
+✔ workflow : pack sans DAG ou mode inconnu refusés (5.264042ms)
+✔ aggregateOutputs : priorité au résultat vérifié, résumé d’analyse, preuves concaténées (0.193958ms)
+✔ toolArguments : objectif par défaut et substitution sans évaluation (0.133875ms)
+✔ injection : une analyse qui modifie le classement ne passe pas la vérification (0.479333ms)
+✔ proposition automatique de workflow : mots-clés, exigence réseau, défaut expliqué (0.465916ms)
+✔ plan workflow « auto » : DAG proposé, raison visible, identifiant enregistré dans le run (1550.077125ms)
+✔ plan : permissions affichées calculées selon le workflow réel (4622.496958ms)
+✔ timeout d’étape pendant initialize : le processus ACP est fermé sans attendre le handshake (538.857417ms)
+✔ core réel (faux ACP) : le booléen généré ne transforme pas une analyse réelle en démonstrateur (102.6555ms)
+✔ agrégation répétée : conserve les provenances réelles/fictives de verify (0.132833ms)
+✔ workflow : limite d’usage après un accord expiré, les deux causes restent dites (75.644ms)
+✔ mission workflow : l’échec final garde la limite d’usage et l’accord expiré (73.8185ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 44
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16150.490708
+
+✖ failing tests:
+
+test at tests/fix-resume.test.js:300:1
+✖ accord expiré puis autre échec : la cause terminale reste affichée (97.266042ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Accord expiré sans réponse \(60 s\) : career_read/. Input:
+  
+  'Limite d’usage de undefined atteinte : réessayer à 3:57 PM. Choisir un autre agent ou attendre.'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/fix-resume.test.js:310:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Limite d’usage de undefined atteinte : réessayer à 3:57 PM. Choisir un autre agent ou attendre.',
+    expected: /Accord expiré sans réponse \(60 s\) : career_read/,
+    operator: 'match',
+    diff: 'simple'
+  }

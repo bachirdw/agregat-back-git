@@ -309,3 +309,38 @@ test('accord expiré puis autre échec : la cause terminale reste affichée', as
   assert.match(done.error, /^Limite d’usage de .+ atteinte/);
   assert.match(done.error, /Accord expiré sans réponse \(60 s\) : career_read/);
 });
+
+const resetsAt = Date.UTC(2030, 0, 2, 7, 50) / 1000;
+const resetClock = new Date(resetsAt * 1000).toLocaleTimeString('fr-FR', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+test('limite signalée par les métadonnées : vraie cause et heure de reprise', async (t) => {
+  const done = await runFixture(t, {
+    config: { rateLimit: { status: 'rejected', resetsAt, rateLimitType: 'five_hour' } },
+  });
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /^Limite d’usage de .+ atteinte/);
+  assert.ok(done.error.includes(resetClock), done.error);
+  assert.doesNotMatch(done.error, /Internal error/);
+});
+
+test('limite levée avant la fin : plus annoncée comme cause', async (t) => {
+  const done = await runFixture(t, {
+    config: {
+      rateLimit: [
+        { status: 'rejected', resetsAt },
+        { status: 'allowed', resetsAt },
+      ],
+    },
+  });
+  assert.equal(done.error, 'Internal error');
+});
+
+test('simple avertissement de limite : pas présenté comme la cause', async (t) => {
+  const done = await runFixture(t, {
+    config: { rateLimit: { status: 'allowed_warning', resetsAt } },
+  });
+  assert.equal(done.error, 'Internal error');
+});

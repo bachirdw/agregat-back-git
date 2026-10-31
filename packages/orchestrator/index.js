@@ -27,7 +27,12 @@ import {
   readableBrowserObservation,
   verifiedBrowserVisit,
 } from './browser-proof.js';
-import { careerFailureMessage, SERVER_STOPPED, usageLimitMessage } from './failure.js';
+import {
+  careerFailureMessage,
+  rateLimitState,
+  SERVER_STOPPED,
+  usageLimitMessage,
+} from './failure.js';
 import { missionTitle } from './title.js';
 import {
   createTurnTruth,
@@ -634,6 +639,7 @@ export class Orchestrator {
       events = 0;
     let browserToolObserved = false;
     let sessionReset = false;
+    let rateLimit = null;
     this.expiredPermissions.delete(run.id);
     const toolTimers = new Map();
     const toolTitles = new Map();
@@ -769,6 +775,8 @@ export class Orchestrator {
           // session/load replays old updates before the new prompt. They are not work,
           // usage, permissions or evidence from this run.
           if (!promptStarted) return;
+          rateLimit =
+            rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
           if (update.sessionUpdate === 'tool_call' && update.toolCallId) {
             recentToolCalls.set(update.toolCallId, update);
             if (recentToolCalls.size > 128)
@@ -1041,7 +1049,9 @@ export class Orchestrator {
     } catch (e) {
       const reason = control.abort.signal.reason;
       const expired = control.cancelled ? null : this.expiredPermissionError(run.id);
-      const usageLimit = control.cancelled ? null : usageLimitMessage(plan.agent.name, text, e);
+      const usageLimit = control.cancelled
+        ? null
+        : usageLimitMessage(plan.agent.name, text, e, rateLimit);
       const cause =
         usageLimit ??
         (plan.pack.id === 'career-ops'

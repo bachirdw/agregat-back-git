@@ -1,0 +1,117 @@
+(node:32178) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ échec privé : délai, annulation et arrêt de l’agent sont nommés sans détail privé (0.942417ms)
+✔ échec privé : navigation non prouvée et réponse non structurée visibles sans extrait (0.174958ms)
+✔ échec privé intégré : le délai du run est visible dans le fil sans donnée privée (26.252167ms)
+✔ échec privé intégré : navigation non prouvée nommée sans prompt privé (89.804416ms)
+✔ limite d’usage : seule la cause sort, jamais le texte privé de l’agent (0.345625ms)
+✔ limite d’usage : une réponse qui parle de limites ne devient pas la cause d’une erreur interne (0.146417ms)
+✖ limite d’usage : préfixes annoncés par le SDK reconnus (0.500334ms)
+✖ limite signalée par les métadonnées : cause sûre pour une mission privée (0.1025ms)
+(node:32179) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ reprise ACP : outils navigateur rejoués, réponse sans navigation acceptée (96.145167ms)
+✔ reprise ACP : nouvel appel navigateur sans preuve reste refusé (83.963667ms)
+✔ nouvelle mission sans outil navigateur : réponse marquée sans navigation ni preuve (82.40625ms)
+✔ nouvelle mission nommant une URL sans navigation reste refusée (77.572708ms)
+✔ capture lisible du tour : preuve même sans navigate séparé (178.425041ms)
+✔ capture about:blank du tour : refus précis sans résultat inventé (180.275375ms)
+✔ résumé vide : le texte final utile de l’agent est repris et borné (83.870583ms)
+✔ agent réel en texte libre : texte affiché comme réponse, sans preuve (74.683959ms)
+✔ agent simulé en texte libre : toujours refusé (74.396834ms)
+✔ le délai de la mission commande aussi le tour de l’agent (72.907792ms)
+✔ limite d’usage annoncée en texte : vraie cause au lieu de « Internal error » (74.72175ms)
+✔ erreur interne sans limite annoncée : message d’origine conservé (79.37175ms)
+✔ session introuvable à la reprise : nouvelle session dans la même mission, signalée (76.370167ms)
+✔ session non rechargée pour une autre cause : le Bilan ne dit pas « introuvable » (73.031375ms)
+✔ reprise réussie : aucune mention de session perdue (73.259084ms)
+✔ session introuvable et nouvelle session refusée : vraie cause affichée (75.3985ms)
+✔ accord expiré pendant la mission : le travail est gardé, l’action reste non effectuée (177.019792ms)
+✖ accord expiré puis autre échec : la cause terminale reste affichée (81.837167ms)
+✖ limite signalée par les métadonnées : vraie cause et heure de reprise (74.391292ms)
+✔ limite levée avant la fin : plus annoncée comme cause (78.107791ms)
+✔ simple avertissement de limite : pas présenté comme la cause (90.604083ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 25
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2549.639708
+
+✖ failing tests:
+
+test at tests/career-failure.test.js:178:1
+✖ limite d’usage : préfixes annoncés par le SDK reconnus (0.500334ms)
+  AssertionError [ERR_ASSERTION]: You've reached your limit
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/career-failure.test.js:187:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: /^Limite d’usage de Claude/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/career-failure.test.js:190:1
+✖ limite signalée par les métadonnées : cause sûre pour une mission privée (0.1025ms)
+  AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type object (null)
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/career-failure.test.js:196:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: /^Limite d’usage de Claude atteinte : réessayer/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/fix-resume.test.js:300:1
+✖ accord expiré puis autre échec : la cause terminale reste affichée (81.837167ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Accord expiré sans réponse \(60 s\) : career_read/. Input:
+  
+  'Limite d’usage de undefined atteinte : réessayer à 3:57 PM. Choisir un autre agent ou attendre.'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/fix-resume.test.js:310:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Limite d’usage de undefined atteinte : réessayer à 3:57 PM. Choisir un autre agent ou attendre.',
+    expected: /Accord expiré sans réponse \(60 s\) : career_read/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/fix-resume.test.js:319:1
+✖ limite signalée par les métadonnées : vraie cause et heure de reprise (74.391292ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^Limite d’usage de .+ atteinte/. Input:
+  
+  'Internal error'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/fix-resume.test.js:324:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Internal error',
+    expected: /^Limite d’usage de .+ atteinte/,
+    operator: 'match',
+    diff: 'simple'
+  }

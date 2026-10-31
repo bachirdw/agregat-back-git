@@ -63,7 +63,32 @@ const formats = {
   'commande native': [
     { toolCallId: 'c3', title: 'ls -la /secret', kind: 'execute' },
     undefined,
-    'ls',
+    'execute',
+  ],
+  'Skill Gemini, titre citant son argument': [
+    { toolCallId: 'activate_skill__1793433000', title: '"career-ops": secret', kind: 'other' },
+    undefined,
+    'activate_skill',
+  ],
+  'outil plateforme Gemini, titre réduit à son argument': [
+    { toolCallId: 'mcp_platform_career_script__call_42', title: 'scan secret', kind: 'other' },
+    undefined,
+    'career_script',
+  ],
+  'outil natif Gemini': [
+    { toolCallId: 'google_web_search__987', title: 'Searching for: secret', kind: 'search' },
+    undefined,
+    'google_web_search',
+  ],
+  'outil Claude nommé par son titre': [
+    { toolCallId: 'toolu_01AbCdEf', title: 'Terminal', kind: 'execute' },
+    undefined,
+    'Terminal',
+  ],
+  'identifiant sans nom ni titre utile': [
+    { toolCallId: 'call_abc', title: 'scan secret' },
+    undefined,
+    'outil',
   ],
 };
 for (const [name, [toolCall, observed, capability]] of Object.entries(formats))

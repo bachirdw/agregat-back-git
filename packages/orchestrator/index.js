@@ -93,14 +93,18 @@ function registryName(tool) {
   const id = tool.replace('_', '.');
   return capabilityIds.includes(id) ? id : tool;
 }
-// Tool name only: titles and inputs can quote private arguments.
+// Tool name only: titles and inputs can quote private arguments. A title counts only when it is
+// nothing but a name, or a call such as name(...); otherwise it may start with an argument.
 function permissionToolName(p, observedTool) {
   const input = observedTool?.rawInput ?? p.toolCall?.rawInput;
+  const id = String(p.toolCall?.toolCallId ?? observedTool?.toolCallId ?? '');
+  const title = String(observedTool?.title ?? p.toolCall?.title ?? '').trim();
   const name =
     input?.capability ??
     (typeof input?.tool === 'string' ? registryName(input.tool) : null) ??
-    String(observedTool?.title ?? p.toolCall?.title ?? '').split(/[\s(]/)[0];
-  return redact(String(name || p.toolCall?.kind || 'outil')).slice(0, 80);
+    id.match(/^(?:mcp_[^_]+_)?([a-z][a-z0-9_]*?)__[A-Za-z0-9]/)?.[1] ??
+    title.match(/^[\w.-]+(?=\(|$)/)?.[0];
+  return redact(String(name || p.toolCall?.kind || observedTool?.kind || 'outil')).slice(0, 80);
 }
 
 export class Orchestrator {

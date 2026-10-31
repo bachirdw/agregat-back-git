@@ -1,0 +1,124 @@
+(node:32637) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ propriétaire : format Codex passe sans clic, sans argument dans la trace (9.686708ms)
+✔ propriétaire : outil career-ops au format Codex passe sans clic, sans argument dans la trace (4.12375ms)
+✔ propriétaire : format Gemini passe sans clic, sans argument dans la trace (4.989167ms)
+✔ propriétaire : outil career-ops passe sans clic, sans argument dans la trace (3.626ms)
+✖ propriétaire : commande native passe sans clic, sans argument dans la trace (4.085667ms)
+✖ propriétaire : Skill Gemini, titre citant son argument passe sans clic, sans argument dans la trace (3.47625ms)
+✖ propriétaire : outil plateforme Gemini, titre réduit à son argument passe sans clic, sans argument dans la trace (4.15475ms)
+✖ propriétaire : outil natif Gemini passe sans clic, sans argument dans la trace (3.824375ms)
+✔ propriétaire : outil Claude nommé par son titre passe sans clic, sans argument dans la trace (3.999791ms)
+✖ propriétaire : identifiant sans nom ni titre utile passe sans clic, sans argument dans la trace (5.775666ms)
+✔ propriétaire : un envoi attend toujours le clic (38.301ms)
+✔ hors mode propriétaire : la demande attend toujours (38.636459ms)
+✔ career-ops : une lecture n’est jamais stockée comme un envoi, sans argument (34.888375ms)
+✔ expiration : vraie raison tracée, jamais attribuée à l’utilisateur (26.183625ms)
+✔ décision de l’utilisateur : aucune expiration enregistrée (26.0895ms)
+✔ arrêt du serveur : jamais présenté comme une annulation de l’utilisateur (25.34075ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 11
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 633.145417
+
+✖ failing tests:
+
+test at tests/owner-permissions.test.js:95:3
+✖ propriétaire : commande native passe sans clic, sans argument dans la trace (4.085667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'ls' !== 'execute'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-permissions.test.js:101:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'ls',
+    expected: 'execute',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-permissions.test.js:95:3
+✖ propriétaire : Skill Gemini, titre citant son argument passe sans clic, sans argument dans la trace (3.47625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '"career-ops":'
+  - 'activate_skill'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-permissions.test.js:101:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '"career-ops":',
+    expected: 'activate_skill',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-permissions.test.js:95:3
+✖ propriétaire : outil plateforme Gemini, titre réduit à son argument passe sans clic, sans argument dans la trace (4.15475ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'scan'
+  - 'career_script'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-permissions.test.js:101:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'scan',
+    expected: 'career_script',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-permissions.test.js:95:3
+✖ propriétaire : outil natif Gemini passe sans clic, sans argument dans la trace (3.824375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Searching'
+  - 'google_web_search'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-permissions.test.js:101:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Searching',
+    expected: 'google_web_search',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/owner-permissions.test.js:95:3
+✖ propriétaire : identifiant sans nom ni titre utile passe sans clic, sans argument dans la trace (5.775666ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'scan' !== 'outil'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back/tests/owner-permissions.test.js:101:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'scan',
+    expected: 'outil',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

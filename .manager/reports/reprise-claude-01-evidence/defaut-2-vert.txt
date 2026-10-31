@@ -1,0 +1,41 @@
+(node:32862) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ interrupteur désactivé par défaut : domaines, JS, modes ACP et budget conservés (1709.289041ms)
+✔ propriétaire : tous domaines HTTP/HTTPS publics, JS actif, JSON fidèle ; réseaux privés refusés (1.097417ms)
+✔ propriétaire : refus synchrone de toute écoute sauf 127.0.0.1, bandeau et catalogue explicites (1587.914958ms)
+✔ propriétaire : envoi et saisie sensible approuvés ; garde des arguments et injections conservée (2.408375ms)
+✔ propriétaire : Auto et mode workflow auto choisissent le parcours navigateur général (3110.846917ms)
+✔ propriétaire : prix configurés neutralisés, budget zéro, ledger toujours vérifié (7.091625ms)
+✔ permission ACP MCP navigateur autorisée par le plan : décision automatique sans demande générique (3.176291ms)
+✔ permission ACP hors envoi : décision automatique quel que soit l’appel ou le navigateur (4.325666ms)
+✔ ACP propriétaire codex : sélection d’un mode réellement annoncé, jamais full access (70.497166ms)
+✔ ACP propriétaire claude : sélection d’un mode réellement annoncé, jamais full access (68.288167ms)
+✔ ACP propriétaire gemini : sélection d’un mode réellement annoncé, jamais full access (67.712708ms)
+✔ ACP propriétaire Codex : workspace-write absent → refus explicite, aucun mode inventé (66.651375ms)
+✔ propriétaire : étapes de formulaire automatiques, envoi final toujours soumis à accord (0.401959ms)
+(node:32863) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ propriétaire : format Codex passe sans clic, sans argument dans la trace (6.554167ms)
+✔ propriétaire : outil career-ops au format Codex passe sans clic, sans argument dans la trace (3.859667ms)
+✔ propriétaire : format Gemini passe sans clic, sans argument dans la trace (3.775875ms)
+✔ propriétaire : outil career-ops passe sans clic, sans argument dans la trace (7.487792ms)
+✔ propriétaire : commande native passe sans clic, sans argument dans la trace (5.139125ms)
+✔ propriétaire : Skill Gemini, titre citant son argument passe sans clic, sans argument dans la trace (4.908834ms)
+✔ propriétaire : outil plateforme Gemini, titre réduit à son argument passe sans clic, sans argument dans la trace (3.463542ms)
+✔ propriétaire : outil natif Gemini passe sans clic, sans argument dans la trace (3.906375ms)
+✔ propriétaire : outil Claude nommé par son titre passe sans clic, sans argument dans la trace (8.7865ms)
+✔ propriétaire : identifiant sans nom ni titre utile passe sans clic, sans argument dans la trace (4.079042ms)
+✔ propriétaire : un envoi attend toujours le clic (42.198125ms)
+✔ hors mode propriétaire : la demande attend toujours (36.466ms)
+✔ career-ops : une lecture n’est jamais stockée comme un envoi, sans argument (36.043708ms)
+✔ expiration : vraie raison tracée, jamais attribuée à l’utilisateur (27.6905ms)
+✔ décision de l’utilisateur : aucune expiration enregistrée (25.447375ms)
+✔ arrêt du serveur : jamais présenté comme une annulation de l’utilisateur (25.778ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7180.348584

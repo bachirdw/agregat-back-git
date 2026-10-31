@@ -1040,11 +1040,12 @@ export class Orchestrator {
           ? careerFailureMessage({ cancelled: control.cancelled, reason, error: e })
           : String(reason?.message ?? e.message ?? e).slice(0, 1000));
       // An expired request explains a bare stop; a limit, deadline or server stop stays the cause.
-      const failureMessage = expired
-        ? usageLimit || reason
-          ? `${cause} ; ${expired.message}`
-          : expired.message
-        : cause;
+      const failureMessage =
+        expired && !cause.includes(expired.message)
+          ? usageLimit || reason
+            ? `${cause} ; ${expired.message}`
+            : expired.message
+          : cause;
       if (skillProgress.started) {
         const skillResult = skillProgress.finish();
         this.store.update(run.id, {

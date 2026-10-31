@@ -355,3 +355,105 @@ test('agrégation répétée : conserve les provenances réelles/fictives de ver
     assert.equal(final.provenance.data, simulated ? 'fictives' : 'réelles');
   }
 });
+
+test('workflow : limite d’usage après un accord expiré, les deux causes restent dites', async () => {
+  const { executeWorkflow } = await import('../packages/orchestrator/workflow-run.js');
+  const app = createApp({ dataDir: temporary() });
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'running',
+    cwd: temporary(),
+    prompt: 'FICTIF',
+    model: '',
+    budgetCents: 0,
+  };
+  app.store.create(run);
+  app.engine.expiredPermissions.set(run.id, 'career_read');
+  const plan = {
+    agent: {
+      id: 'fictif-limite',
+      name: 'Agent FICTIF',
+      command: process.execPath,
+      args: [resolve('tests/fixtures/fake-acp.js')],
+      env: [],
+      safeModes: [],
+      fixedEnv: {
+        FAKE_ACP: JSON.stringify({
+          limitText: 'You’ve hit your usage limit. Try again at 3:57 PM.',
+        }),
+      },
+    },
+    pack: { id: 'core' },
+    skills: [],
+    dag: {
+      id: 'fictif',
+      title: 'FICTIF',
+      steps: [{ id: 'analysis', title: 'FICTIF', kind: 'agent', prompt: 'FICTIF' }],
+    },
+  };
+  try {
+    await assert.rejects(
+      executeWorkflow(app.engine, run, plan, { abort: new AbortController() }),
+      (e) => {
+        assert.match(e.message, /Limite d’usage de Agent FICTIF atteinte : réessayer à 3:57 PM/);
+        assert.match(e.message, /Accord expiré sans réponse \(60 s\) : career_read/);
+        return true;
+      },
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('mission workflow : l’échec final garde la limite d’usage et l’accord expiré', async () => {
+  const app = createApp({ dataDir: temporary() });
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'queued',
+    cwd: temporary(),
+    prompt: 'FICTIF',
+    model: '',
+    mode: 'workflow',
+    budgetCents: 0,
+  };
+  app.store.create(run);
+  const plan = {
+    agent: {
+      id: 'fictif-limite',
+      name: 'Agent FICTIF',
+      command: process.execPath,
+      args: [resolve('tests/fixtures/fake-acp.js')],
+      env: [],
+      safeModes: [],
+      fixedEnv: {
+        FAKE_ACP: JSON.stringify({
+          limitText: 'You’ve hit your usage limit. Try again at 3:57 PM.',
+        }),
+      },
+    },
+    pack: { id: 'core' },
+    skills: [],
+    dag: {
+      id: 'fictif',
+      title: 'FICTIF',
+      steps: [{ id: 'analysis', title: 'FICTIF', kind: 'agent', prompt: 'FICTIF' }],
+    },
+  };
+  const control = { abort: new AbortController() };
+  app.engine.active.set(run.id, control);
+  const original = app.engine.expiredPermissionError.bind(app.engine);
+  // The request expired during the step, after the mission had started.
+  app.engine.expiredPermissionError = (id) => {
+    app.engine.expiredPermissions.set(id, 'career_read');
+    return original(id);
+  };
+  try {
+    await app.engine.execute(run, plan, control, null);
+    const done = app.store.get(run.id);
+    assert.equal(done.state, 'failed');
+    assert.match(done.error, /Limite d’usage de Agent FICTIF atteinte/);
+    assert.match(done.error, /Accord expiré sans réponse \(60 s\) : career_read/);
+  } finally {
+    await app.close();
+  }
+});

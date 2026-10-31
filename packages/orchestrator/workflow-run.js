@@ -204,7 +204,11 @@ export async function executeWorkflow(orch, run, plan, control) {
               inferenceError: String(e.message).slice(0, 120),
             });
           const usageLimit = usageLimitMessage(definition.name, text, e);
-          throw orch.expiredPermissionError(run.id) ?? (usageLimit ? new Error(usageLimit) : e);
+          const expired = orch.expiredPermissionError(run.id);
+          // The limit stays the cause; an earlier unanswered request is added, never substituted.
+          if (usageLimit)
+            throw new Error(expired ? `${usageLimit} ; ${expired.message}` : usageLimit);
+          throw expired ?? e;
         }
         if (!definition.simulated && response.stopReason === 'end_turn')
           saveProbe(orch.dataDir, definition.id, { inference: true, inferenceError: null });

@@ -26,7 +26,7 @@ Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le man
 | `career_script` | tout `scripts/*` lançable, confiné, un accord par exécution (`tools.js:165-185`) ; commandes courtes en liste (`:212-220`) |
 | Bug « Loading » SEEK | sonde réelle du 30/10 (`real-snapshot-2026-10-30.txt`), sans doute d'autres lectures Codex depuis |
 | `fix-router-03` | rouge 10/15 → vert 15/15 ; le prompt Halcyon est classé `evaluate` |
-| Rouges du travail Codex (`350f0bb` + tests de `d1a6ddd`, sans Chrome) | **rejeu partiel, arrêté par le manager à 12:21** (journal immobile depuis 11:32, un test bloqué sur l'ancien code) : au moins 18 échecs avant correction, dont `browser-proof`, permissions, modèle, consignes Skill. À relancer pour le total ; certains peuvent venir de l'absence de Chrome |
+| Rouges du travail Codex (`350f0bb` + tests de `d1a6ddd`, fichier par fichier, sans Chrome) | **au moins 38 échecs sur 13 fichiers**, verts sur `d1a6ddd` (principal 363/364, Chrome 130/130). `career-integration` coupé à 240 s, 14 échecs avant coupure, total inconnu. Une part peut venir de l'absence de Chrome ou encoder un nouveau comportement : chaque test n'a pas été relu |
 
 ### Fini selon les rapports Codex, non rejoué
 Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f05a7a5`, `d57649aa` (Seek, lecture seule), `f46aadf1` (IANA). `/api/runs` confirme leur état, les preuves n'ont pas été relues. Découverte des packs sans liste codée (`packs.js`), preuve de navigation (`browser-proof.js`), agent choisi conservé au lieu de forcer Gemini, composeur stabilisé (`8b98ec6`, demande de l'utilisateur du 31/10).
@@ -50,6 +50,9 @@ Son dernier fil s'arrête sur la limite d'usage (reprise annoncée à 15:57), sa
 - Les préfixes ne suffisent pas : `[fix-open-01]` couvre aussi la mission de l'app, et le rapport écarte le brief (« l'auto-approbation… a été écartée »). Le front porte `[fix-open-01]` sur `8b98ec6`.
 - `nuit-29-10` contient donc plus que la nuit (`a4455ed` back, `2da487c` front).
 - Le brief `fix-open-01.md`, qui ne décrivait pas le travail réel, et les anciennes chaînes `run-chain`, `run-night2`, `run-night3`, `run-inspire` ont été supprimés le 31/10.
+
+### Changement non commité constaté à 12:27, pas du manager
+`AGENTS.md` modifié (12:27) : chemin `agent-repos-agregat/` et « aucun plafond bloquant pendant la phase de tests ». Auteur et décision non vérifiés ; demander à l'utilisateur avant de s'y fier ou de le commiter.
 
 ### Git et services à 11:50
 - Back : `codex/browser-audit-31-10` ; `main` = origin/main = `60a216b`. Front : même branche, `8b98ec6` ; `main` = `e7fa33e`. `nuit-29-10` est ancêtre de la branche dans les deux dépôts. Rien de poussé.

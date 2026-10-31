@@ -14,12 +14,8 @@ Chaque point indique sa source. « Rapport Codex » = lu, pas rejoué par le man
 - « Vu que la plateforme sera universelle, je veux rien coder en dur » (à Codex, 30/10). Plafond de 5 $ de plus (à Codex, 30/10).
 - 31/10 : **continuer le travail de Codex qui retire ce qui contraint l'envoi et l'automatisation de la navigation ; ne rien annuler.**
 
-### QUESTION OUVERTE, à reposer avant tout correctif sur les envois
-Quand le prompt dit « envoie », l'envoi part-il directement ou attend-il un clic ? Les messages se contredisent :
-- 30/10 au manager : « Si le prompt dit envoyer, il faut qu'il envoie », aucune confirmation ajoutée.
-- 30/10 à Codex : « Sans mon autorisation explicite, tu peux tester les candidature, envoie e-mail, et linkdin », phrase ambiguë, que Codex a lue comme un accord à conserver.
-- 31/10 au manager : bouton « Non, garder l'accord », suivi de « tu gardes ce travail-là » et « je veux continuer ce travail » de retrait des contraintes. **Il a pu vouloir dire « garder le travail » et non « garder l'accord ». Ne pas tenir cette réponse pour acquise.**
-État actuel du code : l'accord est exigé. Aucune action réelle d'envoi n'a été testée.
+### Décision sur les envois, tranchée le 31/10
+**L'envoi final (candidature, e-mail, message) attend le clic de l'utilisateur**, même si le prompt dit « envoie » (réponse explicite : « Non, clic d'abord »). Tout le reste passe sans clic en mode propriétaire. Le code exige déjà cet accord ; aucun envoi réel n'a encore été testé.
 
 ### Ce qui est fini et vérifié par le manager le 31/10
 | Élément | Preuve |
@@ -43,7 +39,7 @@ Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f0
 5. **« Rien en dur » incomplet** : `orchestrator/index.js` importe encore career-ops (`CareerWorkspace`, `formatCareerBilan`, `workspace: z.enum(['career-ops'])`) ; 45 lignes y citent career/seek/linkedin, 12 dans `apps/api/server.js`.
 6. **Gemini et Claude bloqués** (rapport Codex) : Gemini « API key is missing » ; serveur lancé sans secrets (rapport), cause non prouvée. Claude « Authentication required ». OpenCode sans prompt réel. Seul Codex a de vraies preuves depuis le 30/10.
 7. **`fix-inspire-01` jamais lancé.** Son point 1 repose sur un défaut Gemini.
-8. `linkedin_draft` reste « Rédiger uniquement », `sends.js` inchangé (dépend de la question ouverte).
+8. `linkedin_draft` reste « Rédiger uniquement », `sends.js` inchangé : rien de décidé pour LinkedIn au-delà du clic d'envoi.
 9. Déjà connus : `live-probe.js` sans contrôle de budget ; `selectSkillIntents` garde une intention ; atomicité SQLite ; preuve échouée après action réussie ; `Target.createTarget` tardif.
 
 ### Travaux mélangés
@@ -61,7 +57,7 @@ Missions réelles Codex + Playwriter terminées : `9bf5a5a8` (example.com), `3f0
 Tests verts, travail conservé, mais le parcours réel se bloque en clics et le Skill career-ops n'a pas abouti de bout en bout.
 
 ### Prochaines actions
-1. Reposer la question des envois. 2. `fix-perms-01` (programmé) : auto-approuver ce qui n'est pas un envoi et afficher la vraie nature de chaque demande ; le vérifier. 3. Reprendre `c6128625` en Nouvelle mission, limite Codex levée. 4. Rejouer Halcyon. 5. Sortir career-ops du moteur. 6. `fix-inspire-01`.
+1. Vérifier les tests rouges du travail Codex. 2. `fix-perms-01` (programmé) : auto-approuver ce qui n'est pas un envoi et afficher la vraie nature de chaque demande ; le vérifier. 3. Reprendre `c6128625` en Nouvelle mission, limite Codex levée. 4. Rejouer Halcyon. 5. Sortir career-ops du moteur. 6. `fix-inspire-01`.
 
 ### Pièges
 - Vérifier `~/.codex/sessions` et `git status` avant toute reprise : l'utilisateur pilote aussi Codex depuis l'app.

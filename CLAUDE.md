@@ -18,7 +18,7 @@ Le propriétaire gère seul cette application. Tout ce qui sert à automatiser l
 - Ne pas ajouter de garde-fou, de demande d'accord ni de liste de blocage à ces parcours ; retirer ceux qui les bloquent en mode propriétaire.
 - Aucun processus ne doit rester bloqué sur une autorisation répétée ou expirée.
 - Le prompt de l'utilisateur décide de ce qui est fait, le Skill de la manière ; la plateforme fournit les outils et rapporte.
-- L'envoi final (candidature, e-mail, message) : question ouverte, voir la passation.
+- Exception : l'envoi final (candidature, e-mail, message) attend le clic du propriétaire, même si le prompt dit « envoie ». Tout le reste passe sans clic.
 - Restent : aucun contournement de CAPTCHA ni de détection de robots, aucun secret exposé, Bilan fidèle aux actions réelles, robustesse technique (chemins confinés, outil figé arrêté), budget, aucun push ni merge sans ordre, bibliothèque career-ops, Skill et CV intouchés.
 
 ## Garde-fous

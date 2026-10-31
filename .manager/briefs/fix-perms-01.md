@@ -17,7 +17,7 @@ que `privatePreview` est vrai, or `index.js:1110` le met à vrai pour tout run c
 1. **Auto-approbation générique** : en mode propriétaire, toute permission ACP et toute demande de la passerelle sélectionne l'option `allow_once`, sauf si la demande
    est un envoi (`actionClass === 'send'`). Critère unique, générique : aucun nom d'outil, de Skill ou de pack dans ce code. Trace `permission_auto` conservée. Hors mode propriétaire : inchangé.
 2. **L'envoi ne change pas** : mêmes accord, garde réseau, preuve du destinataire, SMTP. Test : en mode propriétaire, un `actionClass: 'send'` attend toujours la décision.
-   Aucun réglage nouveau. L'utilisateur tranchera ce point à part.
+   Aucun réglage nouveau. Décision de l'utilisateur du 31/10 : l'envoi final attend son clic.
 3. **Vrai libellé** : « Envoi » seulement pour un envoi. Une autre demande affiche sa vraie nature (nom de l'outil), sans donnée privée ni argument dans SQLite.
    Test : un `career_read` dans un run career-ops n'est jamais stocké ni affiché comme « Envoi ». Vérifie le rendu front si le libellé y est repris.
 4. `npm run check`, `npm run format:check`, `CHROME_PATH=/nonexistent npm test` (dis qu'il est sans Chrome) ; front si touché : `npm test`, `npm run build`, `npx prettier --check src`.

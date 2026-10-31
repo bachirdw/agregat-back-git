@@ -8,7 +8,12 @@ const LIMIT_TEXT =
 export function usageLimitMessage(agentName, text, error) {
   const message = String(error?.message ?? '');
   const bareFailure = /^(?:Internal error|Agent arrêté\b)/i.test(message);
-  const source = LIMIT_TEXT.test(message) ? message : bareFailure ? String(text ?? '') : '';
+  // Only the last paragraph is the announcement: earlier text can quote limits as content.
+  const lastParagraph = String(text ?? '')
+    .trim()
+    .split(/\n\s*\n/)
+    .at(-1);
+  const source = LIMIT_TEXT.test(message) ? message : bareFailure ? lastParagraph : '';
   if (!LIMIT_TEXT.test(source)) return null;
   const retry = source.match(/(?:try again at|resets?(?: at)?)\s+([^.\n]{1,40})/i)?.[1]?.trim();
   return `Limite d’usage de ${agentName} atteinte${retry ? ` : réessayer à ${retry}` : ''}. Choisir un autre agent ou attendre.`;

@@ -157,3 +157,20 @@ test('limite d’usage : seule la cause sort, jamais le texte privé de l’agen
     /^Limite d’usage de Gemini/,
   );
 });
+
+test('limite d’usage : une réponse qui parle de limites ne devient pas la cause d’une erreur interne', () => {
+  const error = new Error('Internal error');
+  const answer =
+    'Synthèse FICTIVE : l’API publique a un rate limit de 100 requêtes par minute.\n\n' +
+    'Je compare maintenant les offres FICTIVES une par une';
+  assert.equal(usageLimitMessage('Codex', answer, error), null);
+  // The announcement that ends the turn is still recognised.
+  assert.match(
+    usageLimitMessage(
+      'Codex',
+      `${answer}\n\nYou’ve hit your usage limit. Try again at 3:57 PM.\n\n`,
+      error,
+    ),
+    /^Limite d’usage de Codex atteinte : réessayer à 3:57 PM\./,
+  );
+});

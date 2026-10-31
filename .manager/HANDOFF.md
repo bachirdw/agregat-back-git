@@ -58,6 +58,7 @@ Le dossier des dépôts inspirants a été renommé `~/Downloads/agent-repos-agr
 ### Git et services à 11:50
 - Back : `codex/browser-audit-31-10` ; `main` = origin/main = `60a216b`. Front : même branche, `8b98ec6` ; `main` = `e7fa33e`. `nuit-29-10` est ancêtre de la branche dans les deux dépôts. Rien de poussé.
 - Non commités, pas du manager : back `.manager/api-usage.md`, `.manager/reports/seek-apply-01.md` (11:09–11:11) ; front : captures `front-01-screens/*.png`.
+- **Mise à jour de 15:00.** Poussé sur `main` à la demande de l'utilisateur (back et front v2). Parcours réel Claude + CV + Chrome `03deaf51` terminé en 7 min 16, 44 accords automatiques, 0 clic, 5 offres, liens revérifiés, aucun envoi. Délai de l'agent aligné sur celui de la mission (30 min). Reste : candidature complète, Gemini sur ce parcours, entrée fictive `relay/offers/fa1cdf30…json` créée par l'agent, Chrome isolé.
 - **Mise à jour de 12:45.** API 4310 relancée à 12:15 avec `.manager/secrets.env`. Claude connecté, Gemini testé (réponses réelles, aucune mission terminée). **13:20 : chaîne annulée, Codex écarté pour l'instant à la demande de l'utilisateur ; le manager a codé lui-même les points 1 à 6 du brief `fix-perms-01`, non commités.** Missions réelles sur le nouveau code : Gemini `1b67b835` et Claude `59d3a74c` (example.com, Chrome via Playwriter) terminées sans clic, navigateur réel, 2 preuves. Chrome isolé non rejoué avec succès : Playwright n'avait pas ses navigateurs, puis « Navigateur fermé » (`2f71cf67`). Décisions de l'utilisateur : aucun plafond bloquant pendant les tests ; brief gardé malgré les commandes natives sans clic. `AGENTS.md`, `CLAUDE.md` et `.data/agents.json` modifiés par le manager à sa demande (nouveau chemin, plafond). Session « Passation Codex supervisor » archivée.
 - État de 11:50 : API 4310 lancée à 10:57, `OWNER_MODE=1`, `LIVE=1`, `BROWSER=playwriter`, sans secrets. La variable `AUTO_SEND=0` de son environnement n'a plus d'effet : le code ne la lit plus. Front 5173 et relais 19988 actifs. Aucune mission active. Automatisation Codex : `PAUSED`. **Chaîne manager vivante : `run-until-done.sh fix-perms-01`, démarrage à 16:05 sur la branche active** (`pkill -f run-until-done.sh` pour l'annuler ; à vérifier si l'utilisateur relance Codex depuis l'app, pour éviter deux sessions). Une première attente est morte sans cause connue avant 12:21 et a été relancée : à 16:05, vérifier que `.manager/logs/fix-perms-01-runner.log` contient bien `start fix-perms-01`.
 
@@ -76,7 +77,7 @@ Tests verts, travail conservé, mais le parcours réel se bloque en clics et le 
 ### Relancer l'API
 Vérifier d'abord qu'aucune mission n'est active. Port occupé : arrêter l'ancien serveur.
 ```sh
-AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_TIMEOUT_MS=900000 AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 \
+AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_TIMEOUT_MS=1800000 AGENT_PLATFORM_BROWSER=playwriter PLAYWRITER_TELEMETRY=0 \
   nohup node --env-file-if-exists=.manager/secrets.env apps/api/server.js
 ```
 Relais Playwriter : `playwriter session new`. Sans relais, repli sur un Chrome vierge, non connecté aux comptes.
@@ -90,3 +91,10 @@ Relais Playwriter : `playwriter session new`. Sans relais, repli sur un Chrome v
 ### Autres pièges
 - `codex exec` : pas de `--sandbox` avec `--approve-for-me` ; stdin fermé (`</dev/null`). Limites d'usage fréquentes : rapports au fil de l'eau, un commit par correction.
 - Horodatages : toujours `date`. Ne jamais afficher `.manager/secrets.env` ni lire `~/.codex/auth.json`, `~/.claude*`, le trousseau.
+
+### Architecture : proposition gelée (31/10, 13:32, session d'architecture)
+Décision de l'utilisateur : **ne pas appliquer le changement d'architecture** avant validation par un modèle puissant (`gpt-6-astra`) et son ordre explicite. Le reste du travail continue.
+- Proposition : `docs/architecture-cible.md`. Dossier à envoyer, autonome : `docs/validation-architecture.md`. Code exporté sans données privées : `exports/relay-code-8c369c4.zip`.
+- Relecture prête, non lancée : `MODEL=gpt-6-astra EFFORT=xhigh .manager/run-sprint.sh review-arch-01`.
+- Briefs `arch-01` et `skill-01` écrits et **gelés** : ne pas les lancer. Le déplacement de `.manager` attend aussi.
+- Mission Sydney (`c6128625`, prompt d'origine, Codex, Chrome, candidature et envoi interdits par ce prompt) programmée à 16:00 par la session d'architecture : `pkill -f mission-sydney.mjs` pour l'annuler. Elle ne part pas si une mission est active ou si une mission privée a déjà tourné depuis 13:30.

@@ -78,3 +78,10 @@ Branche `codex/browser-audit-31-10`, HEAD `65a77bf`. Nombreuses modifications an
 4. Reprendre skill-01 puis les contrats/parité de la section 6 ; aucun déplacement massif. Les MCP tiers doivent être qualifiés avant exposition.
 
 Preuves locales conservées dans `.manager/reports/astra-01-evidence/`, volontairement non suivies par Git. Les sorties intermédiaires restent aussi dans `/tmp/agregat-astra-01/`.
+
+### Commits et clôture
+- `139429b` — Effets incertains et reprise du scheduler, avec fixtures.
+- `651a4a0` — Tours, checkpoint, preuves, ponts par tentative et annulation des accords en vol ; seuls fragments propres indexés dans les fichiers mixtes.
+- `07476c4` — Format de revue career-ops versionné, diagnostics par fichiers et fixtures ; seule ligne sourceFiles indexée dans integration.js.
+- 22:25 — Contrôle des processus : aucun worker fake-acp/astra-acp, test hang ou runner npm restant. Modèles réels déjà fermés et cwd temporaires supprimés. Empreintes cdp.js et fake-acp.js identiques au début : leurs travaux antérieurs sont intacts. Le diff non commité restant correspond au travail des autres auteurs, plus les deux lignes de journal API de cette session et les preuves locales non suivies.
+- Commit documentaire suivant : version 2 antérieure conservée et explicitement attribuée, audit astra-01 et réponses provisoires acceptées intégrés. Aucun push, merge, amend ou réécriture d'historique. Aucun secret, bibliothèque, Skill ou CV réel modifié.

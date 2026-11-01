@@ -27,6 +27,7 @@ import {
   readableBrowserObservation,
   verifiedBrowserVisit,
   assessBrowserClaims,
+  lastReadablePage,
 } from './browser-proof.js';
 import {
   careerFailureMessage,
@@ -218,6 +219,36 @@ export class Orchestrator {
     this.attemptTokens.delete(scope.token);
     scope.abort.abort(new Error('Tentative terminée'));
     scope.detach();
+  }
+  // Private prompts stay out of the public run row; the checkpoint goes to the same local agent.
+  turnObjective(run) {
+    if (run.workspace !== 'career-ops') return run.prompt ?? null;
+    try {
+      return JSON.parse(readConfined(this.career.path(), `relay/runs/${run.id}-input.json`, 50000))
+        .prompt;
+    } catch {
+      return null;
+    }
+  }
+  // A new session has no history: name the turns of this mission, keeping the first objective.
+  checkpointFor(previous) {
+    const turns = [];
+    let cursor = previous.resumedFrom ? this.store.get(previous.resumedFrom) : null;
+    while (cursor && turns.length < 50) {
+      turns.unshift({ objective: this.turnObjective(cursor), answer: cursor.result?.summary });
+      cursor = cursor.resumedFrom ? this.store.get(cursor.resumedFrom) : null;
+    }
+    return resumeCheckpoint(previous, {
+      objective: this.turnObjective(previous),
+      turns: turns.length > 5 ? [turns[0], ...turns.slice(-4)] : turns,
+      lastPage:
+        previous.result?.lastPage ??
+        lastReadablePage(
+          (previous.id ? this.store.events(previous.id) : [])
+            .filter((e) => e.type === 'browser_evidence')
+            .map((e) => e.data),
+        ),
+    });
   }
   mcpServerFor(run, pack, { preMeteredTools = false, scope } = {}) {
     if (!this.approvalBase && priceOf('tool_call', 1, this.pricing) > 0)
@@ -606,6 +637,7 @@ export class Orchestrator {
       simulated: plan.simulated,
       dataMode: plan.dataMode,
       sessionId: previous?.sessionId ?? null,
+      resumedFrom: previous?.id ?? null,
       resumable: false,
       skillsSnapshot: plan.skills.map(({ content, ...s }) => s),
       skillProgress: plan.skillSelection.length
@@ -920,7 +952,7 @@ export class Orchestrator {
         });
       const prompt = JSON.stringify({
         objective: run.prompt,
-        ...(previous ? { checkpoint: resumeCheckpoint(previous) } : {}),
+        ...(previous ? { checkpoint: this.checkpointFor(previous) } : {}),
         attachments: run.attachments?.length ? this.career.attachments(run.attachments) : [],
         skills: plan.skills,
         browserWorkflow: plan.browserWorkflow,
@@ -1016,6 +1048,7 @@ export class Orchestrator {
         const observations =
           plan.pack.id === 'career-ops' ? (control.browserEvidence ?? []) : value.evidence;
         value.verification = assessBrowserClaims(value.summary, observations);
+        value.lastPage = lastReadablePage(observations);
         if (!plan.simulated || plan.browserWorkflow || plan.pack.id === 'career-ops')
           value.summary += '\n' + value.verification.notice;
       }

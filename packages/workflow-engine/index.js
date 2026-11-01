@@ -109,6 +109,7 @@ export class WorkflowEngine {
         retryFailed &&
         !replayable(s) &&
         r.attempt > 0 &&
+        r.output?.beforeEffect !== true &&
         ['failed', 'cancelled'].includes(r.state)
       )
         this.set(runId, s.id, {
@@ -247,6 +248,7 @@ export class WorkflowEngine {
       attempt,
       generation,
       error: null,
+      output: null,
       started_at: this.now(),
     });
     const executor = this.executors[step.kind];
@@ -281,10 +283,19 @@ export class WorkflowEngine {
       if (!this.current(runId, step.id, generation)) return;
       if (signal?.aborted) return; // drive() marks cancellation
       const message = String(e?.message ?? e).slice(0, 1000);
-      if (!replayable(step)) this.set(runId, step.id, { state: 'uncertain', error: message });
+      // beforeEffect: the executor proves nothing was sent, so nothing external needs confirming.
+      const beforeEffect = e?.beforeEffect === true;
+      if (!replayable(step) && !beforeEffect)
+        this.set(runId, step.id, { state: 'uncertain', error: message });
       else if (attempt <= step.retries)
         this.set(runId, step.id, { state: 'pending', error: `Tentative ${attempt} : ${message}` });
-      else this.set(runId, step.id, { state: 'failed', error: message, finished_at: this.now() });
+      else
+        this.set(runId, step.id, {
+          state: 'failed',
+          error: message,
+          finished_at: this.now(),
+          ...(beforeEffect ? { output: { beforeEffect: true } } : {}),
+        });
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);

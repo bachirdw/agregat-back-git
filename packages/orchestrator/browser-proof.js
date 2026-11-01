@@ -41,6 +41,15 @@ export function compactBrowserEvidence(output) {
   };
 }
 
+export function lastReadablePage(evidence = []) {
+  const last = [...evidence]
+    .reverse()
+    .find((item) => item.readable === true || readableBrowserObservation(item));
+  if (!last) return null;
+  const url = new URL(last.url);
+  return url.origin + url.pathname;
+}
+
 export function verifiedBrowserVisit(evidence = []) {
   let navigation = null;
   let verified = [];
@@ -64,7 +73,7 @@ export function verifiedBrowserVisit(evidence = []) {
 export function assessBrowserClaims(summary, evidence = []) {
   const citations = [];
   const seen = new Set();
-  for (const match of String(summary).matchAll(/https?:\/\/[^\s<>"`\[\]()]+/g)) {
+  for (const match of String(summary).matchAll(/https?:\/\/[^\s<>"`\[\]()]+/gi)) {
     let url;
     try {
       url = new URL(match[0].replace(/[.,;!?]+$/, ''));

@@ -694,7 +694,7 @@ test(
 
 test('propriétaire : relais qui refuse newCDPSession ne bloque pas notre onglet', async () => {
   let sessions = 0;
-  const page = { opener: async () => null, close: async () => {} };
+  const page = { url: () => 'about:blank', opener: async () => null, close: async () => {} };
   const context = {
     newPage: async () => page,
     route: async () => {},
@@ -1185,6 +1185,53 @@ test(
 );
 
 test(
+  'propriétaire FICTIF : un lien Postuler s’ouvre sans accord, le vrai envoi reste suspendu',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    let posts = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') posts++;
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.end(
+        req.url === '/form'
+          ? '<title>FICTIF formulaire</title><form method="post" action="/apply"><button id="final" type="submit">Envoyer ma candidature</button></form>'
+          : '<title>FICTIF offre</title><a id="postuler" href="/form">Postuler</a>',
+      );
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const approvals = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-lien-postuler',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async (request) => {
+        approvals.push(request);
+        return 'expired';
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    await clickRef(gateway, '#postuler');
+    assert.equal(approvals.length, 0);
+    assert.match(await provider.currentUrl(), /\/form$/);
+    await assert.rejects(clickRef(gateway, '#final'), /Accord expiré sans réponse.*browser\.click/);
+    assert.equal(approvals.length, 1);
+    assert.equal(approvals[0].actionClass, 'send');
+    assert.equal(posts, 0);
+  },
+);
+
+test(
   'propriétaire FICTIF : rafale de POST après un clic, une seule demande et aucun envoi',
   { skip: !existsSync(CHROME) },
   async (t) => {
@@ -1260,3 +1307,105 @@ test(
     assert.equal(fixture.posts(), 0);
   },
 );
+
+// Le transport propriétaire ne rattache pas l'onglet ouvert par le site, comme l'extension.
+async function ownerFixture(t, handler) {
+  const server = http.createServer(handler);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const dir = temporary();
+  let context, provider;
+  t.after(async () => {
+    await provider?.close();
+    await context?.close();
+    rmSync(dir, { recursive: true, force: true });
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  context = await chromium.launchPersistentContext(dir, {
+    executablePath: CHROME,
+    headless: true,
+    args: ['--remote-debugging-port=0'],
+  });
+  const port = readFileSync(join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0];
+  provider = new CdpBrowser({ endpoint: `http://127.0.0.1:${port}`, startupTimeoutMs: 5000 });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const policy = new RunPolicy({
+    ownerMode: true,
+    allowSharedContext: true,
+    runId: 'FICTIF',
+    capabilities: capabilityIds,
+    allowLocalOrigins: [origin],
+  });
+  return { origin, provider, policy };
+}
+
+test(
+  'propriétaire Chrome FICTIF : la page ouverte par le site est suivie, envoi toujours gardé',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    let posts = 0;
+    const { origin, provider, policy } = await ownerFixture(t, (req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      if (req.method === 'POST') posts++;
+      if (req.url === '/employeur')
+        return res.end(
+          '<title>FICTIF employeur</title><form method="post" action="/recu"><label>Nom <input aria-label="Nom"></label><button id="send">Valider</button></form>',
+        );
+      if (req.url === '/externe') return res.end('<title>FICTIF externe</title>');
+      res.end(
+        `<title>FICTIF annonce</title><button id="go" onclick="window.open('/employeur');location.href='/externe'">Voir le site</button>`,
+      );
+    });
+    const asked = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy,
+      approve: async (request) => {
+        asked.push(request.actionClass);
+        return request.actionClass !== 'send';
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const opened = await clickRef(gateway, '#go');
+    assert.equal(new URL(opened.url).pathname, '/employeur');
+    assert.equal(opened.followedWindow, true);
+    const seen = await gateway.call('browser.snapshot');
+    assert.match(seen.snapshot, /Nom/);
+    await assert.rejects(clickRef(gateway, '#send'), /refusée/);
+    assert.equal(posts, 0);
+    assert.ok(asked.includes('send'));
+  },
+);
+
+test('propriétaire : un onglet rouvert quitte le marqueur du relais', async () => {
+  let url = 'about:blank#relay-FICTIF';
+  const page = {
+    url: () => url,
+    goto: async (next) => {
+      url = next;
+    },
+    opener: async () => null,
+    close: async () => {},
+  };
+  const context = {
+    newPage: async () => page,
+    route: async () => {},
+    on: () => {},
+    off: () => {},
+    pages: () => [],
+  };
+  const provider = new CdpBrowser({
+    endpoint: 'http://127.0.0.1:19988',
+    chromium: {
+      connectOverCDP: async () => ({ contexts: () => [context], close: async () => {} }),
+    },
+  });
+  const policy = new RunPolicy({ ownerMode: true, allowSharedContext: true, runId: 'FICTIF' });
+  try {
+    await provider.prepare(policy);
+    await provider.ensure(policy);
+    assert.equal(url, 'about:blank');
+  } finally {
+    await provider.close();
+  }
+});

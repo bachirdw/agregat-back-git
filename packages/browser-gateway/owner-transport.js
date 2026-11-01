@@ -32,7 +32,9 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
   let seq = 0,
     downstream,
     targetInfo,
-    targetSession;
+    targetSession,
+    openedWindow = null,
+    windowWaiter = null;
   const marker = `about:blank#relay-${randomUUID()}`;
   const send = (message) => {
     if (downstream?.readyState === WebSocket.OPEN) downstream.send(JSON.stringify(message));
@@ -78,6 +80,13 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
       }
     } else if (m.sessionId) {
       if (!sessions.has(m.sessionId)) return;
+      // The extension does not attach a tab opened by the site: keep its address for the provider.
+      if (m.method === 'Page.windowOpen') {
+        openedWindow = m.params?.url ?? '';
+        const wake = windowWaiter;
+        windowWaiter = null;
+        wake?.();
+      }
     } else if (!targets.has(ti?.targetId ?? m.params?.targetId)) return;
     send(m);
   });
@@ -199,7 +208,25 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
       server.once('error', reject);
       server.listen(0, '127.0.0.1', resolve);
     });
-    return { endpoint: `ws://127.0.0.1:${server.address().port}/${marker.split('#')[1]}`, close };
+    return {
+      endpoint: `ws://127.0.0.1:${server.address().port}/${marker.split('#')[1]}`,
+      close,
+      takeOpenedWindow() {
+        const url = openedWindow;
+        openedWindow = null;
+        return url;
+      },
+      async waitOpenedWindow(ms) {
+        if (openedWindow !== null) return;
+        let timer;
+        await new Promise((resolve) => {
+          windowWaiter = resolve;
+          timer = setTimeout(resolve, ms);
+        });
+        clearTimeout(timer);
+        windowWaiter = null;
+      },
+    };
   } catch (e) {
     await close();
     throw e;

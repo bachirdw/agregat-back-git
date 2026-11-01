@@ -105,10 +105,20 @@ export class BrowserGateway {
     }
     const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
     if (step && this.policy.ownerMode) sensitive = false;
+    // A plain link only opens a page, whatever its label says: any POST it triggers still meets the
+    // network send guard, so "Apply" on a job ad does not ask before the form is even open.
+    const ownerLink =
+      capabilityId === 'browser.click' &&
+      this.policy.ownerMode &&
+      element?.tag === 'a' &&
+      !element.inForm &&
+      !element.formAction;
+    if (ownerLink) sensitive = false;
     const sending =
       ['browser.click', 'browser.download'].includes(capabilityId) &&
       !!element &&
       !step &&
+      !ownerLink &&
       (element.inForm ||
         this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     const preview = sending ? await this.provider.submissionPreview?.(target) : null;
@@ -133,6 +143,10 @@ export class BrowserGateway {
                 : args,
           page: await this.provider.currentUrl?.(),
         });
+        if (approved === 'expired')
+          throw new Error(
+            `Accord expiré sans réponse : ${capabilityId} ; action non effectuée, ne la refais pas par une autre voie.`,
+          );
         if (approved !== true)
           throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
       }

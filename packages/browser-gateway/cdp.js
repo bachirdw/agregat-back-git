@@ -14,6 +14,7 @@ import { resolve, basename, relative, isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
 
 import { ownerTransport } from './owner-transport.js';
+import { waitForExtension } from './relay-start.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
 
@@ -253,6 +254,7 @@ export class CdpBrowser {
     startupTimeoutMs = 45000,
     chromium = null,
     fallbackLaunch = null,
+    extensionWaitMs = 0,
   } = {}) {
     if (!endpoint && !launch) throw new Error('endpoint CDP ou lancement isolé requis');
     if (!Number.isInteger(startupTimeoutMs) || startupTimeoutMs <= 0)
@@ -269,6 +271,7 @@ export class CdpBrowser {
       startupTimeoutMs,
       injected: chromium,
       fallbackLaunch,
+      extensionWaitMs,
     });
     this.name = endpoint ? 'cdp-shared' : 'cdp-isolated';
     this.page = null;
@@ -355,13 +358,20 @@ export class CdpBrowser {
     }
     if (policy.ownerMode && this.endpoint && !this.injected) {
       try {
+        // A relay that has just started needs a moment before the extension reconnects.
+        if (this.extensionWaitMs)
+          await step(() => waitForExtension(this.endpoint, this.extensionWaitMs));
         this.ownerConnection = await step(
           () => ownerTransport(this.endpoint, Math.min(this.startupTimeoutMs, 10000)),
           (connection) => connection.close(),
         );
       } catch (error) {
         if (!this.fallbackLaunch || this.#closed) throw error;
-        this.fallbackReason = `Extension Playwriter indisponible : ${error.message}. Bascule sur Chrome isolé.`;
+        this.fallbackReason =
+          `Extension Playwriter indisponible : ${error.message}. Bascule sur Chrome isolé : ` +
+          'invisible, profil effacé à la fermeture, aucune connexion n’y est possible. ' +
+          'Si un site demande une connexion, ne propose ni de s’y connecter ni un code : ' +
+          'demande à l’utilisateur d’ouvrir Chrome avec l’extension, puis de relancer.';
         this.endpoint = null;
         this.launch = this.fallbackLaunch;
         this.name = 'cdp-isolated-fallback';
@@ -488,6 +498,8 @@ export class CdpBrowser {
       check();
       this.page = page;
       this.#pages.add(page);
+      // A reopened tab starts on the relay's marker, which assertLanded refuses.
+      if (policy.ownerMode && page.url() !== 'about:blank') await page.goto('about:blank');
       if (!this.ownsContext && !policy.ownerMode) {
         // Settings must be established on our tab before its first navigation. Routing/CSP alone
         // cannot protect documents synthesized by an existing service worker in a shared profile.
@@ -1062,12 +1074,34 @@ export class CdpBrowser {
       const target = this.redirectLanding?.url;
       if (target && !landing) await goto(target, true);
     };
+    // The relay leaves a tab opened by the site out of reach: load its page in the agent's tab,
+    // where the send guard applies. The address may hold a token: it stays out of any message.
+    const followWindow = async () => {
+      const url = this.ownerConnection?.takeOpenedWindow();
+      if (url === null || url === undefined) return {};
+      const notFollowed = {
+        windowNotFollowed: 'Le site a ouvert un onglet que Relay n’a pas pu charger ici.',
+      };
+      if (!/^https?:/i.test(url)) return notFollowed;
+      try {
+        await policy.assertUrl(url);
+        await goto(url);
+        return { followedWindow: true };
+      } catch {
+        return notFollowed;
+      }
+    };
     switch (id) {
       case 'browser.navigate':
+        this.ownerConnection?.takeOpenedWindow();
         await goto(args.url);
         return { url: page.url(), title: await page.title() };
       case 'browser.snapshot': {
-        if (args.url) await goto(args.url);
+        let followed = {};
+        if (args.url) {
+          this.ownerConnection?.takeOpenedWindow();
+          await goto(args.url);
+        } else followed = await followWindow();
         const loading = await waitForReadablePage(page);
         const snapshot = await page.ariaSnapshot({ mode: 'ai', timeout: 5000 });
         this.snapshotRefs = snapshotRefs(snapshot);
@@ -1076,6 +1110,7 @@ export class CdpBrowser {
           title: await page.title(),
           snapshot,
           loading,
+          ...followed,
         };
       }
       case 'browser.extract': {
@@ -1110,6 +1145,7 @@ export class CdpBrowser {
       case 'browser.click':
         // Resolve first: a stale ref must not open the post-click send window.
         const target = await this.targetLocator({ ref: args.ref });
+        this.ownerConnection?.takeOpenedWindow();
         this.sendGrant = args.sendApproved === true;
         this.formStep = args.formStep === true;
         this.blockedThirdParty = new Set();
@@ -1160,11 +1196,14 @@ export class CdpBrowser {
         }
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);
+        await this.ownerConnection?.waitOpenedWindow(1000);
+        const followed = await followWindow();
         return {
           url: page.url(),
           title: await page.title(),
           clickMode,
           hidden,
+          ...followed,
           // Lets the agent explain a submit that silently went nowhere (cross-site XHR).
           ...(this.blockedThirdParty.size
             ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }

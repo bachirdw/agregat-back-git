@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { Store, terminal } from '../../packages/storage/index.js';
 import { SkillRegistry } from '../../packages/skill-registry/index.js';
 import { Orchestrator } from '../../packages/orchestrator/index.js';
+import { startRelay } from '../../packages/browser-gateway/relay-start.js';
 import { compactBrowserEvidence } from '../../packages/orchestrator/browser-proof.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
 import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
@@ -569,6 +570,7 @@ export function createApp({
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const app = createApp();
+  app.engine.startRelay = () => startRelay().catch(() => {});
   const port = Number(process.env.PORT ?? 4310);
   app.server.listen(port, '127.0.0.1', () =>
     console.log(

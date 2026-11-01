@@ -1,4 +1,4 @@
-import { usageLimitMessage } from '../packages/orchestrator/failure.js';
+import { authFailureMessage, usageLimitMessage } from '../packages/orchestrator/failure.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { careerFailureMessage } from '../packages/orchestrator/failure.js';
@@ -200,4 +200,125 @@ test('limite signalée par les métadonnées : cause sûre pour une mission priv
     usageLimitMessage('Claude', '', new Error('Navigation non prouvée'), { status: 'rejected' }),
     null,
   );
+});
+
+test('mission privée : le cadre du propriétaire part dans le canal système de l’agent', async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-cadre-FICTIF-')));
+  const career = new CareerWorkspace({ root, roots: [root] });
+  const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: true });
+  const run = {
+    id: randomUUID(),
+    state: 'queued',
+    cwd: root,
+    prompt: 'Question FICTIVE',
+    model: '',
+    mode: 'agent',
+    budgetCents: 0,
+    workspace: 'career-ops',
+  };
+  app.store.create(run);
+  const plan = {
+    simulated: true,
+    skills: [],
+    agent: {
+      id: 'fixture',
+      command: process.execPath,
+      args: [resolve('tests/fixtures/fake-acp.js')],
+      env: [],
+      safeModes: [],
+      fixedEnv: {
+        FAKE_ACP: JSON.stringify({
+          expectSystemPrompt: 'la plateforme suspend l’envoi',
+          result: { simulated: true, summary: 'FICTIF', evidence: [] },
+        }),
+      },
+    },
+    pack: { id: 'career-ops', workflow: { steps: [] } },
+  };
+  const control = { abort: new AbortController(), runtime: null };
+  app.engine.active.set(run.id, control);
+  try {
+    await app.engine.execute(run, plan, control, null);
+    // The fake agent refuses session/new when the frame is missing from its system channel.
+    assert.ok(app.store.events(run.id).some((event) => event.type === 'session'));
+  } finally {
+    await app.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('connexion de l’agent refusée : vraie cause, sans texte privé', () => {
+  const revoked = new Error(
+    'Internal error : Failed to authenticate. API Error: 401 OAuth access token has been revoked.',
+  );
+  const expected = 'Connexion de Claude refusée : reconnecter cet agent.';
+  assert.equal(authFailureMessage('Claude', '', revoked), expected);
+  assert.equal(
+    authFailureMessage(
+      'Claude',
+      'Failed to authenticate. API Error: 401',
+      new Error('Internal error'),
+    ),
+    expected,
+  );
+  assert.equal(
+    authFailureMessage('Gemini', '', new Error('Gemini API key is missing')),
+    'Connexion de Gemini refusée : reconnecter cet agent.',
+  );
+  // Text quoted from a page or a CV never disguises another failure.
+  assert.equal(
+    authFailureMessage(
+      'Claude',
+      'Page : error 401 authentication',
+      new Error('Navigation non prouvée'),
+    ),
+    null,
+  );
+  assert.equal(authFailureMessage('Claude', 'CV SECRET FICTIF', new Error('Internal error')), null);
+  assert.equal(authFailureMessage('Claude', '', new Error('Author inconnu')), null);
+});
+
+test('mission privée : connexion révoquée affichée dans le Bilan', async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-connexion-FICTIF-')));
+  const career = new CareerWorkspace({ root, roots: [root] });
+  const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: true });
+  const run = {
+    id: randomUUID(),
+    state: 'queued',
+    cwd: root,
+    prompt: 'CV SECRET FICTIF',
+    model: '',
+    mode: 'agent',
+    budgetCents: 0,
+    workspace: 'career-ops',
+  };
+  app.store.create({ ...run, prompt: 'Mission privée dans l’espace de candidature' });
+  const plan = {
+    simulated: true,
+    skills: [],
+    agent: {
+      id: 'fixture',
+      name: 'Agent FICTIF',
+      command: process.execPath,
+      args: [resolve('tests/fixtures/fake-acp.js')],
+      env: [],
+      safeModes: [],
+      fixedEnv: {
+        FAKE_ACP: JSON.stringify({ errorText: 'Failed to authenticate. API Error: 401' }),
+      },
+    },
+    pack: { id: 'career-ops', workflow: { steps: [] } },
+  };
+  const control = { abort: new AbortController(), runtime: null };
+  app.engine.active.set(run.id, control);
+  try {
+    await app.engine.execute(run, plan, control, null);
+    const done = app.store.get(run.id);
+    assert.equal(done.state, 'failed');
+    assert.equal(done.error, 'Connexion de Agent FICTIF refusée : reconnecter cet agent.');
+    assert.doesNotMatch(JSON.stringify(done.error), /CV SECRET/);
+  } finally {
+    await app.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });

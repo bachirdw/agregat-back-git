@@ -44,6 +44,7 @@ export class AcpRuntime {
     onEvent = () => {},
     onPermission = async () => ({ outcome: { outcome: 'cancelled' } }),
     timeouts = {},
+    systemPromptAppend = null,
     env = process.env,
     ownerMode = false,
     requestedMode = '',
@@ -67,6 +68,7 @@ export class AcpRuntime {
     if (requestedMode && !definition.simulated)
       this.definition = { ...this.definition, safeModes: [requestedMode] };
     this.timeouts = { ...defaultTimeouts, ...timeouts };
+    this.systemPromptAppend = systemPromptAppend;
     this.sessionId = null;
     this.ready = false;
     this.lifecycle = new AbortController();
@@ -261,6 +263,10 @@ export class AcpRuntime {
       {
         cwd: this.cwd,
         mcpServers,
+        // _meta is ignored by agents that do not support it (ACP extension point).
+        ...(this.systemPromptAppend
+          ? { _meta: { systemPrompt: { append: this.systemPromptAppend } } }
+          : {}),
       },
       { timeoutMs: this.timeouts.session },
     );

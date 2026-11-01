@@ -39,7 +39,8 @@ async function approve(request) {
     signal: AbortSignal.timeout(130000),
   });
   if (!r.ok) return false;
-  return (await r.json()).approved === true;
+  const decision = await r.json();
+  return decision.expired ? 'expired' : decision.approved === true;
 }
 
 // Usage of gateway capabilities is charged by the platform BEFORE the action; a refused charge
@@ -151,6 +152,7 @@ if (mode === 'fixture') {
                   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
               }
             : null,
+          extensionWaitMs: process.env.RELAY_CDP_ENDPOINT ? 0 : 15000,
         })
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
   const gateway = new BrowserGateway({ provider, policy, approve, meter });

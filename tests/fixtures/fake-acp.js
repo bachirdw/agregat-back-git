@@ -84,8 +84,13 @@ const app = agent({ name: 'fake-acp' })
         cfg.authRequired || cfg.authMethods ? [{ id: 'fake-key', name: 'Fake key' }] : [],
     };
   })
-  .onRequest(methods.agent.session.new, async () => {
+  .onRequest(methods.agent.session.new, async (ctx) => {
     await guard('session/new');
+    if (
+      cfg.expectSystemPrompt &&
+      !ctx.params._meta?.systemPrompt?.append?.includes(cfg.expectSystemPrompt)
+    )
+      throw new RequestError(-32000, 'Cadre du propriétaire absent');
     if (cfg.authRequired) throw new RequestError(-32000, 'Fake API key is missing');
     return sessionPayload('fake-session-1');
   })
@@ -144,6 +149,9 @@ const app = agent({ name: 'fake-acp' })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
     if (cfg.diagnosticText) process.stderr.write(cfg.diagnosticText);
     await guard('session/prompt');
+    for (const expected of cfg.expectInstructions ?? [])
+      if (!JSON.stringify(ctx.params.prompt).includes(expected))
+        throw new RequestError(-32000, 'Consigne absente : ' + expected);
     if (cfg.expectBrowserResumeGuidance) {
       const request = JSON.parse(ctx.params.prompt[0].text);
       if (!request.instructions?.includes('about:blank'))

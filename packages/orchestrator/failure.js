@@ -41,6 +41,23 @@ export function usageLimitMessage(agentName, text, error, rateLimit = null) {
   return `Limite d’usage de ${agentName} atteinte${retry ? ` : réessayer à ${retry}` : ''}. Choisir un autre agent ou attendre.`;
 }
 
+const AUTH_TEXT =
+  /failed to authenticate|authentication (?:required|failed|error)|\b401\b|access token|login required|api key (?:is )?(?:missing|invalid|not valid)|invalid api key/i;
+
+// A refused login is not private: name it, from the agent's error or its final announcement only.
+export function authFailureMessage(agentName, text, error) {
+  const message = String(error?.message ?? '');
+  const bareFailure = /^(?:Internal error|Agent arrêté\b)/i.test(message);
+  const lastParagraph = String(text ?? '')
+    .trim()
+    .split(/\n\s*\n/)
+    .at(-1);
+  const source = AUTH_TEXT.test(message) ? message : bareFailure ? lastParagraph : '';
+  return AUTH_TEXT.test(source)
+    ? `Connexion de ${agentName} refusée : reconnecter cet agent.`
+    : null;
+}
+
 // Only platform-owned causes are safe to show for a private career run.
 export function careerFailureMessage({ cancelled = false, reason, error } = {}) {
   if (cancelled) return 'Annulée par l’utilisateur';

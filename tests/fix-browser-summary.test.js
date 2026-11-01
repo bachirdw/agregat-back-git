@@ -69,6 +69,10 @@ test('résumé final FICTIF indique le profil isolé après repli', async (t) =>
     done.result.summary,
     /Navigateur : Chrome isolé, non connecté à vos comptes \(extension Playwriter indisponible\)\./,
   );
+  assert.match(
+    done.result.summary,
+    /Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer\./,
+  );
 });
 
 test('résumé final FICTIF sans repli ne mentionne pas Chrome isolé', async (t) => {

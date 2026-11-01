@@ -18,6 +18,7 @@ dag:
       title: Enregistrer l'objectif comme donnée non vérifiée
       kind: tool
       tool: evidence_echo
+      effect: read
       arguments: { text: '{{objective}}' }
     - id: analysis
       title: Analyse par l'agent

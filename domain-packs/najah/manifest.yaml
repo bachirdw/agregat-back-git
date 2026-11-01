@@ -39,10 +39,12 @@ dag:
       title: Rechercher dans le jeu de test
       kind: tool
       tool: opportunities_search
+      effect: read
     - id: rank
       title: Classer avec des critères explicites
       kind: tool
       tool: opportunities_rank
+      effect: read
       dependsOn: [search, snapshot]
     - id: analysis
       title: Analyser le classement
@@ -102,6 +104,7 @@ dags:
         title: Rechercher des offres réelles (Arbeitnow, Remotive)
         kind: tool
         tool: jobs_search_live
+        effect: read
         estimate: { data_search: 2 } # one request per source
         timeoutMs: 60000
         retries: 1
@@ -110,6 +113,7 @@ dags:
         title: Vérifier les employeurs dans le registre UK (gov.uk)
         kind: tool
         tool: sponsor_check_uk
+        effect: read
         estimate: { data_search: 2 } # gov.uk page + register CSV (cached 24 h)
         dependsOn: [search]
         timeoutMs: 180000
@@ -119,6 +123,7 @@ dags:
         title: Classer de façon explicable
         kind: tool
         tool: opportunities_rank_live
+        effect: read
         dependsOn: [search, sponsors]
         arguments:
           query: '{{objective}}'
@@ -152,6 +157,7 @@ dags:
         title: Enregistrer l'offre et le profil comme données non vérifiées
         kind: tool
         tool: evidence_echo
+        effect: read
         arguments: { text: '{{objective}}' }
       - id: draft
         title: Rédiger un brouillon de lettre

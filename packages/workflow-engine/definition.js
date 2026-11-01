@@ -14,8 +14,8 @@ export const stepSchema = z
     arguments: z.record(z.string(), z.unknown()).optional(),
     agent: z.string().max(40).optional(),
     prompt: z.string().max(4000).optional(),
-    // `write` steps have external effects: never retried automatically after an interruption.
-    effect: z.enum(['read', 'write']).default('read'),
+    // Absence of a declaration never proves that an external effect is safe to replay.
+    effect: z.enum(['read', 'write', 'unknown']).default('unknown'),
     retries: z.number().int().min(0).max(3).default(0),
     timeoutMs: z.number().int().min(100).max(1800000).optional(),
     optional: z.boolean().default(false),

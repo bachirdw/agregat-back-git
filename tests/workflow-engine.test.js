@@ -18,6 +18,7 @@ const tool = (id, dependsOn = [], extra = {}) => ({
   title: id,
   kind: 'tool',
   tool: 't',
+  effect: 'read', // FICTIF : cet exécuteur de test est qualifié sans effet externe.
   dependsOn,
   ...extra,
 });

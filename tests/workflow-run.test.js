@@ -276,7 +276,9 @@ test('timeout d’étape pendant initialize : le processus ACP est fermé sans a
     },
   };
   try {
-    await assert.rejects(executeWorkflow(app.engine, run, plan, control), /délai/);
+    const pending = executeWorkflow(app.engine, run, plan, control);
+    await refuseUncertain(control, run.id);
+    await assert.rejects(pending, /délai/);
     assert.ok(existsSync(pidFile), 'le faux agent a démarré');
     const pid = Number(readFileSync(pidFile, 'utf8'));
     for (let i = 0; i < 80 && !isProcessDefinitelyDead(pid); i++)
@@ -392,14 +394,14 @@ test('workflow : limite d’usage après un accord expiré, les deux causes rest
     },
   };
   try {
-    await assert.rejects(
-      executeWorkflow(app.engine, run, plan, { abort: new AbortController() }),
-      (e) => {
-        assert.match(e.message, /Limite d’usage de Agent FICTIF atteinte : réessayer à 3:57 PM/);
-        assert.match(e.message, /Accord expiré sans réponse \(60 s\) : career_read/);
-        return true;
-      },
-    );
+    const control = { abort: new AbortController() };
+    const pending = executeWorkflow(app.engine, run, plan, control);
+    await refuseUncertain(control, run.id);
+    await assert.rejects(pending, (e) => {
+      assert.match(e.message, /Limite d’usage de Agent FICTIF atteinte : réessayer à 3:57 PM/);
+      assert.match(e.message, /Accord expiré sans réponse \(60 s\) : career_read/);
+      return true;
+    });
   } finally {
     await app.close();
   }
@@ -448,7 +450,9 @@ test('mission workflow : l’échec final garde la limite d’usage et l’accor
     return original(id);
   };
   try {
-    await app.engine.execute(run, plan, control, null);
+    const pending = app.engine.execute(run, plan, control, null);
+    await refuseUncertain(control, run.id);
+    await pending;
     const done = app.store.get(run.id);
     assert.equal(done.state, 'failed');
     assert.match(done.error, /Limite d’usage de Agent FICTIF atteinte/);
@@ -457,3 +461,17 @@ test('mission workflow : l’échec final garde la limite d’usage et l’accor
     await app.close();
   }
 });
+
+// Décision FICTIVE de refus : aucun effet incertain n'est relancé pour terminer le test.
+async function refuseUncertain(control, runId) {
+  const until = Date.now() + 5000;
+  for (;;) {
+    const row = control.engine?.steps(runId).find((s) => s.state === 'uncertain');
+    if (row) {
+      control.engine.resolveUncertain(runId, row.step_id, 'fail');
+      return;
+    }
+    assert.ok(Date.now() < until, 'une étape incertaine doit être conservée');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}

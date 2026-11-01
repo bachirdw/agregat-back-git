@@ -16,6 +16,11 @@ export const stepStates = [
 ];
 const finished = new Set(['succeeded', 'failed', 'skipped', 'cancelled']);
 const MAX_OUTPUT = 200000;
+// An agent's prompt cannot guarantee read-only behaviour. Tool read declarations must
+// come from a qualified pack, never from an unreviewed generated workflow.
+const replayable = (step) =>
+  ['verify', 'aggregate', 'approval'].includes(step.kind) ||
+  (step.kind !== 'agent' && step.effect === 'read');
 
 export class StepTimeoutError extends Error {
   constructor(stepId, ms) {
@@ -97,12 +102,12 @@ export class WorkflowEngine {
       if (!r) throw new Error(`Étape inconnue pour ce run : ${s.id}`);
       if (r.state === 'running')
         this.set(runId, s.id, {
-          state: s.effect === 'write' ? 'uncertain' : 'pending',
+          state: replayable(s) ? 'pending' : 'uncertain',
           error: 'Interrompue par un arrêt du serveur',
         });
       else if (
         retryFailed &&
-        s.effect === 'write' &&
+        !replayable(s) &&
         r.attempt > 0 &&
         ['failed', 'cancelled'].includes(r.state)
       )
@@ -142,7 +147,7 @@ export class WorkflowEngine {
       done: { state: 'succeeded', output: { confirmedByUser: true }, finished_at: this.now() },
       fail: {
         state: 'failed',
-        error: 'Marquée en échec par l’utilisateur',
+        error: `Marquée en échec par l’utilisateur${r.error ? ` : ${r.error}` : ''}`,
         finished_at: this.now(),
       },
     }[action];
@@ -169,9 +174,9 @@ export class WorkflowEngine {
         if (signal?.aborted) {
           for (const s of wf.steps) {
             const st = this.row(runId, s.id).state;
-            if (!finished.has(st))
+            if (!finished.has(st) && st !== 'uncertain')
               this.set(runId, s.id, {
-                state: st === 'running' && s.effect === 'write' ? 'uncertain' : 'cancelled',
+                state: st === 'running' && !replayable(s) ? 'uncertain' : 'cancelled',
                 error: 'Annulée',
                 finished_at: this.now(),
               });
@@ -276,7 +281,7 @@ export class WorkflowEngine {
       if (!this.current(runId, step.id, generation)) return;
       if (signal?.aborted) return; // drive() marks cancellation
       const message = String(e?.message ?? e).slice(0, 1000);
-      if (step.effect === 'write') this.set(runId, step.id, { state: 'uncertain', error: message });
+      if (!replayable(step)) this.set(runId, step.id, { state: 'uncertain', error: message });
       else if (attempt <= step.retries)
         this.set(runId, step.id, { state: 'pending', error: `Tentative ${attempt} : ${message}` });
       else this.set(runId, step.id, { state: 'failed', error: message, finished_at: this.now() });

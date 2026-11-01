@@ -123,7 +123,7 @@ export class AcpRuntime {
       this.close();
       return;
     }
-    this.onEvent(redactValue(update, this.secrets));
+    if (this.promptActive) this.onEvent(redactValue(update, this.secrets));
   }
   async startProcess() {
     const d = this.definition;
@@ -155,9 +155,11 @@ export class AcpRuntime {
       this.child.once('error', no);
     });
     this.connection = client({ name: 'agent-platform' })
-      .onNotification(methods.client.session.update, (ctx) => this.handleUpdate(ctx.params.update))
+      .onNotification(methods.client.session.update, (ctx) => {
+        if (ctx.params.sessionId === this.sessionId) this.handleUpdate(ctx.params.update);
+      })
       .onRequest(methods.client.session.requestPermission, (ctx) =>
-        this.stopped
+        this.stopped || !this.promptActive || ctx.params.sessionId !== this.sessionId
           ? { outcome: { outcome: 'cancelled' } }
           : this.onPermission(redactValue(ctx.params, this.secrets)),
       )
@@ -234,6 +236,7 @@ export class AcpRuntime {
       });
   }
   async session(mcpServers, previousId) {
+    if (this.promptActive) throw new Error('Un tour est déjà actif');
     this.ready = false;
     for (const server of mcpServers)
       this.secrets.push(
@@ -244,19 +247,24 @@ export class AcpRuntime {
       );
     if (previousId && !this.info.agentCapabilities?.loadSession)
       throw new Error('Reprise non supportée par cet agent');
-    // Explicit authentication before a load when the profile needs it; the key is never sent over ACP.
-    if (previousId && this.usesApiKeyAuth()) {
-      const methodId = this.definition.apiKeyAuth.methodId;
-      if (!(this.info.authMethods ?? []).some((m) => m.id === methodId))
-        throw new Error(`Méthode d’authentification ${methodId} non annoncée`);
-      await this.request(methods.agent.authenticate, { methodId });
+    // loadSession does not promise a causal end-of-history boundary. No installed
+    // adapter/version has such a qualified boundary yet. Never start an ambiguous
+    // replay, including one that could overlap the next prompt; the caller uses a
+    // fresh session with an application checkpoint instead.
+    if (previousId) {
+      const error = new Error('Reprise exacte non qualifiée : frontière de rejeu inconnue');
+      error.code = 'replay_unqualified';
+      throw error;
     }
     const s = await this.request(
-      previousId ? methods.agent.session.load : methods.agent.session.new,
-      { cwd: this.cwd, mcpServers, ...(previousId ? { sessionId: previousId } : {}) },
+      methods.agent.session.new,
+      {
+        cwd: this.cwd,
+        mcpServers,
+      },
       { timeoutMs: this.timeouts.session },
     );
-    this.sessionId = previousId ?? s.sessionId;
+    this.sessionId = s.sessionId;
     this.sessionInfo = s;
     this.models = sessionModels(s);
     this.modes = sessionModes(s);
@@ -299,16 +307,25 @@ export class AcpRuntime {
     this.models.current = value;
     return value;
   }
-  prompt(text, signal) {
+  async prompt(text, signal) {
     if (this.stopped) return Promise.reject(new Error('Runtime fermé'));
     if (!this.ready) return Promise.reject(new Error('Session non prête : mode sûr requis'));
-    return this.request(
-      methods.agent.session.prompt,
-      { sessionId: this.sessionId, prompt: [{ type: 'text', text }] },
-      { signal, timeoutMs: this.timeouts.prompt },
-    );
+    if (this.promptActive) throw new Error('Un tour est déjà actif');
+    this.promptActive = true;
+    try {
+      return await this.request(
+        methods.agent.session.prompt,
+        { sessionId: this.sessionId, prompt: [{ type: 'text', text }] },
+        { signal, timeoutMs: this.timeouts.prompt },
+      );
+    } finally {
+      this.promptActive = false;
+      this.ready = false; // Another turn requires a fresh session identity.
+    }
   }
   cancel() {
+    this.promptActive = false;
+    this.ready = false;
     if (this.sessionId && !this.stopped)
       this.connection?.agent
         .notify(methods.agent.session.cancel, { sessionId: this.sessionId })

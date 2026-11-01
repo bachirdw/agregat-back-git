@@ -173,7 +173,12 @@ test('API complète : plan → ACP → MCP → résultat, SSE replay et protecti
     assert.ok(sse.includes('event: end'));
     assert.ok(!sse.includes(`id: ${cursor}\n`));
     assert.ok(sse.includes('opportunities'));
-    assert.equal((await post(`/api/runs/${run.id}/resume`, {})).status, 400);
+    const resumed = await post(`/api/runs/${run.id}/resume`, {});
+    assert.equal(resumed.status, 201);
+    const resumedRun = await completed(app, (await resumed.json()).id);
+    assert.equal(resumedRun.state, 'completed', resumedRun.error);
+    assert.notEqual(resumedRun.sessionId, done.sessionId);
+    assert.match(resumedRun.result.summary, /point de reprise/);
   } finally {
     await app.close();
   }

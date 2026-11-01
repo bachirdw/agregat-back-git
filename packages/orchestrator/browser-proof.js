@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+
+const sourceId = (url) => createHash('sha256').update(url.href).digest('hex');
+
 // Only a successful gateway observation of a readable page proves that the current turn
 // accessed a browser page. ACP history replay and an empty browser tab do not.
 export function readableBrowserObservation(evidence) {
@@ -30,6 +34,7 @@ export function compactBrowserEvidence(output) {
   return {
     capability: output.capability,
     url: url.origin + url.pathname,
+    sourceId: sourceId(url),
     provider,
     loading: output.loading === true,
     readable: readableBrowserObservation(output),
@@ -45,11 +50,52 @@ export function verifiedBrowserVisit(evidence = []) {
       navigation &&
       ['browser.snapshot', 'browser.extract'].includes(item.capability) &&
       item.readable &&
-      item.url === navigation.url
+      item.url === navigation.url &&
+      item.sourceId === navigation.sourceId
     )
-      verified = [navigation, item];
+      verified.push(navigation, item);
   }
   return verified;
+}
+
+// A source observation proves access, never the truth of arbitrary model prose.
+// Hash the full URL for matching, while keeping credentials/query/fragment out of
+// the report. Citations to unseen pages must remain visibly unverified.
+export function assessBrowserClaims(summary, evidence = []) {
+  const citations = [];
+  const seen = new Set();
+  for (const match of String(summary).matchAll(/https?:\/\/[^\s<>"`\[\]()]+/g)) {
+    let url;
+    try {
+      url = new URL(match[0].replace(/[.,;!?]+$/, ''));
+    } catch {
+      continue;
+    }
+    const key = sourceId(url);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const observations = evidence.filter((item) =>
+      item.sourceId
+        ? item.sourceId === key
+        : !url.search && !url.hash && item.url === url.origin + url.pathname,
+    );
+    const read = observations.some(
+      (item) => item.readable === true || readableBrowserObservation(item),
+    );
+    const visited = observations.some((item) => item.capability === 'browser.navigate');
+    citations.push({
+      url: url.origin + url.pathname,
+      status: read ? 'read' : visited ? 'visited' : 'cited',
+    });
+  }
+  const unverified = citations.filter((item) => item.status !== 'read').length;
+  return {
+    claimsVerified: false,
+    citations,
+    notice:
+      'Affirmations de l’agent : non vérifiées.' +
+      (unverified ? ` ${unverified} lien(s) cité(s) sans lecture prouvée dans ce tour.` : ''),
+  };
 }
 
 export function browserObservationFailure(evidence) {

@@ -6,6 +6,8 @@ import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
 import { executionResult, parseAgentResult } from './result.js';
+import { assessBrowserClaims, browserObservationFailure } from './browser-proof.js';
+import { TurnGuard } from './turn-guard.js';
 
 // Runs a pack DAG: tool steps call the capability gateway directly (deterministic, no model),
 // agent steps open an ACP session on the agent assigned to that step (multi-agent), verify steps
@@ -82,9 +84,6 @@ export async function executeWorkflow(orch, run, plan, control) {
   const engine = new WorkflowEngine({ store: orch.store, executors: {} });
   control.engine = engine;
   const signal = control.abort.signal;
-  // One shared MCP connection per run. The *promise* is memoised: parallel tool steps would
-  // otherwise both connect and leak a gateway process (found by the integration test).
-  let mcpPromise = null;
   const runtimes = new Set();
   control.closeAll = () => {
     for (const r of runtimes) {
@@ -92,12 +91,18 @@ export async function executeWorkflow(orch, run, plan, control) {
       r.close();
     }
   };
-  const mcpClient = () =>
-    (mcpPromise ??= connectMcp(orch.mcpServerFor(run, plan.pack, { preMeteredTools: true })));
   engine.executors = {
-    tool: async (step, { inputs, signal: stepSignal }) => {
-      const client = await mcpClient();
+    tool: async (step, { inputs, signal: stepSignal, attempt }) => {
+      const scope = orch.openAttempt(run.id, step.id, attempt, stepSignal);
+      const connection = connectMcp(
+        orch.mcpServerFor(run, plan.pack, { preMeteredTools: true, scope }),
+      );
+      const client = await connection.catch((error) => {
+        orch.closeAttempt(scope);
+        throw error;
+      });
       if (stepSignal.aborted) {
+        orch.closeAttempt(scope);
         await client.close();
         throw stepSignal.reason;
       }
@@ -106,6 +111,7 @@ export async function executeWorkflow(orch, run, plan, control) {
       };
       stepSignal.addEventListener('abort', onAbort, { once: true });
       try {
+        scope.promptStarted = true;
         orch.meter(run.id, 'tool_call', 1);
         const response = await client.callTool(
           { name: step.tool, arguments: toolArguments(step, run.prompt, inputs) },
@@ -116,10 +122,12 @@ export async function executeWorkflow(orch, run, plan, control) {
         if (response.isError) throw new Error(`Outil ${step.tool} : ${text.slice(0, 300)}`);
         return JSON.parse(text);
       } finally {
+        orch.closeAttempt(scope);
         stepSignal.removeEventListener('abort', onAbort);
+        await client.close();
       }
     },
-    agent: async (step, { inputs, signal: stepSignal }) => {
+    agent: async (step, { inputs, signal: stepSignal, attempt }) => {
       const definition = plan.stepAgents?.[step.id] ?? plan.agent;
       const cwd = resolve(run.cwd, step.id);
       mkdirSync(cwd, { recursive: true, mode: 0o700 });
@@ -132,6 +140,21 @@ export async function executeWorkflow(orch, run, plan, control) {
             plan.skills.map((x) => x.id),
           ),
         });
+      const scope = orch.openAttempt(run.id, step.id, attempt, stepSignal);
+      const guard = new TurnGuard({
+        silentMs: orch.silentMs,
+        toolIdleMs: orch.toolIdleMs,
+        onEvent: (type, data) =>
+          orch.store.event(run.id, type, {
+            stepId: step.id,
+            attempt,
+            turnId: scope.turnId,
+            ...data,
+          }),
+        onStop: (error) => control.abort.abort(error),
+      });
+      const observedIds = new Set();
+      let browserObserved = false;
       let text = '',
         events = 0,
         rateLimit = null;
@@ -141,6 +164,9 @@ export async function executeWorkflow(orch, run, plan, control) {
         cwd,
         agentHome: resolve(orch.dataDir, 'agent-homes', definition.id),
         onEvent: (update) => {
+          if (!scope.promptStarted || stepSignal.aborted) return;
+          guard.observe(update);
+          if (/\bbrowser[_\.][a-z]/i.test(String(update.title ?? ''))) browserObserved = true;
           rateLimit =
             rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
           if (++events > 4000) {
@@ -154,10 +180,18 @@ export async function executeWorkflow(orch, run, plan, control) {
               return;
             }
           }
-          orch.store.event(run.id, 'agent', { stepId: step.id, ...update });
-          if (update.sessionUpdate === 'tool_call') orch.meter(run.id, 'tool_observed', 1);
+          orch.store.event(run.id, 'agent', {
+            ...update,
+            stepId: step.id,
+            attempt,
+            turnId: scope.turnId,
+          });
+          if (update.sessionUpdate === 'tool_call' && !observedIds.has(update.toolCallId)) {
+            observedIds.add(update.toolCallId);
+            orch.meter(run.id, 'tool_observed', 1);
+          }
         },
-        onPermission: (p) => orch.permission(run.id, p, !!definition.simulated, stepSignal),
+        onPermission: (p) => orch.permission(run.id, p, !!definition.simulated, scope.abort.signal),
       });
       runtimes.add(runtime);
       const onAbort = () => {
@@ -169,7 +203,7 @@ export async function executeWorkflow(orch, run, plan, control) {
         if (stepSignal.aborted) throw stepSignal.reason;
         const info = await runtime.start();
         if (stepSignal.aborted) throw stepSignal.reason;
-        const session = await runtime.session([orch.mcpServerFor(run, plan.pack)]);
+        const session = await runtime.session([orch.mcpServerFor(run, plan.pack, { scope })]);
         if (definition.id === plan.agent.id) await runtime.selectModel(run.model);
         const described = runtime.describe();
         orch.store.event(run.id, 'session', {
@@ -199,6 +233,8 @@ export async function executeWorkflow(orch, run, plan, control) {
         });
         let response;
         try {
+          scope.promptStarted = true;
+          guard.start();
           response = await runtime.prompt(prompt, stepSignal);
         } catch (e) {
           if (!definition.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
@@ -227,8 +263,19 @@ export async function executeWorkflow(orch, run, plan, control) {
           throw new Error(`${parsed.reason} : « ${parsed.excerpt} »`);
         }
         orch.meter(run.id, definition.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
-        return executionResult(parsed.value, definition);
+        const result = executionResult(parsed.value, definition);
+        if (browserObserved || plan.browserWorkflow) {
+          if (!scope.browserEvidence.some((item) => item.readable))
+            throw new Error(browserObservationFailure(scope.browserEvidence));
+          result.evidence = scope.browserEvidence;
+        }
+        result.verification = assessBrowserClaims(result.summary, scope.browserEvidence);
+        if (!definition.simulated || browserObserved || plan.browserWorkflow)
+          result.summary += '\n' + result.verification.notice;
+        return result;
       } finally {
+        guard.close();
+        orch.closeAttempt(scope);
         stepSignal.removeEventListener('abort', onAbort);
         runtimes.delete(runtime);
         runtime.close();
@@ -268,6 +315,5 @@ export async function executeWorkflow(orch, run, plan, control) {
     return outcome.outputs[last];
   } finally {
     control.closeAll();
-    if (mcpPromise) await mcpPromise.then((c) => c.close()).catch(() => {});
   }
 }

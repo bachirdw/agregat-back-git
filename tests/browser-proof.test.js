@@ -69,7 +69,15 @@ test('preuve privée FICTIVE : URL nettoyée, contenu absent et visite liée à 
   assert.equal(navigate.url, 'https://example.test/job/123');
   assert.equal(snapshot.url, navigate.url);
   assert.doesNotMatch(JSON.stringify([navigate, snapshot]), /SECRET|PRIVÉ|user/);
-  assert.deepEqual(verifiedBrowserVisit([navigate, snapshot]), [navigate, snapshot]);
+  // Same public path is insufficient when the full sources differ (credentials,
+  // fragment or query). The compact proof never reveals those private parts.
+  assert.deepEqual(verifiedBrowserVisit([navigate, snapshot]), []);
+  const sameSource = compactBrowserEvidence({
+    capability: 'browser.navigate',
+    url: 'https://example.test/job/123?token=SECRET',
+    provider: 'playwriter-owner',
+  });
+  assert.deepEqual(verifiedBrowserVisit([sameSource, snapshot]), [sameSource, snapshot]);
   assert.deepEqual(verifiedBrowserVisit([snapshot]), []);
   assert.deepEqual(
     verifiedBrowserVisit([navigate, { ...snapshot, loading: true, readable: false }]),

@@ -195,6 +195,8 @@ test('agent réel en texte libre : texte affiché comme réponse, sans preuve', 
   });
   assert.equal(done.state, 'completed');
   assert.match(done.result.summary, /La capitale FICTIVE est Exempleville\./);
+  assert.equal(done.result.verification.claimsVerified, false);
+  assert.match(done.result.summary, /Affirmations de l’agent : non vérifiées/);
   assert.deepEqual(done.result.evidence, []);
 });
 
@@ -236,7 +238,7 @@ test('erreur interne sans limite annoncée : message d’origine conservé', asy
   assert.equal(done.error, 'Internal error');
 });
 
-test('session introuvable à la reprise : nouvelle session dans la même mission, signalée', async (t) => {
+test('reprise non qualifiée : session neuve signalée sans prétendre avoir testé load', async (t) => {
   const done = await runFixture(t, {
     previous: { sessionId: 'FICTIF-perdue' },
     browserWorkflow: false,
@@ -244,7 +246,8 @@ test('session introuvable à la reprise : nouvelle session dans la même mission
     config: { loadError: 'Invalid session identifier "FICTIF-perdue".', result: answer },
   });
   assert.equal(done.state, 'completed');
-  assert.match(done.result.summary, /session précédente était introuvable/);
+  assert.match(done.result.summary, /reprise exacte non qualifiée/);
+  assert.doesNotMatch(done.result.summary, /était introuvable/);
   assert.notEqual(done.sessionId, 'FICTIF-perdue');
 });
 
@@ -255,13 +258,13 @@ test('session non rechargée pour une autre cause : le Bilan ne dit pas « intro
     config: { loadError: 'Délai FICTIF de rechargement dépassé', result: answer },
   });
   assert.equal(done.state, 'completed');
-  assert.match(done.result.summary, /session précédente n’a pas pu être rechargée/);
+  assert.match(done.result.summary, /reprise exacte non qualifiée/);
   assert.doesNotMatch(done.result.summary, /introuvable/);
   const reset = done.testEvents.find((e) => e.type === 'session_reset');
   assert.equal(reset.data.lost, false);
 });
 
-test('reprise réussie : aucune mention de session perdue', async (t) => {
+test('capacité load annoncée : ne suffit pas à réutiliser une session', async (t) => {
   const done = await runFixture(t, {
     previous: { sessionId: 'FICTIF-gardee' },
     browserWorkflow: false,
@@ -269,7 +272,8 @@ test('reprise réussie : aucune mention de session perdue', async (t) => {
   });
   assert.equal(done.state, 'completed');
   assert.doesNotMatch(done.result.summary, /session précédente/);
-  assert.equal(done.sessionId, 'FICTIF-gardee');
+  assert.notEqual(done.sessionId, 'FICTIF-gardee');
+  assert.match(done.result.summary, /session neuve depuis un point de reprise/);
 });
 
 test('session introuvable et nouvelle session refusée : vraie cause affichée', async (t) => {

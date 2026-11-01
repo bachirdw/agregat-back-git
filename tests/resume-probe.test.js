@@ -5,14 +5,14 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { resumeTurn, confirmsMemory } from '../scripts/live-resume.js';
 
-async function turn(t, config) {
+async function turn(t, config, previousId = 'fictif-session') {
   const cwd = mkdtempSync(join(tmpdir(), 'relay-resume-probe-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   return resumeTurn({
     cwd,
     agentHome: join(cwd, 'home'),
     text: 'FICTIF',
-    previousId: 'fictif-session',
+    previousId,
     definition: {
       id: 'fixture',
       command: process.execPath,
@@ -24,10 +24,8 @@ async function turn(t, config) {
   });
 }
 
-test('sonde reprise : historique rejoué exclu du tour courant (vrai ACP, faux agent)', async (t) => {
-  const result = await turn(t, { result: { fictif: true } });
-  assert.equal(result.text, '{"fictif":true}');
-  assert.equal(confirmsMemory(result), false);
+test('sonde reprise : load non qualifié refusé plutôt que certifier une mémoire ambiguë', async (t) => {
+  await assert.rejects(turn(t, { result: { fictif: true } }), { code: 'replay_unqualified' });
 });
 
 test('sonde reprise : un refus mentionnant ORCHID ne prouve pas la mémoire', () => {
@@ -52,7 +50,11 @@ test('sonde reprise : un refus mentionnant ORCHID ne prouve pas la mémoire', ()
 });
 
 test('sonde reprise : texte surdimensionné borné et jamais validé', async (t) => {
-  const result = await turn(t, { eventText: 'FICTIF '.repeat(1000), result: { fictif: true } });
+  const result = await turn(
+    t,
+    { eventText: 'FICTIF '.repeat(1000), result: { fictif: true } },
+    null,
+  );
   assert.equal(result.truncated, true);
   assert.ok(result.text.length <= 200);
   assert.equal(confirmsMemory(result), false);

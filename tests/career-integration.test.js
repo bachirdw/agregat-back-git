@@ -718,7 +718,7 @@ test('Réponse en texte libre (questions intake) : mission réussie, texte en r�
   assert.equal(result.simulated, true, 'un agent fictif reste étiqueté simulé');
 });
 
-test('Fixture career : questions puis réponse dans la même session ACP', async (t) => {
+test('Fixture career : questions puis réponse avec checkpoint dans une session neuve', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
   writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
@@ -754,7 +754,8 @@ test('Fixture career : questions puis réponse dans la même session ACP', async
     ),
   );
   assert.equal(second.state, 'completed', second.error);
-  assert.equal(second.sessionId, first.sessionId);
+  assert.notEqual(second.sessionId, first.sessionId);
+  assert.match(second.result.summary, /session neuve depuis un point de reprise/);
   assert.match(readFileSync(join(career.path(), 'modes/_profile.md'), 'utf8'), /Sydney/);
   assert.doesNotMatch(
     readFileSync(join(career.path(), `relay/runs/${second.id}-result.json`), 'utf8'),

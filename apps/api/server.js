@@ -423,13 +423,8 @@ export function createApp({
       const toolOutcome = path.match(/^\/api\/internal\/tool-outcome\/([a-f0-9-]{36})$/);
       if (toolOutcome) {
         const id = toolOutcome[1];
-        const control = engine.active.get(id);
-        if (
-          engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
-          !control?.promptStarted ||
-          control.abort.signal.aborted ||
-          !store.get(id)
-        )
+        const control = engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? ''));
+        if (!control?.promptStarted || control.abort.signal.aborted || !store.get(id))
           throw new Error('Bilan d’outil non autorisé');
         if (
           body.toolCallId != null &&
@@ -456,12 +451,7 @@ export function createApp({
       const browserFallback = path.match(/^\/api\/internal\/browser-fallback\/([a-f0-9-]{36})$/);
       if (browserFallback) {
         const id = browserFallback[1];
-        if (
-          !ownerMode ||
-          engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
-          !engine.active.has(id) ||
-          engine.active.get(id).abort.signal.aborted
-        )
+        if (!ownerMode || !engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? '')))
           throw new Error('Journal navigateur non autorisé');
         if (!store.events(id).some((event) => event.type === 'browser_fallback'))
           store.event(id, 'browser_fallback', {
@@ -473,24 +463,48 @@ export function createApp({
       }
       if (evidence) {
         const id = evidence[1];
-        if (
-          !ownerMode ||
-          engine.approvalTokens.get(id) !== req.headers['x-relay-token'] ||
-          !engine.active.has(id) ||
-          engine.active.get(id).abort.signal.aborted
-        )
+        const scopedControl = engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? ''));
+        if (!ownerMode || !scopedControl || scopedControl.promptStarted === false)
           throw new Error('Journal navigateur non autorisé');
         if (store.get(id)?.workspace === 'career-ops') {
-          const control = engine.active.get(id);
+          const control = engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? ''));
           control.browserEvidenceCapabilities ??= new Set();
           control.browserEvidenceCapabilities.add(body.capability);
           const compact = compactBrowserEvidence(body);
           if (compact) {
             control.browserEvidence ??= [];
-            control.browserEvidence.push(compact);
-            if (control.browserEvidence.length > 32) control.browserEvidence.shift();
+            if (control.browserEvidence.length >= 4000)
+              throw new Error('Trop de preuves navigateur dans ce tour');
+            control.browserEvidence.push({
+              ...compact,
+              observedAt: new Date().toISOString(),
+              ...(control.turnId
+                ? { turnId: control.turnId, stepId: control.stepId, attempt: control.attempt }
+                : {}),
+            });
           }
-        } else store.event(id, 'browser_evidence', body);
+        } else {
+          const compact = compactBrowserEvidence(body);
+          if (compact) {
+            scopedControl.browserEvidence ??= [];
+            if (scopedControl.browserEvidence.length >= 4000)
+              throw new Error('Trop de preuves navigateur dans ce tour');
+            scopedControl.browserEvidence.push({
+              ...compact,
+              observedAt: new Date().toISOString(),
+            });
+          }
+          store.event(id, 'browser_evidence', {
+            ...body,
+            ...(scopedControl.turnId
+              ? {
+                  stepId: scopedControl.stepId,
+                  attempt: scopedControl.attempt,
+                  turnId: scopedControl.turnId,
+                }
+              : {}),
+          });
+        }
         return json(res, 200, { ok: true });
       }
       const usage = path.match(/^\/api\/internal\/usage\/([a-f0-9-]{36})$/);

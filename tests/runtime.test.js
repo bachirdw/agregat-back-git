@@ -322,15 +322,16 @@ test('modèle non annoncé refusé ; vide garde le défaut', async () => {
   });
 });
 
-test('reprise : load refusé sans capacité, accepté avec', async () => {
+test('reprise : capacité load insuffisante sans frontière causale qualifiée', async () => {
   await withRuntime(fake({}), async (r) => {
     await r.start();
     await assert.rejects(r.session([], 'old'), /Reprise non supportée/);
   });
   await withRuntime(fake({ loadSession: true }), async (r) => {
     await r.start();
-    const s = await r.session([], 'old-session');
-    assert.equal(s.sessionId, 'old-session');
+    await assert.rejects(r.session([], 'old-session'), { code: 'replay_unqualified' });
+    const s = await r.session([]);
+    assert.notEqual(s.sessionId, 'old-session');
   });
 });
 
@@ -596,7 +597,7 @@ test('sondes : persistance atomique, fichier corrompu ignoré', () => {
   assert.deepEqual(loadProbes(dir), {});
 });
 
-test('reprise avec clé API : authenticate avant session/load, dossier isolé, clé jamais transmise', async () => {
+test('reprise avec clé API : load non qualifié refusé, session neuve isolée sans clé transmise', async () => {
   const home = temporary();
   let text = '';
   const r = new AcpRuntime({
@@ -623,10 +624,12 @@ test('reprise avec clé API : authenticate avant session/load, dossier isolé, c
   });
   try {
     await r.start();
-    await r.session([], 'previous-session');
+    await assert.rejects(r.session([], 'previous-session'), { code: 'replay_unqualified' });
+    await r.session([]);
     await r.prompt('x');
     const report = JSON.parse(text);
-    assert.deepEqual(report.calls.slice(0, 3), ['initialize', 'authenticate', 'session/load']);
+    assert.deepEqual(report.calls.slice(0, 2), ['initialize', 'session/new']);
+    assert.ok(!report.calls.includes('session/load'));
     assert.ok(report.envKeys.includes('FAKE_HOME'));
     assert.ok(!JSON.stringify(report.calls).includes('k-secret'));
   } finally {
@@ -660,7 +663,8 @@ test('reprise sans clé API : pas d’authenticate, pas de dossier isolé', asyn
   });
   try {
     await r.start();
-    await r.session([], 'previous-session');
+    await assert.rejects(r.session([], 'previous-session'), { code: 'replay_unqualified' });
+    await r.session([]);
     await r.prompt('x');
     const report = JSON.parse(text);
     assert.ok(!report.calls.includes('authenticate'));

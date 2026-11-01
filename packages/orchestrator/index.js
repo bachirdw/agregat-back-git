@@ -26,6 +26,7 @@ import {
   browserObservationFailure,
   readableBrowserObservation,
   verifiedBrowserVisit,
+  assessBrowserClaims,
 } from './browser-proof.js';
 import {
   careerFailureMessage,
@@ -34,6 +35,7 @@ import {
   usageLimitMessage,
 } from './failure.js';
 import { missionTitle } from './title.js';
+import { resumeCheckpoint } from './checkpoint.js';
 import {
   createTurnTruth,
   formatCareerBilan,
@@ -140,6 +142,7 @@ export class Orchestrator {
     // Read access to durable step state; each workflow run drives its own engine instance.
     this.workflows = new WorkflowEngine({ store, executors: {} });
     this.approvalTokens = new Map(); // runId -> random token, memory only
+    this.attemptTokens = new Map(); // token -> live DAG attempt; revoked at its completion
     this.pricing = ownerMode
       ? { ...defaultPricing(), currency: loadPricing(dataDir).currency }
       : loadPricing(dataDir);
@@ -166,9 +169,15 @@ export class Orchestrator {
     return cents;
   }
   async gatewayUsage(runId, token, { dimension, units = 1 } = {}) {
-    const expected = this.approvalTokens.get(runId);
-    if (!expected || token !== expected) throw new Error('Jeton invalide');
-    const control = this.active.get(runId);
+    const control = this.bridgeControl(runId, token);
+    if (!control) {
+      if (
+        this.approvalTokens.get(runId) === token ||
+        this.attemptTokens.get(token)?.runId === runId
+      )
+        throw new Error('Run inactif ou annulé');
+      throw new Error('Jeton invalide ou tentative terminée');
+    }
     if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
       throw new Error('Run inactif ou annulé');
     if (!['browser_action', 'data_search', 'document_generation', 'tool_call'].includes(dimension))
@@ -177,7 +186,40 @@ export class Orchestrator {
     return { cents: this.meter(runId, dimension, units) };
   }
   // MCP capability server for a run: browser provider, per-run policy and the approval bridge.
-  mcpServerFor(run, pack, { preMeteredTools = false } = {}) {
+  openAttempt(runId, stepId, attempt, signal) {
+    const abort = new AbortController();
+    const onAbort = () => abort.abort(signal.reason);
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+    const scope = {
+      runId,
+      stepId,
+      attempt,
+      turnId: randomUUID(),
+      abort,
+      detach: () => signal.removeEventListener('abort', onAbort),
+      promptStarted: false,
+      turnTruth: createTurnTruth(),
+      browserEvidence: [],
+      token: randomUUID() + randomUUID(),
+    };
+    this.attemptTokens.set(scope.token, scope);
+    return scope;
+  }
+  bridgeControl(runId, token) {
+    const control = this.active.get(runId);
+    if (!control || control.abort.signal.aborted) return null;
+    const scope = this.attemptTokens.get(token);
+    if (scope?.runId === runId && !scope.abort.signal.aborted) return scope;
+    return token && this.approvalTokens.get(runId) === token ? control : null;
+  }
+  closeAttempt(scope) {
+    scope.promptStarted = false;
+    this.attemptTokens.delete(scope.token);
+    scope.abort.abort(new Error('Tentative terminée'));
+    scope.detach();
+  }
+  mcpServerFor(run, pack, { preMeteredTools = false, scope } = {}) {
     if (!this.approvalBase && priceOf('tool_call', 1, this.pricing) > 0)
       throw new Error('Pont de mesure requis pour les outils facturables');
     const browser =
@@ -235,7 +277,7 @@ export class Orchestrator {
       if (!this.approvalTokens.has(run.id))
         this.approvalTokens.set(run.id, randomUUID() + randomUUID());
       env.RELAY_APPROVAL_URL = `${this.approvalBase}/api/internal/approvals/${run.id}`;
-      env.RELAY_APPROVAL_TOKEN = this.approvalTokens.get(run.id);
+      env.RELAY_APPROVAL_TOKEN = scope?.token ?? this.approvalTokens.get(run.id);
       env.RELAY_EVIDENCE_URL = `${this.approvalBase}/api/internal/evidence/${run.id}`;
       env.RELAY_USAGE_URL = `${this.approvalBase}/api/internal/usage/${run.id}`;
       env.RELAY_TOOL_OUTCOME_URL = `${this.approvalBase}/api/internal/tool-outcome/${run.id}`;
@@ -245,9 +287,15 @@ export class Orchestrator {
   // Called by the MCP gateway process: turns a write/sensitive capability request into a human
   // permission prompt (same UI as ACP permissions) and waits for the decision.
   async gatewayApproval(runId, token, request) {
-    const expected = this.approvalTokens.get(runId);
-    if (!expected || token !== expected) throw new Error('Jeton d’approbation invalide');
-    const control = this.active.get(runId);
+    const control = this.bridgeControl(runId, token);
+    if (!control) {
+      if (
+        this.approvalTokens.get(runId) === token ||
+        this.attemptTokens.get(token)?.runId === runId
+      )
+        throw new Error('Run inactif ou annulé');
+      throw new Error('Jeton d’approbation invalide');
+    }
     if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
       throw new Error('Run inactif ou annulé');
     const title =
@@ -279,6 +327,7 @@ export class Orchestrator {
       false,
       control.abort.signal,
     );
+    if (this.bridgeControl(runId, token) !== control) return { approved: false };
     return { approved: outcome.outcome?.optionId === 'allow' };
   }
   stepDecision(runId, stepId, { approved, action, note } = {}) {
@@ -648,6 +697,7 @@ export class Orchestrator {
     const toolTimers = new Map();
     const toolTitles = new Map();
     const recentToolCalls = new Map();
+    const observedToolIds = new Set();
     let promptStarted = false;
     const turnTruth = createTurnTruth();
     control.turnTruth = turnTruth;
@@ -812,7 +862,10 @@ export class Orchestrator {
           // career-ops updates quote the CV: persisted (and streamed) only for the local owner.
           if (plan.pack.id !== 'career-ops' || this.ownerMode)
             this.store.event(run.id, 'agent', update);
-          if (update.sessionUpdate === 'tool_call') this.meter(run.id, 'tool_observed', 1);
+          if (update.sessionUpdate === 'tool_call' && !observedToolIds.has(update.toolCallId)) {
+            observedToolIds.add(update.toolCallId);
+            this.meter(run.id, 'tool_observed', 1);
+          }
         },
         onPermission: (p) =>
           this.permission(
@@ -837,8 +890,8 @@ export class Orchestrator {
           lost,
           ...(plan.pack.id === 'career-ops' ? {} : { cause: String(e.message).slice(0, 300) }),
         });
-        previous = null;
-        sessionReset = lost ? 'lost' : 'reload_failed';
+        sessionReset =
+          e.code === 'replay_unqualified' ? 'unqualified' : lost ? 'lost' : 'reload_failed';
         session = await runtime.session(mcpServers);
       }
       // session/load replays the previous conversation as updates: only this turn's answer counts.
@@ -846,7 +899,7 @@ export class Orchestrator {
       await runtime.selectModel(run.model);
       this.store.update(run.id, {
         sessionId: session.sessionId,
-        resumable: !!info.agentCapabilities?.loadSession,
+        resumable: true, // Application checkpoint; exact ACP reload is not qualified.
       });
       const described = runtime.describe();
       this.store.event(run.id, 'session', {
@@ -867,6 +920,7 @@ export class Orchestrator {
         });
       const prompt = JSON.stringify({
         objective: run.prompt,
+        ...(previous ? { checkpoint: resumeCheckpoint(previous) } : {}),
         attachments: run.attachments?.length ? this.career.attachments(run.attachments) : [],
         skills: plan.skills,
         browserWorkflow: plan.browserWorkflow,
@@ -958,8 +1012,14 @@ export class Orchestrator {
         }
       }
       await verifyPack(plan.pack.id, value, run.prompt);
+      {
+        const observations =
+          plan.pack.id === 'career-ops' ? (control.browserEvidence ?? []) : value.evidence;
+        value.verification = assessBrowserClaims(value.summary, observations);
+        if (!plan.simulated || plan.browserWorkflow || plan.pack.id === 'career-ops')
+          value.summary += '\n' + value.verification.notice;
+      }
       if (plan.pack.id === 'career-ops') {
-        const agentAnswer = value.summary.trim();
         const browserProof = verifiedBrowserVisit(control.browserEvidence);
         if (browserProof.length)
           value.provenance.data =
@@ -997,6 +1057,7 @@ export class Orchestrator {
               .failedActions()
               .map(({ name, cause }) => `${name} — ${cause}`)
               .join(' ; ');
+        const agentAnswer = value.summary.trim();
         value.summary +=
           '\n' +
           formatCareerBilan(run.prompt, turnTruth) +
@@ -1013,7 +1074,11 @@ export class Orchestrator {
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
         value.evidence = browserProof;
         for (const key of Object.keys(value))
-          if (!['simulated', 'summary', 'evidence', 'agent', 'provenance'].includes(key))
+          if (
+            !['simulated', 'summary', 'evidence', 'agent', 'provenance', 'verification'].includes(
+              key,
+            )
+          )
             delete value[key];
       }
       if (plan.pack.id !== 'career-ops' && skillResult.steps.length)
@@ -1030,7 +1095,10 @@ export class Orchestrator {
       if (expiredPermission)
         value.summary += `\n${expiredPermission.message} ; action non effectuée, personne ne l’a annulée.`;
       if (sessionReset)
-        value.summary += `\nSession : la session précédente ${sessionReset === 'lost' ? 'était introuvable' : 'n’a pas pu être rechargée'}, nouvelle session sans son historique.`;
+        value.summary +=
+          sessionReset === 'unqualified'
+            ? '\nSession : reprise exacte non qualifiée ; session neuve depuis un point de reprise. Historique non rejoué, effets antérieurs non vérifiés : ne pas les répéter.'
+            : `\nSession : la session précédente ${sessionReset === 'lost' ? 'était introuvable' : 'n’a pas pu être rechargée'}, nouvelle session depuis un point de reprise.`;
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible).';

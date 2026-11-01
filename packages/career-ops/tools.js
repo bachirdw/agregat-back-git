@@ -170,8 +170,7 @@ export class CareerTools {
       )
         throw new Error('Script absent ou lien symbolique');
       const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
-      if (JSON.stringify(review) !== JSON.stringify(sourceSnapshot(root)))
-        throw new Error('Code tiers modifié depuis la revue ; nouvelle revue nécessaire');
+      assertSourceReview(review, sourceSnapshot(root));
       if (signal?.aborted) throw new Error('Script annulé');
       const approved = await this.approve({
         capability: 'career.script',
@@ -233,8 +232,7 @@ export class CareerTools {
       throw new Error('Scripts isolés : déplacer la configuration secrète vers le lanceur Relay');
     const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
     const snapshot = sourceSnapshot(root);
-    if (JSON.stringify(review) !== JSON.stringify(snapshot))
-      throw new Error('Code tiers modifié depuis la revue ; nouvelle revue nécessaire');
+    assertSourceReview(review, snapshot);
     if (command === 'scan') {
       const config = parse(readConfined(root, 'portals.yml', 100000).toString(), {
         maxAliasCount: 0,
@@ -328,7 +326,62 @@ export function sourceSnapshot(root) {
     }
   };
   visit();
-  return files;
+  return { schemaVersion: 1, algorithm: 'sha256', scope: 'career-code-v2-js-json-sh', files };
+}
+
+// Version the measurement itself: extending its scope is a review migration, not
+// a claim that upstream bytes changed. Never silently approve or rewrite a receipt.
+export function assertSourceReview(review, snapshot) {
+  const legacy =
+    review &&
+    typeof review === 'object' &&
+    !Array.isArray(review) &&
+    !Object.hasOwn(review, 'schemaVersion');
+  const files = legacy ? review : review?.files;
+  if (
+    !files ||
+    typeof files !== 'object' ||
+    Array.isArray(files) ||
+    Object.entries(files).some(
+      ([path, hash]) =>
+        !/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[\p{L}\p{N}_. /-]{1,240}$/u.test(path) ||
+        typeof hash !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(hash),
+    )
+  )
+    throw new Error('Empreinte de revue invalide ; nouvelle revue nécessaire');
+  const added = Object.keys(snapshot.files)
+    .filter((path) => !Object.hasOwn(files, path))
+    .sort();
+  const removed = Object.keys(files)
+    .filter((path) => !Object.hasOwn(snapshot.files, path))
+    .sort();
+  const changed = Object.keys(snapshot.files)
+    .filter((path) => Object.hasOwn(files, path) && files[path] !== snapshot.files[path])
+    .sort();
+  const versionMismatch =
+    legacy ||
+    review.schemaVersion !== snapshot.schemaVersion ||
+    review.algorithm !== snapshot.algorithm ||
+    review.scope !== snapshot.scope;
+  const describe = (label, paths) =>
+    paths.length
+      ? `${label} : ${paths.slice(0, 12).join(', ')}${paths.length > 12 ? ` (+${paths.length - 12})` : ''}`
+      : null;
+  if (versionMismatch || added.length || removed.length || changed.length)
+    throw new Error(
+      [
+        'Code tiers modifié ou mesure de revue incompatible ; nouvelle revue nécessaire',
+        versionMismatch
+          ? 'version ou périmètre de revue incompatible (format courant : 1, career-code-v2-js-json-sh)'
+          : null,
+        describe('modifiés', changed),
+        describe('ajoutés', added),
+        describe('supprimés', removed),
+      ]
+        .filter(Boolean)
+        .join(' ; '),
+    );
 }
 export function registerCareerTools(
   server,

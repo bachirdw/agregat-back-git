@@ -48,7 +48,7 @@ export function reviewCareer(career, registry) {
   return {
     hash: imported.hash,
     files: imported.files.length,
-    sourceFiles: Object.keys(sourceSnapshot(root)).length,
+    sourceFiles: Object.keys(sourceSnapshot(root).files).length,
   };
 }
 export function assertCareerReview(career, registry, { agentId = 'gemini' } = {}) {

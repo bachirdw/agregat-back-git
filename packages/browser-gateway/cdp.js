@@ -13,6 +13,7 @@ import {
 import { resolve, basename, relative, isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
 
+import { downloadOwnerLink } from './owner-download.js';
 import { ownerTransport } from './owner-transport.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
@@ -271,6 +272,7 @@ export class CdpBrowser {
       fallbackLaunch,
     });
     this.name = endpoint ? 'cdp-shared' : 'cdp-isolated';
+    this.ownerDownloads = new Set();
     this.page = null;
   }
   async ensure(policy) {
@@ -1343,54 +1345,28 @@ export class CdpBrowser {
         if (rel.startsWith('..') || isAbsolute(rel))
           throw new Error('Téléchargement hors du dossier du run');
         // chrome.debugger forbids download-directory settings. Fetch ordinary download links
-        // with the context's HTTP client instead, preserving its session without global settings.
+        // over HTTP instead, preserving the session without global settings.
         if (this.ownerConnection) {
           const href = await (
             await this.targetLocator({ ref: args.ref })
           ).evaluate((el) => el.closest('a')?.getAttribute('href') ?? null);
           if (!href)
             throw new Error('Playwriter : un lien HTTP/HTTPS est requis pour le téléchargement');
-          let url = new URL(href, page.url()).href;
-          for (let hop = 0; hop < 5; hop++) {
-            await policy.assertUrl(url);
-            const response = await this.context.request.get(url, {
-              maxRedirects: 0,
-              timeout: this.navigationTimeoutMs,
+          const abort = new AbortController();
+          this.ownerDownloads.add(abort);
+          try {
+            return await downloadOwnerLink({
+              url: new URL(href, page.url()).href,
+              dir,
+              policy,
+              cookiesFor: (url) => this.context.cookies(url),
+              headers: { 'user-agent': await page.evaluate(() => navigator.userAgent) },
+              signal: abort.signal,
+              timeoutMs: this.navigationTimeoutMs,
             });
-            try {
-              const location = response.headers().location;
-              if (response.status() >= 300 && response.status() < 400 && location) {
-                url = new URL(location, url).href;
-                continue;
-              }
-              if (!response.ok()) throw new Error(`Téléchargement HTTP ${response.status()}`);
-              const buffer = await response.body();
-              if (buffer.length > policy.maxDownloadBytes)
-                throw new Error('Téléchargement trop volumineux');
-              const disposition = response.headers()['content-disposition'] ?? '';
-              const suggested =
-                disposition.match(/filename="?([^";]+)/i)?.[1] ??
-                new URL(url).pathname.split('/').at(-1);
-              const name =
-                basename(suggested || 'fichier')
-                  .replace(/[^\w.\- ]/g, '_')
-                  .slice(0, 120) || 'fichier';
-              const fd = openSync(
-                resolve(dir, name),
-                constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
-                0o600,
-              );
-              try {
-                writeFileSync(fd, buffer);
-              } finally {
-                closeSync(fd);
-              }
-              return { url, file: name, bytes: buffer.length, method: 'session-http-link' };
-            } finally {
-              await response.dispose();
-            }
+          } finally {
+            this.ownerDownloads.delete(abort);
           }
-          throw new Error('Trop de redirections de téléchargement');
         }
         // Resolve before waiting for the event: a stale ref must not leave a pending wait.
         const link = await this.targetLocator({ ref: args.ref });
@@ -1462,6 +1438,7 @@ export class CdpBrowser {
   // Transport only: the human consent and policy binding survive a reconnection.
   async dropConnection() {
     this.networkAbort?.abort(new Error('Navigateur fermé'));
+    for (const download of this.ownerDownloads) download.abort(new Error('Navigateur fermé'));
     try {
       await this.page?.close();
     } catch {

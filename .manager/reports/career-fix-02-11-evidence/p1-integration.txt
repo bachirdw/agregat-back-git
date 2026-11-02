@@ -1,0 +1,50 @@
+(node:25183) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé (1.180541ms)
+✔ Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécutée (2.574ms)
+✔ Bilan FICTIF : appels réels mixtes comptés sans contradiction ni doublon ACP (0.160625ms)
+✔ Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon (0.120375ms)
+✔ Modèle career-ops : conserve le défaut annoncé, refuse un identifiant absent (0.108417ms)
+✔ Reprise privée : un nouveau CV joint est transmis avec les pièces existantes, les IDs invalides sont refusés (605.921625ms)
+✔ Plan career-ops : rapport A–G et accord explicite avant tout envoi (0.226875ms)
+✔ Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés (6.398375ms)
+✔ Script tiers FICTIF : revue et accord explicite avant exécution en mode propriétaire (34.7715ms)
+✔ Offres : note 1–5, A–H complet, provenance et données fictives obligatoires (9.00675ms)
+✔ Registre : quarantaine, revue liée au hash natif, mutation du Skill ou configuration bloque (8.46125ms)
+✔ Scripts : liste fermée, code modifié, arguments et secrets implicites refusés (36.31225ms)
+✔ Contrôles CV FICTIFS : manque et fait inventé détectés, chemins et délais imposés (128.454417ms)
+✔ Contrôles CV FICTIFS : réseau et écriture hors espace bloqués (74.006417ms)
+✔ Auto : trouve des offres, évalue cette offre et postule routés vers le pack privé (0.999125ms)
+✔ Auto : un Skill explicitement choisi détermine son pack avant les mots-clés (0.288208ms)
+✔ Auto : demandes d’emploi et de profil courantes routées vers career-ops (2.161541ms)
+✔ Auto propriétaire : profil et fichiers career-ops utilisent le pack privé avant le navigateur (243.826459ms)
+✔ Agent explicite compatible ACP : career-ops conserve Codex sans imposer de clé Gemini (65.064583ms)
+✔ Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini (118.474125ms)
+✔ API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refusé, rien de privé dans SQLite (604.726375ms)
+✔ Espace privé actif : deuxième mission et modification du CV/profil refusées (65.226333ms)
+✔ Lecture privée paginée et script annulé : sortie bornée, processus arrêté (6.020416ms)
+✔ Propriétaire local : les étapes de l’agent career-ops sont diffusées en direct (3311.280834ms)
+✔ Réponse en texte libre (questions intake) : mission réussie, texte en résultat privé (3837.340125ms)
+✔ Fixture career : questions puis réponse avec checkpoint dans une session neuve (1098.684667ms)
+✔ Reprise FICTIVE rapide sans navigateur : résultat privé signale l’absence d’action (1001.854042ms)
+✔ Modèle choisi dans l’interface : appliqué via la session ACP sans variable Gemini pour un autre agent (2610.926375ms)
+✔ Instructions career-ops : méthode du Skill et résultat véridique (0.889791ms)
+✔ Instructions career-ops : le prompt détermine la soumission avant le Skill (0.165708ms)
+✔ consigne career-ops : un consentement manquant est demandé à l’utilisateur, sans tout permettre (0.134792ms)
+✔ consigne career-ops : l’utilisateur décide toujours, les écarts sont signalés sans bloquer (0.074125ms)
+✔ Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill (542.827834ms)
+✔ Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prompt (527.568542ms)
+✔ Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé (1580.598833ms)
+✔ Preuve navigateur FICTIVE : capacité du tour en mémoire, contenu privé absent des événements (6.437083ms)
+✔ Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés (8.463208ms)
+✔ Instructions career-ops : méthode du Skill sans ordre métier codé dans la plateforme (0.13425ms)
+✔ Instructions career-ops : aucune source ou action inventée (0.05325ms)
+✔ Instructions career-ops : contenu privé conservé et questions en cas de manque (0.066334ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16948.456291

@@ -154,7 +154,6 @@ const app = agent({ name: 'career-FICTIF' })
       }
       if (request.objective.includes('FICTIF_RECHERCHE')) {
         await call('career_offer_save', {
-          id: randomUUID(),
           title: 'Poste FICTIF',
           company: 'Entreprise FICTIVE',
           url: 'https://jobs.example.test/fictif',
@@ -191,9 +190,7 @@ const app = agent({ name: 'career-FICTIF' })
         });
         controlEvidence = JSON.parse(gap.text).gap.join(',');
       }
-      const id = randomUUID();
       await call('career_offer_save', {
-        id,
         title: 'Poste FICTIF',
         company: 'Entreprise FICTIVE',
         url: 'https://jobs.example.test/fictif',

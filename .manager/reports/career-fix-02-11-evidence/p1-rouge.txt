@@ -1,0 +1,159 @@
+✔ Le schéma MCP accepte une offre découverte sans UUID ni évaluation (401.811541ms)
+✔ Outils career : wait_for_previous connu est ignoré, les autres arguments restent refusés (319.195667ms)
+✔ Évaluation incomplète refusée par la plateforme même si le JSON Schema perd refine (4.173541ms)
+✖ tools/list : ni id ni contractVersion publiés, identifiant de la source en champ dédié (351.108791ms)
+✖ Client Gemini : champs internes refusés avant tout appel, identifiant de source accepté (322.430708ms)
+✖ Serveur : un client sans validation ne peut imposer ni id ni version de contrat (337.391292ms)
+✖ La plateforme génère identifiant et version ; la source reste une donnée, jamais un chemin (324.048917ms)
+✖ Deux agents qui enregistrent la même offre ne s’écrasent plus (0.735917ms)
+✖ Aucune mise à jour par id : un UUID déjà enregistré est refusé, le fichier reste intact (2.576542ms)
+✔ Offres déjà écrites : lisibles sans migration, y compris sous un UUID inventé (325.366792ms)
+✖ Lecture des offres : un fichier stocké reste contrôlé (0.587666ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 4
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2839.459667
+
+✖ failing tests:
+
+test at tests/zz-red-offer-contract.test.js:145:1
+✖ tools/list : ni id ni contractVersion publiés, identifiant de la source en champ dédié (351.108791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:148:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/zz-red-offer-contract.test.js:157:1
+✖ Client Gemini : champs internes refusés avant tout appel, identifiant de source accepté (322.430708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'params must NOT have additional properties'
+  - null
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:161:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'params must NOT have additional properties',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/zz-red-offer-contract.test.js:174:1
+✖ Serveur : un client sans validation ne peut imposer ni id ni version de contrat (337.391292ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:186:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/zz-red-offer-contract.test.js:193:1
+✖ La plateforme génère identifiant et version ; la source reste une donnée, jamais un chemin (324.048917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + true
+  - undefined
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:205:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/zz-red-offer-contract.test.js:226:1
+✖ Deux agents qui enregistrent la même offre ne s’écrasent plus (0.735917ms)
+  ZodError: [
+    {
+      "code": "unrecognized_keys",
+      "keys": [
+        "sourceOfferId"
+      ],
+      "path": [],
+      "message": "Unrecognized key: \"sourceOfferId\""
+    }
+  ]
+      at CareerTools.saveOffer (file:///Users/diaw/Downloads/agregat-back-career-fix/packages/career-ops/tools.js:106:36)
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:231:23)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)
+
+test at tests/zz-red-offer-contract.test.js:243:1
+✖ Aucune mise à jour par id : un UUID déjà enregistré est refusé, le fichier reste intact (2.576542ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:251:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Unrecognized key/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests/zz-red-offer-contract.test.js:290:1
+✖ Lecture des offres : un fichier stocké reste contrôlé (0.587666ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-career-fix/tests/zz-red-offer-contract.test.js:296:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'throws',
+    diff: 'simple'
+  }

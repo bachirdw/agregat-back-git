@@ -341,6 +341,17 @@ export class Orchestrator {
   }
   stepDecision(runId, stepId, { approved, action, note } = {}) {
     const control = this.active.get(runId);
+    // A finished mission has no engine left, and its resume may be refused (definition or Skills
+    // changed). The owner can still settle an uncertain step: only that row takes the decision,
+    // nothing runs again and the mission keeps its state. Retrying still needs a resume.
+    if (!control && action && terminal.has(this.store.get(runId)?.state)) {
+      if (action === 'retry')
+        throw new Error(
+          'Mission terminée : relancer cette étape exige de reprendre la mission ; sans reprise possible, la marquer faite ou en échec.',
+        );
+      this.workflows.resolveUncertain(runId, stepId, action);
+      return;
+    }
     if (control?.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
       throw new Error('Workflow annulé ou inactif');
     const engine = control?.engine;

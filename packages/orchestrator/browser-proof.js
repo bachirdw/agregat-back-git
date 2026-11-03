@@ -41,6 +41,15 @@ export function compactBrowserEvidence(output) {
   };
 }
 
+// Pages the platform saw readable. A navigation alone proves nothing: two navigations sent at
+// once share one tab, and only the last page is ever read.
+export const readablePages = (evidence = []) =>
+  evidence
+    .filter(
+      (item) => ['browser.snapshot', 'browser.extract'].includes(item?.capability) && item.readable,
+    )
+    .map((item) => item.url);
+
 export function verifiedBrowserVisit(evidence = []) {
   let navigation = null;
   let verified = [];

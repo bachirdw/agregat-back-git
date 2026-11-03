@@ -29,6 +29,7 @@ import {
   readableBrowserObservation,
   verifiedBrowserVisit,
   assessBrowserClaims,
+  readablePages,
 } from './browser-proof.js';
 import {
   authFailureMessage,
@@ -1129,7 +1130,7 @@ export class Orchestrator {
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible). Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer.';
       const incomplete = skillProgress.incomplete(
-        (control.browserEvidence ?? []).map((item) => item?.url),
+        readablePages(control.browserEvidence),
         turnTruth.hasJdRead(),
       );
       const incompleteMessage = incomplete.length

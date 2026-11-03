@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { readablePages } from '../packages/orchestrator/browser-proof.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
@@ -331,4 +332,22 @@ test('Recherche FICTIVE : le prompt annonce les obligations à l’agent', () =>
   const order = formatSkillOrder(searchOf('Trouve des offres FICTIVES'));
   assert.match(order, /Étapes obligatoires : Scanner les portails du Skill/);
   assert.match(order, /Ne note une offre qu’après avoir lu sa page/);
+});
+
+test('Recherche FICTIVE : deux navigations simultanées, une seule page lue', () => {
+  const progress = new SkillProgress(searchOf('Trouve des offres FICTIVES sans scan'));
+  progress.start();
+  const save = (id, url) =>
+    progress.observe(completedCall(id, { tool: 'career_offer_save', url, score: 4 }));
+  save('a', 'https://offres.example.test/premiere');
+  save('b', 'https://offres.example.test/seconde');
+  const evidence = [
+    { capability: 'browser.navigate', url: 'https://offres.example.test/premiere' },
+    { capability: 'browser.navigate', url: 'https://offres.example.test/seconde' },
+    { capability: 'browser.snapshot', url: 'https://offres.example.test/seconde', readable: true },
+    { capability: 'browser.snapshot', url: 'https://offres.example.test/seconde', readable: true },
+  ];
+  assert.deepEqual(progress.incomplete(readablePages(evidence)), [
+    '1 offre(s) notée(s) sans lecture de leur page',
+  ]);
 });

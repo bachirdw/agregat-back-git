@@ -13,8 +13,12 @@ les hooks et extensions sont désactivés par un paramétrage système **local �
 Les modes amont sont lus par `career_read`, les documents écrits par `career_write`. Les deux scripts
 exposés sont `scan.mjs` et `find.mjs` ; les parsers exécutables et plugins externes ne sont pas acceptés.
 Le scanner nécessite des portails configurés par l’utilisateur ; la recherche publique existante
-(`jobs_search_live`, Arbeitnow/Remotive) reste utilisable sans ces portails. Aucun résultat n’est fabriqué
-pour remplacer une source indisponible.
+(`jobs_search_live`, Arbeitnow/Remotive, 40 offres par défaut) reste utilisable sans ces portails, mais
+seulement comme recherche de secours : le pack déclare le scan du Skill comme premier choix, et l’agent
+n’emploie `jobs_search_live` que si le scan échoue ou si le prompt le demande, en le disant dans `summary`.
+Quand le prompt et le Skill ne tranchent pas entre plusieurs outils équivalents, l’agent pose la question
+dans `summary` au lieu de choisir au hasard. Aucun résultat n’est fabriqué pour remplacer une source
+indisponible.
 
 Les conversions, PDF et brouillons sont locaux. Les tâches de recherche/évaluation et génération
 transmettent au modèle Gemini les données nécessaires (CV, profil, offre et textes lus) lorsqu’un

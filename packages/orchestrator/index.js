@@ -9,6 +9,7 @@ import { CareerWorkspace } from '../career-ops/workspace.js';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { agentHomeFor, removeRunHomes, workspacesRoot } from './isolation.js';
 import { z } from 'zod';
 import {
   AcpRuntime,
@@ -55,6 +56,8 @@ import { redact } from '../agent-runtime/env.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
+const homesBase = (run, packId, dataDir) =>
+  packId === 'career-ops' ? resolve(run.cwd, 'relay') : dataDir;
 export const inputSchema = z
   .object({
     prompt: z.string().trim().min(1).max(8000),
@@ -599,7 +602,7 @@ export class Orchestrator {
         previous?.cwd ??
         (plan.input.workspace === 'career-ops'
           ? this.career.path()
-          : resolve(this.dataDir, 'workspaces', id));
+          : resolve(workspacesRoot(this.dataDir), id));
     mkdirSync(cwd, { recursive: true, mode: 0o700 });
     const run = {
       id,
@@ -831,10 +834,7 @@ export class Orchestrator {
         ownerMode: this.ownerMode || plan.pack.id === 'career-ops',
         requestedMode: run.agentMode,
         cwd: run.cwd,
-        agentHome:
-          plan.pack.id === 'career-ops'
-            ? resolve(run.cwd, 'relay/agent-home')
-            : resolve(this.dataDir, 'agent-homes', plan.agent.id),
+        agentHome: agentHomeFor(homesBase(run, plan.pack.id, this.dataDir), run.id, plan.agent.id),
         onEvent: (update) => {
           // session/load replays old updates before the new prompt. They are not work,
           // usage, permissions or evidence from this run.
@@ -1197,6 +1197,7 @@ export class Orchestrator {
       if (control.abort.signal.aborted && control.runtime?.sessionId)
         await new Promise((resolve) => setTimeout(resolve, 100));
       control.runtime?.close();
+      removeRunHomes(homesBase(run, plan.pack.id, this.dataDir), run.id);
       this.active.delete(run.id);
       this.approvalTokens.delete(run.id);
       this.expiredPermissions.delete(run.id);

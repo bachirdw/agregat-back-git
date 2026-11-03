@@ -74,3 +74,4 @@ Lecture des traces locales `session-2026-10-27*.jsonl` et `session-2026-10-28*.j
 | 19:19 | reprise-claude-01 | Gemini CLI via Relay, `auto` ; modèle servi inconnu | Mission réelle `73e730b9`, échec sur `google_web_search` | Inconnus | Plateforme 0 c ; fournisseur inconnu | Cumul réel inconnu |
 | 19:25 | reprise-claude-01 | Claude via Relay, `claude-sonnet-5` annoncé par ACP | Mission réelle `17edb02d`, terminée | Inconnus | Plateforme 0 c ; 4,36 $ annoncés par ACP, pas une preuve de facture | Cumul réel inconnu |
 | 19:47 | reprise-claude-01 | Claude via Relay, `haiku` demandé | Scan career-ops `e1f1481d`, terminé | Inconnus | Plateforme 0 c ; 0,15 $ annoncés par ACP, pas une preuve de facture | Cumul réel inconnu |
+| 12:46 | isolation-02-11 | Gemini `gemini-3.5-flash-lite` et Claude `haiku` demandé, via Relay | Essai d'isolation : 12 missions très courtes, avant et après correctif | Inconnus | Coût fournisseur non mesuré |

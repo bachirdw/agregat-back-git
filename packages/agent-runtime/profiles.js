@@ -29,6 +29,8 @@ export const profiles = [
     cli: 'claude',
     package: 'claude-agent-acp',
     env: ['ANTHROPIC_API_KEY', 'CLAUDE_CONFIG_DIR'],
+    // Its automatic memory is shared by every session of a project: missions must not inherit it.
+    fixedEnv: { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' },
     safeModes: ['default'],
     preference: 2,
   },
@@ -46,7 +48,7 @@ export const profiles = [
     fixedEnv: { GEMINI_CLI_TRUST_WORKSPACE: 'true' },
     // session/load requires an explicit `authenticate` (acpSessionManager.ts:315–330), which persists
     // the auth type in the CLI's user settings. With an API key, the CLI therefore gets an isolated home
-    // owned by the platform so the user's ~/.gemini is never modified. The key itself stays in env.
+    // owned by the platform, one per mission, so the user's ~/.gemini is never modified. The key itself stays in env.
     apiKeyAuth: {
       envKey: 'GEMINI_API_KEY',
       methodId: 'gemini-api-key',

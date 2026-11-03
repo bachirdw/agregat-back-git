@@ -8,6 +8,7 @@ import { ROOT, verifyPack } from './packs.js';
 import { executionResult, parseAgentResult } from './result.js';
 import { assessBrowserClaims, browserObservationFailure } from './browser-proof.js';
 import { TurnGuard } from './turn-guard.js';
+import { agentHomeFor } from './isolation.js';
 
 // Runs a pack DAG: tool steps call the capability gateway directly (deterministic, no model),
 // agent steps open an ACP session on the agent assigned to that step (multi-agent), verify steps
@@ -162,7 +163,7 @@ export async function executeWorkflow(orch, run, plan, control) {
         definition,
         ownerMode: orch.ownerMode,
         cwd,
-        agentHome: resolve(orch.dataDir, 'agent-homes', definition.id),
+        agentHome: agentHomeFor(orch.dataDir, run.id, definition.id),
         onEvent: (update) => {
           if (!scope.promptStarted || stepSignal.aborted) return;
           guard.observe(update);

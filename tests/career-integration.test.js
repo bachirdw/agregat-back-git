@@ -160,7 +160,6 @@ function fixture(t, ownerMode = false) {
   return { root, career, app, tools: new CareerTools(career) };
 }
 const offer = () => ({
-  id: randomUUID(),
   title: 'Poste FICTIF',
   company: 'Entreprise FICTIVE',
   url: 'https://jobs.example.test/fictif',
@@ -300,8 +299,8 @@ test('Script tiers FICTIF : revue et accord explicite avant exécution en mode p
 test('Offres : note 1–5, A–H complet, provenance et données fictives obligatoires', (t) => {
   const { root, tools } = fixture(t);
   const good = offer();
-  tools.saveOffer(good);
-  assert.deepEqual(tools.offers(), [{ ...good, contractVersion: 2 }]);
+  const { id } = tools.saveOffer(good);
+  assert.deepEqual(tools.offers(), [{ ...good, id, contractVersion: 2 }]);
   for (const bad of [
     { ...good, score: 6 },
     { ...good, report: { A: 'incomplet FICTIF' } },
@@ -312,7 +311,7 @@ test('Offres : note 1–5, A–H complet, provenance et données fictives obliga
     assert.throws(() => tools.saveOffer(bad));
   tools.saveOffer({ ...offer(), score: null, report: null });
   assert.equal(tools.offers().length, 2);
-  const legacy = offer();
+  const legacy = { ...offer(), id: randomUUID() };
   legacy.report.H = 'Prochaine action FICTIVE historique';
   writeFileSync(join(root, `relay/offers/${legacy.id}.json`), JSON.stringify(legacy));
   assert.equal(tools.offers().find((x) => x.id === legacy.id).contractVersion, undefined);

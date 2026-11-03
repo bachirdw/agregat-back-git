@@ -1,0 +1,19 @@
+✔ Le schéma MCP accepte une offre découverte sans UUID ni évaluation (361.730709ms)
+✔ Outils career : wait_for_previous connu est ignoré, les autres arguments restent refusés (331.81225ms)
+✔ Évaluation incomplète refusée par la plateforme même si le JSON Schema perd refine (4.548083ms)
+✔ tools/list : ni id ni contractVersion publiés, identifiant de la source en champ dédié (303.634209ms)
+✔ Client Gemini : champs internes refusés avant tout appel, identifiant de source accepté (326.066042ms)
+✔ Serveur : un client sans validation ne peut imposer ni id ni version de contrat (312.148833ms)
+✔ La plateforme génère identifiant et version ; la source reste une donnée, jamais un chemin (316.7675ms)
+✔ Deux agents qui enregistrent la même offre ne s’écrasent plus (2.914334ms)
+✔ Aucune mise à jour par id : un UUID déjà enregistré est refusé, le fichier reste intact (1.476625ms)
+✔ Offres déjà écrites : lisibles sans migration, y compris sous un UUID inventé (314.402417ms)
+✔ Lecture des offres : un fichier stocké reste contrôlé (0.448333ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2582.166917

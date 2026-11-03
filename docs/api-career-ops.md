@@ -49,6 +49,12 @@ L’outil `career_offer_save` écrit les offres normalisées dans `relay/offers/
 dans `reports/`. Les tableaux historiques amont restent lisibles par `career_read` et `career_script find` ;
 ils ne sont pas convertis arbitrairement en notes ou rapports A–H.
 
+Le schéma publié aux agents ne contient ni `id` ni `contractVersion` : la plateforme génère l’`id`
+(UUID, seul texte utilisé pour les noms de fichiers), écrit `contractVersion: 2` et renvoie l’`id`.
+Chaque appel crée donc une offre : il n’existe pas de mise à jour par identifiant. L’identifiant de
+l’offre chez sa source (par exemple `arbeitnow:…`) se place dans `sourceOfferId`, facultatif, simple
+donnée qui n’est jamais utilisée pour un chemin. Les fichiers déjà écrits restent lisibles tels quels.
+
 `GET /api/career/linkedin` → `{draft: null | {url,text,manualSendOnly:true}}`.
 `GET /api/career/runs/:id/result` → résultat privé du run terminé. Les IDs sont des UUID de runs carrière.
 Les réponses sont locales et non mises en cache. L’UI utilise le résumé privé sans le recopier dans

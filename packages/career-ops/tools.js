@@ -19,28 +19,46 @@ const sections = z
     H: sectionText.optional(),
   })
   .strict();
-export const offerSchema = z
+const offerFields = {
+  title: z.string().min(1).max(300),
+  company: z.string().min(1).max(300),
+  url: z
+    .string()
+    .url()
+    .max(2048)
+    .refine((s) => /^https?:/.test(s)),
+  source: z.string().min(1).max(1000),
+  sourceOfferId: z
+    .string()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe('Identifiant de l’offre chez sa source, tel quel (ex. arbeitnow:123).'),
+  fetchedAt: z.string().datetime(),
+  score: z.number().int().min(1).max(5).nullable().default(null),
+  report: sections.nullable().default(null),
+  simulated: z.boolean(),
+};
+const scoredWithReport = [
+  (v) => (v.score === null) === (v.report === null),
+  'Note et rapport A–G doivent être fournis ensemble',
+];
+// Published to agents: a field in this schema is a field a model fills in. Gemini put the search
+// result's id in `id`, then invented a UUID once its client refused it, and that UUID named the
+// file. The record's identity and contract version belong to the platform, see saveOffer.
+export const offerInputSchema = z
+  .object(offerFields)
+  .strict()
+  .refine(...scoredWithReport);
+// Files already in relay/offers stay readable as written, invented UUIDs included.
+export const storedOfferSchema = z
   .object({
     id: z.string().uuid().optional(),
     contractVersion: z.literal(2).optional(),
-    title: z.string().min(1).max(300),
-    company: z.string().min(1).max(300),
-    url: z
-      .string()
-      .url()
-      .max(2048)
-      .refine((s) => /^https?:/.test(s)),
-    source: z.string().min(1).max(1000),
-    fetchedAt: z.string().datetime(),
-    score: z.number().int().min(1).max(5).nullable().default(null),
-    report: sections.nullable().default(null),
-    simulated: z.boolean(),
+    ...offerFields,
   })
   .strict()
-  .refine(
-    (v) => (v.score === null) === (v.report === null),
-    'Note et rapport A–G doivent être fournis ensemble',
-  );
+  .refine(...scoredWithReport);
 const pathSchema = z
   .string()
   .min(1)
@@ -103,7 +121,7 @@ export class CareerTools {
     return { path, saved: true };
   }
   saveOffer(raw) {
-    const offer = { ...offerSchema.parse(raw), id: raw.id ?? randomUUID(), contractVersion: 2 };
+    const offer = { ...offerInputSchema.parse(raw), id: randomUUID(), contractVersion: 2 };
     writeConfined(this.career.path(), `relay/offers/${offer.id}.json`, JSON.stringify(offer));
     if (offer.report)
       writeConfined(
@@ -132,7 +150,7 @@ export class CareerTools {
       .map((name) => schema.parse(JSON.parse(readConfined(root, `${directory}/${name}`, 200000))));
   }
   offers() {
-    return this.list('relay/offers', offerSchema);
+    return this.list('relay/offers', storedOfferSchema);
   }
   drafts() {
     return this.list('drafts', emailSchema).map((draft) => {
@@ -423,8 +441,8 @@ export function registerCareerTools(
   );
   register(
     'career_offer_save',
-    'Enregistrer une offre sourcée et éventuellement son évaluation 1–5 et rapport A–G (H facultatif). Ne rien inventer.',
-    offerSchema,
+    'Enregistrer une nouvelle offre sourcée et éventuellement son évaluation 1–5 et rapport A–G (H facultatif). Ne rien inventer. La plateforme génère l’identifiant et le renvoie.',
+    offerInputSchema,
     (offer) => tools.saveOffer(offer),
   );
   register(

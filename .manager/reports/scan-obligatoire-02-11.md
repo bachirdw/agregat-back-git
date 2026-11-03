@@ -19,8 +19,8 @@ Demande du propriétaire : qu'une recherche d'offres ne soit plus « terminée �
 - Un agent qui ne transmet pas les arguments de ses appels échappe au contrôle de lecture.
 
 ## Portails (essai à sec, sans écriture)
-Proposition : portails du propriétaire conservés, 32 entreprises du modèle interrogeables par API publique ajoutées, filtre de lieu Sydney, Australie et postes à distance.
-`scan.mjs --dry-run` : 35 sources, 4 559 offres trouvées, 75 nouvelles après filtres, 0 erreur. Sans le filtre de lieu : 570 nouvelles.
+Proposition : portails du propriétaire conservés, 32 entreprises du modèle interrogeables par API publique ajoutées, filtre de lieu (ville du propriétaire, son pays et postes à distance).
+`scan.mjs --dry-run` : 35 sources, 4 559 offres trouvées, 75 nouvelles après filtres, 0 erreur. Sans le filtre de lieu : 570 nouvelles. Connecteurs refusés par Relay retirés ensuite (29 entreprises) : 64 nouvelles.
 
 ## Petit test réel (03/11, mission `9fc3781a`, Claude `haiku`, Playwriter, « sans scan »)
 - Terminée en 1 min 43 : recherche publique, 2 navigations, 2 captures, 2 offres enregistrées, aucune erreur d'outil. Identifiants générés par la plateforme, `sourceOfferId` conservé : le correctif de `career_offer_save` marche en réel avec Claude. Dispense « sans scan » respectée.

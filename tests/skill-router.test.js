@@ -264,3 +264,71 @@ test('annulation, outil étranger et injection dans le prompt ne créent aucune 
   assert.equal(result.steps[1].state, 'pending');
   assert.doesNotMatch(formatSkillBilan(result), /✓/);
 });
+
+const searchOf = (prompt) => selectSkillIntents(prompt, [career]);
+const completedCall = (id, rawInput, extra = {}) => ({
+  sessionUpdate: 'tool_call_update',
+  toolCallId: id,
+  status: 'completed',
+  rawInput,
+  ...extra,
+});
+
+test('Recherche FICTIVE : sans scan, la mission est incomplète', () => {
+  const progress = new SkillProgress(searchOf('Trouve des offres FICTIVES'));
+  progress.start();
+  assert.deepEqual(progress.incomplete(), ['Scanner les portails du Skill (non exécutée)']);
+});
+
+test('Recherche FICTIVE : le prompt peut dispenser du scan', () => {
+  const progress = new SkillProgress(searchOf('Trouve des offres FICTIVES sans scan'));
+  progress.start();
+  assert.deepEqual(progress.incomplete(), []);
+});
+
+test('Recherche FICTIVE : le scan compte, y compris avec arguments imbriqués', () => {
+  const progress = new SkillProgress(searchOf('Trouve des offres FICTIVES'));
+  progress.start();
+  progress.observe(completedCall('a', { tool: 'career_script', arguments: { command: 'scan' } }));
+  assert.deepEqual(progress.incomplete(), []);
+});
+
+test('Recherche FICTIVE : un scan au code de sortie non nul échoue', () => {
+  const progress = new SkillProgress(searchOf('Trouve des offres FICTIVES'));
+  progress.start();
+  progress.observe(
+    completedCall(
+      'a',
+      { tool: 'career_script', command: 'scan' },
+      { content: [{ content: { text: '{"text":"","exitCode":2}' } }] },
+    ),
+  );
+  assert.deepEqual(progress.incomplete(), ['Scanner les portails du Skill (échouée)']);
+});
+
+test('Recherche FICTIVE : une offre notée sans lecture de sa page est signalée', () => {
+  const progress = new SkillProgress(searchOf('Trouve des offres FICTIVES'));
+  progress.start();
+  progress.observe(completedCall('a', { tool: 'career_script', command: 'scan' }));
+  const save = (id, url, score) =>
+    progress.observe(completedCall(id, { tool: 'career_offer_save', url, score }));
+  save('b', 'https://offres.example.test/lue?x=1', 4);
+  save('c', 'https://offres.example.test/non-lue', 5);
+  save('d', 'https://offres.example.test/sans-note', null);
+  assert.deepEqual(progress.incomplete(['https://offres.example.test/lue']), [
+    '1 offre(s) notée(s) sans lecture de leur page',
+  ]);
+  assert.deepEqual(
+    progress.incomplete([
+      'https://offres.example.test/lue/',
+      'https://offres.example.test/non-lue',
+    ]),
+    [],
+  );
+});
+
+test('Recherche FICTIVE : le prompt annonce les obligations à l’agent', () => {
+  const order = formatSkillOrder(searchOf('Trouve des offres FICTIVES'));
+  assert.match(order, /Étapes obligatoires : Scanner les portails du Skill/);
+  assert.match(order, /Ne note une offre qu’après avoir lu sa page/);
+});

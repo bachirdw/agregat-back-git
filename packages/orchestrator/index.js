@@ -1128,9 +1128,17 @@ export class Orchestrator {
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible). Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer.';
+      const incomplete = skillProgress.incomplete(
+        (control.browserEvidence ?? []).map((item) => item?.url),
+        turnTruth.hasJdRead(),
+      );
+      const incompleteMessage = incomplete.length
+        ? `Mission incomplète : ${incomplete.join(' ; ')}`
+        : null;
+      if (incompleteMessage) value.summary += `\n${incompleteMessage}.`;
       this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
-        valid: true,
+        valid: !incompleteMessage,
         scope:
           verificationScope(
             plan.pack.id,
@@ -1140,7 +1148,8 @@ export class Orchestrator {
       });
       recordDiagnostic();
       this.store.update(run.id, {
-        state: 'completed',
+        state: incompleteMessage ? 'failed' : 'completed',
+        ...(incompleteMessage ? { error: incompleteMessage } : {}),
         result: value,
         finishedAt: new Date().toISOString(),
       });

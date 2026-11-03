@@ -938,7 +938,8 @@ test('Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prom
   });
   for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
     await new Promise((r) => setTimeout(r, 20));
-  assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
+  assert.equal(app.store.get(run.id).state, 'failed');
+  assert.match(app.store.get(run.id).error, /Mission incomplète.*Scanner les portails/);
   assert.match(app.store.get(run.id).result.summary, /Scanner les portails du Skill.*non exécutée/);
 });
 test('Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé', async (t) => {
@@ -967,7 +968,7 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
       /Notes non vérifiées : aucune annonce lue dans cette mission, aucune offre enregistrée\./,
       null,
     ],
-    ['FICTIF_RECHERCHE recherche des offres', /career_offer_save/, null],
+    ['FICTIF_RECHERCHE recherche des offres sans scan', /career_offer_save/, null],
   ]) {
     const run = await app.engine.create({ prompt, agent: 'fixture', pack: 'career-ops' });
     for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)

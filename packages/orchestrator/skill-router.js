@@ -21,6 +21,11 @@ const stepSchema = z
     precondition: z.string().trim().min(1).max(200),
     done: z.string().trim().min(1).max(200),
     optional: z.boolean(),
+    // Without this step the mission is reported as incomplete, unless the prompt waives it.
+    required: z.boolean().optional(),
+    unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(10).optional(),
+    // A score saved by this step needs the page behind its `url` read during the mission.
+    readFirst: z.boolean().optional(),
   })
   .strict();
 export const skillManifestSchema = z
@@ -109,10 +114,19 @@ export function selectSkillIntents(prompt, manifests) {
         )
         .map((intent) => ({
           pack: manifest.pack,
-          intent:
-            intent.id === 'evaluate' && forbidSave
-              ? { ...intent, steps: intent.steps.filter((step) => step.id !== 'save-evaluation') }
-              : intent,
+          intent: {
+            ...intent,
+            steps: (intent.id === 'evaluate' && forbidSave
+              ? intent.steps.filter((step) => step.id !== 'save-evaluation')
+              : intent.steps
+            ).map((step) =>
+              step.unlessPhrases?.some((phrase) =>
+                ` ${normalize(prompt)} `.includes(` ${normalize(phrase)} `),
+              )
+                ? { ...step, required: false }
+                : step,
+            ),
+          },
         }));
     })
     .sort(
@@ -133,9 +147,35 @@ export function formatSkillOrder(selection) {
         ({ pack, intent }) =>
           `${pack} / ${intent.title} : ${intent.steps.map((step, index) => `${index + 1}. ${step.title} avec ${step.tool}${step.alternativeTools?.length ? ' ou ' + step.alternativeTools.join(' ou ') : ''}${step.argument ? ' (' + step.argument + ')' : ''} ; précondition : ${step.precondition} ; fait si : ${step.done}${step.optional ? ' ; facultatif' : ''}`).join(' → ')}`,
       )
-      .join('\n')
+      .join('\n') +
+    requiredOrder(selection)
   );
 }
+function requiredOrder(selection) {
+  const steps = selection.flatMap(({ intent }) => intent.steps);
+  const required = steps.filter((step) => step.required).map((step) => step.title);
+  return (
+    (required.length
+      ? `\nÉtapes obligatoires : ${required.join(' ; ')}. Sans elles, la plateforme déclare la mission incomplète.`
+      : '') +
+    (steps.some((step) => step.readFirst)
+      ? '\nNe note une offre qu’après avoir lu sa page dans cette mission : une note sans lecture rend la mission incomplète.'
+      : '')
+  );
+}
+// Some adapters nest the tool arguments.
+const toolInput = (update) => ({
+  ...(update.rawInput ?? update.args ?? {}),
+  ...(update.rawInput?.arguments ?? {}),
+});
+const pageKey = (value) => {
+  try {
+    const url = new URL(value);
+    return `${url.host}${url.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    return null;
+  }
+};
 
 function toolName(update, expected) {
   const candidate = String(update.rawInput?.name ?? update.rawInput?.tool ?? update.title ?? '');
@@ -160,7 +200,7 @@ function matches(step, update, name) {
     }
   }
   if (!step.argument || step.tool !== name) return true;
-  const input = update.rawInput ?? update.args ?? {};
+  const input = toolInput(update);
   return [input.command, input.script, input.path, input.args, update.title].some(
     (x) => typeof x === 'string' && x.includes(step.argument),
   );
@@ -196,6 +236,7 @@ export class SkillProgress {
     );
     this.completions = [];
     this.orderDeviation = false;
+    this.scored = new Set();
   }
   publish(step) {
     const { definition, ...data } = step;
@@ -222,6 +263,11 @@ export class SkillProgress {
       rawInput: update.rawInput ?? this.inputs.get(update.toolCallId),
     };
     const candidates = this.steps.filter((step) => matches(step.definition, completed, name));
+    if (update.status === 'completed' && candidates.some((step) => step.definition.readFirst)) {
+      const input = toolInput(completed);
+      if (input.score !== null && input.score !== undefined && pageKey(input.url))
+        this.scored.add(pageKey(input.url));
+    }
     for (const step of candidates) {
       if (step.state !== 'pending') continue;
       if (
@@ -234,7 +280,11 @@ export class SkillProgress {
         )?.state !== 'done'
       )
         continue;
-      const next = update.status === 'completed' ? 'done' : 'failed';
+      // A script that ran and failed is a completed tool call: its exit code tells.
+      const exitFailed = /exitCode\\*"?\s*:\s*[1-9]/.test(
+        JSON.stringify(update.rawOutput ?? update.content ?? ''),
+      );
+      const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
       if (
         next === 'done' &&
         this.steps.some(
@@ -274,6 +324,16 @@ export class SkillProgress {
       steps: this.steps.map(({ definition, ...step }) => ({ ...step })),
       orderDeviation: this.orderDeviation || order.some((key, index) => key !== expected[index]),
     };
+  }
+  // What the owner asked for and the platform did not observe. `readPages` holds platform evidence.
+  incomplete(readPages = [], sourceRead = false) {
+    const causes = this.steps
+      .filter((step) => step.definition.required && step.state !== 'done')
+      .map((step) => `${step.title} (${step.state === 'failed' ? 'échouée' : 'non exécutée'})`);
+    const read = new Set(readPages.map(pageKey));
+    const unread = sourceRead ? 0 : [...this.scored].filter((page) => !read.has(page)).length;
+    if (unread) causes.push(`${unread} offre(s) notée(s) sans lecture de leur page`);
+    return causes;
   }
   current() {
     return {

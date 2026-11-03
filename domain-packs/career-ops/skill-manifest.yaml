@@ -42,12 +42,15 @@ intents:
         precondition: Portails configurés
         done: Script scan terminé avec code zéro
         optional: false
+        required: true
+        unlessPhrases: [sans scan, sans le scan, pas de scan, sans scanner]
       - id: save-offer
         title: Enregistrer les offres retenues
         tool: career_offer_save
         precondition: Résultat de recherche disponible
         done: Offre enregistrée par l'outil
         optional: false
+        readFirst: true
   - id: documents
     title: Préparer des documents
     priority: 70

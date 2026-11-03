@@ -27,8 +27,11 @@ workflow:
   steps:
     - tool: career_read
       title: Lire le CV et le profil privés
+    - tool: career_script
+      title: Scanner les portails du Skill (command scan)
+      arguments: { command: scan }
     - tool: jobs_search_live
-      title: Rechercher des offres sourcées
+      title: Recherche de secours (Arbeitnow, Remotive) si le scan du Skill échoue ou si le prompt la demande
     - tool: career_offer_save
       title: Évaluer avec l'agent choisi et enregistrer le rapport A–G (H si la note vaut 5)
     - tool: email_send

@@ -6,15 +6,43 @@ import { z } from 'zod';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
+const toolId = z.string().regex(/^[a-z][a-zA-Z0-9_]*$/);
+// Which tool serves which task, declared by the pack and sent to the agent with the mission, so
+// that equivalent tools are not picked at random.
+const toolRoleSchema = z
+  .object({
+    id,
+    task: z.string().trim().min(1).max(80),
+    tool: toolId,
+    // How the main tool is called for this task, e.g. an argument that selects the Skill's scan.
+    usage: z.string().trim().min(1).max(120).optional(),
+    // Tools that follow the main one, in order.
+    then: z.array(toolId).max(5).optional(),
+    note: z.string().trim().min(1).max(200).optional(),
+    // A fallback is used only under `fallbackWhen`, and the agent says so in its summary.
+    fallbackTools: z.array(toolId).min(1).max(5).optional(),
+    fallbackWhen: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict()
+  .superRefine((role, ctx) => {
+    if (!role.fallbackTools !== !role.fallbackWhen)
+      ctx.addIssue({
+        code: 'custom',
+        message: `Rôle ${role.id} : fallbackTools et fallbackWhen vont ensemble`,
+      });
+    const used = new Set([role.tool, ...(role.then ?? [])]);
+    if (role.fallbackTools?.some((tool) => used.has(tool)))
+      ctx.addIssue({
+        code: 'custom',
+        message: `Rôle ${role.id} : un outil de secours ne peut pas être aussi un outil principal`,
+      });
+  });
 const stepSchema = z
   .object({
     id,
     title: z.string().trim().min(1).max(120),
-    tool: z.string().regex(/^[a-z][a-zA-Z0-9_]*$/),
-    alternativeTools: z
-      .array(z.string().regex(/^[a-z][a-zA-Z0-9_]*$/))
-      .max(5)
-      .optional(),
+    tool: toolId,
+    alternativeTools: z.array(toolId).max(5).optional(),
     argument: z.string().trim().min(1).max(100).optional(),
     urlKind: z.enum(['application']).optional(),
     requiresStep: id.optional(),
@@ -46,9 +74,16 @@ export const skillManifestSchema = z
       )
       .min(1)
       .max(30),
+    toolRoles: z.array(toolRoleSchema).max(20).default([]),
   })
   .strict()
   .superRefine((manifest, ctx) => {
+    const roleIds = new Set();
+    for (const role of manifest.toolRoles) {
+      if (roleIds.has(role.id))
+        ctx.addIssue({ code: 'custom', message: `Rôle d'outil dupliqué : ${role.id}` });
+      roleIds.add(role.id);
+    }
     const intentIds = new Set();
     for (const intent of manifest.intents) {
       if (intentIds.has(intent.id))
@@ -150,6 +185,17 @@ export function formatSkillOrder(selection) {
       .join('\n') +
     requiredOrder(selection)
   );
+}
+// The pack's tool roles, whatever the prompt: the prompt and the Skill still come first.
+export function formatToolRoles(manifest) {
+  if (!manifest?.toolRoles?.length) return '';
+  return [
+    `Rôles des outils déclarés par le pack ${manifest.pack} (si le prompt ou le Skill ne disent rien d’autre) :`,
+    ...manifest.toolRoles.map(
+      (role) =>
+        `- ${role.task} : ${role.tool}${role.usage ? ' avec ' + role.usage : ''}${(role.then ?? []).map((tool) => ' puis ' + tool).join('')}${role.note ? ' ; ' + role.note : ''}${role.fallbackTools ? ` ; secours : ${role.fallbackTools.join(' ou ')}, ${role.fallbackWhen}` : ''}.`,
+    ),
+  ].join('\n');
 }
 function requiredOrder(selection) {
   const steps = selection.flatMap(({ intent }) => intent.steps);

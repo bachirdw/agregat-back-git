@@ -49,7 +49,7 @@ export function registerLive(server, data) {
     'jobs_search_live',
     {
       description:
-        'Recherche RÉELLE d’offres publiques (Arbeitnow, Remotive) avec source, URL et date. Sponsoring inconnu par défaut.',
+        'Recherche de SECOURS limitée aux offres publiques d’Arbeitnow et Remotive (40 offres par défaut, 60 au plus), avec source, URL et date. Quand le Skill fournit un scan des portails (career_script, command « scan »), il passe avant : n’utilise cette recherche que si le scan échoue ou si le prompt la demande, et dis-le dans summary. Sponsoring inconnu par défaut.',
       inputSchema: {
         query: z.string().max(500),
         sources: z

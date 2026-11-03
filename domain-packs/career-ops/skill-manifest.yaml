@@ -1,4 +1,22 @@
 pack: career-ops
+# Which tool serves which task. The agent receives this with the mission; the prompt and the Skill
+# still decide first, and a doubt that neither settles is asked in `summary` (never chosen at random).
+toolRoles:
+  - id: search-offers
+    task: Chercher des offres
+    tool: career_script
+    usage: 'command: "scan" (sans path ni args)'
+    fallbackTools: [jobs_search_live]
+    fallbackWhen: seulement si le scan échoue ou si le prompt le demande, et dis-le dans summary
+  - id: read-offer
+    task: Lire une offre
+    tool: browser_navigate
+    then: [browser_snapshot]
+    note: une page à la fois, attends sa capture avant d’ouvrir la suivante
+  - id: save-offer
+    task: Enregistrer une offre
+    tool: career_offer_save
+    note: après lecture de l’offre
 intents:
   - id: evaluate
     title: Évaluer une annonce

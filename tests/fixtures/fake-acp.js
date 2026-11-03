@@ -1,7 +1,8 @@
 // Configurable FAKE ACP agent for runtime tests (no model). Behaviour comes from FAKE_ACP (JSON):
 // mute: method never answered; crashOn: method that kills the process; garbage: noise on stdout;
 // authRequired; models: 'configOptions' | 'models'; modes: 'modes' | 'configOptions' + modeIds;
-// permissionHang; lateMs: delay before the prompt answer; loadSession.
+// permissionHang; lateMs: delay before the prompt answer; loadSession; promptFile: path where the
+// received prompt is written.
 import {
   agent,
   methods,
@@ -149,6 +150,8 @@ const app = agent({ name: 'fake-acp' })
   .onRequest(methods.agent.session.prompt, async (ctx) => {
     if (cfg.diagnosticText) process.stderr.write(cfg.diagnosticText);
     await guard('session/prompt');
+    // promptFile: keeps the exact prompt the platform sent, for tests that read what the agent receives.
+    if (cfg.promptFile) writeFileSync(cfg.promptFile, ctx.params.prompt[0].text);
     for (const expected of cfg.expectInstructions ?? [])
       if (!JSON.stringify(ctx.params.prompt).includes(expected))
         throw new RequestError(-32000, 'Consigne absente : ' + expected);

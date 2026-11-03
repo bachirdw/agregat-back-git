@@ -26,3 +26,11 @@ Proposition : portails du propriétaire conservés, 32 entreprises du modèle in
 - Terminée en 1 min 43 : recherche publique, 2 navigations, 2 captures, 2 offres enregistrées, aucune erreur d'outil. Identifiants générés par la plateforme, `sourceOfferId` conservé : le correctif de `career_offer_save` marche en réel avec Claude. Dispense « sans scan » respectée.
 - **Défaut trouvé :** les deux pages ont été ouvertes au même instant dans le même onglet ; les deux captures montrent la seconde. L'agent a pourtant écrit avoir lu les deux, et la plateforme comptait une simple navigation comme lecture.
 - **Correction :** seules les captures ou extractions lisibles comptent (`readablePages`). Rejoué sur ce cas en test, pas en réel.
+
+## Mission du propriétaire (03/11, `b01769f3`, Gemini `gemini-3.5-flash-lite`, Playwriter, reçu non migré)
+- Finie « Mission incomplète : Scanner les portails du Skill (non exécutée) » : la règle marche en réel.
+- Gemini a cette fois lu les 5 offres qu'il a notées (5 navigations, 5 captures, 10 preuves) : aucune offre signalée sans lecture.
+- Isolation : maison Gemini propre à la mission (`relay/agent-homes/<mission>/gemini`).
+- **Défaut 1 :** Gemini a appelé `career_script` avec `{command: "node", path: "scan.mjs"}`, refusé sans indication. Description et message de refus disent maintenant comment lancer le scan. Test ajouté.
+- **Défaut 2 :** la maison de la mission restait après la fin, car le CLI écrivait encore en sortant. Elle est maintenant supprimée après la sortie du processus (5 s au plus). Non rejoué en réel.
+- Reste : l'étape s'affiche « non exécutée » au lieu de « échouée » quand l'appel refusé n'a pas d'événement de départ ; le Bilan dit « Non exécuté : aucune action » à côté de « Mission incomplète ».

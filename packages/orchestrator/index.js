@@ -1218,6 +1218,12 @@ export class Orchestrator {
       if (control.abort.signal.aborted && control.runtime?.sessionId)
         await new Promise((resolve) => setTimeout(resolve, 100));
       control.runtime?.close();
+      // The CLI may still write its home while it exits: remove it once the process is gone.
+      if (control.runtime?.exited)
+        await Promise.race([
+          control.runtime.exited.catch(() => {}),
+          new Promise((done) => setTimeout(done, 5000)),
+        ]);
       removeRunHomes(homesBase(run, plan.pack.id, this.dataDir), run.id);
       this.active.delete(run.id);
       this.approvalTokens.delete(run.id);

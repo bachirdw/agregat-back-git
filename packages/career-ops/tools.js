@@ -235,7 +235,9 @@ export class CareerTools {
       },
     };
     if (!['scan', 'find'].includes(command) && !controls[command])
-      throw new Error('Commande career-ops non autorisée');
+      throw new Error(
+        'Commande career-ops non autorisée : utiliser « scan », « find », « scripts/<fichier> » ou jd-skill-gap, cv-title-check, verify-cv-facts',
+      );
     if (scriptArgs.length)
       throw new Error('Arguments supplémentaires non autorisés pour cette commande');
     if (controls[command]) {
@@ -465,7 +467,7 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    'Lancer un script revu du dossier scripts/ ou un outil historique. Un exitCode non nul signale un échec.',
+    'Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, ou un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path. Un exitCode non nul signale un échec.',
     z
       .object({
         command: z.string().min(1).max(200),

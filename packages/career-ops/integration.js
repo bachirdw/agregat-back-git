@@ -1,7 +1,16 @@
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { scanSkillDir } from '../skill-registry/scan.js';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
-import { sourceSnapshot } from './tools.js';
+import { assertSourceReview, sourceSnapshot } from './tools.js';
+
+const RECEIPT = 'relay/source-review.json';
+// An existing receipt is compared, never rewritten: writing over it would approve whatever changed.
+export function keepExistingReceipt(root) {
+  if (!existsSync(resolve(root, RECEIPT))) return false;
+  assertSourceReview(JSON.parse(readConfined(root, RECEIPT, 200000)), sourceSnapshot(root));
+  return true;
+}
 
 export function selectAnnouncedCareerModel(requested, models) {
   const options = models?.options ?? [];
@@ -20,6 +29,7 @@ export const CAREER_INSTRUCTIONS =
 
 export function reviewCareer(career, registry) {
   const root = career.path();
+  const receiptKept = keepExistingReceipt(root);
   const source = resolve(root, '.agents/skills/career-ops');
   const imported = registry.importLocal(source);
   // Engineering review for this exact upstream router: no scripts in the imported skill;
@@ -36,7 +46,7 @@ export function reviewCareer(career, registry) {
     note: 'Routeur lu intégralement ; code MIT, aucun script importé. Outils natifs conservés ; envois sensibles soumis à décision.',
   });
   registry.install(imported.name);
-  writeConfined(root, 'relay/source-review.json', JSON.stringify(sourceSnapshot(root)));
+  if (!receiptKept) writeConfined(root, RECEIPT, JSON.stringify(sourceSnapshot(root)));
   writeConfined(
     root,
     'relay/gemini-settings.json',

@@ -589,3 +589,35 @@ test('question en JSON : plafond d’attente configuré → completed « Questio
     await m.finish();
   }
 });
+
+test('redémarrage pendant une question : interrupted, question citée dans le résumé, pendingQuestion null', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'elicitation-FICTIF-'));
+  try {
+    const file = join(root, 'db.sqlite');
+    const first = new Store(file);
+    const id = randomUUID();
+    first.create({
+      id,
+      state: 'awaiting_owner',
+      pendingQuestion: { id: 'q', kind: 'prose', message: 'Dois-je continuer FICTIF ?' },
+      prompt: 'FICTIF',
+    });
+    const other = randomUUID();
+    first.create({ id: other, state: 'running', prompt: 'FICTIF' });
+    first.db.close();
+    const second = new Store(file);
+    const row = second.get(id);
+    assert.equal(row.state, 'interrupted');
+    assert.equal(row.pendingQuestion, null);
+    assert.equal(
+      row.result.summary,
+      'Question restée sans réponse au redémarrage : Dois-je continuer FICTIF ?',
+    );
+    // Sans question ouverte : comportement inchangé.
+    assert.equal(second.get(other).state, 'interrupted');
+    assert.equal(second.get(other).result, undefined);
+    second.db.close();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

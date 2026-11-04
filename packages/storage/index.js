@@ -39,6 +39,17 @@ export class Store extends EventEmitter {
         this.update(run.id, {
           state: 'interrupted',
           error: 'Serveur arrêté pendant l’exécution ; relancer explicitement.',
+          // The agent's turn is gone with the process: the open question is closed, but stays quoted.
+          ...(run.pendingQuestion
+            ? {
+                pendingQuestion: null,
+                result: {
+                  simulated: !!run.result?.simulated,
+                  summary: `Question restée sans réponse au redémarrage : ${run.pendingQuestion.message ?? ''}`,
+                  evidence: [],
+                },
+              }
+            : {}),
         });
     }
   }

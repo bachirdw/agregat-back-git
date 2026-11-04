@@ -70,3 +70,17 @@ Session : sous-agent codeur (Claude), branche `suite-astra`, base `bf5586e` (bri
 - Non couvert (documenté) : le `timeoutMs` propre à une étape, quand un DAG en fixe un (`workflow-engine`), n'est pas suspendu pendant la question.
 - Deux corrections du test lui-même avant le vert : l'app n'écoutait pas de port (réponse passée par `app.engine.answer`, la route HTTP est couverte au point 3) ; état d'étape `succeeded`, pas `completed`.
 - Vert : `workflow-run` + `astra-workflow` + `workflow-engine` 43/43.
+
+## Point 5 — Redémarrage pendant l'attente (19:44)
+- Test ajouté : `tests/elicitation.test.js` « redémarrage pendant une question : interrupted, question citée dans le résumé, pendingQuestion null » (Store rouvert sur le même fichier ; une mission `running` sans question garde le comportement d'avant).
+- Rouge constaté :
+```
+✖ redémarrage pendant une question : interrupted, question citée dans le résumé, pendingQuestion null (7.575417ms)
+ℹ pass 0
+ℹ fail 1
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+    actual: { id: 'q', kind: 'prose', message: 'Dois-je continuer FICTIF ?' },
+    expected: null,
+```
+- Implémentation : `packages/storage/index.js`, au démarrage du Store : une mission non terminale qui avait `pendingQuestion` devient `interrupted` avec `pendingQuestion: null` et `result.summary` « Question restée sans réponse au redémarrage : <message> » (`error` inchangé). La question n'est pas rouverte (le tour de l'agent a disparu avec le processus) : reprise par `POST /resume` comme avant (C11 hors périmètre).
+- Vert : `tests/elicitation.test.js` 24/24.

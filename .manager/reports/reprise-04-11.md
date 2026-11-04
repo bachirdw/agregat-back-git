@@ -344,3 +344,7 @@ Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions so
 
 ## 20:17 — Correction des horodatages (constaté sur l'horloge du Mac)
 - Les titres « 19:33 » à « 21:12 » ci-dessus avaient été estimés, pas lus : l'horloge disait 20:15 quand j'écrivais « 21:12 ». Ils sont remplacés par l'heure réelle du commit correspondant (`git log --date=format:%H:%M`) et les heures des missions par `createdAt` de la base (UTC+11). Règle à partir d'ici : lire `date` avant chaque horodatage.
+
+## 20:17 — C6 livré par le sous-agent Sonnet
+- Commit 9caec0c (20:16), un seul commit pour 4 points (écart déclaré : même fichier) : accord `send` en mode propriétaire sans expiration (plafond seulement si `AGENT_PLATFORM_SEND_TIMEOUT_MS`), délais suspendus pendant l'attente, `activeSlots()` (missions en attente hors du plafond de 3), `pendingPermission` exposé par `GET /api/runs/:id`, doc `docs/api-sends.md`, 8 tests. Sa suite complète : 569 + 138, EXIT 0, check/format OK (constaté dans son message, lancée sans mission en cours). Non vérifié : vrai agent avec un accord `send` ouvert (reprise après clic) ; les tests du point 2 comptent les appels `suspendTimers` sur un faux contrôle.
+- Limite 5 h : 64 % à 20:15. Registre : horodatages corrigés (suite de 646cc31).

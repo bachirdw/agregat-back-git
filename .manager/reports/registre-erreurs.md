@@ -74,3 +74,6 @@ Degrés de certitude :
 | 04/11 16:50:31 | 17fb67d9 | claude | Outil en échec | mcp__platform__career_read | ``` ENOENT: no such file or directory, open '[secret masqué]/modes/_custom.md' ``` |
 | 04/11 18:05:37 | e01325df | claude | Mission failed |  | Limite d’usage de Claude Code atteinte : réessayer à 7pm (Australia/Sydney). Choisir un autre agent ou attendre. |
 | 04/11 18:33:20 | 3753017e | gemini | Outil en échec | cops | Error: Path is not a directory: [secret masqué]/cops |
+| 04/11 19:48:49 | 59c54cf9 | claude | Outil en échec | mcp__platform__career_read | ``` ENOENT: no such file or directory, open '[secret masqué]/data/blacklist.md' ``` |
+| 04/11 19:48:49 | 59c54cf9 | claude | Outil en échec | mcp__platform__career_read | ``` ENOENT: no such file or directory, open '[secret masqué]/modes/_custom.md' ``` |
+| 04/11 19:48:49 | 59c54cf9 | claude | Outil en échec | mcp__platform__career_read | ``` ENOENT: no such file or directory, open '[secret masqué]/data/applications.md' ``` |

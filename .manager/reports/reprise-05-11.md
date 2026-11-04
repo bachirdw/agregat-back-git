@@ -33,3 +33,6 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 - Question 6 : décision du propriétaire, contrôle générique seul (aucune phrase ajoutée à l'intent `evaluate`). E18 clos.
 - Registre : sur demande du propriétaire, les lignes plus valables (E5, E7, E10, E13, E14, E17, E18) passent dans une section « Clos » compacte ; E1 et E21 mises à jour. Le tableau principal garde 17 lignes ouvertes ou corrigées sans preuve réelle.
 - Push GitHub : erreur interne côté serveur à 20:37 et 20:38 ; nouvel essai à ce commit.
+
+## 20:49 — E19 : décision du propriétaire
+- Aucun contournement du relais : Relay capture ce que l'extension Playwriter lui donne, la preuve porte les faits (`hidden`, `textLength`, `waitedFor`), le Bilan dira « texte attendu non apparu » (C5 c, à confier à Sonnet après C7), et l'agent transcrit honnêtement à l'utilisateur. E19 passe en « cause constatée, abandon documenté » ; la description complète d'une offre LinkedIn se lit au premier plan, par le propriétaire.

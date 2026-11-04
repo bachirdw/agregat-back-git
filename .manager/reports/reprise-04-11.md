@@ -301,3 +301,9 @@ Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions so
 - E4 résiduel (question en prose → `completed`) : reproduit 2/2 (5bc9a43f, 1bd8fea6). Le Bilan dit « Actions réussies : aucune observée ; Non exécuté : évaluation enregistrée » : fidèle. E22 non exercé (aucun appel d'outil dans le tour).
 - Conclusion : C3 (question en prose → `awaiting_owner`) est le chantier qui bloque chaque épreuve à question ; il passe avant C1/C2 dans l'ordre de la nuit, sous-agent Opus (directive 19:25).
 - `npm test` complet relancé en arrière-plan sur bfe3d6d (`full-c0.log`), résultat à noter avant tout push de `main`.
+
+## 19:58 — Suite verte, main avancé, C2 fait, C3 en cours
+- Suite complète sur bfe3d6d (C0) : 538 parallèles + 137 Chrome, 0 échec, EXIT 0 (`full-c0.log`). `main` avancé en local et sur origin à bfe3d6d.
+- Sous-agent Opus C3 lancé 19:45 (brief `c3-question-prose-01`) ; points 1 et 2 commités (4ac1af0, e284f8d) à 19:52, point 3 en cours dans l'arbre.
+- C2 (manager, fichiers disjoints de C3) : E13 (`optionalFiles` du pack, `career_read` répond absent/optionnel), E2 (`fetchedAt` bornée, `fetchedAtAgent`/`fetchedAtAdjusted`), E17 (clés A-H dans la description). Tests : `tests/career-optional-files.test.js` (3) ; 31 + 46 tests ciblés verts (contrat d'offre, packs, workspace, MCP, intégration career, scripts), check et format OK. Non vérifié en réel : 0 ENOENT au relevé automatique et `fetchedAt` ≤ fin de mission sur 3 fiches (à constater sur les prochaines missions).
+- Directive 19:44 : 20 minutes en autonomie continue, sessions non arrêtées, relance de ce qui s'arrête sans finir.

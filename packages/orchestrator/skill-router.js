@@ -158,7 +158,7 @@ export function selectSkillIntents(prompt, manifests) {
               step.unlessPhrases?.some((phrase) =>
                 ` ${normalize(prompt)} `.includes(` ${normalize(phrase)} `),
               )
-                ? { ...step, required: false }
+                ? { ...step, required: false, exempt: true }
                 : step,
             ),
           },
@@ -343,7 +343,9 @@ export class SkillProgress {
             earlier.intent === step.intent &&
             earlier.index < step.index &&
             earlier.state !== 'done' &&
-            !earlier.optional,
+            !earlier.optional &&
+            // A step the prompt waived ("sans scan") is not a deviation when skipped.
+            !earlier.definition.exempt,
         )
       )
         this.orderDeviation = true;

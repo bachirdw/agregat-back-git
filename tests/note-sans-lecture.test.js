@@ -163,3 +163,21 @@ test('Consigne FICTIVE : lire avant de noter est annoncé une seule fois, avec o
   const none = selectSkillIntents('Ouvre cette offre FICTIVE et note-la', [manifest]);
   assert.equal(count(formatSkillOrder(none) + readBeforeScoreRule(none)), 1);
 });
+
+test('E16 FICTIF : une étape exemptée par le prompt, sautée, n’est pas un écart d’ordre', () => {
+  const manifest = getPack('career-ops').skillManifest;
+  const run = (prompt) => {
+    const progress = new SkillProgress(selectSkillIntents(prompt, [manifest]));
+    progress.start();
+    progress.observe({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'a',
+      title: 'career_offer_save',
+      rawInput: { url: 'https://offres.example.test/a', score: 4 },
+      status: 'completed',
+    });
+    return progress.finish().orderDeviation;
+  };
+  assert.equal(run('Trouve des offres FICTIVES sans scan'), false);
+  assert.equal(run('Trouve des offres FICTIVES'), true);
+});

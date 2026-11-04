@@ -260,3 +260,10 @@ Verdict : **E10 corrigé et tenu en réel** (1/1). Observation E20 : au tour 3, 
 | S4 reprise | b5c05a20 → 20e41046 → b94831f7 | Tenu : E10 corrigé par memoire-fil. |
 Défauts corrigés aujourd'hui : E7, E10. Non reproduits : E1, E2, E9. Reproduits, à décider : E4 (×8), E14. Nouveaux : E13 (fichiers du Skill absents), E15, E16, E17, E18, E19, E20.
 Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions sonnet et un sous-agent Sonnet depuis 14:44.
+- 17:05 — Commit cfc10bc poussé sur suite-astra et main (avance rapide). Arbre propre.
+
+## 04/11 17:10 — Directives du propriétaire (avant son sommeil)
+- E14 mis de côté : plus de Remotive ni d'Arbeitnow dans les prompts, le pack najah reste en place.
+- Ne pas restreindre les agents : ils font tout ce qui est en leur pouvoir pour accomplir leur mission.
+- Commit et push de l'état complet sur `main`, puis : inventorier les dépôts d'inspiration (`~/Downloads/agent-repos-agregat`) avec des sous-agents, écrire une carte des chemins, établir un nouveau plan à partir des plans et passations de `.manager` (gaps compris), et copier dans Relay les logiques utiles des dépôts d'inspiration pour corriger les défauts et combler les manques. Priorité : Career Ops et le chantier `seek-apply-01`. Progression autonome pendant la nuit si l'environnement le permet.
+- Politique du manager pour la nuit, sauf objection : commits locaux sur `suite-astra` à chaque étape vérifiée, push de `suite-astra` à chaque étape, `main` avancé seulement quand `npm test` complet est vert ; un seul sous-agent à la fois, en Sonnet ; Fable pour la conception et les relectures ; aucun secret lu, aucune donnée personnelle versionnée ; API relancée seulement entre deux missions.

@@ -234,6 +234,20 @@ export const capabilities = [
     description: 'Télécharger dans le dossier du run le fichier du lien ref du snapshot.',
     schema: z.object({ ref }).strict(),
   },
+  {
+    id: 'browser.dialog',
+    domain: 'browser',
+    effect: 'write',
+    meter: 'browser_action',
+    description:
+      'Répondre au dialogue ouvert par la page (alert, confirm, prompt, beforeunload « Quitter la page ? ») : accept true l’accepte, false le refuse ; promptText pour un prompt. Quand une action renvoie dialog: {type, message}, la page attend cette réponse avant toute autre action.',
+    schema: z
+      .object({
+        accept: z.boolean({ error: 'accept doit être un booléen' }),
+        promptText: z.string().max(1000, 'promptText : 1 000 caractères maximum').optional(),
+      })
+      .strict(),
+  },
 ];
 export const capabilityIds = capabilities.map((c) => c.id);
 export function getCapability(id) {

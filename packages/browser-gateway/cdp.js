@@ -302,6 +302,13 @@ export class CdpBrowser {
   #pages = new WeakSet();
   #opening = null;
   #closing = null;
+  // Page dialogs (alert, confirm, prompt, beforeunload) stay open until browser.dialog answers:
+  // never accepted or dismissed silently. A dialog blocks the page, so the action that opened it
+  // returns at once with dialog: {type, message} and finishes after the answer.
+  #dialogPages = new WeakSet();
+  #dialog = null;
+  #dialogNotify = null;
+  #dialogAction = null;
   // Grants live only in this provider instance. Neither RunPolicy JSON nor an agent tool call
   // can carry a grant to another run/provider. The approval bridge persists the human decision.
   async prepare(policy, approve) {
@@ -814,6 +821,8 @@ export class CdpBrowser {
   async reset() {
     const page = this.page;
     this.page = null;
+    this.#dialog = null;
+    this.#dialogAction = null;
     this.snapshotRefs = null;
     this.redirectLanding = null;
     await page?.close().catch(() => {});
@@ -1149,8 +1158,95 @@ export class CdpBrowser {
       ...(after.value !== text && !after.secret ? { value: after.value.slice(0, 200) } : {}),
     };
   }
+  #watchDialogs(page) {
+    if (this.#dialogPages.has(page)) return;
+    this.#dialogPages.add(page);
+    page.on('dialog', (dialog) => {
+      // A page shows one modal dialog at a time; the newest one is the one blocking it.
+      this.#dialog = {
+        dialog,
+        page,
+        type: dialog.type(),
+        message: String(dialog.message() ?? '').slice(0, 200),
+      };
+      this.#dialogNotify?.();
+    });
+  }
+  #publicDialog() {
+    return this.#dialog ? { type: this.#dialog.type, message: this.#dialog.message } : null;
+  }
+  async #answerDialog(page, { accept, promptText }, policy) {
+    const pending = this.#dialog;
+    if (!pending || pending.page !== page) throw new Error('Aucun dialogue en attente sur la page');
+    this.#dialog = null;
+    if (accept) await pending.dialog.accept(promptText);
+    else await pending.dialog.dismiss();
+    const answered = { type: pending.type, message: pending.message, accepted: accept };
+    const action = this.#dialogAction;
+    this.#dialogAction = null;
+    let resumed;
+    if (action) {
+      // The suspended action resumes; report how it ended without waiting indefinitely.
+      let timer;
+      const appeared = new Promise((resolve) => (this.#dialogNotify = resolve));
+      resumed = await Promise.race([
+        action.then(
+          () => 'terminée',
+          (error) =>
+            `échouée : ${String(error.message ?? error)
+              .split('\n')[0]
+              .slice(0, 200)}`,
+        ),
+        appeared.then(() => 'suspendue par un nouveau dialogue'),
+        new Promise(
+          (resolve) =>
+            (timer = setTimeout(
+              () => resolve('en cours'),
+              Math.min(3000, this.navigationTimeoutMs),
+            )),
+        ),
+      ]).finally(() => {
+        clearTimeout(timer);
+        this.#dialogNotify = null;
+      });
+      if (resumed !== 'terminée' && this.#dialog) this.#dialogAction = action;
+    }
+    if (!this.#dialog) await this.assertLanded(policy);
+    return {
+      url: page.url(),
+      dialog: answered,
+      ...(resumed ? { resumed } : {}),
+      ...(this.#dialog ? { nextDialog: this.#publicDialog() } : {}),
+    };
+  }
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
+    this.#watchDialogs(page);
+    if (id === 'browser.dialog') return this.#answerDialog(page, args, policy);
+    if (this.#dialog?.page === page)
+      throw new Error(
+        `Dialogue ${this.#dialog.type} en attente sur la page : réponds avec browser_dialog (accept true ou false) avant toute autre action`,
+      );
+    this.#dialog = null;
+    const appeared = new Promise((resolve) => (this.#dialogNotify = resolve));
+    const action = this.#perform(page, id, args, policy);
+    const first = await Promise.race([
+      action.then((value) => ({ value })),
+      appeared.then(() => null),
+    ]).finally(() => {
+      this.#dialogNotify = null;
+    });
+    if (first) return this.#dialog ? { ...first.value, dialog: this.#publicDialog() } : first.value;
+    action.catch(() => {});
+    this.#dialogAction = action;
+    return {
+      url: page.url(),
+      dialog: this.#publicDialog(),
+      waiting:
+        'La page a ouvert un dialogue : action suspendue. Réponds avec browser_dialog (accept true ou false).',
+    };
+  }
+  async #perform(page, id, args, policy) {
     page.setDefaultTimeout(this.navigationTimeoutMs);
     await this.assertLanded(policy);
     this.blocked = null;

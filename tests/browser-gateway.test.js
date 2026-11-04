@@ -51,6 +51,7 @@ test('registre : contrats stables, schémas stricts, effets déclarés', () => {
     'browser.press',
     'browser.upload',
     'browser.download',
+    'browser.dialog',
   ]);
   assert.equal(getCapability('browser.upload').effect, 'sensitive');
   assert.throws(() => getCapability('browser.execute'), /inconnue/);

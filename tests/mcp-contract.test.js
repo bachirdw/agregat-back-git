@@ -3,7 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { connectMcp } from '../packages/mcp-gateway/client.js';
 
-async function fixture(t, mode, pack = 'core') {
+async function fixture(
+  t,
+  mode,
+  pack = 'core',
+  capabilities = ['browser.navigate', 'browser.extract'],
+) {
   const client = await connectMcp({
     command: process.execPath,
     args: [fileURLToPath(new URL('../packages/mcp-gateway/server.js', import.meta.url)), pack],
@@ -12,7 +17,7 @@ async function fixture(t, mode, pack = 'core') {
       {
         name: 'RELAY_POLICY',
         value: JSON.stringify({
-          capabilities: ['browser.navigate', 'browser.extract'],
+          capabilities,
           allowLocalOrigins: ['http://127.0.0.1:1'],
         }),
       },
@@ -109,5 +114,21 @@ test('MCP réel : entrées hors limites refusées avant le handler', async (t) =
     assert.equal(response.isError, true);
     assert.match(response.content[0].text, /validation/i);
     assert.doesNotMatch(response.content[0].text, /Pont de mesure/);
+  }
+});
+
+test('MCP réel : browser_dialog publié avec un schéma strict quand il est accordé', async (t) => {
+  const client = await fixture(t, 'isolated', 'core', ['browser.navigate', 'browser.dialog']);
+  const tool = (await client.listTools()).tools.find((entry) => entry.name === 'browser_dialog');
+  assert.ok(tool, 'browser_dialog exposé');
+  assert.equal(tool.inputSchema.additionalProperties, false);
+  assert.equal(tool.inputSchema.properties.accept.type, 'boolean');
+  assert.equal(tool.inputSchema.properties.promptText.maxLength, 1000);
+  assert.deepEqual(tool.inputSchema.required, ['accept']);
+  assert.match(tool.description, /beforeunload/);
+  for (const args of [{}, { accept: 'oui' }, { accept: true, script: 'FICTIF' }]) {
+    const response = await client.callTool({ name: 'browser_dialog', arguments: args });
+    assert.equal(response.isError, true);
+    assert.match(response.content[0].text, /validation/i);
   }
 });

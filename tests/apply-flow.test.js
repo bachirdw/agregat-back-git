@@ -76,7 +76,19 @@ async function setup(t, { sendTimeoutMs = null } = {}) {
 
 // navigate → étape 1 → Suivant → CV → Suivant → étape 3 → relecture ; renvoie le clic « Envoyer »
 // en cours (il attend la réponse à l'accord d'envoi).
-async function fillUntilSend({ site, gateway, provider, calls }) {
+async function fillUntilSend(ctx) {
+  const { gateway, calls } = ctx;
+  await fillStep3(ctx);
+  const review = await gateway.call('browser.snapshot');
+  assert.match(review.snapshot, /Envoyer/);
+  assert.equal(calls.filter((c) => c.actionClass === 'send').length, 0, 'aucun envoi demandé');
+  const sendRef = await refFor(gateway, 'button');
+  const click = gateway.call('browser.click', { ref: sendRef });
+  click.catch(() => {});
+  return { click };
+}
+
+async function fillStep3({ site, gateway, provider, calls }) {
   await gateway.call('browser.navigate', { url: site.origin });
   await gateway.call('browser.fillForm', {
     fields: [
@@ -121,13 +133,6 @@ async function fillUntilSend({ site, gateway, provider, calls }) {
       { ref: await refFor(gateway, 'input[name=accord]'), kind: 'checkbox', checked: true },
     ],
   });
-  const review = await gateway.call('browser.snapshot');
-  assert.match(review.snapshot, /Envoyer/);
-  assert.equal(calls.filter((c) => c.actionClass === 'send').length, 0, 'aucun envoi demandé');
-  const sendRef = await refFor(gateway, 'button');
-  const click = gateway.call('browser.click', { ref: sendRef });
-  click.catch(() => {});
-  return { click };
 }
 
 async function waitPending(app, run) {
@@ -234,5 +239,43 @@ test(
     assert.equal((await ctx.site.count()).sends, 0);
     const resolved = ctx.app.store.events(ctx.run.id).find((e) => e.type === 'permission_resolved');
     assert.equal(resolved.data.reason, 'expired');
+  },
+);
+
+// --- Point 3 : dialogues de page (browser.dialog) ---
+test(
+  'C7 FICTIF : beforeunload après saisie → dialogue exposé, refus puis acceptation',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const ctx = await setup(t);
+    const { gateway, provider, site } = ctx;
+    await assert.rejects(
+      gateway.call('browser.dialog', { accept: true }),
+      /Aucun dialogue en attente/,
+    );
+    await fillStep3(ctx);
+    // Quitter la page modifiée : la page FICTIVE ouvre son dialogue beforeunload.
+    const leaving = await gateway.call('browser.navigate', { url: site.origin });
+    assert.equal(leaving.dialog?.type, 'beforeunload');
+    assert.ok(leaving.dialog.message.length <= 200);
+    assert.match(leaving.waiting, /browser_dialog/);
+    // Toute autre action attend la réponse au dialogue, avec une erreur claire.
+    await assert.rejects(gateway.call('browser.snapshot'), /Dialogue beforeunload en attente/);
+    const stay = await gateway.call('browser.dialog', { accept: false });
+    assert.equal(stay.dialog.accepted, false);
+    assert.match(stay.url, /\/step3$/);
+    assert.equal(await provider.page.locator('#cv-name').count(), 1, 'toujours sur l’étape 3');
+    // Seconde tentative : cette fois le dialogue est accepté et la navigation aboutit.
+    const again = await gateway.call('browser.navigate', { url: site.origin });
+    assert.equal(again.dialog?.type, 'beforeunload');
+    const leave = await gateway.call('browser.dialog', { accept: true });
+    assert.equal(leave.dialog.accepted, true);
+    assert.equal(leave.resumed, 'terminée');
+    assert.equal(new URL(leave.url).pathname, '/');
+    assert.equal((await site.count()).sends, 0, 'quitter la page n’envoie rien');
+    await assert.rejects(
+      gateway.call('browser.dialog', { accept: true }),
+      /Aucun dialogue en attente/,
+    );
   },
 );

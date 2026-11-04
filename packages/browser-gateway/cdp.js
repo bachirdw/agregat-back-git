@@ -1159,7 +1159,8 @@ export class CdpBrowser {
     };
   }
   #watchDialogs(page) {
-    if (this.#dialogPages.has(page)) return;
+    // Test doubles of a page may have no event emitter: nothing to watch there.
+    if (this.#dialogPages.has(page) || typeof page.on !== 'function') return;
     this.#dialogPages.add(page);
     page.on('dialog', (dialog) => {
       // A page shows one modal dialog at a time; the newest one is the one blocking it.

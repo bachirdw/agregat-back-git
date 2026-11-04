@@ -45,9 +45,13 @@ export function createTurnTruth() {
       const candidate = String(
         update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? '',
       );
-      const match = candidate.match(
-        /(?:^|[^\w])(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)(?!\w)/i,
-      );
+      // The whole title must be the tool name (optionally prefixed by its MCP server): a tool
+      // merely mentioned inside free text, such as a question to the owner, is not a call.
+      const match = candidate
+        .trim()
+        .match(
+          /^(?:mcp__[a-z0-9_]+?__)?(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/i,
+        );
       const name = match?.[1]?.replace('.', '_').toLowerCase() ?? names.get(update.toolCallId);
       if (!name) return;
       names.set(update.toolCallId, name);

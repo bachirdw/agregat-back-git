@@ -80,7 +80,42 @@ const pathSchema = z
     'Chemin relatif sans traversée requis',
   );
 const userPath =
-  /^(cv\.md|portals\.yml|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv))$/u;
+  /^(cv\.md|portals\.yml|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv)|batch\/tracker-additions\/[\p{L}\p{N}_ /.-]+\.tsv)$/u;
+// The Skill's own write rules (AGENTS.md « Pipeline Integrity », modes/oferta.md « Save report »):
+// the tracker gains rows only through a tracker-addition TSV merged by merge-tracker.mjs, and a
+// report is named reports/{###}-{company-slug}-{YYYY-MM-DD}.md with a number from
+// reserve-report-num.mjs (same pattern as the Skill's keyword-match command).
+const skillReport = /^reports\/[0-9]{3,}-[a-z0-9-]+-[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$/;
+const trackerAddition = /^batch\/tracker-additions\/[0-9]{1,6}-[a-z0-9-]+\.tsv$/;
+const TSV_REQUIRED = ['num', 'date', 'company', 'role', 'score', 'status', 'pdf', 'report'];
+const scoreCell = (v) => /^\d(?:\.\d{1,2})?\/5$/.test(v) || ['N/A', '—', '-'].includes(v);
+function checkTrackerAddition(root, text) {
+  let aliases = {};
+  try {
+    aliases = JSON.parse(readConfined(root, 'tracker-aliases.json', 100000).toString());
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw new Error('TSV : table d’alias du Skill illisible');
+  }
+  const label = (cell) => {
+    const key = cell.trim().toLowerCase();
+    return typeof aliases[key] === 'string' ? aliases[key] : key;
+  };
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  const fail = (why) => {
+    throw new Error(
+      `TSV d’ajout refusé (${why}) : une ligne d’en-tête (num, date, company, role, status, score, pdf, report, notes, url) puis une seule ligne, voir AGENTS.md du Skill`,
+    );
+  };
+  if (lines.length !== 2) fail('une ligne d’en-tête et une seule ligne de données');
+  const header = lines[0].split('\t').map(label);
+  const row = lines[1].split('\t');
+  if (new Set(header).size !== header.length) fail('étiquette en double');
+  const missing = TSV_REQUIRED.filter((name) => !header.includes(name));
+  if (missing.length) fail(`étiquettes manquantes : ${missing.join(', ')}`);
+  if (row.length > header.length) fail('plus de valeurs que d’étiquettes');
+  if (!scoreCell((row[header.indexOf('score')] ?? '').trim()))
+    fail('score illisible (X.X/5 ou N/A)');
+}
 const systemPath =
   /^(AGENTS\.md|DATA_CONTRACT\.md|(?:modes|templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml))$/u;
 const attachmentPath = /^inputs\/[a-f0-9-]{36}\.md$/;
@@ -251,8 +286,21 @@ export class CareerTools {
   }
   write(path, text) {
     validatePath(path, true);
+    if (path === 'data/applications.md')
+      throw new Error(
+        'data/applications.md ne s’écrit pas directement : écrire batch/tracker-additions/{num}-{company-slug}.tsv puis career_script merge-tracker ; un état change par career_script set-status',
+      );
+    if (path.startsWith('reports/') && !skillReport.test(path))
+      throw new Error(
+        'Rapport : nommer reports/{###}-{company-slug}-{YYYY-MM-DD}.md, numéro donné par career_script reserve-report-num',
+      );
+    if (path.startsWith('batch/') && !trackerAddition.test(path))
+      throw new Error(
+        'Fichier hors du périmètre career-ops : batch/tracker-additions/{num}-{company-slug}.tsv seulement',
+      );
     if (typeof text !== 'string' || Buffer.byteLength(text) > 200000)
       throw new Error('Texte trop volumineux');
+    if (trackerAddition.test(path)) checkTrackerAddition(this.career.path(), text);
     if (path === 'config/profile.yml') this.career.profile(text);
     else writeConfined(this.career.path(), path, text);
     return { path, saved: true };

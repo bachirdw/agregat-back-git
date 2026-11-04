@@ -372,12 +372,16 @@ export class SkillProgress {
     };
   }
   // What the owner asked for and the platform did not observe. `readPages` holds platform evidence.
-  incomplete(readPages = [], sourceRead = false) {
+  // `scoredOffers` comes from the platform's own turn record: it covers prompts that no intent
+  // recognised, and an offer already counted through an intent is not counted twice.
+  incomplete(readPages = [], sourceRead = false, scoredOffers = []) {
     const causes = this.steps
       .filter((step) => step.definition.required && step.state !== 'done')
       .map((step) => `${step.title} (${step.state === 'failed' ? 'échouée' : 'non exécutée'})`);
     const read = new Set(readPages.map(pageKey));
-    const unread = sourceRead ? 0 : [...this.scored].filter((page) => !read.has(page)).length;
+    const scored = new Set(this.scored);
+    for (const offer of scoredOffers) if (pageKey(offer.url)) scored.add(pageKey(offer.url));
+    const unread = sourceRead ? 0 : [...scored].filter((page) => !read.has(page)).length;
     if (unread) causes.push(`${unread} offre(s) notée(s) sans lecture de leur page`);
     return causes;
   }

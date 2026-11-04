@@ -1199,6 +1199,7 @@ export class Orchestrator {
       const incomplete = skillProgress.incomplete(
         readablePages(control.browserEvidence),
         turnTruth.hasJdRead(),
+        plan.pack.id === 'career-ops' ? turnTruth.scoredOffers() : [],
       );
       const incompleteMessage = incomplete.length
         ? `Mission incomplète : ${incomplete.join(' ; ')}`

@@ -152,6 +152,27 @@ const app = agent({ name: 'career-FICTIF' })
         await send('Candidature FICTIVE prétendument envoyée sans outil navigateur.');
         return { stopReason: 'end_turn' };
       }
+      if (request.objective.includes('FICTIF_NOTE_HORS_INTENT')) {
+        const scored = !request.objective.includes('SANS_NOTE_FICTIVE');
+        await call('career_offer_save', {
+          title: 'Poste FICTIF',
+          company: 'Entreprise FICTIVE',
+          url: 'https://jobs.example.test/fictif',
+          source: 'Fixture locale FICTIVE, aucun accès réseau',
+          fetchedAt: new Date().toISOString(),
+          ...(scored
+            ? {
+                score: 2,
+                report: Object.fromEntries(
+                  'ABCDEFG'.split('').map((key) => [key, `Analyse ${key} FICTIVE`]),
+                ),
+              }
+            : {}),
+          simulated: true,
+        });
+        await send('Offre FICTIVE enregistrée sans lecture de sa page.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_RECHERCHE')) {
         await call('career_offer_save', {
           title: 'Poste FICTIF',

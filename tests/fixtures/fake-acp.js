@@ -71,8 +71,11 @@ function sessionPayload(sessionId) {
 }
 let connection;
 const app = agent({ name: 'fake-acp' })
-  .onRequest(methods.agent.initialize, async () => {
+  .onRequest(methods.agent.initialize, async (ctx) => {
     await guard('initialize');
+    // capsFile: keeps the clientCapabilities announced by the platform at initialize.
+    if (cfg.capsFile)
+      writeFileSync(cfg.capsFile, JSON.stringify(ctx.params.clientCapabilities ?? null));
     return {
       protocolVersion: PROTOCOL_VERSION,
       agentInfo: { name: 'fake-acp', version: '9.9.9' },

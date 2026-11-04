@@ -43,6 +43,7 @@ export class AcpRuntime {
     cwd,
     onEvent = () => {},
     onPermission = async () => ({ outcome: { outcome: 'cancelled' } }),
+    onElicitation = async () => ({ action: 'cancel' }),
     timeouts = {},
     systemPromptAppend = null,
     env = process.env,
@@ -50,7 +51,15 @@ export class AcpRuntime {
     requestedMode = '',
     agentHome = null, // platform-owned directory for CLIs that persist settings (isolated home)
   }) {
-    Object.assign(this, { definition, cwd, onEvent, onPermission, sourceEnv: env, agentHome });
+    Object.assign(this, {
+      definition,
+      cwd,
+      onEvent,
+      onPermission,
+      onElicitation,
+      sourceEnv: env,
+      agentHome,
+    });
     this.ownerMode = ownerMode;
     if (requestedMode && /bypass|yolo/i.test(requestedMode))
       throw new Error('Mode ACP incompatible avec les décisions sensibles explicites');
@@ -165,6 +174,15 @@ export class AcpRuntime {
           ? { outcome: { outcome: 'cancelled' } }
           : this.onPermission(redactValue(ctx.params, this.secrets)),
       )
+      // Form elicitation (ACP): the request stays open until the handler answers; a stopped
+      // runtime, another session or an unannounced mode is answered `cancel`.
+      .onRequest(methods.client.elicitation.create, (ctx) =>
+        this.stopped ||
+        ctx.params.mode !== 'form' ||
+        (ctx.params.sessionId && ctx.params.sessionId !== this.sessionId)
+          ? { action: 'cancel' }
+          : this.onElicitation(redactValue(ctx.params, this.secrets)),
+      )
       .connect(
         ndJsonStream(Writable.toWeb(this.child.stdin), Readable.toWeb(this.child.stdout), {
           maxMessageBytes: 1048576,
@@ -174,7 +192,11 @@ export class AcpRuntime {
       methods.agent.initialize,
       {
         protocolVersion: PROTOCOL_VERSION,
-        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+        clientCapabilities: {
+          fs: { readTextFile: false, writeTextFile: false },
+          terminal: false,
+          elicitation: { form: {} },
+        },
         clientInfo: { name: 'agent-platform', version: '0.2.0' },
       },
       { timeoutMs: this.timeouts.initialize },

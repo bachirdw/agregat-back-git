@@ -190,7 +190,7 @@ export function formatSkillOrder(selection) {
 export function formatToolRoles(manifest) {
   if (!manifest?.toolRoles?.length) return '';
   return [
-    `Rôles des outils déclarés par le pack ${manifest.pack} (si le prompt ou le Skill ne disent rien d’autre) :`,
+    `Rôles des outils déclarés par le pack ${manifest.pack}. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :`,
     ...manifest.toolRoles.map(
       (role) =>
         `- ${role.task} : ${role.tool}${role.usage ? ' avec ' + role.usage : ''}${(role.then ?? []).map((tool) => ' puis ' + tool).join('')}${role.note ? ' ; ' + role.note : ''}${role.fallbackTools ? ` ; secours : ${role.fallbackTools.join(' ou ')}, ${role.fallbackWhen}` : ''}.`,

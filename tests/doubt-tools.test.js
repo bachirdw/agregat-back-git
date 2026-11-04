@@ -199,7 +199,7 @@ test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () 
   assert.equal(
     text,
     [
-      'Rôles des outils déclarés par le pack career-ops (si le prompt ou le Skill ne disent rien d’autre) :',
+      'Rôles des outils déclarés par le pack career-ops. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :',
       '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; secours : jobs_search_live, seulement si career_script scan a échoué dans cette mission, ou si le prompt dit « sans scan » ou nomme jobs_search_live ; nommer un site (Remotive, Arbeitnow) ne suffit pas ; dis-le dans summary.',
       '- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante.',
       '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.',

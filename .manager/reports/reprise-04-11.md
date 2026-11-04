@@ -108,3 +108,39 @@ Fin de mission (constaté) : `completed` à 15:07:14, sans erreur. 0 appel navig
 - Non couvert, toujours : aucune page ouverte. L'agent le dit lui-même.
 - Deuxième cycle sur le même symptôme. Un troisième sans progrès : arrêt, compartiment trop gros.
 - 15:09 — Limites : 5 h à 23 % (+18 points depuis 14:20, deux missions sonnet comprises), hebdomadaire 3 %, Fable 4 %.
+
+## 04/11 15:10 — Commit et push sur main (ordre du propriétaire)
+- Commit `e59b927` sur `suite-astra` : manifeste (secours), test doubt-tools, registre, ce rapport. Relecture préalable : aucune donnée personnelle, seules des lignes du collecteur sans requête de recherche.
+- Poussé : `origin/suite-astra` f1e3f90 → e59b927 ; `origin/main` 65a77bf → e59b927 en avance rapide (aucun commit propre à main). `main` local aligné.
+- Non touché : `~/Downloads/agregat-back` (44 fichiers non commités sur `codex/browser-audit-31-10`), les 7 autres worktrees, `memoire-fil-04-11` (1 commit en avance, à intégrer plus tard).
+
+### Étape 4, cycle 2 — spécification (couche retenue : consigne système de l'acteur)
+Deux phrases de la consigne donnent la préséance au prompt : la règle de doute (« suis d'abord le prompt, puis le Skill », `doubt-rule.js`, injectée dans toutes les missions) et l'en-tête des rôles (« Rôles des outils déclarés par le pack X (si le prompt ou le Skill ne disent rien d'autre) », `skill-router.js:193`, présent seulement quand un pack déclare des rôles). La ligne à écrire définit ce qui compte comme « le prompt dit autre chose » pour un rôle d'outil ; elle n'a de sens que là où des rôles existent : **niveau le plus bas = l'en-tête des rôles**. La règle de doute reste intacte.
+
+Ligne actuelle (`skill-router.js:193`) :
+`Rôles des outils déclarés par le pack ${manifest.pack} (si le prompt ou le Skill ne disent rien d'autre) :`
+
+Ligne proposée :
+`Rôles des outils déclarés par le pack ${manifest.pack}. Le prompt n'y déroge que s'il nomme l'outil, la méthode ou une phrase qu'un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n'y déroge pas, et le rôle s'applique :`
+
+Tests :
+1. Deux lecteurs, même verdict : oui. Vérification littérale sur le texte du prompt : contient-il un nom d'outil (`jobs_search_live`), une méthode (`scan`), ou une phrase listée par un rôle (« sans scan ») ? « Remotive » n'est aucun des trois.
+2. Fin constatable : oui. Raté si un appel de secours apparaît alors que le prompt ne contient ni outil, ni méthode, ni phrase reconnue, et que le scan n'a pas échoué. Réussi si la mission ne montre que le scan, ou s'arrête sur une question dans summary (Remotive hors portails = information manquante, règle de doute inchangée).
+3. Empêche exactement le symptôme : oui. Le symptôme est « secours appelé parce que le prompt nomme Remotive » ; la ligne dit que nommer un site ne déroge pas au rôle. Risque résiduel, dit honnêtement : la règle de doute globale garde « suis d'abord le prompt » ; si l'agent s'y accroche contre l'en-tête, le symptôme revient et ce sera le troisième cycle, donc l'arrêt.
+
+Effet de bord : `tests/doubt-tools.test.js` ligne 202 cite l'en-tête mot pour mot (une assertion à aligner).
+Rejeu : identique aux cycles 1 et 2 (claude sonnet, career-ops, playwriter, même prompt), après relance de l'API (le texte est dans le code, pas dans un fichier relu).
+
+### Ligne écrite, cycle 2 (ordre du propriétaire)
+- `packages/orchestrator/skill-router.js` (`formatToolRoles`) : en-tête des rôles remplacé par la ligne proposée, mot pour mot. Règle de doute intacte.
+- `tests/doubt-tools.test.js` : une assertion alignée (texte exact de l'en-tête).
+- Vérifié : `node --test tests/doubt-tools.test.js tests/skill-router.test.js` 34/34 ; `npm run check` et `npm run format:check` à zéro. Non vérifié : `npm test` complet, effet réel (rejeu à faire). Non commité.
+- L'API 4310 (pid 14014) tourne avec l'ancien en-tête : relance nécessaire avant le rejeu, en attente de l'ordre.
+- 15:14 — API relancée (ordre) : pid 14014 arrêté, pid 15751 depuis astra à 15:14:19, nouvel en-tête des rôles chargé (vérifié par import du code), relais 19988 inchangé (pid 10497). Veille relancée pour le cycle 3.
+- 15:20 — Demande d'une session cloud (collée par le propriétaire) : pousser deux commits locaux (`d349d88`, `c499799`, ajouts seuls dans `.manager/reports/`) sur `claude/beautiful-gauss-gdxbeg` du dépôt front. Vérifié en lecture seule dans `agregat-front` : `origin/main` = c013a07 ; la branche distante **n'existe pas** (le push la créera, base c013a07, pas de rebase) ; aucun fichier `maquette-ecarts-01*` ni `verif-01` en local ni versionné ; `fix-memoire-fil` à d3c915f sans commit non poussé ; 15 fichiers non commités des autres sessions, sans recoupement. Le back ne dépend pas de cette branche. Décision du manager : « pousse sans les captures » (dépôt public : captures de l'app pouvant montrer compte et lieu, scripts aux chemins du conteneur, 7,8 Mo inutiles).
+- Cycle 3 : toujours aucune mission arrivée après le « lancée » de 15:16.
+
+### Cycle 3, rejeu de P1 — mission 038a7125 (lancée 15:23:14, claude sonnet, `completed` 15:24:53)
+Constaté : appels ToolSearch, `career_read` ×3, **`career_script scan` seul**, aucun `jobs_search_live`, aucun appel navigateur, aucune ligne au collecteur. Résumé de l'agent : scan rapporté fidèlement (2905 vues, 0 nouvelle, 3 erreurs SEEK), puis « ce scan ne couvre pas Remotive… citer le nom du site seul ne suffit pas… je m'arrête en attendant votre feu vert », avec une question explicite et le plan annoncé (lecture page par page avant de juger). Bilan cohérent.
+**Étape 5 — clôture du symptôme :** tenu au rejeu. Deux lignes au total : cycle 1 (`fallbackWhen` du rôle, commit e59b927) a rétabli l'ordre scan d'abord ; cycle 2 (en-tête des rôles, non commité) a retiré la préséance du prompt sur un rôle. Une seule réussite : à reconfirmer par un second rejeu avant de le tenir pour acquis.
+Effet de bord constaté : E4 reproduit (038a7125 est `completed` alors que l'agent attend une réponse) ; c'était l'hypothèse de P5. Non couvert, inchangé : aucune page ouverte, ce qui est ici correct puisque l'agent s'est arrêté avant.

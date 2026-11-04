@@ -125,7 +125,7 @@ test('Rôles des outils : le prompt career-ops reçoit ceux que le pack déclare
   assert.match(instructions, /Rôles des outils déclarés par le pack career-ops/);
   assert.match(
     instructions,
-    /Chercher des offres : career_script avec command: "scan"[^\n]*secours : jobs_search_live, seulement si career_script scan a échoué dans cette mission[^\n]*nommer un site \(Remotive, Arbeitnow\) ne suffit pas[^\n]*dis-le dans summary/,
+    /Chercher des offres : career_script avec command: "scan"[^\n]*secours : jobs_search_live, seulement si career_script scan a rendu un code de sortie non nul[^\n]*n’est pas un échec[^\n]*dis-le dans summary/,
   );
   assert.match(
     instructions,
@@ -181,8 +181,8 @@ test('Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le
   assert.equal(search.tool, 'career_script');
   assert.match(search.usage, /command: "scan"/);
   assert.deepEqual(search.fallbackTools, ['jobs_search_live']);
-  assert.match(search.fallbackWhen, /career_script scan a échoué dans cette mission/);
-  assert.match(search.fallbackWhen, /nommer un site \(Remotive, Arbeitnow\) ne suffit pas/);
+  assert.match(search.fallbackWhen, /code de sortie non nul/);
+  assert.match(search.fallbackWhen, /scan réussi sans ce site n’est pas un échec/);
   const read = manifest.toolRoles.find((role) => role.id === 'read-offer');
   assert.equal(read.tool, 'browser_navigate');
   assert.deepEqual(read.then, ['browser_snapshot']);
@@ -200,7 +200,7 @@ test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () 
     text,
     [
       'Rôles des outils déclarés par le pack career-ops. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :',
-      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; secours : jobs_search_live, seulement si career_script scan a échoué dans cette mission, ou si le prompt dit « sans scan » ou nomme jobs_search_live ; nommer un site (Remotive, Arbeitnow) ne suffit pas ; dis-le dans summary.',
+      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; secours : jobs_search_live, seulement si career_script scan a rendu un code de sortie non nul, ou si le prompt dit « sans scan » ou nomme jobs_search_live ; un scan réussi sans ce site n’est pas un échec ; dis-le dans summary.',
       '- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante.',
       '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.',
     ].join('\n'),

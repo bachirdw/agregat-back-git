@@ -3,7 +3,7 @@
 // authRequired; models: 'configOptions' | 'models'; modes: 'modes' | 'configOptions' + modeIds;
 // permissionHang; lateMs: delay before the prompt answer; loadSession; promptFile: path where the
 // received prompt is written; capsFile: clientCapabilities received at initialize; askQuestion: form
-// elicitation after the prompt ({message?, requestedSchema?} or true); answerFile: its response.
+// elicitation after the prompt ({message?, requestedSchema?, toolBefore?} or true); answerFile: its response.
 import {
   agent,
   methods,
@@ -276,6 +276,18 @@ const app = agent({ name: 'fake-acp' })
     // elicitation response received (accept / decline / cancel).
     if (cfg.askQuestion || String(ctx.params.prompt[0].text).includes('QUESTION:')) {
       const question = cfg.askQuestion?.message ?? 'Dois-je enregistrer cette offre ?';
+      // toolBefore: a tool call is still running (no update) while the question is open.
+      if (cfg.askQuestion?.toolBefore)
+        await connection.client.notify(methods.client.session.update, {
+          sessionId: ctx.params.sessionId,
+          update: {
+            sessionUpdate: 'tool_call',
+            toolCallId: 'FICTIF-slow',
+            title: 'Outil lent FICTIF',
+            kind: 'fetch',
+            status: 'in_progress',
+          },
+        });
       const answer = await connection.client.request(methods.client.elicitation.create, {
         sessionId: ctx.params.sessionId,
         toolCallId: 'FICTIF-ask',
@@ -288,6 +300,15 @@ const app = agent({ name: 'fake-acp' })
         },
       });
       if (cfg.answerFile) writeFileSync(cfg.answerFile, JSON.stringify(answer));
+      if (cfg.askQuestion?.toolBefore)
+        await connection.client.notify(methods.client.session.update, {
+          sessionId: ctx.params.sessionId,
+          update: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'FICTIF-slow',
+            status: 'completed',
+          },
+        });
       const summary =
         answer.action === 'accept'
           ? `Réponse du propriétaire reçue : ${JSON.stringify(answer.content)}`

@@ -55,7 +55,8 @@ import {
 } from './skill-router.js';
 import { withDoubtRule } from './doubt-rule.js';
 import { capabilityIds } from '../capability-registry/index.js';
-import { redact } from '../agent-runtime/env.js';
+import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
+import { AnswerError, publicQuestion, validateContent } from './questions.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
@@ -145,6 +146,7 @@ export class Orchestrator {
     this.active = new Map();
     this.permissions = new Map();
     this.expiredPermissions = new Map();
+    this.questions = [];
     this.expiredOutcomes = new WeakSet();
     this.permissionTimeoutMs = 60000;
     this.career = career;
@@ -762,12 +764,15 @@ export class Orchestrator {
     control.skillProgress = skillProgress;
     let silenceTimer;
     let warningTimer;
+    // An open owner question pauses every silence/idle/mission deadline: the agent waits for a human.
+    let pauses = 0;
+    const pendingTools = new Set();
     const clearSilence = () => {
       clearTimeout(silenceTimer);
       clearTimeout(warningTimer);
     };
     const armSilence = () => {
-      if (!promptStarted) return;
+      if (!promptStarted || pauses) return;
       clearSilence();
       const warningMs = Math.min(60000, Math.max(1, Math.floor(this.silentMs / 2)));
       warningTimer = setTimeout(
@@ -802,8 +807,13 @@ export class Orchestrator {
       if (update.title === 'Searching the web') toolTitles.set(id, 'Searching the web');
       if (['completed', 'failed', 'cancelled'].includes(update.status)) {
         toolTitles.delete(id);
+        pendingTools.delete(id);
         return;
       }
+      pendingTools.add(id);
+      if (!pauses) armTool(id);
+    };
+    const armTool = (id) =>
       toolTimers.set(
         id,
         setTimeout(() => {
@@ -815,16 +825,37 @@ export class Orchestrator {
           control.abort.abort(error);
         }, this.toolIdleMs),
       );
+    let missionLeft = this.timeoutFor(plan.pack.id);
+    let missionSince = 0;
+    let timer;
+    const armMission = () => {
+      missionSince = Date.now();
+      timer = setTimeout(
+        () => control.abort.abort(new Error('Délai maximal dépassé')),
+        missionLeft,
+      );
     };
-    const timer = setTimeout(
-      () => control.abort.abort(new Error('Délai maximal dépassé')),
-      this.timeoutFor(plan.pack.id),
-    );
+    armMission();
+    control.suspendTimers = () => {
+      if (pauses++ > 0) return;
+      clearSilence();
+      for (const t of toolTimers.values()) clearTimeout(t);
+      toolTimers.clear();
+      clearTimeout(timer);
+      missionLeft = Math.max(1, missionLeft - (Date.now() - missionSince));
+    };
+    control.resumeTimers = () => {
+      if (pauses === 0 || --pauses > 0) return;
+      armMission();
+      for (const id of pendingTools) armTool(id);
+      armSilence();
+    };
     const onAbort = () => {
       control.closeAll?.();
       control.runtime?.cancel();
       if (!control.runtime?.sessionId) control.runtime?.close();
       this.clearPermissions(run.id);
+      this.clearQuestions(run.id);
     };
     control.abort.signal.addEventListener('abort', onAbort, { once: true });
     try {
@@ -919,6 +950,7 @@ export class Orchestrator {
             this.meter(run.id, 'tool_observed', 1);
           }
         },
+        onElicitation: (p) => this.elicit(run.id, p, control),
         onPermission: (p) =>
           this.permission(
             run.id,
@@ -1250,6 +1282,7 @@ export class Orchestrator {
       for (const timer of toolTimers.values()) clearTimeout(timer);
       control.abort.signal.removeEventListener('abort', onAbort);
       this.clearPermissions(run.id);
+      this.clearQuestions(run.id);
       if (control.abort.signal.aborted && control.runtime?.sessionId)
         await new Promise((resolve) => setTimeout(resolve, 100));
       control.runtime?.close();
@@ -1292,7 +1325,9 @@ export class Orchestrator {
           this.store.update(runId, {
             state: [...this.permissions.values()].some((p) => p.runId === runId)
               ? 'waiting_permission'
-              : 'running',
+              : this.openQuestion(runId)
+                ? 'awaiting_owner'
+                : 'running',
           });
         if (reason === 'expired') this.expiredPermissions.set(runId, toolName);
         this.store.event(runId, 'permission_resolved', {
@@ -1359,10 +1394,95 @@ export class Orchestrator {
   clearPermissions(runId) {
     for (const p of this.permissions.values()) if (p.runId === runId) p.finish();
   }
+  // Owner questions (ACP form elicitation). One question is open per run; the next waits (FIFO).
+  // The promise given back to the agent stays pending until the owner answers or the run ends.
+  elicit(runId, params, control) {
+    if (control.abort.signal.aborted) return { action: 'cancel' };
+    const id = randomUUID();
+    const question = publicQuestion(id, params, new Date().toISOString());
+    if (!question) return { action: 'cancel' };
+    return new Promise((resolve) => {
+      const entry = { id, runId, question, control, resolve, open: false };
+      this.questions.push(entry);
+      if (!this.openQuestion(runId)) this.openNext(runId);
+    });
+  }
+  openQuestion(runId) {
+    return this.questions.find((q) => q.runId === runId && q.open) ?? null;
+  }
+  openNext(runId) {
+    const entry = this.questions.find((q) => q.runId === runId && !q.open);
+    if (!entry) return;
+    entry.open = true;
+    entry.control.suspendTimers?.();
+    this.store.update(runId, {
+      state: 'awaiting_owner',
+      pendingQuestion: entry.question,
+      resumable: false,
+    });
+    this.store.event(runId, 'question', entry.question);
+  }
+  // Settles one question and opens the next, or returns the run to `running`.
+  settleQuestion(entry, response, event, drain = false) {
+    const index = this.questions.indexOf(entry);
+    if (index < 0) return;
+    this.questions.splice(index, 1);
+    const wasOpen = entry.open;
+    entry.open = false;
+    const { runId } = entry;
+    const live = !drain && !terminal.has(this.store.get(runId)?.state ?? 'completed');
+    if (wasOpen) {
+      if (drain)
+        this.store.update(runId, {
+          pendingQuestion: null,
+          resumable: !!this.store.get(runId).sessionId,
+        });
+      if (live) {
+        const next = this.questions.some((q) => q.runId === runId);
+        this.store.update(runId, {
+          pendingQuestion: null,
+          ...(next
+            ? {}
+            : {
+                resumable: !!this.store.get(runId).sessionId,
+                state: [...this.permissions.values()].some((p) => p.runId === runId)
+                  ? 'waiting_permission'
+                  : 'running',
+              }),
+        });
+      }
+      this.store.event(runId, 'answer', {
+        id: entry.id,
+        ...redactValue(event, secretValues()),
+      });
+      if (!drain) entry.control.resumeTimers?.();
+    }
+    entry.resolve(response);
+    if (live) this.openNext(runId);
+  }
+  answer(runId, body) {
+    const entry = this.openQuestion(runId);
+    if (!entry) {
+      const error = new Error('Aucune question ouverte');
+      error.status = 409;
+      throw error;
+    }
+    const action = body?.action;
+    if (action === 'decline') return this.settleQuestion(entry, { action: 'decline' }, { action });
+    if (action !== 'accept') throw new AnswerError('action doit valoir accept ou decline');
+    const content = validateContent(entry.question.requestedSchema, body.content ?? {});
+    this.settleQuestion(entry, { action: 'accept', content }, { action, content });
+  }
+  clearQuestions(runId) {
+    for (const entry of this.questions.filter((q) => q.runId === runId))
+      this.settleQuestion(entry, { action: 'cancel' }, { action: 'cancel' }, true);
+  }
   cancel(id) {
     const c = this.active.get(id);
     if (!c) throw new Error('Exécution déjà terminée');
     c.cancelled = true;
+    // The pending question is answered `cancel` before the prompt is cancelled (ACP).
+    this.clearQuestions(id);
     c.abort.abort(new Error('Annulée par l’utilisateur'));
   }
   async close() {

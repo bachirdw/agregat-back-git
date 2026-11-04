@@ -37,6 +37,31 @@ export const defaultTimeouts = {
   prompt: 600000,
 };
 
+// A pausable deadline: while the owner is asked a question, the agent is waiting for a human,
+// not silent, so the request deadline does not run.
+function pausableDeadline(ms, onExpire) {
+  let left = ms,
+    since = 0,
+    timer = null;
+  return {
+    start() {
+      if (timer) return;
+      since = Date.now();
+      timer = setTimeout(onExpire, left);
+    },
+    pause() {
+      if (!timer) return;
+      clearTimeout(timer);
+      timer = null;
+      left = Math.max(1, left - (Date.now() - since));
+    },
+    stop() {
+      clearTimeout(timer);
+      timer = null;
+    },
+  };
+}
+
 export class AcpRuntime {
   constructor({
     definition,
@@ -82,6 +107,8 @@ export class AcpRuntime {
     this.ready = false;
     this.lifecycle = new AbortController();
     this.stopped = false;
+    this.deadlines = new Set();
+    this.deadlinesPaused = 0;
     this.diagnostic = '';
     this.secrets = secretValues(env);
   }
@@ -181,7 +208,7 @@ export class AcpRuntime {
         ctx.params.mode !== 'form' ||
         (ctx.params.sessionId && ctx.params.sessionId !== this.sessionId)
           ? { action: 'cancel' }
-          : this.onElicitation(redactValue(ctx.params, this.secrets)),
+          : this.elicit(redactValue(ctx.params, this.secrets)),
       )
       .connect(
         ndJsonStream(Writable.toWeb(this.child.stdin), Readable.toWeb(this.child.stdout), {
@@ -204,14 +231,32 @@ export class AcpRuntime {
     this.capabilities = agentCapabilities(this.info);
     return this.info;
   }
+  async elicit(params) {
+    this.pauseDeadlines();
+    try {
+      return await this.onElicitation(params);
+    } finally {
+      this.resumeDeadlines();
+    }
+  }
+  pauseDeadlines() {
+    if (this.deadlinesPaused++ === 0) for (const d of this.deadlines) d.pause();
+  }
+  resumeDeadlines() {
+    if (--this.deadlinesPaused === 0) for (const d of this.deadlines) d.start();
+  }
   // The SDK only sends `$/cancel_request` and keeps waiting for the peer. We enforce a local
   // deadline, react to caller aborts and to process exit, and ignore any late response.
   request(method, params, { signal, timeoutMs = this.timeouts.request } = {}) {
     if (this.stopped) return Promise.reject(new Error('Runtime fermé'));
     const local = new AbortController();
-    const timer = timeoutMs
-      ? setTimeout(() => local.abort(new AgentTimeoutError(method, timeoutMs)), timeoutMs)
+    const deadline = timeoutMs
+      ? pausableDeadline(timeoutMs, () => local.abort(new AgentTimeoutError(method, timeoutMs)))
       : null;
+    if (deadline) {
+      this.deadlines.add(deadline);
+      if (!this.deadlinesPaused) deadline.start();
+    }
     const onAbort = () => local.abort(signal.reason ?? new Error('Annulé'));
     if (signal?.aborted) onAbort();
     else signal?.addEventListener('abort', onAbort, { once: true });
@@ -254,7 +299,8 @@ export class AcpRuntime {
         throw this.safeError(e);
       })
       .finally(() => {
-        clearTimeout(timer);
+        deadline?.stop();
+        this.deadlines.delete(deadline);
         signal?.removeEventListener('abort', onAbort);
         this.lifecycle.signal.removeEventListener('abort', onClose);
       });

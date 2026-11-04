@@ -234,10 +234,16 @@ test('Reprise privée : un nouveau CV joint est transmis avec les pièces exista
 
 test('Plan career-ops : rapport A–G et accord explicite avant tout envoi', () => {
   const steps = getPack('career-ops').workflow.steps;
-  assert.match(
-    steps.find((step) => step.tool === 'career_offer_save').title,
-    /rapport A–G \(H si la note vaut 5\)/,
+  // skill-suivi-01 : le rapport est celui du Skill, H dès 4,5 (modes/oferta.md), note décimale.
+  const report = steps.find((step) => step.tool === 'career_write');
+  assert.match(report.title, /rapport A–G reports\/\{###\}/);
+  assert.match(report.title, /H si la note ≥ 4,5/);
+  assert.doesNotMatch(JSON.stringify(steps), /vaut 5/);
+  assert.equal(
+    steps.find((step) => step.arguments?.command === 'merge-tracker').tool,
+    'career_script',
   );
+  assert.match(steps.find((step) => step.tool === 'career_offer_save').title, /facultatif/);
   assert.match(steps.find((step) => step.tool === 'email_send').title, /aucun envoi sans accord/i);
   assert.doesNotMatch(
     steps.find((step) => step.tool === 'email_send').title,

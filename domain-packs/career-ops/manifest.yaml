@@ -35,8 +35,15 @@ workflow:
       arguments: { command: scan }
     - tool: jobs_search_live
       title: Recherche de secours (Arbeitnow, Remotive) si le scan du Skill échoue ou si le prompt la demande
+    - tool: career_script
+      title: Vérifier que l'offre est encore ouverte (command check-liveness), puis réserver le numéro du rapport (reserve-report-num)
+    - tool: career_write
+      title: Évaluer selon le Skill et écrire le rapport A–G reports/{###}-{company-slug}-{date}.md (note décimale X.X/5, H si la note ≥ 4,5), puis le TSV batch/tracker-additions/
+    - tool: career_script
+      title: Fusionner le suivi du Skill (command merge-tracker) ; un état change par set-status
+      arguments: { command: merge-tracker }
     - tool: career_offer_save
-      title: Évaluer avec l'agent choisi et enregistrer le rapport A–G (H si la note vaut 5)
+      title: Indexer l'offre dans le tableau Relay (facultatif)
     - tool: email_send
       title: Préparer un envoi (aucun envoi sans accord)
 policies:

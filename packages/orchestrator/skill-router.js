@@ -64,6 +64,10 @@ const stepSchema = z
     unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(10).optional(),
     // A score saved by this step needs the page behind its `url` read during the mission.
     readFirst: z.boolean().optional(),
+    // The step writes the work (report, record): dropped when the prompt forbids saving.
+    persists: z.boolean().optional(),
+    // The outcome this step proves once done, named by the pack for its own Bilan.
+    proves: z.string().trim().min(2).max(60).optional(),
   })
   .strict();
 export const skillManifestSchema = z
@@ -161,15 +165,13 @@ export function selectSkillIntents(prompt, manifests) {
           pack: manifest.pack,
           intent: {
             ...intent,
-            steps: (intent.id === 'evaluate' && forbidSave
-              ? intent.steps.filter((step) => step.id !== 'save-evaluation')
-              : intent.steps
-            ).map((step) =>
-              step.unlessPhrases?.some((phrase) =>
-                ` ${normalize(prompt)} `.includes(` ${normalize(phrase)} `),
-              )
-                ? { ...step, required: false, exempt: true }
-                : step,
+            steps: (forbidSave ? intent.steps.filter((step) => !step.persists) : intent.steps).map(
+              (step) =>
+                step.unlessPhrases?.some((phrase) =>
+                  ` ${normalize(prompt)} `.includes(` ${normalize(phrase)} `),
+                )
+                  ? { ...step, required: false, exempt: true }
+                  : step,
             ),
           },
         }));

@@ -41,7 +41,14 @@ const offerFields = {
     .max(100)
     .optional()
     .describe('Date ISO de lecture de l’offre ; absente ou future, la plateforme met la sienne.'),
-  score: z.number().int().min(1).max(5).nullable().default(null),
+  // The Skill scores 1–5 with decimals (4.2/5) and drafts block H from 4.5 (modes/oferta.md).
+  score: z
+    .number()
+    .min(1)
+    .max(5)
+    .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-9, 'Note : deux décimales au plus')
+    .nullable()
+    .default(null),
   report: sections.nullable().default(null),
   simulated: z.boolean(),
 };
@@ -661,7 +668,7 @@ export function registerCareerTools(
   );
   register(
     'career_offer_save',
-    'Enregistrer une nouvelle offre sourcée et éventuellement son évaluation 1–5 et rapport A–G (H facultatif). report est un objet dont les seules clés sont A, B, C, D, E, F, G et H, chacune un texte ; toute autre clé est refusée. fetchedAt : date ISO de lecture, ou absente. Ne rien inventer. La plateforme génère l’identifiant et le renvoie.',
+    'Index Relay facultatif : enregistrer une offre sourcée et éventuellement sa note 1–5 (décimale admise, ex. 4.5) et un rapport A–G (H facultatif). Le rapport et le suivi du Skill s’écrivent par career_write reports/{###}-… et batch/tracker-additions/ puis career_script merge-tracker. report est un objet dont les seules clés sont A, B, C, D, E, F, G et H, chacune un texte ; toute autre clé est refusée. fetchedAt : date ISO de lecture, ou absente. Ne rien inventer. La plateforme génère l’identifiant et le renvoie.',
     offerInputSchema,
     (offer) => tools.saveOffer(offer),
   );

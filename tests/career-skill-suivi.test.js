@@ -76,3 +76,20 @@ test('career_write : les autres chemins utilisateur restent écrivables', (t) =>
   for (const path of ['data/pipeline.md', 'jds/offre-fictive.md', 'output/cv-fictif.md', 'cv.md'])
     assert.equal(tools.write(path, 'FICTIF').saved, true, path);
 });
+
+test('career_offer_save : note décimale du Skill admise (4,5), bornes et précision gardées', (t) => {
+  const { tools } = workspace(t);
+  const offer = (score) => ({
+    title: 'Poste FICTIF',
+    company: 'Entreprise FICTIVE',
+    url: 'https://jobs.example.test/offre/45',
+    source: 'Fixture locale FICTIVE',
+    score,
+    report: Object.fromEntries('ABCDEFG'.split('').map((key) => [key, `Analyse ${key} FICTIVE`])),
+    simulated: true,
+  });
+  assert.equal(tools.saveOffer(offer(4.5)).saved, true);
+  assert.equal(tools.saveOffer(offer(4.25)).saved, true);
+  for (const bad of [0.5, 5.5, 4.555])
+    assert.throws(() => tools.saveOffer(offer(bad)), String(bad));
+});

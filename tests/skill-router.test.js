@@ -77,9 +77,10 @@ test('prompts métier FICTIFS 28–30/10 : lecture, recherche, candidature, Link
   for (const [prompt, expected] of cases)
     assert.equal(selectSkillIntents(prompt, [career]).at(0)?.intent.id ?? null, expected, prompt);
   const readOnly = selectSkillIntents(cases[0][0], [career]);
+  // skill-suivi-01 : les étapes qui écrivent (persists) sont retirées, la vivacité reste.
   assert.deepEqual(
     readOnly[0].intent.steps.map((step) => step.id),
-    ['read-offer'],
+    ['read-offer', 'liveness'],
   );
 });
 
@@ -164,7 +165,7 @@ test('un argument ACP FICTIF reçu au début reste associé au résultat final',
     toolCallId: 'lecture-FICTIVE',
     status: 'completed',
   });
-  assert.equal(progress.finish().steps[0].state, 'done');
+  assert.equal(progress.finish().steps.find((step) => step.id === 'read-offer').state, 'done');
 });
 
 test('relecture FICTIVE : un instantané avant le remplissage ne clôt pas la relecture', () => {
@@ -468,4 +469,141 @@ test('C7 FICTIF : intent apply avec upload et relecture facultatifs avant review
     result.steps.map((s) => s.state),
     ['done', 'done', 'skipped', 'skipped', 'done'],
   );
+});
+
+// skill-suivi-01 : l'intention « évaluer » suit le Skill (vivacité, lecture, numéro réservé,
+// rapport, TSV d'ajout, merge-tracker) ; career_offer_save n'est plus qu'un index facultatif.
+const evaluateOf = (prompt) => selectSkillIntents(prompt, [career]);
+const skillCall = (id, title, rawInput, extra = {}) => ({
+  sessionUpdate: 'tool_call',
+  toolCallId: id,
+  title,
+  status: 'completed',
+  rawInput,
+  ...extra,
+});
+test('Évaluation FICTIVE : ordre du Skill déclaré par le manifeste', () => {
+  const [selected] = evaluateOf('Évalue cette offre FICTIVE https://jobs.example.test/offre/1');
+  assert.deepEqual(
+    selected.intent.steps.map((step) => [step.id, step.tool, step.argument ?? null]),
+    [
+      ['read-offer', 'career_read', 'jds/'],
+      ['liveness', 'career_script', 'check-liveness'],
+      ['reserve', 'career_script', 'reserve-report-num'],
+      ['report', 'career_write', 'reports/'],
+      ['tsv', 'career_write', 'batch/tracker-additions/'],
+      ['track', 'career_script', 'merge-tracker'],
+      ['save-evaluation', 'career_offer_save', null],
+    ],
+  );
+  assert.equal(selected.intent.steps.at(-1).optional, true);
+  const order = formatSkillOrder([selected]);
+  for (const text of ['check-liveness', 'reserve-report-num', 'merge-tracker', 'DATA_CONTRACT.md'])
+    assert.match(order, new RegExp(text));
+  assert.ok(order.indexOf('check-liveness') < order.indexOf('reserve-report-num'));
+  assert.ok(order.indexOf('reserve-report-num') < order.indexOf('merge-tracker'));
+});
+test('Évaluation FICTIVE : annonce collée sans URL dispense de la vivacité, « n’enregistre rien » retire les écritures', () => {
+  const [pasted] = evaluateOf('Évalue cette offre FICTIVE, annonce collée : texte FICTIF');
+  assert.equal(pasted.intent.steps.find((step) => step.id === 'liveness').exempt, true);
+  const [readOnly] = evaluateOf('Mode oferta. Lis cette annonce FICTIVE. N’enregistre rien.');
+  assert.deepEqual(
+    readOnly.intent.steps.map((step) => step.id),
+    ['read-offer', 'liveness'],
+  );
+});
+test('Évaluation FICTIVE : le parcours du Skill complète les étapes sans écart d’ordre', () => {
+  const progress = new SkillProgress(evaluateOf('Évalue cette offre FICTIVE'));
+  progress.start();
+  const calls = [
+    ['career_read', { path: 'jds/offre-fictive.md' }],
+    ['career_script', { command: 'check-liveness', args: ['https://jobs.example.test/o/1'] }],
+    ['career_script', { command: 'reserve-report-num' }],
+    ['career_write', { path: 'reports/042-entreprise-fictive-2026-11-05.md' }],
+    ['career_write', { path: 'batch/tracker-additions/042-entreprise-fictive.tsv' }],
+    ['career_script', { command: 'merge-tracker' }],
+  ];
+  calls.forEach(([tool, input], index) => progress.observe(skillCall(`c${index}`, tool, input)));
+  const result = progress.finish();
+  assert.deepEqual(
+    result.steps.map((step) => [step.id, step.state]),
+    [
+      ['read-offer', 'done'],
+      ['liveness', 'done'],
+      ['reserve', 'done'],
+      ['report', 'done'],
+      ['tsv', 'done'],
+      ['track', 'done'],
+      ['save-evaluation', 'skipped'],
+    ],
+  );
+  assert.equal(result.orderDeviation, false);
+  assert.deepEqual(progress.incomplete(), []);
+});
+test('Évaluation FICTIVE : career_offer_save seul laisse rapport et suivi du Skill non exécutés, sans blocage', () => {
+  const progress = new SkillProgress(evaluateOf('Évalue cette offre FICTIVE'));
+  progress.start();
+  progress.observe(skillCall('r', 'career_read', { path: 'jds/offre-fictive.md' }));
+  progress.observe(
+    skillCall('s', 'career_offer_save', { url: 'https://jobs.example.test/o/1', score: 4 }),
+  );
+  const result = progress.finish();
+  const state = Object.fromEntries(result.steps.map((step) => [step.id, step.state]));
+  assert.equal(state.report, 'pending');
+  assert.equal(state.track, 'pending');
+  assert.equal(state['save-evaluation'], 'done');
+  assert.equal(result.orderDeviation, true);
+  // Source lue par career_read jds/ : la note n'est pas « sans lecture ».
+  assert.deepEqual(progress.incomplete([], true), []);
+});
+test('Recherche FICTIVE : la fin de l’intention est l’ajout à data/pipeline.md', () => {
+  const [search] = searchOf('Trouve des offres FICTIVES');
+  const last = search.intent.steps.at(-1);
+  assert.equal(last.tool, 'career_write');
+  assert.equal(last.argument, 'data/pipeline.md');
+  assert.match(last.done, /data\/pipeline\.md/);
+  assert.equal(
+    search.intent.steps.find((step) => step.tool === 'career_offer_save').optional,
+    true,
+  );
+});
+test('Manifeste générique : persists retire une étape quand le prompt interdit d’enregistrer, quel que soit son identifiant', () => {
+  const manifest = skillManifestSchema.parse({
+    pack: 'watch',
+    intents: [
+      {
+        id: 'monitor',
+        title: 'Surveiller',
+        priority: 1,
+        phrases: ['surveille'],
+        steps: [
+          {
+            id: 'fetch',
+            title: 'Lire',
+            tool: 'watch_fetch',
+            precondition: 'p',
+            done: 'd',
+            optional: false,
+          },
+          {
+            id: 'store',
+            title: 'Garder',
+            tool: 'watch_store',
+            precondition: 'p',
+            done: 'd',
+            optional: false,
+            persists: true,
+            proves: 'résumé enregistré',
+          },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(
+    selectSkillIntents('Surveille FICTIF, n’enregistre rien', [manifest])[0].intent.steps.map(
+      (s) => s.id,
+    ),
+    ['fetch'],
+  );
+  assert.equal(selectSkillIntents('Surveille FICTIF', [manifest])[0].intent.steps.length, 2);
 });

@@ -33,6 +33,11 @@ intents:
         ouvre cette annonce,
         mode oferta,
       ]
+    # Ordre du Skill (modes/auto-pipeline.md, modes/oferta.md « Post-evaluation », AGENTS.md
+    # « TSV Format for Tracker Additions » et « Pipeline Integrity », DATA_CONTRACT.md) :
+    # le résultat est le rapport et la ligne de suivi du Skill ; career_offer_save n'est qu'un index.
+    # La vivacité suit la lecture comme dans auto-pipeline (Step 0 lecture, Step 0.5 vivacité) :
+    # check-liveness confirme, avant toute écriture, ce que la page lue laisse voir.
     steps:
       - id: read-offer
         title: Lire réellement l'annonce
@@ -42,12 +47,67 @@ intents:
         precondition: Annonce identifiée
         done: Lecture d'une annonce enregistrée terminée
         optional: false
+      - id: liveness
+        title: Vérifier que l'annonce est encore ouverte
+        tool: career_script
+        argument: check-liveness
+        precondition: URL de l'annonce connue et page lue (args [url])
+        done: check-liveness terminé ; code 1 = expirée ou incertaine, alors ne pas évaluer et le dire au Bilan
+        optional: false
+        unlessPhrases:
+          [
+            annonce collée,
+            texte collé,
+            texte de l'annonce,
+            sans url,
+            sans lien,
+            sans vérifier,
+            sans check-liveness,
+          ]
+      - id: reserve
+        title: Réserver le numéro du rapport
+        tool: career_script
+        argument: reserve-report-num
+        precondition: Annonce lue et ouverte
+        done: Numéro {###} rendu par reserve-report-num ; le libérer après écriture (args ["--release","{###}"])
+        optional: false
+        persists: true
+      - id: report
+        title: Écrire le rapport du Skill
+        tool: career_write
+        argument: reports/
+        precondition: Numéro réservé, évaluation A–G faite selon modes/oferta.md
+        done: reports/{###}-{company-slug}-{YYYY-MM-DD}.md avec **Score:** X.X/5, **URL:**, **Legitimacy:**, A–G, Machine Summary et annonce archivée (DATA_CONTRACT.md)
+        optional: false
+        persists: true
+        readFirst: true
+        proves: évaluation enregistrée
+      - id: tsv
+        title: Écrire la ligne d'ajout au suivi
+        tool: career_write
+        argument: batch/tracker-additions/
+        precondition: Rapport écrit
+        done: batch/tracker-additions/{num}-{company-slug}.tsv, en-tête num date company role status score pdf report notes url puis une ligne, statut Evaluated (AGENTS.md)
+        optional: false
+        persists: true
+      - id: track
+        title: Fusionner le suivi du Skill
+        tool: career_script
+        argument: merge-tracker
+        precondition: TSV d'ajout écrit ; jamais d'écriture directe de data/applications.md
+        done: merge-tracker terminé avec code zéro ; un état change ensuite par set-status
+        optional: false
+        persists: true
+        proves: suivi écrit
       - id: save-evaluation
-        title: Enregistrer l'évaluation
+        title: Indexer l'offre dans Relay (facultatif)
         tool: career_offer_save
         precondition: Annonce lue
-        done: Rapport enregistré par l'outil
-        optional: false
+        done: Fiche relay/offers enregistrée, index secondaire du tableau Relay
+        optional: true
+        persists: true
+        readFirst: true
+        proves: évaluation enregistrée
   - id: search
     title: Chercher des offres
     priority: 100
@@ -74,12 +134,21 @@ intents:
             n'exécute rien,
           ]
       - id: save-offer
-        title: Enregistrer les offres retenues
+        title: Indexer les offres retenues dans Relay (facultatif)
         tool: career_offer_save
         precondition: Résultat de recherche disponible
-        done: Offre enregistrée par l'outil
-        optional: false
+        done: Fiche relay/offers enregistrée, index secondaire du tableau Relay
+        optional: true
         readFirst: true
+        persists: true
+      - id: pipeline
+        title: Ajouter les offres retenues à data/pipeline.md
+        tool: career_write
+        argument: data/pipeline.md
+        precondition: Offres retenues hors scan (navigateur, jobs_search_live)
+        done: Éléments « - [ ] url | entreprise | poste » ajoutés à data/pipeline.md, par scan.mjs (scan réussi) ou par career_write (modes/pipeline.md)
+        optional: true
+        persists: true
   - id: documents
     title: Préparer des documents
     priority: 70

@@ -69,6 +69,11 @@ const app = agent({ name: 'career-FICTIF' })
         return JSON.parse(r.content[0].text);
       };
       const cv = await call('career_read', { path: 'cv.md' });
+      // A page read before the note: the platform now reports a note saved without one.
+      const readOffer = async () => {
+        await call('career_write', { path: 'jds/offre-fictive.md', text: 'Offre FICTIVE lue' });
+        await call('career_read', { path: 'jds/offre-fictive.md' });
+      };
       if (request.objective.includes('FICTIF_LENT'))
         await new Promise((resolve) => setTimeout(resolve, 12000));
       const send = async (summary) =>
@@ -153,6 +158,8 @@ const app = agent({ name: 'career-FICTIF' })
         return { stopReason: 'end_turn' };
       }
       if (request.objective.includes('FICTIF_NOTE_HORS_INTENT')) {
+        if (request.instructions.split('Ne note une offre qu’après avoir lu sa page').length !== 2)
+          throw new Error('La consigne de lecture avant note doit figurer une seule fois');
         const scored = !request.objective.includes('SANS_NOTE_FICTIVE');
         await call('career_offer_save', {
           title: 'Poste FICTIF',
@@ -174,6 +181,9 @@ const app = agent({ name: 'career-FICTIF' })
         return { stopReason: 'end_turn' };
       }
       if (request.objective.includes('FICTIF_RECHERCHE')) {
+        await readOffer();
+        if (request.instructions.split('Ne note une offre qu’après avoir lu sa page').length !== 2)
+          throw new Error('La consigne de lecture avant note doit figurer une seule fois');
         await call('career_offer_save', {
           title: 'Poste FICTIF',
           company: 'Entreprise FICTIVE',
@@ -203,6 +213,7 @@ const app = agent({ name: 'career-FICTIF' })
         );
         return { stopReason: 'end_turn' };
       }
+      await readOffer();
       let controlEvidence = '';
       if (request.objective.includes('CONTROLES_FICTIFS')) {
         const gap = await call('career_script', {

@@ -8,7 +8,12 @@ import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { reviewCareer } from '../packages/career-ops/integration.js';
 import { createTurnTruth } from '../packages/career-ops/truth.js';
 import { getPack } from '../packages/orchestrator/packs.js';
-import { SkillProgress, selectSkillIntents } from '../packages/orchestrator/skill-router.js';
+import {
+  SkillProgress,
+  formatSkillOrder,
+  readBeforeScoreRule,
+  selectSkillIntents,
+} from '../packages/orchestrator/skill-router.js';
 import { terminal } from '../packages/storage/index.js';
 
 test('Suivi du tour FICTIF : les offres enregistrées avec une note sont listées, sans note elles ne le sont pas', () => {
@@ -148,4 +153,13 @@ test('Note sans lecture FICTIVE : une capture lisible de la même URL, ou un com
   assert.deepEqual(search.incomplete([], false, offers), [
     '1 offre(s) notée(s) sans lecture de leur page',
   ]);
+});
+
+test('Consigne FICTIVE : lire avant de noter est annoncé une seule fois, avec ou sans intent', () => {
+  const manifest = getPack('career-ops').skillManifest;
+  const count = (text) => text.split('Ne note une offre qu’après avoir lu sa page').length - 1;
+  const search = selectSkillIntents('Trouve des offres FICTIVES', [manifest]);
+  assert.equal(count(formatSkillOrder(search) + readBeforeScoreRule(search)), 1);
+  const none = selectSkillIntents('Ouvre cette offre FICTIVE et note-la', [manifest]);
+  assert.equal(count(formatSkillOrder(none) + readBeforeScoreRule(none)), 1);
 });

@@ -197,16 +197,20 @@ export function formatToolRoles(manifest) {
     ),
   ].join('\n');
 }
+export const READ_BEFORE_SCORE =
+  'Ne note une offre qu’après avoir lu sa page dans cette mission : une note sans lecture rend la mission incomplète.';
+// Sent once per mission: with the order when an intent already carries it, alone otherwise.
+export const readBeforeScoreRule = (selection) =>
+  selection.some(({ intent }) => intent.steps.some((step) => step.readFirst))
+    ? ''
+    : '\n' + READ_BEFORE_SCORE;
 function requiredOrder(selection) {
   const steps = selection.flatMap(({ intent }) => intent.steps);
   const required = steps.filter((step) => step.required).map((step) => step.title);
   return (
     (required.length
       ? `\nÉtapes obligatoires : ${required.join(' ; ')}. Sans elles, la plateforme déclare la mission incomplète.`
-      : '') +
-    (steps.some((step) => step.readFirst)
-      ? '\nNe note une offre qu’après avoir lu sa page dans cette mission : une note sans lecture rend la mission incomplète.'
-      : '')
+      : '') + (steps.some((step) => step.readFirst) ? '\n' + READ_BEFORE_SCORE : '')
   );
 }
 // Some adapters nest the tool arguments.

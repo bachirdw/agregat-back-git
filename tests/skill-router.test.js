@@ -351,3 +351,121 @@ test('Recherche FICTIVE : deux navigations simultanées, une seule page lue', ()
     '1 offre(s) notée(s) sans lecture de leur page',
   ]);
 });
+
+// --- C7 point 4 : motif d'URL déclaré par le pack (urlPattern.words) ---
+const withOpenStep = (change) => ({
+  ...career,
+  intents: career.intents.map((intent) =>
+    intent.id !== 'apply'
+      ? intent
+      : {
+          ...intent,
+          steps: intent.steps.map((step) => (step.id === 'open' ? change(step) : step)),
+        },
+  ),
+});
+const navigate = (progress, toolCallId, url) =>
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId,
+    title: 'browser_navigate',
+    rawInput: { url },
+    status: 'completed',
+  });
+
+test('C7 FICTIF : le motif d’URL de l’étape open vient du manifeste du pack', () => {
+  const open = career.intents.find((i) => i.id === 'apply').steps.find((s) => s.id === 'open');
+  assert.deepEqual(open.urlPattern, { words: ['apply', 'application', 'candidature', 'postuler'] });
+  assert.equal(open.urlKind, undefined);
+  const source = readFileSync(
+    new URL('../packages/orchestrator/skill-router.js', import.meta.url),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /candidature|postuler|urlKind/);
+});
+
+test('C7 FICTIF : pack sans urlPattern → aucune vérification d’URL', () => {
+  const manifest = withOpenStep(({ urlPattern, ...step }) => step);
+  const progress = new SkillProgress(
+    selectSkillIntents('Postule à cette offre FICTIVE', [manifest]),
+  );
+  progress.start();
+  navigate(progress, 'ad', 'https://example.test/jobs/123');
+  assert.equal(progress.finish().steps.find((step) => step.id === 'open').toolCallId, 'ad');
+});
+
+test('C7 FICTIF : pack avec urlPattern → segment de chemin exact, http(s) seulement', () => {
+  const manifest = withOpenStep((step) => ({
+    ...step,
+    urlPattern: { words: ['formulaire-fictif'] },
+  }));
+  const progress = new SkillProgress(
+    selectSkillIntents('Postule à cette offre FICTIVE', [manifest]),
+  );
+  progress.start();
+  navigate(progress, 'apply', 'https://example.test/jobs/123/apply');
+  navigate(progress, 'part', 'https://example.test/formulaire-fictif-bis');
+  navigate(progress, 'query', 'https://example.test/jobs?formulaire-fictif');
+  navigate(progress, 'file', 'file:///formulaire-fictif');
+  assert.equal(progress.current().steps.find((step) => step.id === 'open').state, 'pending');
+  navigate(progress, 'form', 'http://127.0.0.1:4321/Formulaire-FICTIF/step2');
+  assert.equal(progress.finish().steps.find((step) => step.id === 'open').toolCallId, 'form');
+});
+
+test('C7 FICTIF : urlPattern borné (mots simples), urlKind retiré', () => {
+  for (const urlPattern of [
+    { words: [] },
+    { words: ['(apply|.*)'] },
+    { words: ['Apply'] },
+    { words: ['a'] },
+    { words: ['apply'], regex: '.*' },
+    'apply',
+  ])
+    assert.throws(
+      () => skillManifestSchema.parse(withOpenStep((step) => ({ ...step, urlPattern }))),
+      JSON.stringify(urlPattern),
+    );
+  assert.throws(() =>
+    skillManifestSchema.parse(
+      withOpenStep(({ urlPattern, ...step }) => ({ ...step, urlKind: 'application' })),
+    ),
+  );
+});
+
+test('C7 FICTIF : intent apply avec upload et relecture facultatifs avant review', () => {
+  const apply = career.intents.find((i) => i.id === 'apply');
+  assert.deepEqual(
+    apply.steps.map((s) => [s.id, s.tool, s.optional]),
+    [
+      ['open', 'browser_navigate', false],
+      ['fill', 'browser_fillForm', false],
+      ['upload', 'browser_upload', true],
+      ['verify', 'browser_verify', true],
+      ['review', 'browser_snapshot', false],
+    ],
+  );
+  // Consigne portée par l'étape (envoyée seulement quand l'intention apply est reconnue).
+  const review = apply.steps.find((s) => s.id === 'review');
+  assert.match(review.done, /s’arrêter avant Envoyer/);
+  assert.match(review.done, /clic au propriétaire/);
+  assert.match(apply.steps.find((s) => s.id === 'fill').done, /browser_dialog/);
+  assert.match(
+    formatSkillOrder(selectSkillIntents('Postule à cette offre FICTIVE', [career])),
+    /clic au propriétaire/,
+  );
+  // Une candidature sans CV ni relecture explicite reste conforme (étapes facultatives).
+  const progress = new SkillProgress(selectSkillIntents('Postule à cette offre FICTIVE', [career]));
+  progress.start();
+  navigate(progress, 'open', 'https://example.test/jobs/1/apply');
+  for (const [id, title] of [
+    ['fill', 'browser_fillForm'],
+    ['review', 'browser_snapshot'],
+  ])
+    progress.observe({ sessionUpdate: 'tool_call', toolCallId: id, title, status: 'completed' });
+  const result = progress.finish();
+  assert.equal(result.orderDeviation, false);
+  assert.deepEqual(
+    result.steps.map((s) => s.state),
+    ['done', 'done', 'skipped', 'skipped', 'done'],
+  );
+});

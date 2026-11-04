@@ -56,4 +56,6 @@ policies:
         browser.press,
         browser.upload,
         browser.download,
+        browser.dialog,
+        browser.verify,
       ]

@@ -107,7 +107,8 @@ intents:
       - id: open
         title: Ouvrir le formulaire
         tool: browser_navigate
-        urlKind: application
+        urlPattern:
+          words: [apply, application, candidature, postuler]
         precondition: Offre identifiée
         done: Navigation terminée
         optional: false
@@ -115,14 +116,26 @@ intents:
         title: Préparer les champs
         tool: browser_fillForm
         precondition: Formulaire visible
-        done: Champs remplis
+        done: Champs remplis ; « Suivant » passe sans accord ; un dialogue de page se règle avec browser_dialog
         optional: false
+      - id: upload
+        title: Joindre le CV du dossier de mission
+        tool: browser_upload
+        precondition: Champ fichier visible
+        done: Fichier reçu par la page
+        optional: true
+      - id: verify
+        title: Relire les valeurs saisies
+        tool: browser_verify
+        precondition: Champs préparés
+        done: Valeurs relues
+        optional: true
       - id: review
         title: Relire avant soumission
         tool: browser_snapshot
         requiresStep: fill
         precondition: Champs préparés
-        done: Instantané de relecture obtenu
+        done: Instantané de relecture obtenu ; s’arrêter avant Envoyer sauf si le prompt demande l’envoi, la plateforme demande alors le clic au propriétaire
         optional: false
   - id: linkedin
     title: Préparer un brouillon LinkedIn

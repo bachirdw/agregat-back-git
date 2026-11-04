@@ -44,7 +44,17 @@ const stepSchema = z
     tool: toolId,
     alternativeTools: z.array(toolId).max(5).optional(),
     argument: z.string().trim().min(1).max(100).optional(),
-    urlKind: z.enum(['application']).optional(),
+    // The pack names the URL path segments that prove this step (e.g. a form page). No regex:
+    // whole lowercase words, compared to each path segment, case-insensitively.
+    urlPattern: z
+      .object({
+        words: z
+          .array(z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/))
+          .min(1)
+          .max(20),
+      })
+      .strict()
+      .optional(),
     requiresStep: id.optional(),
     precondition: z.string().trim().min(1).max(200),
     done: z.string().trim().min(1).max(200),
@@ -242,12 +252,13 @@ function toolName(update, expected) {
 }
 function matches(step, update, name) {
   if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;
-  if (step.urlKind === 'application' && name === 'browser_navigate') {
+  if (step.urlPattern) {
     try {
       const url = new URL(update.rawInput?.url ?? update.rawInput?.args?.url);
+      const segments = url.pathname.toLowerCase().split('/');
       if (
         !/^https?:$/.test(url.protocol) ||
-        !/(?:^|\/)(?:apply|application|candidature|postuler)(?:\/|$)/i.test(url.pathname)
+        !step.urlPattern.words.some((word) => segments.includes(word))
       )
         return false;
     } catch {

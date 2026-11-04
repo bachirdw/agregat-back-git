@@ -348,3 +348,8 @@ Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions so
 ## 20:17 — C6 livré par le sous-agent Sonnet
 - Commit 9caec0c (20:16), un seul commit pour 4 points (écart déclaré : même fichier) : accord `send` en mode propriétaire sans expiration (plafond seulement si `AGENT_PLATFORM_SEND_TIMEOUT_MS`), délais suspendus pendant l'attente, `activeSlots()` (missions en attente hors du plafond de 3), `pendingPermission` exposé par `GET /api/runs/:id`, doc `docs/api-sends.md`, 8 tests. Sa suite complète : 569 + 138, EXIT 0, check/format OK (constaté dans son message, lancée sans mission en cours). Non vérifié : vrai agent avec un accord `send` ouvert (reprise après clic) ; les tests du point 2 comptent les appels `suspendTimers` sur un faux contrôle.
 - Limite 5 h : 64 % à 20:15. Registre : horodatages corrigés (suite de 646cc31).
+
+## 20:18 — Arrêt des chantiers (ordre du propriétaire)
+- État : `suite-astra` et `main` à 163b453, tout poussé. API 4310 pid 86576 (code complet de la soirée), relais 19988 pid 10497, collecteur onglet c2 : laissés en marche.
+- Prochains chantiers du plan, non commencés : C7 fictif (candidature jusqu'au clic, brief à écrire), C5 d (E19 au premier plan, par le propriétaire), C8 réel (lien SEEK à fournir), C9, C10-C15. Questions ouvertes au propriétaire : §6 du PLAN-04-11.
+- Limite 5 h : 64 % à 20:15.

@@ -286,3 +286,18 @@ Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions so
 - Aucun agent bloqué (constaté) : le sous-agent Sonnet E18 a commité 3 points (0bf74ef, 91a537c, 55a64f1) et attend `npm test` complet (651 ✔ à 19:20, aucun ✖) ; le workflow du plan est en phase « Synthétiser » (agent Fable, depuis 19:14), `PLAN-04-11.md` pas encore écrit.
 - Missions de la plateforme : aucune en attente ; la seule échouée (e01325df, 17:05) l'était sur la limite d'usage, pas sur le code. 5bc9a43f (E19) terminée 18:01.
 - API pid 49419 (code E4+E19, sans E22/E18), relais pid 10497 : non relancés.
+
+## 19:33 — Plan final écrit, E18 livré, C0 fait, P3 relancée
+- Workflow du plan terminé 19:20 (10 agents, 1,03 M jetons de sous-agents) : `.manager/PLAN-04-11.md` (15 chantiers C0-C15, ordre, protocole de nuit, 6 questions au propriétaire, §7 non vérifié). Commit c5e8986, poussé sur `suite-astra`.
+- Sous-agent Sonnet E18 terminé 19:22 : commits eccba9c, 0bf74ef, 91a537c, 55a64f1 (E16), 8ea39d9 (rapport). `npm test` complet vert hors bac (539 parallèles dont 1 ignoré, 137 Chrome), check et format OK (constaté dans son journal `full.log`, EXIT 0). Écart déclaré : test rouge du point 2 non lancé seul avant le code.
+- C0 étape 1 (manager) : les deux règles `pack.id === 'career-ops'` ajoutées par E18 remplacées par `readsBeforeScore(manifest)` (étape `readFirst` déclarée par le pack) ; test « pack sans readFirst → rien » ajouté ; 85 tests ciblés verts, check et format OK ; commit bfe3d6d. Suite complète non relancée après ce commit (à faire avant `main`).
+- Directive du propriétaire 19:25 : sous-agents Opus autorisés pour les tâches complexes (mémoire mise à jour).
+- API relancée 19:32 (pid 61942, onglet c1, code E22+E18+C0), annoncé ici ; relais 10497 inchangé.
+- Mission P3 rejouée : 1bd8fea6 (claude sonnet, prompt contradictoire « ouvre dans mon Chrome, sans outil navigateur, note-la », lien hors rapport). Attendu : `failed` « Mission incomplète : 1 offre(s) notée(s) sans lecture de leur page », fiche écrite quand même.
+
+## 19:40 — Résultat P3 (1bd8fea6)
+- État `completed` à 19:28 après 60 s, 194 événements, **0 appel d'outil**, 0 fiche. L'agent a reçu la consigne « Ne note une offre qu'après avoir lu sa page… » (point 3 d'E18, hors intent) et la cite mot pour mot ; il refuse de noter sans lire et pose une question en prose à trois options (a : lire par browser_navigate + browser_snapshot ; b : estimation sans lecture ; c : autre).
+- E18 : non reproduit 1/1 ; contrôle « note sans lecture » non exercé en réel (aucune note), prouvé seulement par fixture (test a du brief). Effet de la consigne : constaté.
+- E4 résiduel (question en prose → `completed`) : reproduit 2/2 (5bc9a43f, 1bd8fea6). Le Bilan dit « Actions réussies : aucune observée ; Non exécuté : évaluation enregistrée » : fidèle. E22 non exercé (aucun appel d'outil dans le tour).
+- Conclusion : C3 (question en prose → `awaiting_owner`) est le chantier qui bloque chaque épreuve à question ; il passe avant C1/C2 dans l'ordre de la nuit, sous-agent Opus (directive 19:25).
+- `npm test` complet relancé en arrière-plan sur bfe3d6d (`full-c0.log`), résultat à noter avant tout push de `main`.

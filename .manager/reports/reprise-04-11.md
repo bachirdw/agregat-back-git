@@ -287,57 +287,60 @@ Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions so
 - Missions de la plateforme : aucune en attente ; la seule échouée (e01325df, 17:05) l'était sur la limite d'usage, pas sur le code. 5bc9a43f (E19) terminée 18:01.
 - API pid 49419 (code E4+E19, sans E22/E18), relais pid 10497 : non relancés.
 
-## 19:33 — Plan final écrit, E18 livré, C0 fait, P3 relancée
+## 19:27 — Plan final écrit, E18 livré, C0 fait, P3 relancée
 - Workflow du plan terminé 19:20 (10 agents, 1,03 M jetons de sous-agents) : `.manager/PLAN-04-11.md` (15 chantiers C0-C15, ordre, protocole de nuit, 6 questions au propriétaire, §7 non vérifié). Commit c5e8986, poussé sur `suite-astra`.
 - Sous-agent Sonnet E18 terminé 19:22 : commits eccba9c, 0bf74ef, 91a537c, 55a64f1 (E16), 8ea39d9 (rapport). `npm test` complet vert hors bac (539 parallèles dont 1 ignoré, 137 Chrome), check et format OK (constaté dans son journal `full.log`, EXIT 0). Écart déclaré : test rouge du point 2 non lancé seul avant le code.
 - C0 étape 1 (manager) : les deux règles `pack.id === 'career-ops'` ajoutées par E18 remplacées par `readsBeforeScore(manifest)` (étape `readFirst` déclarée par le pack) ; test « pack sans readFirst → rien » ajouté ; 85 tests ciblés verts, check et format OK ; commit bfe3d6d. Suite complète non relancée après ce commit (à faire avant `main`).
-- Directive du propriétaire 19:25 : sous-agents Opus autorisés pour les tâches complexes (mémoire mise à jour).
-- API relancée 19:32 (pid 61942, onglet c1, code E22+E18+C0), annoncé ici ; relais 10497 inchangé.
+- Directive du propriétaire (vers 19:21) : sous-agents Opus autorisés pour les tâches complexes (mémoire mise à jour).
+- API relancée 19:27 (pid 61942, onglet c1, code E22+E18+C0), annoncé ici ; relais 10497 inchangé.
 - Mission P3 rejouée : 1bd8fea6 (claude sonnet, prompt contradictoire « ouvre dans mon Chrome, sans outil navigateur, note-la », lien hors rapport). Attendu : `failed` « Mission incomplète : 1 offre(s) notée(s) sans lecture de leur page », fiche écrite quand même.
 
-## 19:40 — Résultat P3 (1bd8fea6)
+## 19:29 — Résultat P3 (1bd8fea6)
 - État `completed` à 19:28 après 60 s, 194 événements, **0 appel d'outil**, 0 fiche. L'agent a reçu la consigne « Ne note une offre qu'après avoir lu sa page… » (point 3 d'E18, hors intent) et la cite mot pour mot ; il refuse de noter sans lire et pose une question en prose à trois options (a : lire par browser_navigate + browser_snapshot ; b : estimation sans lecture ; c : autre).
 - E18 : non reproduit 1/1 ; contrôle « note sans lecture » non exercé en réel (aucune note), prouvé seulement par fixture (test a du brief). Effet de la consigne : constaté.
 - E4 résiduel (question en prose → `completed`) : reproduit 2/2 (5bc9a43f, 1bd8fea6). Le Bilan dit « Actions réussies : aucune observée ; Non exécuté : évaluation enregistrée » : fidèle. E22 non exercé (aucun appel d'outil dans le tour).
 - Conclusion : C3 (question en prose → `awaiting_owner`) est le chantier qui bloque chaque épreuve à question ; il passe avant C1/C2 dans l'ordre de la nuit, sous-agent Opus (directive 19:25).
 - `npm test` complet relancé en arrière-plan sur bfe3d6d (`full-c0.log`), résultat à noter avant tout push de `main`.
 
-## 19:58 — Suite verte, main avancé, C2 fait, C3 en cours
+## 19:39 — Suite verte, main avancé, C2 fait, C3 en cours
 - Suite complète sur bfe3d6d (C0) : 538 parallèles + 137 Chrome, 0 échec, EXIT 0 (`full-c0.log`). `main` avancé en local et sur origin à bfe3d6d.
-- Sous-agent Opus C3 lancé 19:45 (brief `c3-question-prose-01`) ; points 1 et 2 commités (4ac1af0, e284f8d) à 19:52, point 3 en cours dans l'arbre.
+- Sous-agent Opus C3 lancé 19:32 (brief `c3-question-prose-01`) ; points 1 et 2 commités (4ac1af0, e284f8d) à 19:34, point 3 en cours dans l'arbre.
 - C2 (manager, fichiers disjoints de C3) : E13 (`optionalFiles` du pack, `career_read` répond absent/optionnel), E2 (`fetchedAt` bornée, `fetchedAtAgent`/`fetchedAtAdjusted`), E17 (clés A-H dans la description). Tests : `tests/career-optional-files.test.js` (3) ; 31 + 46 tests ciblés verts (contrat d'offre, packs, workspace, MCP, intégration career, scripts), check et format OK. Non vérifié en réel : 0 ENOENT au relevé automatique et `fetchedAt` ≤ fin de mission sur 3 fiches (à constater sur les prochaines missions).
-- Directive 19:44 : 20 minutes en autonomie continue, sessions non arrêtées, relance de ce qui s'arrête sans finir.
+- Directive (vers 19:33) : 20 minutes en autonomie continue, sessions non arrêtées, relance de ce qui s'arrête sans finir.
 
-## 20:06 — C1 partie 3 : script « événements contre Bilan »
+## 19:41 — C1 partie 3 : script « événements contre Bilan »
 - `.manager/outils/bilan-vs-events.mjs <mission> [base]` (lecture seule, hôtes seulement, aucun texte de page) : appels d'outils (mises à jour ACP + accords automatiques), captures lisibles, questions/réponses, lignes du Bilan ; contradictions (outil cité sans appel, appel terminé absent du Bilan, « completed » avec « Mission incomplète », « aucune action demandée » avec « incomplète ») et observations (note N/5 sans lecture prouvée, fin sur « ? » sans question ouverte). Test `tests/bilan-vs-events.test.js` (4).
 - Passé sur 5e493fd3 : 1 contradiction (E22, avant correctif) ; sur 1bd8fea6 : 0 contradiction, 0 observation (le résumé finit par « Je reste en attente de votre choix », pas par « ? » : l'observation « question en prose » ne le voit pas, limite connue du script, pas du moteur).
 - Limite du script : les bilans d'outils du pont passerelle ne sont pas persistés en événements ; seuls les accords automatiques (`permission_auto`, mode propriétaire) en témoignent.
 
-## 20:15 — C5 a-b livré
+## 19:47 — C5 a-b livré
 - `cdp.js` : `scrollPage` défile aussi le premier conteneur interne à défilement (`overflow-y: auto|scroll`, le plus haut), en mode `bottom` et `page` ; `prepareCapture` renvoie `hidden` (onglet caché) et `textLength` (longueur du texte, jamais le texte). `browser-proof.js` : la preuve compacte garde ces deux faits. Manifeste career-ops, rôle « Lire une offre » : si la description manque, recapture avec scroll/waitForText puis clic « plus » par ref.
 - Tests : nouveau test Chrome réel (page dont seule `<main>` défile, contenu chargé après 3 écrans) ; `tests/owner-browser.test.js` 40/40, `browser-proof`/`mcp-contract`/`browser-gateway` 86/86, `doubt-tools`/`skill-router` 35/35 ; check et format OK. Non vérifié : LinkedIn réel (onglet caché, description absente du DOM : le défilement du conteneur n'a rien changé lors des sondes de 19:15, constaté) ; C5 c (ligne de Bilan « texte attendu non apparu ») attend la fin de C3 (même fichier `index.js`).
 
-## 20:20 — C8 note, API relancée, mission réelle C2
+## 19:48 — C8 note, API relancée, mission réelle C2
 - C8 (partie manifeste) : note du rôle « Chercher des offres » : portail en échec au scan → lecture de ses offres dans le navigateur, portails échoués dits au Bilan (commit 14539a1). La ligne de Bilan « Scan : n portail(s) en échec » (moteur) attend la fin de C3.
-- API relancée 20:19 (pid 74049, onglet c1, annoncé ici) : arbre de travail = C0 + C2 + C5 + C8 + C3 points 1-4 commités par le sous-agent (suite complète de C3 pas encore passée : code chargé en phase de tests, à relancer après sa livraison).
+- API relancée 19:48 (pid 74049, onglet c1, annoncé ici) : arbre de travail = C0 + C2 + C5 + C8 + C3 points 1-4 commités par le sous-agent (suite complète de C3 pas encore passée : code chargé en phase de tests, à relancer après sa livraison).
 - Mission réelle C2 : 59c54cf9 (claude sonnet, « lis data/blacklist.md, modes/_custom.md, data/applications.md, dis s'ils existent, n'écris rien »). Attendu : 0 ENOENT au relevé, réponses « absent, optionnel ».
 
-## 20:32 — C3 livré par le sous-agent Opus ; E13 corrigé une seconde fois ; mission C2 rejouée
+## 19:52 — C3 livré par le sous-agent Opus ; E13 corrigé une seconde fois ; mission C2 rejouée
 - C3 : commits 4ac1af0 (consigne : formulaire ou champ JSON `question`), e284f8d (contrat `question`), 5be4ce9 (attente `awaiting_owner` kind `prose`, réponse → nouveau tour dans la même session par `AcpRuntime.continueSession()`, 10 questions au plus, plafond seulement si `AGENT_PLATFORM_QUESTION_TIMEOUT_MS`), 38891cc (étapes DAG, `TurnGuard.suspend/resume`), 2fc45d0 (redémarrage : `interrupted`, question citée), ea6907b (doc). Sa suite complète : 559 + 138, EXIT 0, check/format OK (rapport c3-question-prose-01, constaté dans son message). Diff de `index.js` relu par le manager : boucle de questions bornée, `readResult()` factorisé, tour de réponse sans gabarit complet ; rien qui restreigne l'agent.
 - Restes signalés par le sous-agent, à décider : la règle de doute (`withDoubtRule`) et `CAREER_INSTRUCTIONS` (`packages/career-ops/integration.js:26`) disent encore « demande-le dans summary ». Une couche à la fois : on observe d'abord l'effet de la consigne navigateur sur une mission réelle à question, puis on aligne ces deux textes si l'agent répond encore en prose.
-- E13 en réel : mission 59c54cf9 (20:19) a rendu ENOENT ×3 malgré le test unitaire vert. Cause lue : `registerCareerTools` ne transmettait pas `optionalFiles` au constructeur (le test construisait `CareerTools` directement). Corrigé 89aeccc avec un test de bout en bout par le client MCP (sonde `sonde-e13.mjs` : absent/optionnel pour les deux déclarés, ENOENT pour un autre). API relancée 20:28 (pid 75442, annoncé ici), mission rejouée : 163dfe2d.
+- E13 en réel : mission 59c54cf9 (19:48) a rendu ENOENT ×3 malgré le test unitaire vert. Cause lue : `registerCareerTools` ne transmettait pas `optionalFiles` au constructeur (le test construisait `CareerTools` directement). Corrigé 89aeccc avec un test de bout en bout par le client MCP (sonde `sonde-e13.mjs` : absent/optionnel pour les deux déclarés, ENOENT pour un autre). API relancée 19:51 (pid 75442, annoncé ici), mission rejouée : 163dfe2d.
 - Leçon pour le protocole (étape 4) : le test le plus bas doit passer par le même chemin que l'agent (passerelle MCP), pas seulement par la classe.
 
-## 20:36 — E13 tenu en réel ; épreuve réelle C3 lancée
-- 163dfe2d (20:29, code 89aeccc) : 3 `career_read` réussis, l'agent répond « Absent (fichier optionnel du Skill, état normal) » pour les trois ; Bilan « Actions réussies : career_read » ; script bilan-vs-events : 0 contradiction. E13 tenu 1/1.
+## 19:53 — E13 tenu en réel ; épreuve réelle C3 lancée
+- 163dfe2d (19:51, code 89aeccc) : 3 `career_read` réussis, l'agent répond « Absent (fichier optionnel du Skill, état normal) » pour les trois ; Bilan « Actions réussies : career_read » ; script bilan-vs-events : 0 contradiction. E13 tenu 1/1.
 - Épreuve C3 (mission réelle à question, claude sonnet, lien d'offre hors rapport) : « ouvre cette offre dans mon Chrome, lis-la, résume-la, puis demande-moi si tu dois l'enregistrer et attends ma réponse ». Attendu : état `awaiting_owner` (formulaire ou prose), réponse par `POST /answer`, poursuite dans la même session, `completed` sans fiche si la réponse est « non ».
 - Suite complète relancée en arrière-plan sur a5d7b39 (`full-c3.log`) pour avancer `main`.
 
-## 21:05 — Épreuve C3 réelle : question encore en prose (3/3) ; cause suivante trouvée ; E23 ; main avancé
-- 5679eafd (20:53-20:57) : 1 navigation réussie puis 11 captures/navigations en échec (snapshot « Timeout 5000ms », « Execution context was destroyed », `Page.navigate` CDP) ; l'agent n'a rien lu ni noté et a posé trois options **en prose** → `completed`. C3 non exercé (aucune question par formulaire ni champ `question`). Sonde par le relais à 21:02 sur la même URL : page lisible. Hypothèse (déduite) : la suite complète (138 tests Chrome) tournait en parallèle. Nouvelle ligne E23 au registre ; règle de conduite : aucune suite Chrome pendant une mission navigateur.
+## 20:02 — Épreuve C3 réelle : question encore en prose (3/3) ; cause suivante trouvée ; E23 ; main avancé
+- 5679eafd (19:53-19:57) : 1 navigation réussie puis 11 captures/navigations en échec (snapshot « Timeout 5000ms », « Execution context was destroyed », `Page.navigate` CDP) ; l'agent n'a rien lu ni noté et a posé trois options **en prose** → `completed`. C3 non exercé (aucune question par formulaire ni champ `question`). Sonde par le relais à 20:01 sur la même URL : page lisible. Hypothèse (déduite) : la suite complète (138 tests Chrome) tournait en parallèle. Nouvelle ligne E23 au registre ; règle de conduite : aucune suite Chrome pendant une mission navigateur.
 - Cause suivante de la prose, lue : la règle de doute (`doubt-rule.js`) et `CAREER_INSTRUCTIONS` (`integration.js:28`) disaient encore « pose la question dans summary », en contradiction avec la consigne navigateur modifiée par C3. Alignées sur le formulaire / champ `question` (même couche, même symptôme) ; `grep "dans summary"` ne trouve plus de consigne de question dans `packages/` ; 86 tests ciblés verts, check/format OK. Épreuve suivante : mission à question sans navigateur (pour isoler C3 d'E23).
 - Suite complète sur a5d7b39 : 560 + 138, EXIT 0 ; `main` avancé à 404c4fc (local et origin).
 
-## 21:12 — C3 tenu en réel par le formulaire ; E24
-- b009997b (21:02, code 8a48c67, sans navigateur) : l'agent pose sa question **par le formulaire** (AskUserQuestion → elicitation, 4 choix + champ libre) → `awaiting_owner` à 21:03:07 ; réponse par `POST /api/runs/:id/answer` (`question_0: Autre domaine`, texte libre) → `{ok:true}` ; reprise dans la **même session** (sessionId identique, constaté) ; fin 21:03:33. Script bilan-vs-events : 1 question, 1 réponse, 0 contradiction. E4 formulaire tenu 2/2 ; prose non reproduite depuis l'alignement des consignes (n=1 ; 2 rejeux concordants avant « tenu » pour la voie prose).
+## 20:04 — C3 tenu en réel par le formulaire ; E24
+- b009997b (20:02, code 8a48c67, sans navigateur) : l'agent pose sa question **par le formulaire** (AskUserQuestion → elicitation, 4 choix + champ libre) → `awaiting_owner` à 20:03:07 ; réponse par `POST /api/runs/:id/answer` (`question_0: Autre domaine`, texte libre) → `{ok:true}` ; reprise dans la **même session** (sessionId identique, constaté) ; fin 20:03:29. Script bilan-vs-events : 1 question, 1 réponse, 0 contradiction. E4 formulaire tenu 2/2 ; prose non reproduite depuis l'alignement des consignes (n=1 ; 2 rejeux concordants avant « tenu » pour la voie prose).
 - Effet de bord constaté, E24 : la mission finit `failed` « Mission incomplète : Scanner les portails (non exécutée) » alors que le prompt disait « dis-moi ce que tu ferais… ne lance aucun script » : l'intent « Chercher des offres » se déclenche sur la phrase descriptive et « ne lance aucun script » n'est pas une phrase d'exemption. Correction côté pack (manifeste, pas moteur) : `unlessPhrases` étendues.
+
+## 20:17 — Correction des horodatages (constaté sur l'horloge du Mac)
+- Les titres « 19:33 » à « 21:12 » ci-dessus avaient été estimés, pas lus : l'horloge disait 20:15 quand j'écrivais « 21:12 ». Ils sont remplacés par l'heure réelle du commit correspondant (`git log --date=format:%H:%M`) et les heures des missions par `createdAt` de la base (UTC+11). Règle à partir d'ici : lire `date` avant chaque horodatage.

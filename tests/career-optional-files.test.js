@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { connectMcp } from '../packages/mcp-gateway/client.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { CareerTools, storedOfferSchema } from '../packages/career-ops/tools.js';
 import { getPack } from '../packages/orchestrator/packs.js';
@@ -77,4 +78,30 @@ test('Packs : optionalFiles vaut [] par défaut et career-ops déclare ses trois
     'modes/_custom.md',
     'data/applications.md',
   ]);
+});
+
+// Through the gateway, as the agent calls it: the pack's declaration must reach the tool
+// (mission 59c54cf9 du 04/11 : ENOENT alors que le test unitaire passait).
+test('E13 FICTIF par la passerelle MCP : career_read répond absent pour un fichier optionnel', async (t) => {
+  const career = workspace(t);
+  const client = await connectMcp({
+    command: process.execPath,
+    args: [resolve('packages/mcp-gateway/server.js'), 'career-ops'],
+    env: [{ name: 'RELAY_CAREER_WORKSPACE', value: career.path() }],
+  });
+  t.after(() => client.close());
+  const optional = await client.callTool({
+    name: 'career_read',
+    arguments: { path: 'data/blacklist.md' },
+  });
+  assert.equal(optional.isError, undefined, optional.content?.[0]?.text);
+  const parsed = JSON.parse(optional.content[0].text);
+  assert.equal(parsed.absent, true);
+  assert.equal(parsed.optional, true);
+  const other = await client.callTool({
+    name: 'career_read',
+    arguments: { path: 'data/autre.md' },
+  });
+  assert.equal(other.isError, true);
+  assert.match(other.content[0].text, /ENOENT/);
 });

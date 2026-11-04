@@ -460,9 +460,18 @@ export function assertSourceReview(review, snapshot) {
 }
 export function registerCareerTools(
   server,
-  { career, approve, meter, config, signal, openProfile, ownerMode = false } = {},
+  {
+    career,
+    approve,
+    meter,
+    config,
+    signal,
+    openProfile,
+    ownerMode = false,
+    optionalFiles = [],
+  } = {},
 ) {
-  const tools = new CareerTools(career, { ownerMode, approve });
+  const tools = new CareerTools(career, { ownerMode, approve, optionalFiles });
   const email = new EmailGateway({
     career,
     approve,

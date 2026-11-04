@@ -38,6 +38,11 @@ export function compactBrowserEvidence(output) {
     provider,
     loading: output.loading === true,
     readable: readableBrowserObservation(output),
+    // Tab facts (no page text): a hidden tab and a short text explain a missing description.
+    ...(typeof output.hidden === 'boolean' ? { hidden: output.hidden } : {}),
+    ...(Number.isInteger(output.textLength) && output.textLength >= 0
+      ? { textLength: output.textLength }
+      : {}),
     // E19 : the agent's own expectation (not page text) lets the Bilan say "texte attendu non apparu".
     ...(typeof output.waitedFor?.text === 'string' && typeof output.waitedFor.found === 'boolean'
       ? { waitedFor: { text: output.waitedFor.text.slice(0, 200), found: output.waitedFor.found } }

@@ -12,7 +12,7 @@ toolRoles:
     task: Lire une offre
     tool: browser_navigate
     then: [browser_snapshot]
-    note: une page à la fois, attends sa capture avant d’ouvrir la suivante
+    note: une page à la fois, attends sa capture avant d’ouvrir la suivante ; si la description manque, recapture avec scroll bottom ou waitForText, puis clique « plus » par sa ref et recapture
   - id: save-offer
     task: Enregistrer une offre
     tool: career_offer_save

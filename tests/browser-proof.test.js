@@ -97,6 +97,25 @@ test('waitedFor reste dans la preuve compacte : texte attendu non apparu, captur
   });
   assert.deepEqual(evidence.waitedFor, { text: 'À propos de l’offre', found: false });
   assert.equal(evidence.scrolled, 'bottom');
+  // Tab facts are kept as numbers and booleans only; page text never is.
+  const facts = compactBrowserEvidence({
+    capability: 'browser.snapshot',
+    url: 'https://offres.example.test/a?x=1',
+    snapshot: 'FICTIF texte',
+    hidden: true,
+    textLength: 2500,
+  });
+  assert.equal(facts.hidden, true);
+  assert.equal(facts.textLength, 2500);
+  assert.equal(facts.snapshot, undefined);
+  const noFacts = compactBrowserEvidence({
+    capability: 'browser.snapshot',
+    url: 'https://offres.example.test/a',
+    snapshot: 'FICTIF',
+    textLength: -1,
+  });
+  assert.equal(noFacts.hidden, undefined);
+  assert.equal(noFacts.textLength, undefined);
   assert.equal(evidence.readable, true);
   assert.equal(
     compactBrowserEvidence({

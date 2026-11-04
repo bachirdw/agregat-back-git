@@ -197,13 +197,28 @@ async function waitForReadablePage(page, deadline = Date.now() + 8000) {
 // Optional levers for deferred pages (E19): scroll to trigger lazy loading, then wait for a text.
 // All of it shares the eight-second budget of waitForReadablePage; a missing text is reported
 // (waitedFor.found=false) and the capture proceeds anyway.
+// Some pages (LinkedIn job views among them) never scroll the window: the content lives in an
+// inner container with its own scrollbar, so that container is scrolled too (E19, constaté).
+const INNER_SCROLLER = `(() => {
+  let best = null;
+  for (const el of document.querySelectorAll('body *')) {
+    if (el.clientHeight < 100 || el.scrollHeight <= el.clientHeight + 50) continue;
+    const overflow = getComputedStyle(el).overflowY;
+    if ((overflow === 'auto' || overflow === 'scroll') && (!best || el.scrollHeight > best.scrollHeight))
+      best = el;
+  }
+  return best;
+})()`;
 async function scrollPage(page, mode, deadline) {
   const metrics = () =>
-    page.evaluate(() => ({
-      y: window.scrollY,
-      h: document.documentElement.scrollHeight,
-      vh: window.innerHeight,
-    }));
+    page.evaluate((finder) => {
+      const inner = eval(finder);
+      return {
+        y: window.scrollY,
+        h: document.documentElement.scrollHeight + (inner ? inner.scrollHeight : 0),
+        vh: window.innerHeight,
+      };
+    }, INNER_SCROLLER);
   const wheel = async (delta) => {
     try {
       const { vh } = await metrics();
@@ -215,7 +230,14 @@ async function scrollPage(page, mode, deadline) {
   };
   if (mode === 'page') {
     const { vh } = await metrics();
-    await page.evaluate((d) => window.scrollBy(0, d), vh);
+    await page.evaluate(
+      ([d, finder]) => {
+        window.scrollBy(0, d);
+        const inner = eval(finder);
+        if (inner) inner.scrollTop += d;
+      },
+      [vh, INNER_SCROLLER],
+    );
     await wheel(0);
     await page.waitForTimeout(300);
     return;
@@ -223,7 +245,11 @@ async function scrollPage(page, mode, deadline) {
   let lastHeight = -1;
   for (let round = 0; round < 8 && Date.now() < deadline - 500; round++) {
     const { h } = await metrics();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.evaluate((finder) => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const inner = eval(finder);
+      if (inner) inner.scrollTop = inner.scrollHeight;
+    }, INNER_SCROLLER);
     await wheel(2000);
     await page.waitForTimeout(400);
     const after = await metrics();
@@ -253,8 +279,17 @@ async function prepareCapture(page, args) {
     }
     waitedFor = { text: args.waitForText, found };
   }
+  // Facts about the tab for the proof, never page text: a hidden tab may not render everything.
+  const { hidden, textLength } = await page
+    .evaluate(() => ({
+      hidden: document.visibilityState === 'hidden',
+      textLength: (document.body?.innerText ?? '').length,
+    }))
+    .catch(() => ({ hidden: false, textLength: 0 }));
   return {
     loading,
+    hidden,
+    textLength,
     ...(waitedFor ? { waitedFor } : {}),
     ...(args.scroll ? { scrolled: args.scroll } : {}),
   };

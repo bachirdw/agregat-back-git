@@ -1490,6 +1490,35 @@ test(
 );
 
 test(
+  'snapshot FICTIF : scroll bottom défile aussi le conteneur interne quand la fenêtre ne défile pas',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { gateway, origin } = await lateTextGateway(t, (req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        `<body style="margin:0;height:100vh;overflow:hidden"><main id="scroller" style="height:100vh;overflow-y:auto"><div style="height:5000px">FICTIF haut interne</div><div id="sentinel" style="height:50px"></div></main><script>
+          new IntersectionObserver((entries, obs) => {
+            if (entries.some((e) => e.isIntersecting)) {
+              obs.disconnect();
+              document.getElementById('scroller').insertAdjacentHTML('beforeend', '<p id="more">FICTIF suite interne chargée</p>');
+            }
+          }, { root: document.getElementById('scroller') }).observe(document.getElementById('sentinel'));
+        </script></body>`,
+      );
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const plain = await gateway.call('browser.snapshot', {});
+    assert.doesNotMatch(plain.snapshot, /suite interne chargée/);
+    assert.equal(typeof plain.hidden, 'boolean');
+    assert.ok(Number.isInteger(plain.textLength) && plain.textLength > 0);
+    const snap = await gateway.call('browser.snapshot', { scroll: 'bottom' });
+    assert.match(snap.snapshot, /FICTIF suite interne chargée/);
+    assert.equal(snap.scrolled, 'bottom');
+    assert.ok(snap.textLength > plain.textLength);
+  },
+);
+
+test(
   'snapshot FICTIF : texte jamais présent, found false et capture sous 10 s',
   { skip: !existsSync(CHROME) },
   async (t) => {

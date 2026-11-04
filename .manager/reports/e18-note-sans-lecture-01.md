@@ -1,0 +1,8 @@
+# e18-note-sans-lecture-01 — rapport
+19:10 Début : brief lu, code lu (skill-router, truth.js, index.js:1199, server.js:438, mcp-gateway/server.js:73).
+19:10 Point 1 fait : truth.scoredOffers(), passerelle envoie scoredUrl (URL seule), serveur la transmet. Tests verts, check/format OK.
+19:11 Point 2 fait : incomplete(readPages, sourceRead, scoredOffers) ; test rouge (avant) puis vert : hors intent -> 'Mission incomplète : 1 offre(s) notée(s)…', verification.valid=false ; sans note -> rien ; capture lisible/double compte unitaires. Scénario FICTIF_NOTE_HORS_INTENT ajouté à la fixture. Limite : la capture lisible est testée en unitaire (la fixture n'émet pas de preuve navigateur).
+19:15 Point 3 fait : READ_BEFORE_SCORE exportée, readBeforeScoreRule(selection) ajoutée par index.js hors intent readFirst (une occurrence ; doubt-tools ne compte pas cette phrase). Effet de bord : 5 tests career-integration échouaient (la fixture notait sans lire, le pont gateway compte désormais) -> fixture lit une annonce (readOffer) avant de noter ; 40/40 verts.
+19:16 Point 4 fait : étape exemptée marquée exempt, ignorée dans orderDeviation ; test E16 rouge (true!==false) puis vert. Lancement npm test complet.
+19:21 npm test complet hors bac : phase parallèle 539 tests / 538 pass / 0 fail (1 ignoré), phase Chrome 137/137 ; EXIT 0. check et format:check OK.
+Écart : le test rouge du point 2 n'a pas été exécuté seul avant l'implémentation (code et test écrits dans la foulée) ; le rouge du point 4 l'a été (true !== false). Capture lisible (cas b) testée en unitaire car la fixture n'émet pas de preuve navigateur.

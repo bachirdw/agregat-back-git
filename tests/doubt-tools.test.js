@@ -269,3 +269,20 @@ test('Workflow career-ops : la recherche publique est annoncée comme secours du
   assert.match(step.title, /secours/i);
   assert.match(step.title, /scan/);
 });
+
+// c3-question-prose-01, point 1 : la consigne navigateur demande le formulaire de question
+// (ou le champ structuré `question`), plus une question en prose dans summary.
+test('Consigne navigateur : une question passe par le formulaire ACP ou le champ question', async (t) => {
+  const { instructions } = await sentPrompt(
+    t,
+    { prompt: 'Ouvre https://jobs.example.test et résume la page', pack: 'core' },
+    { ownerMode: true },
+  );
+  assert.ok(
+    instructions.includes(
+      'Si une confirmation, un choix ou une précision reste nécessaire, pose la question par le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) : la mission attend la réponse du propriétaire sans se terminer, dans la même session. Si ton agent n’a pas de formulaire, termine ta réponse par un objet JSON {"question":{"message":"…","options":["…"]}} et la plateforme attendra de la même façon.',
+    ),
+    instructions,
+  );
+  assert.ok(!instructions.includes('demande-le clairement dans summary et arrête-toi'));
+});

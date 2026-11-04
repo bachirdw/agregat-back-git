@@ -84,6 +84,93 @@ const userPath =
 const systemPath =
   /^(AGENTS\.md|DATA_CONTRACT\.md|(?:modes|templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml))$/u;
 const attachmentPath = /^inputs\/[a-f0-9-]{36}\.md$/;
+// Audited entry points of the Skill (scripts at the root of the reviewed clone). Each one has its
+// own closed argument grammar, taken from the script's own flag list: flags it does not name are
+// refused here, a value never starts with "-", never spans lines, and is passed as one argv entry
+// (no shell). Flags that disable a script's own guard (--force, migrations, --file) are left out.
+const noControl = (v) => !/[\u0000-\u001f\u007f]/.test(v);
+const plain = (max) => (v) => v.length <= max && noControl(v) && !v.startsWith('-');
+const number = (v) => /^\d{1,6}$/.test(v);
+const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+const httpUrl = (v) => {
+  if (v.length > 2048 || !noControl(v)) return false;
+  try {
+    return /^https?:$/.test(new URL(v).protocol);
+  } catch {
+    return false;
+  }
+};
+const SKILL_ENTRIES = {
+  'reserve-report-num': {
+    flags: { '--release': (v) => /^\d{1,4}(?:-\d{1,4})?$/.test(v), '--gc': null },
+    maxFlags: 1,
+  },
+  'merge-tracker': { flags: { '--dry-run': null, '--verify': null } },
+  'set-status': {
+    positional: [plain(120), (v) => /^[\p{L}][\p{L} _-]{1,29}$/u.test(v)],
+    flags: {
+      '--report': number,
+      '--row': number,
+      '--note': plain(500),
+      '--role': plain(200),
+      '--on': day,
+      '--dry-run': null,
+      '--json': null,
+    },
+  },
+  'precheck-duplicate': {
+    flags: {
+      '--company': plain(200),
+      '--title': plain(200),
+      '--req': (v) => /^[\p{L}\p{N}_-]{1,60}$/u.test(v),
+      '--url': httpUrl,
+      '--json': null,
+    },
+  },
+  tracker: {
+    positional: [(v) => ['query', 'history', 'sync'].includes(v)],
+    minPositional: 1,
+    flags: {
+      '--status': plain(30),
+      '--company': plain(200),
+      '--role': plain(200),
+      '--since': day,
+      '--min-score': (v) => /^\d(?:\.\d{1,2})?$/.test(v),
+      '--id': number,
+      '--limit': (v) => /^\d{1,4}$/.test(v),
+      '--json': null,
+      '--csv': null,
+      '--check': null,
+    },
+  },
+  'verify-pipeline': { flags: { '--no-hints': null } },
+  'check-liveness': { positional: Array(10).fill(httpUrl), minPositional: 1, flags: {} },
+};
+export const SKILL_SCRIPT_NAMES = Object.keys(SKILL_ENTRIES);
+function validateSkillArgs(command, args) {
+  const spec = SKILL_ENTRIES[command];
+  const positional = spec.positional ?? [];
+  const seen = new Set();
+  let count = 0;
+  const fail = () => {
+    throw new Error(`Arguments refusés pour ${command} : voir docs/api-career-ops.md`);
+  };
+  if (!Array.isArray(args) || args.some((arg) => typeof arg !== 'string' || !arg)) fail();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg.startsWith('-')) {
+      if (!Object.hasOwn(spec.flags, arg) || seen.has(arg)) fail();
+      seen.add(arg);
+      const value = spec.flags[arg];
+      if (value) {
+        const next = args[++i];
+        if (typeof next !== 'string' || next.startsWith('-') || !value(next)) fail();
+      }
+    } else if (count >= positional.length || !positional[count++](arg)) fail();
+  }
+  if (seen.size > (spec.maxFlags ?? Infinity) || count < (spec.minPositional ?? 0)) fail();
+  return args;
+}
 const validatePath = (path, write = false) => {
   pathSchema.parse(path);
   if (!userPath.test(path) && (write || (!systemPath.test(path) && !attachmentPath.test(path))))
@@ -289,13 +376,17 @@ export class CareerTools {
         flags: ['--json'],
       },
     };
-    if (!['scan', 'find'].includes(command) && !controls[command])
+    const skillEntry = Object.hasOwn(SKILL_ENTRIES, command);
+    if (!['scan', 'find'].includes(command) && !controls[command] && !skillEntry)
       throw new Error(
-        'Commande career-ops non autorisée : utiliser « scan », « find », « scripts/<fichier> » ou jd-skill-gap, cv-title-check, verify-cv-facts',
+        `Commande career-ops non autorisée : utiliser « scan », « find », « scripts/<fichier> », un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) ou un script du Skill (${SKILL_SCRIPT_NAMES.join(', ')})`,
       );
-    if (scriptArgs.length)
+    if (skillEntry) validateSkillArgs(command, scriptArgs);
+    else if (scriptArgs.length)
       throw new Error('Arguments supplémentaires non autorisés pour cette commande');
-    if (controls[command]) {
+    if (skillEntry && query) {
+      throw new Error('Requête non attendue pour cette commande');
+    } else if (controls[command]) {
       if (query || !controls[command].pattern.test(path))
         throw new Error('Chemin de contrôle hors du périmètre career-ops');
       validatePath(path);
@@ -339,10 +430,12 @@ export class CareerTools {
           path,
           ...controls[command].flags,
         ]
-      : command === 'scan'
-        ? ['scan.mjs', '--quiet']
-        : ['find.mjs', '--json', query];
-    if (!controls[command] && (query.length > 500 || query.startsWith('-')))
+      : skillEntry
+        ? [`${command}.mjs`, ...scriptArgs]
+        : command === 'scan'
+          ? ['scan.mjs', '--quiet']
+          : ['find.mjs', '--json', query];
+    if (!controls[command] && !skillEntry && (query.length > 500 || query.startsWith('-')))
       throw new Error('Requête de recherche invalide');
     try {
       const result = await exec(process.execPath, execArgs, {
@@ -355,8 +448,21 @@ export class CareerTools {
         timeout: this.scriptTimeoutMs,
         maxBuffer: 200000,
       });
-      return { text: result.stdout, exitCode: 0, untrusted: true };
+      // A Skill script reports through stdout and warns on stderr (merge-tracker's skipped TSVs).
+      return {
+        text: skillEntry
+          ? [result.stdout, result.stderr].filter(Boolean).join('\n')
+          : result.stdout,
+        exitCode: 0,
+        untrusted: true,
+      };
     } catch (error) {
+      if (skillEntry && Number.isInteger(error.code) && !signal?.aborted)
+        return {
+          text: [error.stdout, error.stderr].filter(Boolean).join('\n'),
+          exitCode: error.code,
+          untrusted: true,
+        };
       if (controls[command] && Number.isInteger(error.code) && !signal?.aborted)
         return { text: error.stdout || error.stderr || '', exitCode: error.code, untrusted: true };
       throw new Error(
@@ -531,7 +637,7 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    'Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, ou un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path. Un exitCode non nul signale un échec.',
+    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine).`,
     z
       .object({
         command: z.string().min(1).max(200),

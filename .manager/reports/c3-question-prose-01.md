@@ -84,3 +84,14 @@ Session : sous-agent codeur (Claude), branche `suite-astra`, base `bf5586e` (bri
 ```
 - Implémentation : `packages/storage/index.js`, au démarrage du Store : une mission non terminale qui avait `pendingQuestion` devient `interrupted` avec `pendingQuestion: null` et `result.summary` « Question restée sans réponse au redémarrage : <message> » (`error` inchangé). La question n'est pas rouverte (le tour de l'agent a disparu avec le processus) : reprise par `POST /resume` comme avant (C11 hors périmètre).
 - Vert : `tests/elicitation.test.js` 24/24.
+
+## Point 6 — Documentation et suite complète (19:45-19:53)
+- `docs/api-questions.md` : `kind` (`form` | `prose`), forme du champ `question` et du tour de réponse, `options`/`examples`, réponse `prose` (400 vide ou > 12 000), `decline`, plafond `AGENT_PLATFORM_QUESTION_TIMEOUT_MS` (aucun par défaut), 10 questions max, ligne « Questions : … », redémarrage, workflows DAG, affichage front. Prettier a aussi réaligné les tableaux existants du fichier (`docs/` n'est pas dans `format:check`).
+- `pgrep -fl run-tests.js` : aucune autre suite en cours. `npm test` (journal hors dépôt) : phase 1 `tests 560, pass 559, fail 0, cancelled 0, skipped 1` ; phase 2 `tests 138, pass 138, fail 0` ; `EXIT 0`.
+- `npm run check` : « Syntaxe JavaScript valide. » (code 0). `npm run format:check` : « All matched files use Prettier code style! ».
+- Réserve : la suite a tourné avec, dans l'arbre, les modifications non commitées d'une autre session (career-ops tools/manifest, mcp-gateway, packs.js, docs/api-career-ops.md) ; elles ne sont dans aucun de mes commits.
+
+## Bilan
+- Vérifié par tests (faux agent ACP, aucune mission réelle) : consigne envoyée, contrat `question`, attente `awaiting_owner` + réponse dans la même session (pas de `session/load`), decline, cancel, délais suspendus, bornes 400/409, 10 questions, plafond configuré, étape DAG, redémarrage.
+- Non vérifié : comportement d'un vrai Claude/Codex/Gemini face à la nouvelle consigne (choisit-il le formulaire ou le champ `question` ?) ; affichage front (`agregat-front` hors périmètre) ; `timeoutMs` propre d'une étape DAG non suspendu.
+- Hors périmètre laissé tel quel : la règle de doute et `CAREER_INSTRUCTIONS` demandent encore la question « dans summary » (voir 19:32).

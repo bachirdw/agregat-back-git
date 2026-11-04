@@ -10,10 +10,14 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AcpRuntime, detectAgents } from '../../packages/agent-runtime/index.js';
 
-const cases = process.argv[2] && process.argv[2] !== 'tous' ? [process.argv[2]] : ['aucun', 'vide', 'identifiants'];
+const cases =
+  process.argv[2] && process.argv[2] !== 'tous'
+    ? [process.argv[2]]
+    : ['aucun', 'vide', 'identifiants'];
 const agents = await detectAgents();
 const definition = agents.find((a) => a.id === 'claude');
-if (!definition?.compatible) throw new Error(`profil claude inutilisable : ${definition?.reason ?? definition?.readiness}`);
+if (!definition?.compatible)
+  throw new Error(`profil claude inutilisable : ${definition?.reason ?? definition?.readiness}`);
 
 const listNames = (dir) => {
   const out = [];
@@ -37,7 +41,9 @@ for (const name of cases) {
   if (name === 'identifiants') {
     const src = join(homedir(), '.claude', '.credentials.json');
     if (!existsSync(src)) {
-      console.log(`[${name}] non applicable : ~/.claude/.credentials.json n'existe pas (identifiants hors fichier, trousseau probable)`);
+      console.log(
+        `[${name}] non applicable : ~/.claude/.credentials.json n'existe pas (identifiants hors fichier, trousseau probable)`,
+      );
       rmSync(cwd, { recursive: true, force: true });
       rmSync(cfg, { recursive: true, force: true });
       continue;
@@ -46,19 +52,36 @@ for (const name of cases) {
     note = ' (copie du fichier d’identifiants)';
   }
   const t0 = Date.now();
-  const rt = new AcpRuntime({ definition, cwd, env, ownerMode: true, timeouts: { initialize: 30000, session: 60000, prompt: 90000 } });
+  const rt = new AcpRuntime({
+    definition,
+    cwd,
+    env,
+    ownerMode: true,
+    timeouts: { initialize: 30000, session: 60000, prompt: 90000 },
+  });
   let text = '';
   rt.onEvent = (u) => {
-    if (u?.sessionUpdate === 'agent_message_chunk' && u.content?.type === 'text') text += u.content.text;
+    if (u?.sessionUpdate === 'agent_message_chunk' && u.content?.type === 'text')
+      text += u.content.text;
   };
   let result;
   try {
     await rt.start();
     await rt.session([]);
     const r = await rt.prompt('réponds OK');
-    result = { authentifié: true, stopReason: r?.stopReason, réponse: text.replace(/\s+/g, ' ').slice(0, 60) };
+    result = {
+      authentifié: true,
+      stopReason: r?.stopReason,
+      réponse: text.replace(/\s+/g, ' ').slice(0, 60),
+    };
   } catch (e) {
-    result = { authentifié: false, erreur: String(e.message).replace(/\s+/g, ' ').slice(0, 300), diagnostic: String(e.diagnostic ?? rt.diagnostic ?? '').replace(/\s+/g, ' ').slice(-200) };
+    result = {
+      authentifié: false,
+      erreur: String(e.message).replace(/\s+/g, ' ').slice(0, 300),
+      diagnostic: String(e.diagnostic ?? rt.diagnostic ?? '')
+        .replace(/\s+/g, ' ')
+        .slice(-200),
+    };
   } finally {
     rt.close();
   }

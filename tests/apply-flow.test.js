@@ -279,3 +279,69 @@ test(
     );
   },
 );
+
+// --- Point 3 : relecture sans modification (browser.verify) ---
+test(
+  'C7 FICTIF : browser.verify relit valeurs et texte sans rien modifier',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const ctx = await setup(t);
+    const { gateway, provider, calls } = ctx;
+    await fillStep3(ctx);
+    const before = calls.length;
+    const motivation = await refFor(gateway, 'textarea[name=motivation]');
+    const ok = await gateway.call('browser.verify', {
+      ref: motivation,
+      value: 'Motivation FICTIVE pour un test.',
+    });
+    assert.equal(ok.ok, true);
+    assert.equal(ok.actual, 'Motivation FICTIVE pour un test.');
+    const wrong = await gateway.call('browser.verify', { ref: motivation, value: 'Autre' });
+    assert.equal(wrong.ok, false);
+    assert.equal(wrong.actual, 'Motivation FICTIVE pour un test.');
+    const select = await gateway.call('browser.verify', {
+      ref: await refFor(gateway, 'select[name=disponibilite]'),
+      value: 'Sous un mois',
+    });
+    assert.equal(select.ok, true);
+    const box = await gateway.call('browser.verify', {
+      ref: await refFor(gateway, 'input[name=accord]'),
+      value: 'true',
+    });
+    assert.deepEqual([box.ok, box.actual], [true, 'true']);
+    const read = await gateway.call('browser.verify', {
+      ref: await refFor(gateway, 'select[name=disponibilite]'),
+    });
+    assert.deepEqual([read.ok, read.actual], [true, 'Sous un mois']);
+    const page = await gateway.call('browser.verify', { text: 'cv-fictif.pdf' });
+    assert.equal(page.ok, true);
+    const absent = await gateway.call('browser.verify', { text: 'Texte ABSENT FICTIF' });
+    assert.deepEqual([absent.ok, absent.actual], [false, null]);
+    const long = 'x'.repeat(300);
+    await provider.page.locator('textarea[name=motivation]').fill(long);
+    const truncated = await gateway.call('browser.verify', { ref: motivation });
+    assert.equal(truncated.actual.length, 200);
+    // Champ secret : jamais de valeur relue, seulement sa longueur.
+    await provider.page.evaluate(() => {
+      const input = document.createElement('input');
+      input.type = 'password';
+      input.setAttribute('aria-label', 'Secret FICTIF');
+      input.value = 'motdepasse-FICTIF';
+      document.querySelector('form').prepend(input);
+    });
+    const secret = await gateway.call('browser.verify', {
+      ref: await refFor(gateway, 'input[type=password]'),
+      value: 'motdepasse-FICTIF',
+    });
+    assert.equal(secret.ok, true);
+    assert.equal(secret.textLength, 17);
+    assert.equal(secret.actual, undefined);
+    assert.doesNotMatch(JSON.stringify(secret), /motdepasse/);
+    // Lecture seule : aucun accord, rien de modifié, aucun envoi.
+    assert.equal(calls.length, before);
+    assert.equal(await provider.page.locator('textarea[name=motivation]').inputValue(), long);
+    assert.equal((await ctx.site.count()).sends, 0);
+    for (const args of [{}, { value: 'x' }, { ref: motivation, text: 'a', value: 'b' }])
+      await assert.rejects(gateway.call('browser.verify', args));
+  },
+);

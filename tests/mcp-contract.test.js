@@ -132,3 +132,17 @@ test('MCP réel : browser_dialog publié avec un schéma strict quand il est acc
     assert.match(response.content[0].text, /validation/i);
   }
 });
+
+test('MCP réel : browser_verify publié en lecture avec un schéma strict', async (t) => {
+  const client = await fixture(t, 'isolated', 'core', ['browser.navigate', 'browser.verify']);
+  const tool = (await client.listTools()).tools.find((entry) => entry.name === 'browser_verify');
+  assert.ok(tool, 'browser_verify exposé');
+  assert.equal(tool.inputSchema.additionalProperties, false);
+  assert.match(tool.description, /Effet : read/);
+  assert.deepEqual(Object.keys(tool.inputSchema.properties).sort(), ['ref', 'text', 'value']);
+  for (const args of [{}, { value: 'FICTIF' }, { text: 'FICTIF', script: 'FICTIF' }]) {
+    const response = await client.callTool({ name: 'browser_verify', arguments: args });
+    assert.equal(response.isError, true);
+    assert.match(response.content[0].text, /validation|Fournir|exige/i);
+  }
+});

@@ -248,6 +248,31 @@ export const capabilities = [
       })
       .strict(),
   },
+  {
+    id: 'browser.verify',
+    domain: 'browser',
+    effect: 'read',
+    meter: 'browser_action',
+    description:
+      'Relire sans rien modifier : ref seule renvoie la valeur actuelle du champ (texte, option choisie, true/false pour une case, noms de fichiers) ; ref + value compare cette valeur ; text vérifie la présence du texte sur la page (ou dans ref). Renvoie { ok, actual } ; un champ secret ne renvoie que textLength. À utiliser avant « Suivant » ou « Envoyer ».',
+    schema: z
+      .object({
+        ref: ref.optional(),
+        text: z
+          .string()
+          .min(1, 'text vide interdit')
+          .max(500, 'text : 500 caractères maximum')
+          .optional(),
+        value: z.string().max(10000, 'value : 10 000 caractères maximum').optional(),
+      })
+      .strict()
+      .refine(({ ref, text }) => ref || text, 'Fournir ref ou text')
+      .refine(({ ref, value }) => value === undefined || ref, 'value exige ref')
+      .refine(
+        ({ text, value }) => !(text !== undefined && value !== undefined),
+        'Fournir value ou text, pas les deux',
+      ),
+  },
 ];
 export const capabilityIds = capabilities.map((c) => c.id);
 export function getCapability(id) {

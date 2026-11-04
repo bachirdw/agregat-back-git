@@ -1410,6 +1410,46 @@ export class CdpBrowser {
             ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }
             : {}),
         };
+      case 'browser.verify': {
+        // Read-only: no event dispatched, no focus, nothing typed.
+        const scope = args.ref
+          ? await this.targetLocator({ ref: args.ref })
+          : page.locator('body').first();
+        const read = await scope.evaluate(
+          (el, { field, text }) => {
+            if (!field) {
+              const content = (el.innerText ?? el.textContent ?? '').toLowerCase();
+              return { found: content.includes(text.toLowerCase()) };
+            }
+            const secret =
+              el.type === 'password' ||
+              /password|card|cc-|cvv|csc|iban|ssn/i.test(el.getAttribute('autocomplete') ?? '');
+            let actual;
+            let accepted = null;
+            if (el instanceof HTMLInputElement && ['checkbox', 'radio'].includes(el.type))
+              actual = String(el.checked);
+            else if (el instanceof HTMLInputElement && el.type === 'file')
+              actual = Array.from(el.files ?? [], (f) => f.name).join(', ');
+            else if (el instanceof HTMLSelectElement) {
+              const chosen = Array.from(el.selectedOptions);
+              actual = chosen.map((o) => o.label).join(', ');
+              accepted = chosen.flatMap((o) => [o.value, o.label]);
+            } else
+              actual = 'value' in el ? String(el.value) : (el.innerText ?? el.textContent ?? '');
+            return { secret, actual, accepted };
+          },
+          { field: !!args.ref && args.text === undefined, text: args.text ?? '' },
+        );
+        if (read.found !== undefined)
+          return { url: page.url(), ok: read.found, actual: read.found ? args.text : null };
+        const ok =
+          args.value === undefined ||
+          read.actual === args.value ||
+          // A single chosen option matches by its value or its label.
+          (read.accepted?.length === 2 && read.accepted.includes(args.value));
+        if (read.secret) return { url: page.url(), ok, textLength: read.actual.length };
+        return { url: page.url(), ok, actual: read.actual.slice(0, 200) };
+      }
       case 'browser.check': {
         const result = await this.#setChecked(page, args.ref, args.checked);
         await this.assertLanded(policy);

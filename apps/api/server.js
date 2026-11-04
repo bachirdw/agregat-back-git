@@ -185,7 +185,9 @@ export function createApp({
           200,
           store.list().map((run) => ({ ...run, title: run.title ?? missionTitle(run.prompt) })),
         );
-      const match = path.match(/^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume))?$/);
+      const match = path.match(
+        /^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume|answer))?$/,
+      );
       if (match) {
         const [, id, action] = match;
         const run = store.get(id);
@@ -353,6 +355,18 @@ export function createApp({
         });
       }
       if (path === '/api/runs') return json(res, 201, await engine.create(body));
+      if (match?.[2] === 'answer') {
+        // Owner's answer to a question the agent asked (ACP form elicitation).
+        if (!engine.openQuestion(match[1]))
+          return json(res, 409, { error: 'Aucune question ouverte pour cette mission' });
+        try {
+          engine.answer(match[1], body);
+        } catch (e) {
+          if (e.code === 'invalid_answer') return json(res, 400, { error: e.message });
+          throw e;
+        }
+        return json(res, 200, { ok: true });
+      }
       if (match?.[2] === 'cancel') {
         engine.cancel(match[1]);
         return json(res, 200, { ok: true });

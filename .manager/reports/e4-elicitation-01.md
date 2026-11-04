@@ -20,3 +20,7 @@
 - Fixture : `askQuestion.toolBefore` (outil en cours sans mise à jour pendant la question).
 - Tests (b)(c)(d)(e)(f) + FIFO au niveau engine : `tests/elicitation.test.js` 9 pass. Mutation vérifiée : sans `suspendTimers`, le test (f) est rouge. Anciens : tool-watchdog, agent-silence, runtime, career-timeout, fix-resume, owner-permissions + elicitation = 105 pass / 0 fail. check/format OK.
 - Écart : test (b) lit l'API via `GET /api/runs/:id` qui expose déjà tout le champ de la ligne (pas de code API nécessaire pour la lecture, point 5).
+
+## 17:39 Point 4 : API
+- `apps/api/server.js` : `POST /api/runs/:id/answer` (404 mission inconnue, 409 sans question, 400 contenu/action invalide, 200 `{ok:true}`). Doc : `docs/api-questions.md` (format, exemple, états, ce que le front affiche).
+- Tests API (409/400/200, decline, cancel) : `tests/elicitation.test.js` 12 pass / 0 fail. Premier essai rouge : `Invalid params` car `oneOf` sans `title` est refusé par le schéma SDK côté agent (test corrigé, pas le code).

@@ -137,7 +137,7 @@ async function startMission(extraCfg = {}, { toolIdleMs, silentMs, missionMs } =
   const api = async (path, body) => {
     const res = await fetch(base + path, {
       method: body ? 'POST' : 'GET',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
       body: body ? JSON.stringify(body) : undefined,
     });
     return { status: res.status, body: await res.json() };
@@ -271,6 +271,86 @@ test('plusieurs questions : file FIFO, une seule ouverte à la fois', async () =
     assert.deepEqual(await second, { action: 'accept', content: {} });
     await m.done;
     assert.equal(m.app.store.get(m.run.id).state, 'completed');
+  } finally {
+    await m.finish();
+  }
+});
+
+test('POST /answer : 409 sans question, 400 si le contenu viole le schéma, 200 sinon', async () => {
+  const m = await startMission({
+    askQuestion: {
+      requestedSchema: {
+        type: 'object',
+        properties: {
+          choix: {
+            type: 'string',
+            oneOf: [
+              { const: 'oui', title: 'Oui' },
+              { const: 'non', title: 'Non' },
+            ],
+          },
+          note: { type: 'string', maxLength: 10 },
+        },
+        required: ['choix'],
+      },
+    },
+  });
+  try {
+    // Mission inconnue : 404.
+    const none = await m.api(`/api/runs/${randomUUID()}/answer`, { action: 'decline' });
+    assert.equal(none.status, 404);
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const url = `/api/runs/${m.run.id}/answer`;
+    for (const bad of [
+      { action: 'accept', content: { choix: 'peut-être' } },
+      { action: 'accept', content: {} },
+      { action: 'accept', content: { choix: 'oui', note: 'trop long pour la limite' } },
+      { action: 'accept', content: { choix: 'oui', inconnu: 1 } },
+      { action: 'accept', content: 'oui' },
+      { action: 'bizarre' },
+    ]) {
+      const res = await m.api(url, bad);
+      assert.equal(res.status, 400, JSON.stringify(bad));
+      assert.ok(res.body.error);
+    }
+    assert.equal(m.app.store.get(m.run.id).state, 'awaiting_owner', 'toujours ouverte');
+    const ok = await m.api(url, { action: 'accept', content: { choix: 'oui' } });
+    assert.deepEqual(ok, { status: 200, body: { ok: true } });
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed');
+    assert.match(done.result.summary, /"choix":"oui"/);
+    assert.equal(done.pendingQuestion, null);
+    const again = await m.api(url, { action: 'decline' });
+    assert.equal(again.status, 409);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('POST /answer decline via l’API', async () => {
+  const m = await startMission();
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const res = await m.api(`/api/runs/${m.run.id}/answer`, { action: 'decline' });
+    assert.equal(res.status, 200);
+    await m.done;
+    assert.match(m.app.store.get(m.run.id).result.summary, /déclinée/);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('POST /cancel pendant la question : l’agent reçoit cancel, mission cancelled', async () => {
+  const m = await startMission();
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const res = await m.api(`/api/runs/${m.run.id}/cancel`, {});
+    assert.equal(res.status, 200);
+    await m.done;
+    assert.equal(m.app.store.get(m.run.id).state, 'cancelled');
+    await m.waitFor(() => existsSync(m.files.answerFile));
+    assert.equal(JSON.parse(readFileSync(m.files.answerFile, 'utf8')).action, 'cancel');
   } finally {
     await m.finish();
   }

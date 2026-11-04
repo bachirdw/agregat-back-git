@@ -159,9 +159,20 @@ test('Consigne FICTIVE : lire avant de noter est annoncé une seule fois, avec o
   const manifest = getPack('career-ops').skillManifest;
   const count = (text) => text.split('Ne note une offre qu’après avoir lu sa page').length - 1;
   const search = selectSkillIntents('Trouve des offres FICTIVES', [manifest]);
-  assert.equal(count(formatSkillOrder(search) + readBeforeScoreRule(search)), 1);
+  assert.equal(count(formatSkillOrder(search) + readBeforeScoreRule(search, manifest)), 1);
   const none = selectSkillIntents('Ouvre cette offre FICTIVE et note-la', [manifest]);
-  assert.equal(count(formatSkillOrder(none) + readBeforeScoreRule(none)), 1);
+  assert.equal(count(formatSkillOrder(none) + readBeforeScoreRule(none, manifest)), 1);
+  // A pack whose manifest never asks to read before scoring gets no such rule: nothing is tied
+  // to the pack's name in the engine.
+  const silent = {
+    ...manifest,
+    intents: manifest.intents.map((intent) => ({
+      ...intent,
+      steps: intent.steps.map(({ readFirst, ...step }) => step),
+    })),
+  };
+  assert.equal(readBeforeScoreRule(none, silent), '');
+  assert.equal(readBeforeScoreRule(none, undefined), '');
 });
 
 test('E16 FICTIF : une étape exemptée par le prompt, sautée, n’est pas un écart d’ordre', () => {

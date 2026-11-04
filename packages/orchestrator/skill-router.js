@@ -199,8 +199,13 @@ export function formatToolRoles(manifest) {
 }
 export const READ_BEFORE_SCORE =
   'Ne note une offre qu’après avoir lu sa page dans cette mission : une note sans lecture rend la mission incomplète.';
+// A pack that asks, anywhere in its manifest, to read before scoring gets the rule for every
+// mission, whatever the prompt matched; a pack without such a step gets nothing.
+export const readsBeforeScore = (manifest) =>
+  Boolean(manifest?.intents?.some((intent) => intent.steps.some((step) => step.readFirst)));
 // Sent once per mission: with the order when an intent already carries it, alone otherwise.
-export const readBeforeScoreRule = (selection) =>
+export const readBeforeScoreRule = (selection, manifest) =>
+  !readsBeforeScore(manifest) ||
   selection.some(({ intent }) => intent.steps.some((step) => step.readFirst))
     ? ''
     : '\n' + READ_BEFORE_SCORE;

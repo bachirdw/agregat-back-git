@@ -154,10 +154,11 @@ export function previewUrl(raw) {
 
 // Readiness is advisory: background traffic must not prevent reading a usable page.
 // Both phases share one eight-second budget; only Playwright timeouts are recoverable.
-async function waitForReadablePage(page) {
-  const deadline = Date.now() + 8000;
+async function waitForReadablePage(page, deadline = Date.now() + 8000) {
   try {
-    await page.waitForLoadState('networkidle', { timeout: 1000 });
+    await page.waitForLoadState('networkidle', {
+      timeout: Math.max(1, Math.min(1000, deadline - Date.now())),
+    });
   } catch (error) {
     if (error.name !== 'TimeoutError') throw error;
   }
@@ -191,6 +192,72 @@ async function waitForReadablePage(page) {
     if (error.name !== 'TimeoutError') throw error;
     return true;
   }
+}
+
+// Optional levers for deferred pages (E19): scroll to trigger lazy loading, then wait for a text.
+// All of it shares the eight-second budget of waitForReadablePage; a missing text is reported
+// (waitedFor.found=false) and the capture proceeds anyway.
+async function scrollPage(page, mode, deadline) {
+  const metrics = () =>
+    page.evaluate(() => ({
+      y: window.scrollY,
+      h: document.documentElement.scrollHeight,
+      vh: window.innerHeight,
+    }));
+  const wheel = async (delta) => {
+    try {
+      const { vh } = await metrics();
+      await page.mouse.move(200, Math.max(1, Math.round(vh / 2)));
+      await page.mouse.wheel(0, delta);
+    } catch {
+      // The wheel only reaches inner scrollers; window scrolling below is authoritative.
+    }
+  };
+  if (mode === 'page') {
+    const { vh } = await metrics();
+    await page.evaluate((d) => window.scrollBy(0, d), vh);
+    await wheel(0);
+    await page.waitForTimeout(300);
+    return;
+  }
+  let lastHeight = -1;
+  for (let round = 0; round < 8 && Date.now() < deadline - 500; round++) {
+    const { h } = await metrics();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await wheel(2000);
+    await page.waitForTimeout(400);
+    const after = await metrics();
+    if (after.h === lastHeight && after.h === h) break;
+    lastHeight = after.h;
+  }
+}
+
+async function prepareCapture(page, args) {
+  const deadline = Date.now() + 8000;
+  if (args.scroll) await scrollPage(page, args.scroll, deadline);
+  const loading = await waitForReadablePage(page, deadline);
+  let waitedFor;
+  if (args.waitForText) {
+    const needle = args.waitForText.toLowerCase();
+    let found = true;
+    try {
+      const handle = await page.waitForFunction(
+        (text) => (document.body?.innerText ?? '').toLowerCase().includes(text),
+        needle,
+        { timeout: Math.max(1, deadline - Date.now()), polling: 100 },
+      );
+      await handle.dispose();
+    } catch (error) {
+      if (error.name !== 'TimeoutError') throw error;
+      found = false;
+    }
+    waitedFor = { text: args.waitForText, found };
+  }
+  return {
+    loading,
+    ...(waitedFor ? { waitedFor } : {}),
+    ...(args.scroll ? { scrolled: args.scroll } : {}),
+  };
 }
 
 export class CdpBrowser {
@@ -1102,7 +1169,7 @@ export class CdpBrowser {
           this.ownerConnection?.takeOpenedWindow();
           await goto(args.url);
         } else followed = await followWindow();
-        const loading = await waitForReadablePage(page);
+        const { loading, ...extras } = await prepareCapture(page, args);
         const snapshot = await page.ariaSnapshot({ mode: 'ai', timeout: 5000 });
         this.snapshotRefs = snapshotRefs(snapshot);
         return {
@@ -1110,13 +1177,14 @@ export class CdpBrowser {
           title: await page.title(),
           snapshot,
           loading,
+          ...extras,
           ...followed,
         };
       }
       case 'browser.extract': {
         // Late elements without a loading indicator still get the former 10 s budget.
         const readDeadline = Date.now() + 10000;
-        const loading = await waitForReadablePage(page);
+        const { loading, ...extras } = await prepareCapture(page, args);
         const readTimeout = () => Math.max(2000, readDeadline - Date.now());
         if ((args.limit ?? 1) > 1) {
           const matches = page.locator(args.selector ?? 'body');
@@ -1130,11 +1198,13 @@ export class CdpBrowser {
             text: texts.join('\n').slice(0, args.maxChars),
             count,
             loading,
+            ...extras,
           };
         }
         return {
           url: page.url(),
           loading,
+          ...extras,
           text: (
             await (
               await this.targetLocator(args.ref ? { ref: args.ref } : (args.selector ?? 'body'))

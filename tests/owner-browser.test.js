@@ -1409,3 +1409,99 @@ test('propriétaire : un onglet rouvert quitte le marqueur du relais', async () 
     await provider.close();
   }
 });
+
+// E19 : texte attendu et défilement avant capture, sur un vrai Chrome.
+async function lateTextGateway(t, handler) {
+  const server = http.createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => {
+    server.closeAllConnections();
+    return new Promise((r) => server.close(r));
+  });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+  t.after(() => provider.close());
+  const gateway = new BrowserGateway({
+    provider,
+    policy: new RunPolicy({
+      ownerMode: true,
+      runId: 'FICTIF-e19',
+      capabilities: capabilityIds,
+      allowLocalOrigins: [origin],
+    }),
+    approve: async () => {
+      throw new Error('Aucun accord attendu');
+    },
+  });
+  return { gateway, origin };
+}
+
+test(
+  'snapshot FICTIF : waitForText attend un paragraphe inséré après 3 s',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { gateway, origin } = await lateTextGateway(t, (req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        `<p>FICTIF coquille</p><script>setTimeout(() => { document.body.insertAdjacentHTML('beforeend', '<p>FICTIF Description du poste</p>'); }, 3000)</script>`,
+      );
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const start = Date.now();
+    const result = await gateway.call('browser.snapshot', { waitForText: 'description du poste' });
+    assert.match(result.snapshot, /FICTIF Description du poste/);
+    assert.deepEqual(result.waitedFor, { text: 'description du poste', found: true });
+    assert.ok(Date.now() - start < 8500);
+  },
+);
+
+test(
+  'snapshot et extract FICTIF : scroll bottom charge le contenu paresseux',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { gateway, origin } = await lateTextGateway(t, (req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        `<div style="height:${req.url === '/court' ? '120vh' : '5000px'}">FICTIF haut</div><div id="sentinel" style="height:50px"></div><script>
+          new IntersectionObserver((entries, obs) => {
+            if (entries.some((e) => e.isIntersecting)) {
+              obs.disconnect();
+              document.body.insertAdjacentHTML('beforeend', '<p id="more">FICTIF suite chargée</p>');
+            }
+          }).observe(document.getElementById('sentinel'));
+        </script>`,
+      );
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const snap = await gateway.call('browser.snapshot', { scroll: 'bottom' });
+    assert.match(snap.snapshot, /FICTIF suite chargée/);
+    assert.equal(snap.scrolled, 'bottom');
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.navigate', { url: `${origin}/court` });
+    const ext = await gateway.call('browser.extract', {
+      selector: '#more',
+      scroll: 'page',
+      waitForText: 'suite chargée',
+    });
+    assert.match(ext.text, /FICTIF suite chargée/);
+    assert.equal(ext.scrolled, 'page');
+    assert.equal(ext.waitedFor.found, true);
+  },
+);
+
+test(
+  'snapshot FICTIF : texte jamais présent, found false et capture sous 10 s',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { gateway, origin } = await lateTextGateway(t, (req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end('<p>FICTIF page sans la description</p>');
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const start = Date.now();
+    const result = await gateway.call('browser.snapshot', { waitForText: 'jamais là' });
+    assert.ok(Date.now() - start < 10000);
+    assert.deepEqual(result.waitedFor, { text: 'jamais là', found: false });
+    assert.match(result.snapshot, /FICTIF page sans la description/);
+  },
+);

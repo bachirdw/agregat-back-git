@@ -5,7 +5,7 @@ Pour la conversation suivante. Lire dans l'ordre : ce fichier, puis `.manager/PL
 ## 1. Cadre
 
 - Projet Relay : plateforme universelle d'agents CLI (Claude Code, Codex, Gemini CLI, OpenCode) par ACP/MCP, Skills, workflows ; priorité Career Ops (pack `career-ops`) et chantier candidature.
-- Propriétaire : Bachir, seul utilisateur ; moi : « CTO » / manager. Il donne les directives, je les suis.
+- Propriétaire : seul utilisateur ; moi : « CTO » / manager. Il donne les directives, je les suis.
 - Dossier de travail : `~/Downloads/agregat-back-astra` (worktree), branche `suite-astra`. Dépôt GitHub public : aucune donnée personnelle (CV, profil, liens d'offres, lieu) dans Git ni dans les rapports.
 - Autres dossiers : `~/Downloads/agregat-back` (checkout principal, travail non commité à ne pas toucher), `~/Downloads/agregat-front` (front, sessions Claude séparées), `~/Downloads/agent-repos-agregat` (dépôts d'inspiration, cartographiés dans `.manager/CARTE.md`), `~/Downloads/agregat-career-ops` (bibliothèque career-ops, intouchable).
 - Codex (`gpt-6-sol`) bloqué par sa limite jusqu'au 06/11 12:54 : tout le code passe par des sous-agents Claude.
@@ -31,7 +31,7 @@ Pour la conversation suivante. Lire dans l'ordre : ce fichier, puis `.manager/PL
 - `suite-astra` = `main` = `origin/main` = **d759b30** ; arbre propre.
 - Dernière suite complète : 569 + 138 Chrome, EXIT 0, sur l'arbre de 9caec0c (C6), lancée par le sous-agent sans mission en cours ; les commits suivants sont des rapports.
 - Processus laissés en marche : API 4310 pid 86576 (lancée depuis `agregat-back-astra`, onglet terminal c1, code complet de la soirée), relais Playwriter 19988 pid 10497 (connecté, extension Chrome), front 5173 pid 4396 (lancé par une autre session), collecteur du registre `python3 .manager/registre-erreurs.py` dans l'onglet c2.
-- Commande de l'API (onglet c1) : `AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_TIMEOUT_MS=1800000 node --env-file-if-exists=/Users/diaw/Downloads/agregat-back/.manager/secrets.env apps/api/server.js` (ne pas lire le fichier de secrets ; seulement le passer).
+- Commande de l'API (onglet c1) : `AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_TIMEOUT_MS=1800000 node --env-file-if-exists=~/Downloads/agregat-back/.manager/secrets.env apps/api/server.js` (ne pas lire le fichier de secrets ; seulement le passer).
 - Limite Pro 5 h : 67 % à 20:19, remise à zéro à 00:00 locale (13:00 UTC) ; hebdo 22 %, Fable 35 %.
 - Sous-agents : aucun en cours. Sessions front : à relire au besoin (`agregat-front`, `main` à d842e35 d'après la passation de 14:15).
 

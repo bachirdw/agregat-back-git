@@ -10,7 +10,15 @@ sont proposés. L’utilisateur copie le texte et envoie manuellement dans Chrom
 Le frontend consomme les événements `permission` existants et les demandes en cours dans
 `GET /api/runs/:id`. Boutons `Approuver l’envoi` / `Refuser`, un par demande.
 `POST /api/permissions/:id` avec `{optionId: "allow"}` ou `{optionId: "deny"}`.
-Expiration après 60 secondes ; annulation du run = refus. Aucun accord global ou permanent.
+Hors mode propriétaire : expiration après 60 secondes. En mode propriétaire, l’accord `send` n’expire
+pas (plafond seulement si `AGENT_PLATFORM_SEND_TIMEOUT_MS` est fixé, en ms) ; les délais « outil sans
+mise à jour », « agent inactif » et de mission sont suspendus pendant l’attente et reprennent avec le
+temps restant ; la mission n’occupe pas l’une des trois places actives. Les autres accords (non `send`)
+sont accordés automatiquement en mode propriétaire. Annulation du run = refus.
+
+`GET /api/runs/:id` expose `pendingPermission` (`null` sinon) :
+`{id, capability, actionClass: "send", toolCallId, askedAt, preview}` ; `preview` est le titre de
+l’action sans secret, en mémoire seulement. Répondre par `POST /api/permissions/:id`. Aucun accord global ou permanent.
 Les aperçus complets sont en mémoire pendant la demande et ne sont pas persistés dans SQLite.
 Après redémarrage, aucune demande d’envoi n’est réapprouvée automatiquement.
 

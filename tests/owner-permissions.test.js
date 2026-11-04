@@ -197,3 +197,135 @@ test('arrêt du serveur : jamais présenté comme une annulation de l’utilisat
   assert.equal(control.abort.signal.reason.message, SERVER_STOPPED);
   assert.equal(careerFailureMessage({ reason: control.abort.signal.reason }), SERVER_STOPPED);
 });
+
+// --- C6 : l'accord d'envoi attend le propriétaire sans expirer ---
+const sendAsk = (id = 's-c6') =>
+  ask({ toolCallId: id, title: 'browser.send' }, { actionClass: 'send' });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('C6 point 1 : un envoi en mode propriétaire n’expire pas', async (t) => {
+  const { app, run, signal } = setup(t);
+  app.engine.permissionTimeoutMs = 300;
+  const pending = app.engine.permission(run.id, sendAsk(), false, signal);
+  await sleep(1000);
+  const [waiting] = app.engine.permissions.values();
+  assert.ok(waiting, 'toujours en attente après 1 s');
+  assert.equal(waiting.expiresAt ?? null, null);
+  assert.equal(app.store.get(run.id).state, 'waiting_permission');
+  app.engine.decide(waiting.id, 'no');
+  assert.equal((await pending).outcome.optionId, 'no');
+});
+
+test('C6 point 1 : hors mode propriétaire, un envoi garde le délai', async (t) => {
+  const { app, run, signal } = setup(t, { ownerMode: false });
+  app.engine.permissionTimeoutMs = 300;
+  const outcome = await app.engine.permission(run.id, sendAsk('s-c6b'), false, signal);
+  assert.equal(outcome.outcome.outcome, 'cancelled');
+  assert.equal(
+    app.store.events(run.id).find((e) => e.type === 'permission_resolved').data.reason,
+    'expired',
+  );
+});
+
+test('C6 point 1 : AGENT_PLATFORM_SEND_TIMEOUT_MS fixe un plafond pour l’envoi', async (t) => {
+  const saved = process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS;
+  process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS = '500';
+  t.after(() => {
+    if (saved === undefined) delete process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS;
+    else process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS = saved;
+  });
+  const { app, run, signal } = setup(t);
+  const start = Date.now();
+  const outcome = await app.engine.permission(run.id, sendAsk('s-c6c'), false, signal);
+  const elapsed = Date.now() - start;
+  assert.equal(outcome.outcome.outcome, 'cancelled');
+  assert.ok(elapsed >= 450 && elapsed < 1500, `expiré à ${elapsed} ms`);
+  assert.equal(
+    app.store.events(run.id).find((e) => e.type === 'permission_resolved').data.reason,
+    'expired',
+  );
+});
+
+test('C6 point 1 : l’annulation du run résout l’envoi en attente', async (t) => {
+  const { app, run } = setup(t);
+  const abort = new AbortController();
+  const pending = app.engine.permission(run.id, sendAsk('s-c6d'), false, abort.signal);
+  await sleep(30);
+  abort.abort();
+  assert.equal((await pending).outcome.outcome, 'cancelled');
+  assert.equal(app.engine.permissions.size, 0);
+});
+
+test('C6 point 2 : les délais de mission sont suspendus pendant l’envoi puis repris', async (t) => {
+  const { app, run, signal } = setup(t);
+  const calls = [];
+  app.engine.active.set(run.id, {
+    abort: new AbortController(),
+    suspendTimers: () => calls.push('suspend'),
+    resumeTimers: () => calls.push('resume'),
+  });
+  const pending = app.engine.permission(run.id, sendAsk('s-c6e'), false, signal);
+  await sleep(30);
+  assert.deepEqual(calls, ['suspend']);
+  app.engine.decide([...app.engine.permissions.keys()][0], 'no');
+  await pending;
+  assert.deepEqual(calls, ['suspend', 'resume']);
+  app.engine.active.delete(run.id);
+});
+
+test('C6 point 2 : un accord non envoi ne suspend rien', async (t) => {
+  const { app, run, signal } = setup(t);
+  const calls = [];
+  app.engine.active.set(run.id, {
+    abort: new AbortController(),
+    suspendTimers: () => calls.push('suspend'),
+    resumeTimers: () => calls.push('resume'),
+  });
+  await app.engine.permission(run.id, ask({ toolCallId: 'x', title: 'outil' }), false, signal);
+  assert.deepEqual(calls, []);
+  app.engine.active.delete(run.id);
+});
+
+test('C6 point 3 : pendingPermission exposé par GET /api/runs/:id', async (t) => {
+  const { app, run, signal } = setup(t);
+  await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+  const read = async () =>
+    (
+      await fetch(`http://127.0.0.1:${app.server.address().port}/api/runs/${run.id}`, {
+        headers: { 'x-platform-request': '1' },
+      })
+    ).json();
+  assert.equal((await read()).pendingPermission, null);
+  const pending = app.engine.permission(run.id, sendAsk('s-c6f'), false, signal);
+  await sleep(30);
+  const body = await read();
+  assert.equal(body.state, 'waiting_permission');
+  const p = body.pendingPermission;
+  assert.equal(p.actionClass, 'send');
+  assert.equal(p.toolCallId, 's-c6f');
+  assert.equal(p.capability, 'browser.send');
+  assert.ok(p.id && p.askedAt);
+  assert.match(JSON.stringify(p), /browser\.send/);
+  app.engine.decide(p.id, 'no');
+  await pending;
+  assert.equal((await read()).pendingPermission, null);
+});
+
+test('C6 point 4 : les missions en attente du propriétaire n’occupent pas de place', async (t) => {
+  const { app, signal } = setup(t);
+  const ids = [];
+  for (let i = 0; i < 3; i++) {
+    const id = randomUUID();
+    app.store.create({ id, state: 'running', cwd: '/', budgetCents: 0 });
+    app.engine.active.set(id, { abort: new AbortController() });
+    ids.push(id);
+  }
+  assert.equal(app.engine.activeSlots(), 3);
+  const p1 = app.engine.permission(ids[0], sendAsk('s-c6g'), false, signal);
+  app.store.update(ids[1], { state: 'awaiting_owner' });
+  await sleep(30);
+  assert.equal(app.engine.activeSlots(), 1);
+  ids.forEach((id) => app.engine.active.delete(id));
+  app.engine.clearPermissions(ids[0]);
+  await p1;
+});

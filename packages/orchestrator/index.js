@@ -157,9 +157,15 @@ export class Orchestrator {
     this.active = new Map();
     this.permissions = new Map();
     this.expiredPermissions = new Map();
+    this.expiredDelays = new Map();
     this.questions = [];
     this.expiredOutcomes = new WeakSet();
     this.permissionTimeoutMs = 60000;
+    // Final send in owner mode: waits for the owner's click, no ceiling unless configured.
+    this.sendTimeoutMs =
+      Number(process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS) > 0
+        ? Number(process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS)
+        : null;
     this.career = career;
     // Read access to durable step state; each workflow run drives its own engine instance.
     this.workflows = new WorkflowEngine({ store, executors: {} });
@@ -622,7 +628,7 @@ export class Orchestrator {
     });
   }
   async create(input, previous = null) {
-    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
+    if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     if (previous?.workspace === 'career-ops' && input.prompt === previous.prompt)
       input = {
         ...input,
@@ -633,7 +639,7 @@ export class Orchestrator {
         attachments: previous.attachments ?? [],
       };
     const plan = await this.plan(input, { resume: !!previous });
-    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
+    if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     if (
       plan.input.workspace === 'career-ops' &&
       [...this.active.keys()].some((id) => this.store.get(id)?.workspace === 'career-ops')
@@ -715,7 +721,7 @@ export class Orchestrator {
     if (!['interrupted', 'failed', 'cancelled'].includes(run.state))
       throw new Error('Seul un workflow interrompu, en échec ou annulé peut être repris');
     if (this.active.has(runId)) throw new Error('Workflow déjà actif');
-    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
+    if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     const plan = await this.plan({
       prompt: run.prompt,
       agent: run.agent,
@@ -731,7 +737,7 @@ export class Orchestrator {
     });
     // Planning awaits detection: take the lock only after rechecking shared state.
     if (this.active.has(runId)) throw new Error('Workflow déjà actif');
-    if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
+    if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     if (!['interrupted', 'failed', 'cancelled'].includes(this.store.get(runId).state))
       throw new Error('Workflow déjà repris');
     if (
@@ -1363,6 +1369,7 @@ export class Orchestrator {
       this.active.delete(run.id);
       this.approvalTokens.delete(run.id);
       this.expiredPermissions.delete(run.id);
+      this.expiredDelays.delete(run.id);
     }
   }
   permission(runId, p, simulated, signal, observedTool) {
@@ -1388,6 +1395,7 @@ export class Orchestrator {
         signal.removeEventListener('abort', onAbort);
         clearTimeout(timer);
         this.permissions.delete(id);
+        if (suspended) this.active.get(runId)?.resumeTimers?.();
         if (!terminal.has(this.store.get(runId).state))
           this.store.update(runId, {
             state: [...this.permissions.values()].some((p) => p.runId === runId)
@@ -1396,7 +1404,10 @@ export class Orchestrator {
                 ? 'awaiting_owner'
                 : 'running',
           });
-        if (reason === 'expired') this.expiredPermissions.set(runId, toolName);
+        if (reason === 'expired') {
+          this.expiredPermissions.set(runId, toolName);
+          this.expiredDelays.set(runId, delay);
+        }
         this.store.event(runId, 'permission_resolved', {
           id,
           optionId: optionId ?? null,
@@ -1408,7 +1419,11 @@ export class Orchestrator {
         if (reason === 'expired') this.expiredOutcomes.add(result);
         resolve(result);
       };
-      const timer = setTimeout(() => finish(undefined, 'expired'), this.permissionTimeoutMs);
+      const waitsForOwner = this.ownerMode && p.actionClass === 'send';
+      const delay = waitsForOwner ? this.sendTimeoutMs : this.permissionTimeoutMs;
+      const timer = delay ? setTimeout(() => finish(undefined, 'expired'), delay) : null;
+      const suspended = waitsForOwner;
+      if (suspended) this.active.get(runId)?.suspendTimers?.();
       const options = p.options.filter((o) =>
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
       );
@@ -1426,7 +1441,9 @@ export class Orchestrator {
         options,
         tool,
         actionClass: p.actionClass ?? null,
-        expiresAt: Date.now() + this.permissionTimeoutMs,
+        capability: toolName,
+        expiresAt: delay ? Date.now() + delay : null,
+        askedAt: new Date().toISOString(),
         finish,
       });
       signal.addEventListener('abort', onAbort, { once: true });
@@ -1437,7 +1454,7 @@ export class Orchestrator {
           id,
           tool,
           options,
-          expiresAt: Date.now() + this.permissionTimeoutMs,
+          expiresAt: delay ? Date.now() + delay : null,
         },
         {
           privatePreview: p.actionClass === 'send',
@@ -1446,11 +1463,40 @@ export class Orchestrator {
       );
     });
   }
+  // Runs waiting for the owner (final send or question) do not hold one of the three slots.
+  activeSlots() {
+    let n = 0;
+    for (const id of this.active.keys()) {
+      if (this.store.get(id)?.state === 'awaiting_owner') continue;
+      if (
+        this.ownerMode &&
+        [...this.permissions.values()].some((p) => p.runId === id && p.actionClass === 'send')
+      )
+        continue;
+      n++;
+    }
+    return n;
+  }
   expiredPermissionError(runId) {
     const toolName = this.expiredPermissions.get(runId);
     if (!toolName) return null;
-    const seconds = Math.ceil(this.permissionTimeoutMs / 1000);
+    const seconds = Math.ceil((this.expiredDelays.get(runId) ?? this.permissionTimeoutMs) / 1000);
     return new Error(`Accord expiré sans réponse (${seconds} s) : ${toolName}`);
+  }
+  // Pending final send of one run, for GET /api/runs/:id (memory only, never persisted).
+  pendingPermission(runId) {
+    const p = [...this.permissions.values()].find(
+      (x) => x.runId === runId && x.actionClass === 'send',
+    );
+    if (!p) return null;
+    return {
+      id: p.id,
+      capability: p.capability,
+      actionClass: p.actionClass,
+      toolCallId: p.tool?.toolCallId ?? null,
+      askedAt: p.askedAt,
+      preview: redact(String(p.tool?.title ?? '')).slice(0, 2000),
+    };
   }
   decide(id, optionId) {
     const p = this.permissions.get(id);

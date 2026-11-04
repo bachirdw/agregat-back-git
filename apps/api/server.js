@@ -234,6 +234,7 @@ export function createApp({
             },
             ledger: store.verifyLedger(),
             steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
+            pendingPermission: engine.pendingPermission(id),
             permissions: [...engine.permissions.values()]
               .filter((p) => p.runId === id)
               .map(({ finish, ...p }) => p),

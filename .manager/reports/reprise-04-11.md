@@ -280,3 +280,9 @@ Limites à 17:02 : 5 h à 63 %, hebdomadaire 8 %, Fable 11 %. Quinze missions so
 - 19:02 — Mission réelle E19 5bc9a43f : `completed`, 2 captures lisibles, `waitedFor {Responsibilities, found:false}`, pas de `scrolled`, description absente ; l'agent s'arrête proprement. E19 reproduit 2/2 : les leviers ne suffisent pas, cause à établir (hypothèse onglet caché). Sonde directe par le relais à suivre.
 - 19:15 — Sondes E19 dans le Chrome du propriétaire (3 scripts dans `.manager/outils/`, lecture seule, un clic « plus ») : onglet `hidden` en permanence ; DOM sans description (2,5 k caractères, section « À propos » de 1 166 caractères inchangée après « plus » et après défilement du `MAIN` interne) ; snapshot fidèle au DOM. Verdict : E19 n'est pas un défaut de Relay ; cause côté LinkedIn à départager par un essai au premier plan (propriétaire). Amélioration mineure notée : `scroll` devrait aussi défiler le premier conteneur interne à défilement.
 - 19:08 — E22 corrigé : `truth.js` n'accepte plus qu'un titre égal au nom de l'outil (préfixe MCP admis) ; test ajouté ; career-integration + astra-bridge + career-failure + nouveau test 58/58, check, format. Non vérifié en réel (prochaine mission avec question).
+
+## 19:20 — Point d'étape après compactage de contexte
+- Limite 5 h : 37 % (remise à zéro 19:00) ; hebdo 18 %, Fable 29 %.
+- Aucun agent bloqué (constaté) : le sous-agent Sonnet E18 a commité 3 points (0bf74ef, 91a537c, 55a64f1) et attend `npm test` complet (651 ✔ à 19:20, aucun ✖) ; le workflow du plan est en phase « Synthétiser » (agent Fable, depuis 19:14), `PLAN-04-11.md` pas encore écrit.
+- Missions de la plateforme : aucune en attente ; la seule échouée (e01325df, 17:05) l'était sur la limite d'usage, pas sur le code. 5bc9a43f (E19) terminée 18:01.
+- API pid 49419 (code E4+E19, sans E22/E18), relais pid 10497 : non relancés.

@@ -451,6 +451,8 @@ export function createApp({
             jdRead: body.jdRead === true,
             sent: body.sent,
             toolCallId: body.toolCallId,
+            scoredUrl:
+              typeof body.scoredUrl === 'string' ? body.scoredUrl.slice(0, 2048) : undefined,
           });
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

@@ -96,6 +96,13 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
           : name === 'career_read' && String(args?.path ?? '').startsWith('jds/')
             ? 'jds/'
             : null,
+      // Only the URL of a saved, scored offer: never the report or any page text.
+      ...(name === 'career_offer_save' &&
+      status === 'completed' &&
+      args?.score != null &&
+      typeof args?.url === 'string'
+        ? { scoredUrl: args.url }
+        : {}),
       jdRead: name === 'career_read' && /^jds\//.test(args?.path ?? ''),
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
     }),

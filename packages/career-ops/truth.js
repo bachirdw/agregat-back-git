@@ -38,6 +38,8 @@ export function createTurnTruth() {
   let anonymousCall = 0;
   let offerSaved = false;
   let jdRead = false;
+  const inputs = new Map();
+  const scored = new Map();
   return {
     observe(update) {
       if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate) || !update.toolCallId)
@@ -57,6 +59,7 @@ export function createTurnTruth() {
       names.set(update.toolCallId, name);
       const path = update.rawInput?.path ?? update.rawInput?.arguments?.path;
       if (path) paths.set(update.toolCallId, String(path));
+      if (update.rawInput) inputs.set(update.toolCallId, update.rawInput);
       if (update.status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
         failed.set(
           name,
@@ -78,12 +81,24 @@ export function createTurnTruth() {
           name,
           status: 'completed',
         });
-        if (name === 'career_offer_save') offerSaved = true;
+        if (name === 'career_offer_save') {
+          offerSaved = true;
+          const input = {
+            ...(update.rawInput ?? inputs.get(update.toolCallId) ?? {}),
+            ...((update.rawInput ?? inputs.get(update.toolCallId))?.arguments ?? {}),
+          };
+          if (input.score != null && typeof input.url === 'string' && input.url)
+            scored.set(update.toolCallId, input.url);
+        }
         if (name === 'career_read' && /^jds\//.test(paths.get(update.toolCallId) ?? ''))
           jdRead = true;
       }
     },
-    recordGatewayTool(name, status, { jdRead: sourceRead = false, sent, toolCallId } = {}) {
+    recordGatewayTool(
+      name,
+      status,
+      { jdRead: sourceRead = false, sent, toolCallId, scoredUrl } = {},
+    ) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
           name,
@@ -99,7 +114,10 @@ export function createTurnTruth() {
         ...(status === 'failed' ? { cause: 'échec signalé par l’outil' } : {}),
         ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
       });
-      if (status === 'completed' && name === 'career_offer_save') offerSaved = true;
+      if (status === 'completed' && name === 'career_offer_save') {
+        offerSaved = true;
+        if (typeof scoredUrl === 'string' && scoredUrl) scored.set(key, scoredUrl);
+      }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
         failed.set(name, 'échec signalé par l’outil');
@@ -117,6 +135,14 @@ export function createTurnTruth() {
     },
     hasJdRead() {
       return jdRead;
+    },
+    // Offers saved with a score, by the ACP update or by the gateway: one entry per tool call
+    // (the same call seen by both channels counts once, the gateway uses its own id).
+    scoredOffers() {
+      const seen = new Set();
+      return [...scored].flatMap(([toolCallId, url]) =>
+        seen.has(url) ? [] : (seen.add(url), [{ url, toolCallId }]),
+      );
     },
   };
 }

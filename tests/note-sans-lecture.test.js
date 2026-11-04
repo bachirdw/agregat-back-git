@@ -192,3 +192,17 @@ test('E16 FICTIF : une étape exemptée par le prompt, sautée, n’est pas un �
   assert.equal(run('Trouve des offres FICTIVES sans scan'), false);
   assert.equal(run('Trouve des offres FICTIVES'), true);
 });
+
+// E24 (b009997b) : une phrase descriptive déclenche l'intent de recherche ; « ne lance aucun script »
+// exempte le scan comme « sans scan », par le manifeste du pack.
+test('E24 FICTIF : « ne lance aucun script » exempte le scan obligatoire', () => {
+  const manifest = getPack('career-ops').skillManifest;
+  const prompt =
+    'Dis-moi en trois lignes ce que tu ferais pour chercher des offres FICTIVES. Ne lance aucun script.';
+  const [selection] = selectSkillIntents(prompt, [manifest]);
+  const scan = selection.intent.steps.find((step) => step.id === 'scan');
+  assert.equal(scan.required, false);
+  assert.equal(scan.exempt, true);
+  const [strict] = selectSkillIntents('Cherche des offres FICTIVES', [manifest]);
+  assert.equal(strict.intent.steps.find((step) => step.id === 'scan').required, true);
+});

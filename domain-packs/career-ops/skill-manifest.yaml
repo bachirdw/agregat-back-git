@@ -62,7 +62,17 @@ intents:
         done: Script scan terminé avec code zéro
         optional: false
         required: true
-        unlessPhrases: [sans scan, sans le scan, pas de scan, sans scanner]
+        unlessPhrases:
+          [
+            sans scan,
+            sans le scan,
+            pas de scan,
+            sans scanner,
+            ne lance aucun script,
+            sans lancer de script,
+            ne lance rien,
+            n'exécute rien,
+          ]
       - id: save-offer
         title: Enregistrer les offres retenues
         tool: career_offer_save

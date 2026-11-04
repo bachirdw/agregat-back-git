@@ -37,6 +37,19 @@ test('liens : lecture, simple navigation et citation sans visite restent distinc
   );
   assert.match(result.notice, /2 lien\(s\).*sans lecture prouvée/);
 });
+test('liens : le gras Markdown collé au lien ne crée pas une citation sans lecture', async () => {
+  const { assessBrowserClaims } = await import('../packages/orchestrator/browser-proof.js');
+  const evidence = [...pair(1)];
+  const result = assessBrowserClaims(
+    "J'ai ouvert **https://example.test/1** puis cité https://example.test/1**, *https://example.test/1*.",
+    evidence,
+  );
+  assert.deepEqual(
+    result.citations.map((x) => [x.url, x.status]),
+    [['https://example.test/1', 'read']],
+  );
+  assert.doesNotMatch(result.notice, /sans lecture prouvée/);
+});
 test('paramètres différents : pas de preuve transférée, aucun secret dans le diagnostic', async () => {
   const { assessBrowserClaims } = await import('../packages/orchestrator/browser-proof.js');
   const evidence = [

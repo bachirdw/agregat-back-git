@@ -76,7 +76,8 @@ export function assessBrowserClaims(summary, evidence = []) {
   for (const match of String(summary).matchAll(/https?:\/\/[^\s<>"`\[\]()]+/g)) {
     let url;
     try {
-      url = new URL(match[0].replace(/[.,;!?]+$/, ''));
+      // Markdown emphasis and closing punctuation glued to a link are not part of it.
+      url = new URL(match[0].replace(/[.,;:!?*_~'»]+$/, ''));
     } catch {
       continue;
     }

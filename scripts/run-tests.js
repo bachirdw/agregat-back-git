@@ -12,6 +12,7 @@ const BROWSER = new Set([
   'browser-gateway.test.js',
   'approval-bridge.test.js',
   'owner-browser.test.js',
+  'apply-flow.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

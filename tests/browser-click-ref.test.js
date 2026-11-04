@@ -197,3 +197,82 @@ test(
     assert.equal(await provider.page.locator('#arrival').count(), 1);
   },
 );
+
+// seek-apply-05 : onglet caché, bouton d'envoi de formulaire cliqué par ref juste après la
+// navigation (seul le snapshot qui fournit la ref la précède), sans observation intermédiaire.
+test(
+  'Chrome FICTIF : onglet caché SIMULÉ, submit de formulaire par ref sans observation préalable',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    let posts = 0;
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      if (req.method === 'POST' && req.url === '/etape2') {
+        posts++;
+        req.resume();
+        return res.end('<title>FICTIF étape 2</title><p id="arrival">Étape 2 FICTIVE</p>');
+      }
+      res.end(`<title>FICTIF formulaire caché</title>
+      <form method="post" action="/etape2"
+        onsubmit="sessionStorage.setItem('submits', String(+(sessionStorage.getItem('submits') || 0) + 1))">
+        <input name="nom" value="Candidat FICTIF">
+        <button>Suivant</button>
+      </form>`);
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((resolve) => server.close(resolve));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({
+      launch: { executablePath: CHROME },
+      navigationTimeoutMs: 5000,
+    });
+    t.after(() => provider.close());
+    const approvals = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-hidden-submit',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async (request) => {
+        approvals.push(request);
+        return true;
+      },
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    await provider.page.addInitScript(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      });
+      for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
+        document.addEventListener(
+          type,
+          (event) => {
+            if (event.isTrusted) event.stopImmediatePropagation();
+          },
+          true,
+        );
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const { snapshot } = await gateway.call('browser.snapshot');
+    const ref = snapshot
+      .split('\n')
+      .find((line) => line.includes('"Suivant"') && line.includes('[ref='))
+      ?.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, 'ref du bouton Suivant');
+    const result = await gateway.call('browser.click', { ref });
+    assert.equal(result.hidden, true);
+    assert.equal(result.clickMode, 'dom');
+    assert.equal(posts, 1, 'le serveur FICTIF a reçu exactement un submit');
+    assert.match(result.url, /\/etape2$/);
+    assert.equal(await provider.page.locator('#arrival').count(), 1);
+    assert.equal(await provider.page.evaluate(() => sessionStorage.getItem('submits')), '1');
+    assert.equal(approvals.length, 0, 'une étape « Suivant » ne demande aucun accord');
+  },
+);

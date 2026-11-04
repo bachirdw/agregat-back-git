@@ -581,6 +581,33 @@ export class Orchestrator {
       models: probes[id]?.models ?? null,
     };
   }
+  // The owner's words for a turn: a private mission keeps them in its workspace, never in the database.
+  turnObjective(run) {
+    if (run.workspace !== 'career-ops') return run.prompt ?? null;
+    try {
+      return (
+        JSON.parse(readConfined(this.career.path(), `relay/runs/${run.id}-input.json`, 50000))
+          .prompt ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+  // Resume context: the conversation's first request and the owner's previous message.
+  checkpointFor(previous) {
+    let first = previous;
+    const seen = new Set([previous.id]);
+    while (first.resumedFrom && !seen.has(first.resumedFrom) && seen.size < 200) {
+      const parent = this.store.get(first.resumedFrom);
+      if (!parent) break;
+      seen.add(parent.id);
+      first = parent;
+    }
+    return resumeCheckpoint(previous, {
+      missionObjective: this.turnObjective(first),
+      previousOwnerMessage: this.turnObjective(previous),
+    });
+  }
   async create(input, previous = null) {
     if (this.active.size >= 3) throw new Error('Trois exécutions maximum');
     if (previous?.workspace === 'career-ops' && input.prompt === previous.prompt)
@@ -632,6 +659,7 @@ export class Orchestrator {
       simulated: plan.simulated,
       dataMode: plan.dataMode,
       sessionId: previous?.sessionId ?? null,
+      resumedFrom: previous?.id ?? null,
       resumable: false,
       skillsSnapshot: plan.skills.map(({ content, ...s }) => s),
       skillProgress: plan.skillSelection.length
@@ -946,7 +974,7 @@ export class Orchestrator {
       const toolRoles = formatToolRoles(plan.pack.skillManifest);
       const prompt = JSON.stringify({
         objective: run.prompt,
-        ...(previous ? { checkpoint: resumeCheckpoint(previous) } : {}),
+        ...(previous ? { checkpoint: this.checkpointFor(previous) } : {}),
         attachments: run.attachments?.length ? this.career.attachments(run.attachments) : [],
         skills: plan.skills,
         browserWorkflow: plan.browserWorkflow,

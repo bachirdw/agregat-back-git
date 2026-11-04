@@ -51,14 +51,27 @@ export class BrowserGateway {
     approve = async () => false,
     meter = () => {},
     autoApprove = [],
+    onAutoSend,
   }) {
     Object.assign(this, { provider, policy, approve, meter });
+    // Owner mode only: network writes that are not an agent's send click are granted and traced
+    // through this callback ({ capability, host }); it never receives a URL, a body or a query.
+    if (onAutoSend && policy.ownerMode) provider.onAutoSend = onAutoSend;
     this.autoApprove = new Set(autoApprove); // write (never sensitive) capabilities pre-approved by the user
   }
   call(capabilityId, rawArgs = {}) {
-    const task = (this.pending ?? Promise.resolve()).then(() =>
-      this.execute(capabilityId, rawArgs),
-    );
+    const task = (this.pending ?? Promise.resolve()).then(async () => {
+      const output = await this.execute(capabilityId, rawArgs);
+      // Network writes granted without a question since the previous call (owner mode).
+      const hosts = (await this.provider.takeAutoSends?.()) ?? [];
+      return hosts.length
+        ? {
+            ...output,
+            networkSends: hosts.length,
+            networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
+          }
+        : output;
+    });
     this.pending = task.catch(() => {});
     return task;
   }

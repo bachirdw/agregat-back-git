@@ -1827,3 +1827,21 @@ for (const redirect of [0, 303, 307]) {
     },
   );
 }
+
+test('envois réseau automatiques : rappel accroché seulement en mode propriétaire, jamais d’hôte inventé', async () => {
+  const make = (ownerMode) => {
+    const provider = new FixturePageProvider({});
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({ ownerMode, runId: 'FICTIF-hook', capabilities: capabilityIds }),
+      onAutoSend: () => {},
+    });
+    return { provider, gateway };
+  };
+  assert.equal(typeof make(true).provider.onAutoSend, 'function');
+  assert.equal(
+    make(false).provider.onAutoSend,
+    undefined,
+    'hors mode propriétaire : rien ne change',
+  );
+});

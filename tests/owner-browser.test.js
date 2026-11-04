@@ -349,6 +349,79 @@ test(
 );
 
 test(
+  'Chrome FICTIF : requêtes d’envoi hors clic d’envoi accordées automatiquement et tracées',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const posts = [];
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          posts.push(JSON.parse(body).operationName);
+          res.end('{}');
+        });
+        return;
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end(`<title>FICTIF envois</title><script>
+      fetch('/graphql', {method:'POST', body:JSON.stringify({operationName:'SubmitApplication',query:'mutation SubmitApplication { apply }'})}).catch(() => {});
+      function more() { fetch('/api/apply', {method:'POST', body:JSON.stringify({operationName:'SendMessage'})}).catch(() => {}); }
+    </script><div id="more" role="button" onclick="more()">FICTIF plus</div>`);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((r) => server.close(r));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    let approvals = 0;
+    const traces = [];
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-auto-send',
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      autoApprove: ['browser.click'],
+      onAutoSend: (trace) => traces.push(trace),
+      approve: async () => {
+        approvals++;
+        return false;
+      },
+    });
+    const waitFor = async (condition) => {
+      const deadline = Date.now() + 3000;
+      while (!condition() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+    };
+    let sends = 0;
+    const first = await gateway.call('browser.navigate', { url: origin });
+    sends += first.networkSends ?? 0;
+    await waitFor(() => posts.length === 1);
+    const clicked = await clickRef(gateway, '#more');
+    sends += clicked.networkSends ?? 0;
+    await waitFor(() => posts.length === 2);
+    const after = await gateway.call('browser.snapshot', {});
+    sends += after.networkSends ?? 0;
+    assert.equal(approvals, 0);
+    assert.deepEqual(posts, ['SubmitApplication', 'SendMessage']);
+    assert.equal(sends, 2);
+    assert.equal(
+      traces.filter((trace) => trace.capability === 'browser.send').length,
+      2,
+      JSON.stringify(traces),
+    );
+    // Host only: never the URL, the path or the body.
+    assert.deepEqual(Object.keys(traces[0]).sort(), ['capability', 'host']);
+    assert.doesNotMatch(JSON.stringify(traces), /graphql|apply|Submit/);
+  },
+);
+
+test(
   'Chrome FICTIF : radio dans une carte role=button reste un champ',
   { skip: !existsSync(CHROME) },
   async (t) => {
@@ -390,7 +463,7 @@ test(
 );
 
 test(
-  'Chrome FICTIF : lecture GraphQL au chargement automatique, mutation soumise à accord',
+  'Chrome FICTIF : lecture GraphQL au chargement, mutation après un clic hors formulaire : accordées automatiquement',
   { skip: !existsSync(CHROME) },
   async (t) => {
     const posts = [];
@@ -442,14 +515,14 @@ test(
     await waitFor(() => posts.length === 1);
     assert.deepEqual(posts, ['GetApplyStatus']);
     assert.equal(approvals, 0);
+    // Owner decision of 05/11: a click on a non-form element is not a send click, so the page's
+    // own mutations are granted automatically (counted, never asked).
     await clickRef(gateway, '#mutate');
-    await waitFor(() => approvals === 1);
-    assert.equal(approvals, 1);
-    assert.deepEqual(posts, ['GetApplyStatus']);
+    await waitFor(() => posts.length === 2);
     await clickRef(gateway, '#disguised');
-    await waitFor(() => approvals === 2);
-    assert.equal(approvals, 2);
-    assert.deepEqual(posts, ['GetApplyStatus']);
+    await waitFor(() => posts.length === 3);
+    assert.deepEqual(posts, ['GetApplyStatus', 'SubmitApplication', 'SubmitApplication']);
+    assert.equal(approvals, 0);
   },
 );
 
@@ -466,7 +539,7 @@ test(
       }
       res.setHeader('content-type', 'text/html');
       res.end(
-        `<button id="go" onclick="fetch('/send?access_token=FICTIF-url-secret', {method:'POST', body:'name=FICTIF&password=FICTIF-body-secret'}).catch(() => {})">FICTIF action</button>`,
+        `<button id="go" onclick="fetch('/ok', {method:'POST', body:'FICTIF'}).catch(() => {}); fetch('/send?access_token=FICTIF-url-secret', {method:'POST', body:'name=FICTIF&password=FICTIF-body-secret'}).catch(() => {})">Apply now</button>`,
       );
     });
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -488,24 +561,28 @@ test(
       }),
       approve: async (request) => {
         approvals.push(request);
-        return false;
+        // The click on the send button is approved; the burst's second request is refused.
+        return request.capability === 'browser.click';
       },
     });
     await gateway.call('browser.navigate', { url: origin });
     await clickRef(gateway, '#go');
     const deadline = Date.now() + 2000;
-    while (!approvals.length && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
-    assert.equal(approvals.length, 1);
-    assert.equal(approvals[0].capability, 'browser.send');
-    assert.match(approvals[0].args.url, /\/send\?/);
-    assert.match(approvals[0].args.body, /name=FICTIF/);
-    assert.doesNotMatch(JSON.stringify(approvals[0]), /FICTIF-url-secret|FICTIF-body-secret/);
-    assert.equal(posts, 0);
+    while (approvals.length < 2 && Date.now() < deadline)
+      await new Promise((r) => setTimeout(r, 20));
+    assert.equal(approvals.length, 2);
+    assert.equal(approvals[0].capability, 'browser.click');
+    const network = approvals[1];
+    assert.equal(network.capability, 'browser.send');
+    assert.match(network.args.url, /\/send\?/);
+    assert.match(network.args.body, /name=FICTIF/);
+    assert.doesNotMatch(JSON.stringify(approvals), /FICTIF-url-secret|FICTIF-body-secret/);
+    assert.equal(posts, 1, 'seule la requête de l’envoi approuvé part');
   },
 );
 
 test(
-  'Chrome FICTIF : POST sensible hors clic refusé, autosave autorisé',
+  'Chrome FICTIF : POST sensible hors clic d’envoi : accordé automatiquement et compté, autosave autorisé',
   { skip: !existsSync(CHROME) },
   async (t) => {
     const counts = { draft: 0, send: 0 };
@@ -546,10 +623,15 @@ test(
         return false;
       },
     });
-    await gateway.call('browser.navigate', { url: origin });
+    const first = await gateway.call('browser.navigate', { url: origin });
     await new Promise((r) => setTimeout(r, 1000));
-    assert.deepEqual(counts, { draft: 1, send: 0 });
-    assert.equal(approvals, 1);
+    assert.deepEqual(counts, { draft: 1, send: 1 });
+    assert.equal(approvals, 0);
+    // Counted in the result of whichever call ran after the POST.
+    assert.equal(
+      (first.networkSends ?? 0) + ((await gateway.call('browser.snapshot', {})).networkSends ?? 0),
+      1,
+    );
   },
 );
 
@@ -1255,6 +1337,7 @@ test(
     });
     await gateway.call('browser.navigate', { url: fixture.origin });
     provider.lastClickEnd = Date.now();
+    provider.sendClick = true; // as after the agent's approved click on a send button
     const statuses = await provider.page.evaluate(() =>
       Promise.all(
         [1, 2, 3, 4, 5].map((n) =>

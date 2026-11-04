@@ -644,6 +644,31 @@ export class CdpBrowser {
       throw error;
     }
   }
+  // Owner mode: a network write granted without a question. Counted for the result of the tool call
+  // and reported (host only, never URL, body or query) through the optional onAutoSend callback.
+  #traceAutoSend(url) {
+    let host = '';
+    try {
+      host = new URL(url).host;
+    } catch {
+      /* unparsable URL: counted without a host */
+    }
+    this.autoSends = [...(this.autoSends ?? []), host];
+    if (!this.onAutoSend) return;
+    const pending = Promise.resolve()
+      .then(() => this.onAutoSend({ capability: 'browser.send', host }))
+      .catch(() => {})
+      .finally(() => this.pendingAutoSends?.delete(pending));
+    (this.pendingAutoSends ??= new Set()).add(pending);
+  }
+  // Called after each tool call: waits for the traces already started, then returns and resets the
+  // count of network writes granted automatically since the previous call.
+  async takeAutoSends() {
+    await Promise.all([...(this.pendingAutoSends ?? [])]);
+    const hosts = this.autoSends ?? [];
+    this.autoSends = [];
+    return hosts;
+  }
   async guard(policy) {
     if (policy.ownerMode) {
       // Owner mode keeps ordinary browsing automatic. Each outbound write still needs a
@@ -687,6 +712,17 @@ export class CdpBrowser {
         }
         // Continue/Next or choosing an option: the page saves its own step (no approval).
         if (firstParty && this.formStep && !sensitive) return route.continue();
+        // Owner decision (05/11): only the agent's click on a send button waits for the owner. Any
+        // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
+        // and traced, host only. A form posted by navigation stays a submission and keeps the question.
+        const afterSendClick =
+          this.sendClick === true &&
+          (this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS);
+        if (this.sendGrant !== true && !afterSendClick && !request.isNavigationRequest()) {
+          if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
+          this.#traceAutoSend(request.url());
+          return route.continue();
+        }
         const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
@@ -1349,6 +1385,8 @@ export class CdpBrowser {
         const target = await this.targetLocator({ ref: args.ref });
         this.ownerConnection?.takeOpenedWindow();
         this.sendGrant = args.sendApproved === true;
+        // A click inside a form is a submission even when its label says "Continue".
+        this.sendClick = args.sendApproved === true || args.formStep === true;
         this.formStep = args.formStep === true;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
@@ -1687,6 +1725,7 @@ export class CdpBrowser {
           // The gateway has already approved this element, including form submissions.
           // Permit its POST only until the click and download event have completed.
           this.sendGrant = args.sendApproved === true;
+          this.sendClick = args.sendApproved === true;
           this.formStep = false;
           this.writeInProgress = true;
           try {

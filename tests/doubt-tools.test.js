@@ -85,10 +85,15 @@ for (const [name, input, options] of PARCOURS)
     assert.match(instructions, /suis d’abord le prompt, puis le Skill/);
     assert.match(
       instructions,
-      /ne tranchent pas entre plusieurs outils ou méthodes équivalents, ou s’il manque une information indispensable, pose la question clairement dans summary et arrête-toi, sans choisir au hasard/,
+      /ne tranchent pas entre plusieurs outils ou méthodes équivalents, ou s’il manque une information indispensable, pose la question par le formulaire de question de ton agent \(AskUserQuestion \/ elicitation ACP\) ou, sans formulaire, par le champ JSON question de ta réponse, et attends : la mission reste ouverte dans la même session ; ne choisis pas au hasard/,
     );
     assert.match(instructions, /Ne demande rien de ce que le prompt ou le Skill tranchent déjà/);
-    assert.equal(occurrences(instructions, 'sans choisir au hasard'), 1);
+    assert.equal(occurrences(instructions, 'ne choisis pas au hasard'), 1);
+    // c3 : aucune consigne de Relay ne demande plus une question en prose dans summary.
+    assert.ok(
+      !/pose (?:la|toutes les) questions? [^.]*dans summary/u.test(instructions),
+      instructions,
+    );
   });
 
 test('Règle de doute : un choix d’outil, jamais une demande d’accord pour une action demandée', async (t) => {

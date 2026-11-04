@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { AcpRuntime } from '../packages/agent-runtime/index.js';
+import { Store } from '../packages/storage/index.js';
 import { createApp } from '../apps/api/server.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 
@@ -353,5 +354,49 @@ test('POST /cancel pendant la question : l’agent reçoit cancel, mission cance
     assert.equal(JSON.parse(readFileSync(m.files.answerFile, 'utf8')).action, 'cancel');
   } finally {
     await m.finish();
+  }
+});
+
+test('awaiting_owner n’est pas terminal : flux d’événements ouvert, reprise refusée', async () => {
+  const m = await startMission();
+  try {
+    const base = `http://127.0.0.1:${m.app.server.address().port}`;
+    const stream = await fetch(`${base}/api/runs/${m.run.id}/events`);
+    const reader = stream.body.getReader();
+    const decoder = new TextDecoder();
+    let seen = '';
+    const until = Date.now() + 5000;
+    while (!seen.includes('event: update') || !seen.includes('"type":"question"')) {
+      if (Date.now() > until) throw new Error('événement question non reçu : ' + seen);
+      const { value, done } = await reader.read();
+      assert.equal(done, false, 'le flux ne se ferme pas pendant la question');
+      seen += decoder.decode(value);
+    }
+    assert.ok(!seen.includes('event: end'));
+    assert.match(seen, /"state":"awaiting_owner"/);
+    const resume = await m.api(`/api/runs/${m.run.id}/resume`, {});
+    assert.equal(resume.status, 400, 'reprise refusée tant que la question est ouverte');
+    assert.equal(m.app.store.get(m.run.id).resumable, false);
+    reader.cancel().catch(() => {});
+    m.app.engine.cancel(m.run.id);
+    await m.done;
+  } finally {
+    await m.finish();
+  }
+});
+
+test('redémarrage de l’API : une mission awaiting_owner devient interrupted', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'elicitation-FICTIF-'));
+  try {
+    const file = join(root, 'db.sqlite');
+    const first = new Store(file);
+    const id = randomUUID();
+    first.create({ id, state: 'awaiting_owner', pendingQuestion: { id: 'q' }, prompt: 'FICTIF' });
+    first.db.close();
+    const second = new Store(file);
+    assert.equal(second.get(id).state, 'interrupted');
+    second.db.close();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

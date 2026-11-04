@@ -24,3 +24,9 @@
 ## 17:39 Point 4 : API
 - `apps/api/server.js` : `POST /api/runs/:id/answer` (404 mission inconnue, 409 sans question, 400 contenu/action invalide, 200 `{ok:true}`). Doc : `docs/api-questions.md` (format, exemple, états, ce que le front affiche).
 - Tests API (409/400/200, decline, cancel) : `tests/elicitation.test.js` 12 pass / 0 fail. Premier essai rouge : `Invalid params` car `oneOf` sans `title` est refusé par le schéma SDK côté agent (test corrigé, pas le code).
+
+## 17:40 Point 5 : lecture d'état
+- `GET /api/runs/:id` renvoie la ligne complète : `state: 'awaiting_owner'` et `pendingQuestion` (déjà testé au point 3). Pas de code ajouté.
+- Grep des états : tout le code de cycle de vie passe par l'ensemble explicite `terminal` (storage/index.js:7 : completed/failed/cancelled/interrupted) ; un état inconnu est traité comme actif (flux SSE reste ouvert, `resume` refusé car non terminal, redémarrage → `interrupted`). Les autres occurrences de 'completed'/'failed'/'cancelled' sont des statuts d'outils (turn-guard, truth.js, skill-router) ou d'étapes de workflow (workflow-engine) : non concernés. Aucun front dans le dépôt. Aucun changement de sens des autres états.
+- Tests ajoutés : flux d'événements ouvert + événement question reçu + reprise refusée + resumable false ; Store : awaiting_owner → interrupted au redémarrage. 14 pass.
+- Limite constatée : `packages/orchestrator/workflow-run.js:162` (étapes de workflow DAG) crée son propre AcpRuntime sans `onElicitation` : l'agent reçoit `cancel` immédiatement (jamais de blocage), pas d'état `awaiting_owner` pour les workflows. Hors du périmètre du brief (missions), à traiter à part.

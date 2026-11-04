@@ -93,3 +93,6 @@ Lignes retirées du tableau ci-dessus sur demande du propriétaire ; les numéro
 | 04/11 19:55:30 | 5679eafd | claude | Outil en échec | mcp__platform__browser_navigate | ``` page.goto: Protocol error (Page.navigate): Délai CDP : Page.navigate Call log: [2m - navigating to "https://remotive.com/…", waiting until "domcontentloaded"[22m ``` |
 | 04/11 20:03:29 | b009997b | claude | Mission failed |  | Mission incomplète : Scanner les portails du Skill (non exécutée) |
 | 04/11 21:17:26 | 606797c2 | claude | Outil sans état final | mcp__platform__browser_click | mission cancelled |
+| 04/11 22:07:33 | 380ef9ff | claude | Événement agent_silent |  | {"elapsedMs":60000,"stopped":false} |
+| 04/11 22:14:13 | 380ef9ff | claude | Outil en échec | mcp__platform__browser_extract | ``` locator.innerText: Timeout 8920ms exceeded. Call log: [2m - waiting for locator('main').first()[22m ``` |
+| 04/11 22:14:47 | 380ef9ff | claude | Outil en échec | mcp__platform__browser_extract | ``` locator.innerText: Timeout 8201ms exceeded. Call log: [2m - waiting for locator('main').first()[22m ``` |

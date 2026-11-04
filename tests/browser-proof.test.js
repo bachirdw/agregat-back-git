@@ -84,3 +84,32 @@ test('preuve privée FICTIVE : URL nettoyée, contenu absent et visite liée à 
     [],
   );
 });
+
+test('waitedFor reste dans la preuve compacte : texte attendu non apparu, capture lisible', () => {
+  const evidence = compactBrowserEvidence({
+    capability: 'browser.snapshot',
+    url: 'https://example.test/offre?token=FICTIF',
+    snapshot: '- heading "Offre FICTIF"',
+    provider: 'cdp',
+    loading: false,
+    waitedFor: { text: 'À propos de l’offre', found: false },
+    scrolled: 'bottom',
+  });
+  assert.deepEqual(evidence.waitedFor, { text: 'À propos de l’offre', found: false });
+  assert.equal(evidence.scrolled, 'bottom');
+  assert.equal(evidence.readable, true);
+  assert.equal(
+    compactBrowserEvidence({
+      capability: 'browser.snapshot',
+      url: 'https://example.test/',
+      snapshot: 'x',
+      waitedFor: { text: 'ok', found: true, extra: 'FICTIF page text' },
+    }).waitedFor.extra,
+    undefined,
+  );
+  assert.equal(
+    compactBrowserEvidence({ capability: 'browser.snapshot', url: 'https://example.test/' })
+      .waitedFor,
+    undefined,
+  );
+});

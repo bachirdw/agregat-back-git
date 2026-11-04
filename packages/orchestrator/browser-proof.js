@@ -38,6 +38,11 @@ export function compactBrowserEvidence(output) {
     provider,
     loading: output.loading === true,
     readable: readableBrowserObservation(output),
+    // E19 : the agent's own expectation (not page text) lets the Bilan say "texte attendu non apparu".
+    ...(typeof output.waitedFor?.text === 'string' && typeof output.waitedFor.found === 'boolean'
+      ? { waitedFor: { text: output.waitedFor.text.slice(0, 200), found: output.waitedFor.found } }
+      : {}),
+    ...(['bottom', 'page'].includes(output.scrolled) ? { scrolled: output.scrolled } : {}),
   };
 }
 

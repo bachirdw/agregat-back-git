@@ -185,3 +185,12 @@ Constaté :
 - **Couche** : aucune des cinq couches de documentation. `career_read` renvoie le fichier entier, sans découpage ni pagination ; la limite est celle de l'adaptateur Claude. C'est du code (E7, prévu au registre après E1 et E2). Le contournement natif relève d'E5 (confinement), qui attend l'accord du propriétaire.
 - **Hypothèse d'avant** : fausse pour le volume lui-même (ça a tenu), vraie pour E7.
 - 15:52 — Limites : 5 h à 42 %, hebdomadaire 5 %, Fable 7 %. Quatre missions sonnet depuis 14:44.
+
+## 04/11 15:58 — Correction d'E7 (ordre du propriétaire), conception du manager
+Constaté dans le code : `career_read` pagine déjà (`offset`, `maxChars`, `truncated`, `totalChars`), mais la page par défaut et le maximum valent 100 000 caractères ; l'adaptateur Claude a refusé 58 704 et 84 103 caractères (« exceeds maximum allowed tokens »). Conception :
+- `packages/career-ops/tools.js` : page par défaut **24 000** caractères, maximum **48 000** (sous le plus petit refus observé) ; réponse enrichie de `nextOffset` (ou `null`) et, si tronqué, d'une `notice` en français indiquant de relire avec `offset=nextOffset`. `untrusted: true` conservé.
+- Schéma de l'outil et description : mêmes bornes, pagination expliquée à l'agent.
+- Tests : pagination par défaut et bornes dans `tests/career-integration.test.js` ; contrat MCP si un test existant liste les outils career-ops.
+- Hors périmètre : bibliothèque career-ops, Skill, CV ; aucune variable d'environnement de l'adaptateur.
+Codage confié à un sous-agent Sonnet (un seul), relecture du diff par le manager ensuite.
+- 16:03 — E7 codé par le sous-agent Sonnet, diff relu par le manager : conforme à la conception (`tools.js` `read` : défaut 24 000, max 48 000, `nextOffset`, `notice` si tronqué ; schéma et description de `career_read` ; 4 assertions ajoutées au test de pagination). Vérifié par le manager : `node --test` career-integration + mcp-contract + career-script-help 47/47, `npm run check`, `npm run format:check` à zéro. Non vérifié : `npm test` complet ; effet réel avec l'adaptateur Claude (une page de 24 000 caractères n'a pas encore été lue en mission). Non commité. L'API en cours charge `tools.js` au démarrage : relance nécessaire pour que la correction s'applique.

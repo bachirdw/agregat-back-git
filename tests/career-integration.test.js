@@ -616,6 +616,17 @@ test('Lecture privée paginée et script annulé : sortie bornée, processus arr
   assert.equal(page.text.length, 20);
   assert.equal(page.truncated, true);
   assert.equal(page.totalChars, 180000);
+  assert.equal(page.nextOffset, 30);
+  assert.match(page.notice, /offset=30/);
+  const first = tools.read('cv.md');
+  assert.equal(first.text.length, 24000);
+  assert.equal(first.truncated, true);
+  assert.equal(first.nextOffset, 24000);
+  const last = tools.read('cv.md', { offset: 179990 });
+  assert.equal(last.truncated, false);
+  assert.equal(last.nextOffset, null);
+  assert.equal('notice' in last, false);
+  assert.throws(() => tools.read('cv.md', { maxChars: 48001 }));
   assert.throws(() => tools.read('cv.md', { offset: -1 }));
   mkdirSync(join(root, 'relay'));
   writeFileSync(join(root, 'find.mjs'), 'setInterval(() => {}, 1000)');

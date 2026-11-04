@@ -193,9 +193,27 @@ export async function executeWorkflow(orch, run, plan, control) {
           }
         },
         onPermission: (p) => orch.permission(run.id, p, !!definition.simulated, scope.abort.signal),
+        // Owner question from the step's agent: same queue and answer route as an agent mission.
+        // The step's guard and the run's own deadline (if the caller gives one) pause meanwhile;
+        // the engine's per-step `timeoutMs`, when a DAG sets one, is not paused.
+        onElicitation: (p) => orch.elicit(run.id, p, stepControl),
       });
+      const stepControl = {
+        abort: { signal: stepSignal },
+        suspendTimers: () => {
+          guard.suspend();
+          control.suspendTimers?.();
+        },
+        resumeTimers: () => {
+          guard.resume();
+          control.resumeTimers?.();
+        },
+      };
       runtimes.add(runtime);
       const onAbort = () => {
+        // A step stopped alone (timeout, failure) closes its own open question, not the others'.
+        for (const entry of orch.questions.filter((q) => q.control === stepControl))
+          orch.settleQuestion(entry, { action: 'cancel' }, { action: 'cancel' });
         runtime.cancel();
         runtime.close();
       };

@@ -475,3 +475,67 @@ async function refuseUncertain(control, runId) {
     await new Promise((r) => setTimeout(r, 10));
   }
 }
+
+// c3-question-prose-01, point 4 : une étape agent qui pose une question de formulaire attend le
+// propriétaire (awaiting_owner) au lieu de recevoir `cancel`, délais de l'étape suspendus.
+test('étape DAG : question de formulaire → awaiting_owner → réponse → étape terminée', async () => {
+  const { executeWorkflow } = await import('../packages/orchestrator/workflow-run.js');
+  const app = createApp({ dataDir: temporary() });
+  app.engine.silentMs = 300;
+  app.engine.toolIdleMs = 300;
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'running',
+    cwd: temporary(),
+    prompt: 'FICTIF',
+    model: '',
+    budgetCents: 0,
+  };
+  app.store.create(run);
+  const plan = {
+    agent: {
+      id: 'fictif-real',
+      command: process.execPath,
+      args: [resolve('tests/fixtures/fake-acp.js')],
+      env: [],
+      safeModes: [],
+      fixedEnv: { FAKE_ACP: JSON.stringify({ askQuestion: { toolBefore: true } }) },
+    },
+    pack: { id: 'core' },
+    skills: [],
+    dag: {
+      id: 'fictif',
+      title: 'FICTIF',
+      steps: [{ id: 'analysis', title: 'FICTIF', kind: 'agent', prompt: 'FICTIF' }],
+    },
+  };
+  const pauses = { suspended: 0, resumed: 0 };
+  const control = {
+    abort: new AbortController(),
+    suspendTimers: () => pauses.suspended++,
+    resumeTimers: () => pauses.resumed++,
+  };
+  try {
+    const done = executeWorkflow(app.engine, run, plan, control);
+    const until = Date.now() + 10000;
+    while (app.store.get(run.id).state !== 'awaiting_owner') {
+      assert.ok(Date.now() < until, JSON.stringify(app.store.get(run.id)));
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    const row = app.store.get(run.id);
+    assert.equal(row.pendingQuestion.kind, 'form');
+    await new Promise((r) => setTimeout(r, 1000)); // > délais d'outil et de silence de l'étape
+    const types = app.store.events(run.id).map((e) => e.type);
+    assert.ok(!types.includes('tool_stalled'), 'outil de l’étape non coupé pendant l’attente');
+    assert.ok(!types.includes('agent_silent'), 'silence de l’étape non coupé pendant l’attente');
+    assert.equal(app.store.get(run.id).state, 'awaiting_owner');
+    app.engine.answer(run.id, { action: 'accept', content: { reponse: 'oui FICTIF' } });
+    await done;
+    const step = app.engine.workflows.steps(run.id).find((s) => s.step_id === 'analysis');
+    assert.equal(step.state, 'succeeded', JSON.stringify(step));
+    assert.match(step.output.summary, /oui FICTIF/);
+    assert.deepEqual(pauses, { suspended: 1, resumed: 1 });
+  } finally {
+    await app.close();
+  }
+});

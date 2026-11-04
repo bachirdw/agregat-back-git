@@ -53,3 +53,20 @@ Session : sous-agent codeur (Claude), branche `suite-astra`, base `bf5586e` (bri
 - Choix : la consigne courte est jointe à chaque tour de réponse (une fois par message), pas seulement au premier. Le plafond d'attente s'applique aussi aux questions de formulaire ACP (réponse `cancel` à l'agent), puisque la file est commune.
 - Vert : `tests/elicitation.test.js` + `tests/agent-result.test.js` 34/34 ; `tests/runtime.test.js` + `tests/astra-runtime.test.js` 56/56.
 - Observation : pendant ce point, des fichiers que je n'ai pas touchés sont apparus modifiés dans l'arbre (`docs/api-career-ops.md`, `domain-packs/career-ops/manifest.yaml`, `packages/career-ops/tools.js`, `packages/mcp-gateway/server.js`, `packages/orchestrator/packs.js`) : une autre session travaille dans ce worktree. Je ne les ajoute à aucun commit.
+
+## Point 4 — Étapes de workflow DAG (19:39-19:43)
+- Test ajouté : `tests/workflow-run.test.js` « étape DAG : question de formulaire → awaiting_owner → réponse → étape terminée » (`executeWorkflow` direct, faux ACP `askQuestion: {toolBefore: true}`, silence et outil à 300 ms, attente 1 s pendant la question).
+- Rouge constaté :
+```
+✖ étape DAG : question de formulaire → awaiting_owner → réponse → étape terminée (10037.826833ms)
+ℹ pass 0
+ℹ fail 1
+  AssertionError [ERR_ASSERTION]: {"id":"2d7a…","state":"running",…}
+```
+  (le runtime de l'étape répondait `cancel` : jamais d'`awaiting_owner`.)
+- Implémentation :
+  - `packages/orchestrator/workflow-run.js` : `onElicitation: (p) => orch.elicit(run.id, p, stepControl)` ; `stepControl` = signal de l'étape + `suspendTimers`/`resumeTimers` qui pausent le `TurnGuard` de l'étape **et** appellent ceux du run (`control.suspendTimers?.()`, définis par `execute()` pour le délai de mission ; no-op s'ils manquent). À l'arrêt isolé d'une étape, ses seules questions sont fermées (`cancel`).
+  - `packages/orchestrator/turn-guard.js` : `suspend()`/`resume()` (silence et outils en cours ré-armés à la reprise).
+- Non couvert (documenté) : le `timeoutMs` propre à une étape, quand un DAG en fixe un (`workflow-engine`), n'est pas suspendu pendant la question.
+- Deux corrections du test lui-même avant le vert : l'app n'écoutait pas de port (réponse passée par `app.engine.answer`, la route HTTP est couverte au point 3) ; état d'étape `succeeded`, pas `completed`.
+- Vert : `workflow-run` + `astra-workflow` + `workflow-engine` 43/43.

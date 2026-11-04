@@ -14,7 +14,7 @@ export class TurnGuard {
   }
   observe(update) {
     if (!this.active) return;
-    this.armSilence();
+    if (!this.paused) this.armSilence();
     if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate) || !update.toolCallId)
       return;
     const id = update.toolCallId;
@@ -23,8 +23,28 @@ export class TurnGuard {
     if (['completed', 'failed', 'cancelled'].includes(update.status)) return;
     this.tools.set(
       id,
-      setTimeout(() => this.stop('tool_stalled', this.toolIdleMs, id), this.toolIdleMs),
+      this.paused
+        ? null
+        : setTimeout(() => this.stop('tool_stalled', this.toolIdleMs, id), this.toolIdleMs),
     );
+  }
+  // An open owner question pauses silence and tool deadlines; pending tools are re-armed after it.
+  suspend() {
+    if (!this.active || this.paused) return;
+    this.paused = true;
+    clearTimeout(this.silence);
+    for (const timer of this.tools.values()) clearTimeout(timer);
+  }
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    if (!this.active) return;
+    this.armSilence();
+    for (const id of this.tools.keys())
+      this.tools.set(
+        id,
+        setTimeout(() => this.stop('tool_stalled', this.toolIdleMs, id), this.toolIdleMs),
+      );
   }
   stop(code, afterMs, toolCallId) {
     if (!this.active) return;

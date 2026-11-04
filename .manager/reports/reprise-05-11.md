@@ -18,3 +18,11 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 - 20:31 : sous-agent **Opus** lancé sur `c7-candidature-fictive-01` (points 1-4 et 6 ; point 5, mission réelle, réservé au manager). Un seul sous-agent.
 - Registre : E14 passe de « Mis de côté » à « Accepté » (option a).
 - Plafond 2 h : à appliquer par `AGENT_PLATFORM_SEND_TIMEOUT_MS=7200000 AGENT_PLATFORM_QUESTION_TIMEOUT_MS=7200000` à la prochaine relance de l'API (après la livraison C7, annoncée avant). Aucune relance pour l'instant.
+
+## 20:34 — E19 : rendu au premier plan constaté (C5 d, fait par le manager sur demande du propriétaire)
+- Même URL (retrouvée dans les événements de 5bc9a43f, gardée hors Git), même profil Chrome, même minute :
+  - onglet **visible** (ouvert par le manager via l'extension Claude in Chrome) : `visibilityState: visible`, 8 871 caractères de texte, section « À propos de l'offre d'emploi » 1 949 caractères (1 941 après clic « plus »), « Responsibilities » présent ;
+  - onglet **caché** du relais (`sonde-e19.mjs`) : 2 506 caractères, « Responsibilities » absent du texte **et** du HTML, `bringToFront` → `hasFocus: true` mais `hidden` inchangé.
+- Émulation de visibilité (`sonde-e19-visible.mjs`, nouvelle, lecture seule) : `visibilityState`/`hidden`/`hasFocus`/`requestAnimationFrame` forcés par `addInitScript` avant rechargement → la page se croit visible mais rend toujours 2 506 caractères ; émulation de focus CDP impossible (le relais refuse `Target.attachToBrowserTarget`) ; `visibilitychange` dispatché : sans effet.
+- Conclusion (constaté 1/1) : la description LinkedIn n'est rendue que dans un onglet réellement visible ; aucune émulation accessible depuis Relay par le relais ne suffit. L'activation d'onglet relève de l'extension Playwriter (onglet créé `active:false`), hors Relay. Décision à prendre par le propriétaire : abandon documenté (ligne de Bilan générique « texte attendu non apparu », C5 c) ou autre voie.
+- Non vérifié : une seule offre, un seul essai au premier plan ; le relais n'a pas été réessayé après fermeture de l'onglet visible.

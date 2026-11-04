@@ -2,7 +2,8 @@
 // mute: method never answered; crashOn: method that kills the process; garbage: noise on stdout;
 // authRequired; models: 'configOptions' | 'models'; modes: 'modes' | 'configOptions' + modeIds;
 // permissionHang; lateMs: delay before the prompt answer; loadSession; promptFile: path where the
-// received prompt is written.
+// received prompt is written; capsFile: clientCapabilities received at initialize; askQuestion: form
+// elicitation after the prompt ({message?, requestedSchema?} or true); answerFile: its response.
 import {
   agent,
   methods,
@@ -269,6 +270,39 @@ const app = agent({ name: 'fake-acp' })
         options: [{ optionId: 'ok', name: 'Allow', kind: 'allow_once' }],
       });
       await never();
+    }
+    // askQuestion (or a prompt containing QUESTION:): the agent asks the owner through a form
+    // elicitation, waits for the answer and finishes by quoting it. answerFile keeps the exact
+    // elicitation response received (accept / decline / cancel).
+    if (cfg.askQuestion || String(ctx.params.prompt[0].text).includes('QUESTION:')) {
+      const question = cfg.askQuestion?.message ?? 'Dois-je enregistrer cette offre ?';
+      const answer = await connection.client.request(methods.client.elicitation.create, {
+        sessionId: ctx.params.sessionId,
+        toolCallId: 'FICTIF-ask',
+        mode: 'form',
+        message: question,
+        requestedSchema: cfg.askQuestion?.requestedSchema ?? {
+          type: 'object',
+          properties: { reponse: { type: 'string', title: 'Réponse' } },
+          required: ['reponse'],
+        },
+      });
+      if (cfg.answerFile) writeFileSync(cfg.answerFile, JSON.stringify(answer));
+      const summary =
+        answer.action === 'accept'
+          ? `Réponse du propriétaire reçue : ${JSON.stringify(answer.content)}`
+          : `Question ${answer.action === 'decline' ? 'déclinée' : 'annulée'} : aucune réponse du propriétaire.`;
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: JSON.stringify({ simulated: true, summary, evidence: [] }),
+          },
+        },
+      });
+      return { stopReason: 'end_turn' };
     }
     if (cfg.lateMs) await new Promise((r) => setTimeout(r, cfg.lateMs));
     const report = {

@@ -6,6 +6,8 @@ import { z } from 'zod';
 // submit, pay, send or apply — always requires a human decision at the gateway.
 const url = z.string().min(1).max(2048);
 const selector = z.string().min(1).max(500);
+const waitForText = z.string().trim().min(2).max(200);
+const scrollMode = z.enum(['bottom', 'page']);
 const ref = z
   .string({ error: 'ref requise : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot' })
   .regex(
@@ -27,8 +29,14 @@ export const capabilities = [
     effect: 'read',
     meter: 'browser_action',
     description:
-      'Arbre d’accessibilité avec références [ref=eN] et [ref=fNeN] réutilisables dans les actions sur la page courante.',
-    schema: z.object({ url: url.optional() }).strict(),
+      'Arbre d’accessibilité avec références [ref=eN] et [ref=fNeN] réutilisables dans les actions sur la page courante. Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom : jusqu’en bas, page : d’une hauteur d’écran). À utiliser quand un texte attendu manque à la capture ou que la page charge au défilement.',
+    schema: z
+      .object({
+        url: url.optional(),
+        waitForText: waitForText.optional(),
+        scroll: scrollMode.optional(),
+      })
+      .strict(),
   },
   {
     id: 'browser.extract',
@@ -36,13 +44,15 @@ export const capabilities = [
     effect: 'read',
     meter: 'browser_action',
     description:
-      'Texte visible de la référence ref du snapshot, ou du sélecteur CSS historique. limit=3 extrait les trois premiers éléments (défaut : 1).',
+      'Texte visible de la référence ref du snapshot, ou du sélecteur CSS historique. limit=3 extrait les trois premiers éléments (défaut : 1). Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom ou page). À utiliser quand un texte attendu manque ou que la page charge au défilement.',
     schema: z
       .object({
         ref: ref.optional(),
         selector: selector.optional(),
         limit: z.number().int().min(1).max(20).default(1),
         maxChars: z.number().int().min(1).max(50000).default(20000),
+        waitForText: waitForText.optional(),
+        scroll: scrollMode.optional(),
       })
       .strict()
       .refine(({ ref, selector }) => !(ref && selector), 'Fournir ref ou selector, pas les deux')

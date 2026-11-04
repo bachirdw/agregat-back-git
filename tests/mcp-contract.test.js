@@ -56,6 +56,28 @@ test('MCP : bornes et valeurs par défaut du registre exposées à l’agent', a
   assert.equal(tool.inputSchema.properties.limit.default, 1);
   assert.equal(tool.inputSchema.properties.maxChars.maximum, 50000);
   assert.equal(tool.inputSchema.properties.selector.minLength, 1);
+  assert.equal(tool.inputSchema.properties.waitForText.minLength, 2);
+  assert.equal(tool.inputSchema.properties.waitForText.maxLength, 200);
+  assert.deepEqual(tool.inputSchema.properties.scroll.enum, ['bottom', 'page']);
+  const snapshot = (await (await fixture(t, 'fixture')).listTools()).tools.find(
+    (tool) => tool.name === 'browser_snapshot',
+  );
+  assert.equal(snapshot.inputSchema.properties.waitForText.maxLength, 200);
+  assert.deepEqual(snapshot.inputSchema.properties.scroll.enum, ['bottom', 'page']);
+  assert.match(snapshot.description, /waitForText : attend ce texte avant de capturer/);
+  assert.match(tool.description, /scroll : fait défiler pour charger la suite/);
+});
+test('MCP fixture : waitForText et scroll reflétés dans la réponse simulée', async (t) => {
+  const client = await fixture(t, 'fixture');
+  const response = await client.callTool({
+    name: 'browser_snapshot',
+    arguments: { url: 'https://jobs.example.test', waitForText: 'FICTIF', scroll: 'bottom' },
+  });
+  assert.equal(response.isError, undefined);
+  const out = JSON.parse(response.content[0].text);
+  assert.equal(out.scrolled, 'bottom');
+  assert.equal(out.waitedFor.text, 'FICTIF');
+  assert.equal(typeof out.waitedFor.found, 'boolean');
 });
 
 test('MCP fixture : arguments valides et résultat explicitement simulé', async (t) => {
@@ -79,6 +101,9 @@ test('MCP réel : entrées hors limites refusées avant le handler', async (t) =
     { selector: '' },
     { selector: null },
     { selector: 'FICTIF', script: 'FICTIF' },
+    { waitForText: 'a' },
+    { waitForText: 'x'.repeat(201) },
+    { scroll: 'top' },
   ]) {
     const response = await client.callTool({ name: 'browser_extract', arguments: args });
     assert.equal(response.isError, true);

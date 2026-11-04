@@ -8,13 +8,23 @@ export { CdpBrowser } from './cdp.js';
 // Legacy fixture provider (no network, no browser) kept for the reproducible demo.
 export class FixtureBrowser {
   name = 'fixture';
-  async call(action, { url = 'https://jobs.example.test' } = {}) {
+  async call(action, { url = 'https://jobs.example.test', waitForText, scroll } = {}) {
     browserPolicy(action, url);
+    const text = 'Page de test locale : trois offres fictives. Aucun accès à Chrome ou au réseau.';
     return {
       simulated: true,
       provider: 'fixture',
       url,
-      text: 'Page de test locale : trois offres fictives. Aucun accès à Chrome ou au réseau.',
+      text,
+      ...(waitForText
+        ? {
+            waitedFor: {
+              text: waitForText,
+              found: text.toLowerCase().includes(waitForText.toLowerCase()),
+            },
+          }
+        : {}),
+      ...(scroll ? { scrolled: scroll } : {}),
     };
   }
 }
@@ -231,10 +241,32 @@ export class FixturePageProvider {
     const page = this.pages[this.url];
     this.actions.push({ id, args });
     if (id === 'browser.navigate') return { url: this.url, title: page.title, simulated: true };
+    const reflected = {
+      ...(args.waitForText
+        ? {
+            waitedFor: {
+              text: args.waitForText,
+              found: page.text.toLowerCase().includes(args.waitForText.toLowerCase()),
+            },
+          }
+        : {}),
+      ...(args.scroll ? { scrolled: args.scroll } : {}),
+    };
     if (id === 'browser.snapshot')
-      return { url: this.url, title: page.title, snapshot: page.text, simulated: true };
+      return {
+        url: this.url,
+        title: page.title,
+        snapshot: page.text,
+        ...reflected,
+        simulated: true,
+      };
     if (id === 'browser.extract')
-      return { url: this.url, text: page.text.slice(0, args.maxChars), simulated: true };
+      return {
+        url: this.url,
+        text: page.text.slice(0, args.maxChars),
+        ...reflected,
+        simulated: true,
+      };
     if (id === 'browser.download') {
       const dir = resolve(policy.workspace, 'downloads');
       mkdirSync(dir, { recursive: true });

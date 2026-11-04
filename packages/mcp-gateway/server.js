@@ -134,8 +134,15 @@ if (mode === 'fixture') {
   server.registerTool(
     'browser_snapshot',
     {
-      description: 'Instantané SIMULÉ sans accès réseau ni navigateur réel.',
-      inputSchema: z.object({ url: z.string().max(2048) }).strict(),
+      description:
+        'Instantané SIMULÉ sans accès réseau ni navigateur réel. waitForText : attend ce texte avant de capturer ; scroll : fait défiler pour charger la suite.',
+      inputSchema: z
+        .object({
+          url: z.string().max(2048),
+          waitForText: z.string().trim().min(2).max(200).optional(),
+          scroll: z.enum(['bottom', 'page']).optional(),
+        })
+        .strict(),
     },
     async (args) => text(await new FixtureBrowser().call('browser.snapshot', args)),
   );

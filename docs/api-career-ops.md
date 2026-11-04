@@ -40,7 +40,7 @@ Voir [pièces jointes](api-attachments.md) et [envois](api-sends.md).
   "source": "Source et attribution",
   "fetchedAt": "2026-10-26T00:00:00.000Z",
   "score": 4,
-  "report": {"A":"…","B":"…","C":"…","D":"…","E":"…","F":"…","G":"…","H":"…"},
+  "report": { "A": "…", "B": "…", "C": "…", "D": "…", "E": "…", "F": "…", "G": "…", "H": "…" },
   "simulated": true
 }
 ```
@@ -55,6 +55,12 @@ ils ne sont pas convertis arbitrairement en notes ou rapports A–H.
 
 Le schéma publié aux agents ne contient ni `id` ni `contractVersion` : la plateforme génère l’`id`
 (UUID, seul texte utilisé pour les noms de fichiers), écrit `contractVersion: 2` et renvoie l’`id`.
+`fetchedAt` vient de l’agent ; absente, illisible ou plus d’une minute dans le futur, la plateforme
+enregistre sa propre date et garde la valeur reçue dans `fetchedAtAgent` avec `fetchedAtAdjusted: true`.
+Les fichiers que le pack déclare `optionalFiles` (manifeste : `data/blacklist.md`, `modes/_custom.md`,
+`data/applications.md`) répondent à `career_read` par `{absent: true, optional: true, text: ""}` tant que
+le Skill ne les a pas créés ; tout autre fichier absent reste une erreur.
+
 Chaque appel crée donc une offre : il n’existe pas de mise à jour par identifiant. L’identifiant de
 l’offre chez sa source (par exemple `arbeitnow:…`) se place dans `sourceOfferId`, facultatif, simple
 donnée qui n’est jamais utilisée pour un chemin. Les fichiers déjà écrits restent lisibles tels quels.

@@ -248,6 +248,7 @@ if (pack.id === 'career-ops') {
     approve,
     meter,
     ownerMode: JSON.parse(process.env.RELAY_POLICY ?? '{}').ownerMode === true,
+    optionalFiles: pack.optionalFiles ?? [],
     openProfile: browserGateway
       ? (url) => browserGateway.call('browser.navigate', { url })
       : undefined,

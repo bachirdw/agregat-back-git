@@ -21,6 +21,9 @@ keywords:
     parcours,
   ]
 skills: []
+# Fichiers de la bibliothèque career-ops que le Skill décrit comme optionnels : absents tant que
+# le Skill ne les a pas créés, ce n'est pas une erreur (DATA_CONTRACT.md, AGENTS.md amont).
+optionalFiles: [data/blacklist.md, modes/_custom.md, data/applications.md]
 workflow:
   id: career-agent
   title: Accompagner la recherche et les candidatures

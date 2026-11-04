@@ -27,6 +27,8 @@ const schema = z.object({
   dataMode: z.enum(['fixture', 'live', 'user', 'unverified']).optional(),
   keywords: z.array(z.string()),
   skills: z.array(z.object({ id: z.string(), file: z.string() })),
+  // Files of the pack's own library whose absence is a normal state (read as « absent »).
+  optionalFiles: z.array(z.string().min(1).max(300)).max(50).default([]),
   workflow: z.object({
     id: z.string(),
     title: z.string(),

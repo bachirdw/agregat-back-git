@@ -1,9 +1,22 @@
 import { z } from 'zod';
 import { redact } from '../agent-runtime/env.js';
 
+// Optional owner question carried by the answer (agents without a form elicitation): the run then
+// waits for the owner in the same session. With it, summary may be empty.
+const questionSchema = z.object({
+  message: z.string().min(1).max(4000),
+  options: z.array(z.string().min(1).max(200)).max(8).optional(),
+});
+
 const resultSchema = z
-  .object({ simulated: z.boolean(), summary: z.string().min(1), evidence: z.array(z.unknown()) })
-  .passthrough();
+  .object({
+    simulated: z.boolean(),
+    summary: z.string(),
+    evidence: z.array(z.unknown()),
+    question: questionSchema.optional(),
+  })
+  .passthrough()
+  .refine((value) => value.summary.length > 0 || value.question !== undefined);
 
 function lastJsonObject(text) {
   let start = -1;

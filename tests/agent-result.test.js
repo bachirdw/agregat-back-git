@@ -114,3 +114,35 @@ test('résultat agent : deux objets JSON successifs gardent le dernier résultat
   assert.deepEqual(parsed.value, final);
   assert.match(parseAgentResult(JSON.stringify(progress) + '{"summary":').reason, /JSON invalide/);
 });
+
+// c3-question-prose-01, point 2 : champ facultatif `question`, summary vide permis avec lui.
+test('question structurée acceptée, summary vide permis, rendue telle quelle', () => {
+  const question = { message: 'Dois-je continuer FICTIF ?', options: ['oui', 'non'] };
+  const out = parseAgentResult(
+    JSON.stringify({ simulated: false, summary: '', evidence: [], question }),
+  );
+  assert.equal(out.ok, true, JSON.stringify(out));
+  assert.deepEqual(out.value.question, question);
+  assert.equal(out.value.summary, '');
+  const bare = parseAgentResult(
+    JSON.stringify({ simulated: false, summary: 'ok', evidence: [], question: { message: 'Q ?' } }),
+  );
+  assert.equal(bare.ok, true);
+  assert.deepEqual(bare.value.question, { message: 'Q ?' });
+});
+
+test('question hors contrat refusée : 9 options, message vide, option trop longue', () => {
+  const base = { simulated: false, summary: 'ok', evidence: [] };
+  for (const question of [
+    { message: 'Q ?', options: Array.from({ length: 9 }, (_, i) => `o${i}`) },
+    { message: '' },
+    { message: 'x'.repeat(4001) },
+    { message: 'Q ?', options: [''] },
+    { message: 'Q ?', options: ['x'.repeat(201)] },
+  ]) {
+    const out = parseAgentResult(JSON.stringify({ ...base, question }));
+    assert.equal(out.ok, false, JSON.stringify(question).slice(0, 80));
+  }
+  // Sans question, un summary vide reste hors contrat.
+  assert.equal(parseAgentResult(JSON.stringify({ ...base, summary: '' })).ok, false);
+});

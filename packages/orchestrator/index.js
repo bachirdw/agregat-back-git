@@ -58,7 +58,7 @@ import {
 import { withDoubtRule } from './doubt-rule.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
-import { AnswerError, publicQuestion, validateContent } from './questions.js';
+import { AnswerError, proseQuestion, publicQuestion, validateContent } from './questions.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
@@ -99,6 +99,10 @@ export function verificationScope(packId, simulated, observedBrowser = false) {
   if (simulated) return 'Résultat fictif ; structure vérifiée seulement';
   return 'Structure vérifiée ; offres et évaluations non vérifiées';
 }
+// Owner questions carried by the agent's JSON answer: at most this many per mission.
+const MAX_QUESTIONS = 10;
+const ANSWER_TURN =
+  'Réponse du propriétaire à ta question ; poursuis la mission dans cette session.';
 const SESSION_LOST =
   /invalid session|unknown session|no such session|session[^.]{0,40}(?:not found|introuvable|does not exist)/i;
 // browser_navigate is the MCP spelling of browser.navigate; other tools keep their own name.
@@ -130,6 +134,10 @@ export class Orchestrator {
       timeoutMs,
       toolIdleMs = 120000,
       silentMs = 180000,
+      // Absolute wait for one owner question, only when configured (default: none).
+      questionTimeoutMs = Number(process.env.AGENT_PLATFORM_QUESTION_TIMEOUT_MS) > 0
+        ? Number(process.env.AGENT_PLATFORM_QUESTION_TIMEOUT_MS)
+        : null,
       career = new CareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
     } = {},
@@ -143,6 +151,7 @@ export class Orchestrator {
       careerTimeoutMs: timeoutMs ?? 900000,
       toolIdleMs,
       silentMs,
+      questionTimeoutMs,
       ownerMode,
     });
     this.active = new Map();
@@ -1052,28 +1061,80 @@ export class Orchestrator {
         saveProbe(this.dataDir, plan.agent.id, { inference: true, inferenceError: null });
       if (response.stopReason !== 'end_turn')
         throw new Error(`Agent arrêté : ${response.stopReason}`);
-      let result = parseAgentResult(text);
-      // career-ops is conversational (intake questions, drafts): plain text from the real agent is
-      // its answer, kept private like any career-ops result, not a failure.
-      if (!result.ok && plan.pack.id === 'career-ops' && text.trim())
-        result = {
-          ok: true,
-          value: { simulated: !!plan.simulated, summary: text.trim(), evidence: [] },
-        };
-      // Any other real agent may answer in prose too: shown as its answer, with no evidence.
-      if (!result.ok && !plan.simulated && result.reason.includes('non structurée') && text.trim())
-        result = {
-          ok: true,
-          value: { simulated: false, summary: redact(text.trim()), evidence: [] },
-        };
-      if (!result.ok) {
-        this.store.event(run.id, 'agent_output_rejected', {
-          reason: result.reason,
-          excerpt: plan.pack.id === 'career-ops' ? '[résultat privé]' : result.excerpt,
-        });
-        throw new Error(`${result.reason} : « ${result.excerpt} »`);
+      // Reads the agent's answer of the turn just finished (first turn or answer turn).
+      const readResult = () => {
+        let result = parseAgentResult(text);
+        // career-ops is conversational (intake questions, drafts): plain text from the real agent is
+        // its answer, kept private like any career-ops result, not a failure.
+        if (!result.ok && plan.pack.id === 'career-ops' && text.trim())
+          result = {
+            ok: true,
+            value: { simulated: !!plan.simulated, summary: text.trim(), evidence: [] },
+          };
+        // Any other real agent may answer in prose too: shown as its answer, with no evidence.
+        if (
+          !result.ok &&
+          !plan.simulated &&
+          result.reason.includes('non structurée') &&
+          text.trim()
+        )
+          result = {
+            ok: true,
+            value: { simulated: false, summary: redact(text.trim()), evidence: [] },
+          };
+        if (!result.ok) {
+          this.store.event(run.id, 'agent_output_rejected', {
+            reason: result.reason,
+            excerpt: plan.pack.id === 'career-ops' ? '[résultat privé]' : result.excerpt,
+          });
+          throw new Error(`${result.reason} : « ${result.excerpt} »`);
+        }
+        return result.value;
+      };
+      let agentValue = readResult();
+      // A structured `question` waits for the owner, then the agent continues in the SAME session.
+      const questionCount = { asked: 0, answered: 0 };
+      while (agentValue.question) {
+        const { question, ...rest } = agentValue;
+        const said = rest.summary.trim();
+        const close = (line) => ({ ...rest, summary: [said, line].filter(Boolean).join('\n') });
+        if (questionCount.asked >= MAX_QUESTIONS) {
+          agentValue = close(
+            `Questions trop nombreuses (${MAX_QUESTIONS} au plus par mission) ; non posée : ${question.message}`,
+          );
+          break;
+        }
+        questionCount.asked++;
+        const reply = await this.askProse(run.id, question, control);
+        if (control.abort.signal.aborted) throw control.abort.signal.reason;
+        if (reply.action !== 'accept') {
+          agentValue = close(
+            reply.action === 'decline'
+              ? `Question refusée par le propriétaire : ${question.message}`
+              : `Question restée sans réponse : ${question.message}`,
+          );
+          break;
+        }
+        questionCount.answered++;
+        if (!runtime.continueSession())
+          throw new Error('Session de l’agent fermée pendant la question');
+        text = '';
+        armSilence();
+        response = await runtime.prompt(
+          JSON.stringify({
+            answer: reply.content,
+            platform: { turnKind: 'answer' },
+            instructions: ANSWER_TURN,
+          }),
+          control.abort.signal,
+        );
+        clearSilence();
+        if (control.abort.signal.aborted) throw control.abort.signal.reason;
+        if (response.stopReason !== 'end_turn')
+          throw new Error(`Agent arrêté : ${response.stopReason}`);
+        agentValue = readResult();
       }
-      const value = executionResult(result.value, plan.agent, {
+      const value = executionResult(agentValue, plan.agent, {
         fixtureData: plan.dataMode === 'fixture',
       });
       const skillResult = skillProgress.finish();
@@ -1199,6 +1260,8 @@ export class Orchestrator {
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible). Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer.';
+      if (questionCount.asked)
+        value.summary += `\nQuestions : ${questionCount.asked} posée(s), ${questionCount.answered} répondue(s).`;
       const incomplete = skillProgress.incomplete(
         readablePages(control.browserEvidence),
         turnTruth.hasJdRead(),
@@ -1405,8 +1468,21 @@ export class Orchestrator {
     const id = randomUUID();
     const question = publicQuestion(id, params, new Date().toISOString());
     if (!question) return { action: 'cancel' };
+    return this.enqueueQuestion(runId, question, control);
+  }
+  // Question carried by the agent's JSON answer (agents with no form): same queue, same answer route.
+  askProse(runId, question, control) {
+    if (control.abort.signal.aborted) return { action: 'cancel' };
+    const id = randomUUID();
+    return this.enqueueQuestion(
+      runId,
+      proseQuestion(id, question, new Date().toISOString()),
+      control,
+    );
+  }
+  enqueueQuestion(runId, question, control) {
     return new Promise((resolve) => {
-      const entry = { id, runId, question, control, resolve, open: false };
+      const entry = { id: question.id, runId, question, control, resolve, open: false };
       this.questions.push(entry);
       if (!this.openQuestion(runId)) this.openNext(runId);
     });
@@ -1425,12 +1501,19 @@ export class Orchestrator {
       resumable: false,
     });
     this.store.event(runId, 'question', entry.question);
+    // Configured ceiling only: the question is closed unanswered (`cancel` for an ACP form).
+    if (this.questionTimeoutMs)
+      entry.timer = setTimeout(
+        () => this.settleQuestion(entry, { action: 'cancel' }, { action: 'expired' }),
+        this.questionTimeoutMs,
+      );
   }
   // Settles one question and opens the next, or returns the run to `running`.
   settleQuestion(entry, response, event, drain = false) {
     const index = this.questions.indexOf(entry);
     if (index < 0) return;
     this.questions.splice(index, 1);
+    clearTimeout(entry.timer);
     const wasOpen = entry.open;
     entry.open = false;
     const { runId } = entry;

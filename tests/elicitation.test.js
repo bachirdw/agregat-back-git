@@ -400,3 +400,192 @@ test('redémarrage de l’API : une mission awaiting_owner devient interrupted',
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ---- c3-question-prose-01 : question structurée dans la réponse JSON (agent sans formulaire) ----
+
+const proseMission = (proseQuestion = true, timers, extra = {}) =>
+  startMission({ askQuestion: false, proseQuestion, ...extra }, timers);
+const callsOf = (m) => JSON.parse(readFileSync(join(m.run.cwd, 'calls.json'), 'utf8'));
+
+test('question en JSON : awaiting_owner, pendingQuestion kind prose, sessionId posé', async () => {
+  const m = await proseMission();
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.pendingQuestion.kind, 'prose');
+    assert.equal(row.pendingQuestion.message, 'Dois-je continuer FICTIF ?');
+    assert.deepEqual(row.pendingQuestion.options, ['oui', 'non']);
+    assert.equal(row.pendingQuestion.requestedSchema.properties.reponse.type, 'string');
+    assert.equal(row.sessionId, 'fake-session-1');
+    assert.equal(row.resumable, false);
+    const read = await m.api(`/api/runs/${m.run.id}`);
+    assert.equal(read.body.pendingQuestion.kind, 'prose');
+    assert.equal(m.app.store.events(m.run.id).filter((e) => e.type === 'question').length, 1);
+    m.app.engine.cancel(m.run.id);
+    await m.done;
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : réponse acceptée → nouveau tour dans la même session, completed', async () => {
+  const m = await proseMission(true, undefined, { callsFile: 'calls.json' });
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const res = await m.api(`/api/runs/${m.run.id}/answer`, {
+      action: 'accept',
+      content: { reponse: 'oui' },
+    });
+    assert.deepEqual(res, { status: 200, body: { ok: true } });
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed', JSON.stringify(done));
+    assert.equal(done.sessionId, 'fake-session-1');
+    assert.equal(done.pendingQuestion, null);
+    assert.match(done.result.summary, /Réponse reçue : oui/);
+    assert.match(done.result.summary, /Questions : 1 posée\(s\), 1 répondue\(s\)/);
+    const calls = callsOf(m);
+    assert.equal(calls.filter((c) => c === 'session/prompt').length, 2);
+    assert.equal(calls.filter((c) => c === 'session/new').length, 1);
+    assert.ok(!calls.includes('session/load'), 'pas de session/load');
+    const types = m.app.store.events(m.run.id).map((e) => e.type);
+    assert.ok(types.includes('question') && types.includes('answer'));
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : le second tour reçoit la réponse et la consigne courte, sans gabarit complet', async () => {
+  const m = await proseMission(true, undefined, { promptFile: 'prompt.json' });
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    m.app.engine.answer(m.run.id, { action: 'accept', content: { reponse: 'non' } });
+    await m.done;
+    const sent = JSON.parse(readFileSync(join(m.run.cwd, 'prompt.json'), 'utf8'));
+    assert.deepEqual(sent.answer, { reponse: 'non' });
+    assert.deepEqual(sent.platform, { turnKind: 'answer' });
+    assert.equal(
+      sent.instructions,
+      'Réponse du propriétaire à ta question ; poursuis la mission dans cette session.',
+    );
+    assert.equal(sent.objective, undefined, 'pas de nouveau gabarit complet');
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : decline → completed avec « Question refusée »', async () => {
+  const m = await proseMission(true, undefined, { callsFile: 'calls.json' });
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const res = await m.api(`/api/runs/${m.run.id}/answer`, { action: 'decline' });
+    assert.equal(res.status, 200);
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed', JSON.stringify(done));
+    assert.match(
+      done.result.summary,
+      /Question refusée par le propriétaire : Dois-je continuer FICTIF \?/,
+    );
+    assert.match(done.result.summary, /Questions : 1 posée\(s\), 0 répondue\(s\)/);
+    assert.equal(callsOf(m).filter((c) => c === 'session/prompt').length, 1, 'aucun tour de plus');
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : cancel pendant l’attente → cancelled', async () => {
+  const m = await proseMission();
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const res = await m.api(`/api/runs/${m.run.id}/cancel`, {});
+    assert.equal(res.status, 200);
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'cancelled', JSON.stringify(done));
+    assert.equal(done.pendingQuestion, null);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : délais suspendus pendant l’attente', async () => {
+  const m = await proseMission(true, { toolIdleMs: 300, silentMs: 300, missionMs: 1500 });
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    await new Promise((r) => setTimeout(r, 2000));
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'awaiting_owner', JSON.stringify(row));
+    const types = m.app.store.events(m.run.id).map((e) => e.type);
+    assert.ok(!types.includes('tool_stalled'));
+    assert.ok(!types.includes('agent_silent'));
+    m.app.engine.answer(m.run.id, { action: 'accept', content: { reponse: 'oui' } });
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed', JSON.stringify(done));
+    assert.doesNotMatch(JSON.stringify(done), /Délai maximal dépassé/);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : 409 sans question, 400 réponse vide ou trop longue', async () => {
+  const m = await proseMission();
+  try {
+    const url = `/api/runs/${m.run.id}/answer`;
+    // Avant la question : aucune n’est ouverte.
+    const early = await m.api(url, { action: 'accept', content: { reponse: 'oui' } });
+    assert.equal(early.status, 409);
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    for (const bad of [
+      { action: 'accept', content: { reponse: '' } },
+      { action: 'accept', content: { reponse: 'x'.repeat(12001) } },
+      { action: 'accept', content: {} },
+    ]) {
+      const res = await m.api(url, bad);
+      assert.equal(res.status, 400, JSON.stringify(bad).slice(0, 80));
+    }
+    // Texte libre accepté même hors des options proposées.
+    const ok = await m.api(url, { action: 'accept', content: { reponse: 'plutôt demain' } });
+    assert.equal(ok.status, 200);
+    await m.done;
+    assert.match(m.app.store.get(m.run.id).result.summary, /Réponse reçue : plutôt demain/);
+    assert.equal((await m.api(url, { action: 'decline' })).status, 409);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : 10 questions au plus, puis completed « questions trop nombreuses »', async () => {
+  const m = await proseMission({ always: true });
+  try {
+    for (let i = 0; i < 10; i++) {
+      await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+      m.app.engine.answer(m.run.id, { action: 'accept', content: { reponse: `r${i}` } });
+    }
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed', JSON.stringify(done));
+    assert.match(done.result.summary, /questions trop nombreuses/i);
+    assert.match(done.result.summary, /Questions : 10 posée\(s\), 10 répondue\(s\)/);
+    assert.equal(m.app.store.events(m.run.id).filter((e) => e.type === 'question').length, 10);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('question en JSON : plafond d’attente configuré → completed « Question restée sans réponse »', async () => {
+  const m = await proseMission();
+  try {
+    m.app.engine.questionTimeoutMs = 300;
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed', JSON.stringify(done));
+    assert.match(done.result.summary, /Question restée sans réponse : Dois-je continuer FICTIF \?/);
+    const answer = m.app.store.events(m.run.id).find((e) => e.type === 'answer');
+    assert.equal(answer.data.action, 'expired');
+  } finally {
+    await m.finish();
+  }
+});

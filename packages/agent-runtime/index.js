@@ -397,6 +397,13 @@ export class AcpRuntime {
       this.ready = false; // Another turn requires a fresh session identity.
     }
   }
+  // Next turn in the SAME session (owner's answer to a question): no session/new, no session/load.
+  // Only after a turn that ended normally; an unsafe mode change has already closed the runtime.
+  continueSession() {
+    if (this.stopped || !this.sessionId || this.promptActive) return false;
+    this.ready = true;
+    return true;
+  }
   cancel() {
     this.promptActive = false;
     this.ready = false;

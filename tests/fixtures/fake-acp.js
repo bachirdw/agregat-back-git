@@ -4,6 +4,9 @@
 // permissionHang; lateMs: delay before the prompt answer; loadSession; promptFile: path where the
 // received prompt is written; capsFile: clientCapabilities received at initialize; askQuestion: form
 // elicitation after the prompt ({message?, requestedSchema?, toolBefore?} or true); answerFile: its response.
+// proseQuestion: the first turn ends with a structured `question` in its JSON answer (no form); the
+// owner's answer turn ({"platform":{"turnKind":"answer"}}) is quoted back ({message?, options?,
+// always?: ask again on every turn}). callsFile: ACP methods received so far, written at each prompt.
 import {
   agent,
   methods,
@@ -270,6 +273,41 @@ const app = agent({ name: 'fake-acp' })
         options: [{ optionId: 'ok', name: 'Allow', kind: 'allow_once' }],
       });
       await never();
+    }
+    if (cfg.callsFile) writeFileSync(cfg.callsFile, JSON.stringify(calls));
+    if (cfg.proseQuestion) {
+      const sent = String(ctx.params.prompt[0].text);
+      let request = null;
+      try {
+        request = JSON.parse(sent);
+      } catch {
+        /* Not JSON: first turn. */
+      }
+      const answering = request?.platform?.turnKind === 'answer';
+      const reply =
+        answering && !cfg.proseQuestion.always
+          ? {
+              simulated: false,
+              summary: `Réponse reçue : ${request.answer?.reponse ?? ''}`,
+              evidence: [],
+            }
+          : {
+              simulated: false,
+              summary: '',
+              evidence: [],
+              question: {
+                message: cfg.proseQuestion.message ?? 'Dois-je continuer FICTIF ?',
+                options: cfg.proseQuestion.options ?? ['oui', 'non'],
+              },
+            };
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: JSON.stringify(reply) },
+        },
+      });
+      return { stopReason: 'end_turn' };
     }
     // askQuestion (or a prompt containing QUESTION:): the agent asks the owner through a form
     // elicitation, waits for the answer and finishes by quoting it. answerFile keeps the exact

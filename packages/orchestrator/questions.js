@@ -26,9 +26,39 @@ export function publicQuestion(id, params, askedAt) {
   if (Buffer.byteLength(JSON.stringify(requestedSchema)) > MAX_SCHEMA_BYTES) return null;
   return {
     id,
+    kind: 'form',
     message: String(params.message ?? '').slice(0, MAX_MESSAGE),
     requestedSchema,
     toolCallId: params.toolCallId ?? null,
+    askedAt,
+  };
+}
+
+// Question carried by the agent's JSON answer (`question: {message, options?}`), for agents with no
+// form elicitation. One free-text field `reponse`; the options are suggestions shown to the owner
+// (`examples`), never a closed list: the owner may answer anything.
+export const MAX_ANSWER = 12000;
+export function proseQuestion(id, question, askedAt) {
+  const options = question.options ?? [];
+  return {
+    id,
+    kind: 'prose',
+    message: String(question.message).slice(0, MAX_MESSAGE),
+    options,
+    requestedSchema: {
+      type: 'object',
+      properties: {
+        reponse: {
+          type: 'string',
+          title: 'Réponse',
+          minLength: 1,
+          maxLength: MAX_ANSWER,
+          ...(options.length ? { examples: options } : {}),
+        },
+      },
+      required: ['reponse'],
+    },
+    toolCallId: null,
     askedAt,
   };
 }

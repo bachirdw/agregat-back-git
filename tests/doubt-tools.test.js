@@ -125,7 +125,7 @@ test('Rôles des outils : le prompt career-ops reçoit ceux que le pack déclare
   assert.match(instructions, /Rôles des outils déclarés par le pack career-ops/);
   assert.match(
     instructions,
-    /Chercher des offres : career_script avec command: "scan"[^\n]*secours : jobs_search_live, seulement si le scan échoue ou si le prompt le demande[^\n]*dis-le dans summary/,
+    /Chercher des offres : career_script avec command: "scan"[^\n]*secours : jobs_search_live, seulement si career_script scan a échoué dans cette mission[^\n]*nommer un site \(Remotive, Arbeitnow\) ne suffit pas[^\n]*dis-le dans summary/,
   );
   assert.match(
     instructions,
@@ -181,8 +181,8 @@ test('Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le
   assert.equal(search.tool, 'career_script');
   assert.match(search.usage, /command: "scan"/);
   assert.deepEqual(search.fallbackTools, ['jobs_search_live']);
-  assert.match(search.fallbackWhen, /scan échoue/);
-  assert.match(search.fallbackWhen, /prompt le demande/);
+  assert.match(search.fallbackWhen, /career_script scan a échoué dans cette mission/);
+  assert.match(search.fallbackWhen, /nommer un site \(Remotive, Arbeitnow\) ne suffit pas/);
   const read = manifest.toolRoles.find((role) => role.id === 'read-offer');
   assert.equal(read.tool, 'browser_navigate');
   assert.deepEqual(read.then, ['browser_snapshot']);
@@ -200,7 +200,7 @@ test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () 
     text,
     [
       'Rôles des outils déclarés par le pack career-ops (si le prompt ou le Skill ne disent rien d’autre) :',
-      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; secours : jobs_search_live, seulement si le scan échoue ou si le prompt le demande, et dis-le dans summary.',
+      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; secours : jobs_search_live, seulement si career_script scan a échoué dans cette mission, ou si le prompt dit « sans scan » ou nomme jobs_search_live ; nommer un site (Remotive, Arbeitnow) ne suffit pas ; dis-le dans summary.',
       '- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante.',
       '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.',
     ].join('\n'),

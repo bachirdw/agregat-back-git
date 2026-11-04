@@ -17,7 +17,7 @@ Degrés de certitude :
 |---|---|---|---|---|---|
 | E1 | Faux « offre notée sans lecture » sur SEEK | Constaté | 337bc659 (Claude) : 3 offres lues sous `au.seek.com/job/<n>`, enregistrées sous `www.seek.com.au/job/<n>`, mêmes numéros. | Relay compare domaine et chemin, et la même offre a deux adresses. Que ce soit une redirection est déduit, pas observé. | Ouvert |
 | E2 | Date `fetchedAt` inventée, dans le futur | Constaté pour Claude | 337bc659 : `fetchedAt` de 10:00 à 10:10 UTC pour des enregistrements faits à 07:15-07:16 UTC, soit 3 h d'avance. Gemini : non revérifié. | L'agent fournit la date. Que Relay ne la contrôle pas vient de la lecture du code. | Ouvert |
-| E3 | Bilan contradictoire | Constaté | 337bc659 : « Actions échouées : aucune observée » et « Non exécuté : aucune action demandée », alors que la mission échoue en « Mission incomplète ». | Découle en partie d'E1. Le Bilan ne reprend pas le contrôle de fin de mission (déduit). | Ouvert |
+| E3 | Bilan contradictoire | Constaté | 337bc659, **e85f255e (04/11)** (« Non exécuté : aucune action demandée identifiable comme manquante » puis « Mission incomplète ») : « Actions échouées : aucune observée » et « Non exécuté : aucune action demandée », alors que la mission échoue en « Mission incomplète ». | Découle en partie d'E1. Le Bilan ne reprend pas le contrôle de fin de mission (déduit). | Ouvert |
 | E4 | Mission « terminée » alors que l'agent attend une réponse | Constaté | 3e8d6eab (Claude) : état `completed`, et le résumé dit « je préfère vérifier avec toi ». | Relay n'a pas d'état « attend une réponse », et l'elicitation ACP n'est pas implémentée. | Ouvert |
 | E5 | Commande native lancée hors du dossier de mission | Constaté | 0c7664fe (Gemini, dossier career-ops) : `git merge` exécuté et terminé dans `agregat-back-astra`, puis `npm test` lancé. Le prompt est masqué (mission privée) : on ne sait pas s'il demandait ces commandes. | Les commandes natives ne sont pas confinées au dossier de mission. | Ouvert, votre accord est requis |
 | E6 | Appels `google_web_search` de Gemini sans fin | Constaté en partie | Sur toutes les missions, 33 appels, dont 6 sans état final et 0 en échec. La part due à des missions annulées n'est pas vérifiée. | Inconnue | À reproduire |
@@ -27,6 +27,8 @@ Degrés de certitude :
 | E10 | Point de reprise sans l'objectif de départ | Rapporté | Passation du 02/11. Non reproduit. | — | À reproduire |
 | E11 | Téléchargement chargé entièrement en mémoire | Rapporté, lu dans le code | Passation du 02/11. Non reproduit. | — | À reproduire |
 | E12 | Erreur DNS « incertaine » sur la démo | Constaté par le propriétaire | Collage du 02/11 (`jobs.example.test`). Non revérifié dans la base. | — | À reproduire |
+| E13 | `career_read` échoue sur `data/blacklist.md` absent | Constaté | e85f255e (Claude, 04/11 14:46) : « ENOENT: no such file or directory, open '…/data/blacklist.md' ». Effet sur la mission non mesuré. | Le fichier n'existe pas dans le dépôt career-ops ; que `career_read` doive le tolérer est à décider (non lu dans le code). | Ouvert, trouvé par le relevé |
+| E14 | Scan obligatoire sauté sur un prompt qui ne dit pas « sans scan » | Constaté | e85f255e (Claude sonnet, P1) : prompt « Va voir les offres sur Remotive… », 0 appel navigateur, 2 `jobs_search_live`, aucun `career_script scan`, aucune question posée ; Relay termine `failed` « Mission incomplète : Scanner les portails du Skill (non exécutée) ». L'agent justifie : Remotive est servi par `jobs_search_live`, « tu as explicitement demandé Remotive ». | Couche en cours d'analyse (étape 3 du cycle 1). | Ouvert |
 | — | Codex bloqué jusqu'au 06/11 à 12:54 | Constaté | 61c537c8, ff434d28, 17336e55 : « Limite d'usage de Codex atteinte ». | Limite du compte, pas un défaut de Relay. | Hors Relay |
 
 ## Relevé automatique
@@ -55,3 +57,5 @@ Degrés de certitude :
 | 03/11 19:19:25 | e4ca455c | gemini | Mission failed |  | Mission incomplète : Scanner les portails du Skill (non exécutée) |
 | 03/11 19:19:55 | aed2c28a | gemini | Outil en échec | "" | File path '[secret masqué]/data/pipeline.md' is ignored by configured ignore patterns. |
 | 03/11 19:22:03 | fe12d570 | gemini | Mission failed |  | Mission incomplète : Scanner les portails du Skill (non exécutée) |
+| 04/11 14:46:17 | e85f255e | claude | Outil en échec | mcp__platform__career_read | ``` ENOENT: no such file or directory, open '[secret masqué]/data/blacklist.md' ``` |
+| 04/11 14:46:52 | e85f255e | claude | Mission failed |  | Mission incomplète : Scanner les portails du Skill (non exécutée) |

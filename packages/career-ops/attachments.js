@@ -3,11 +3,13 @@
 // data/pdf-index.tsv / Relay's own record), brut otherwise (a PDF career_document rendered from
 // cv.md, or any other file of the folder), aucun when a candidature was asked and nothing was
 // attached. Names stay in memory for the classification; the Bilan never prints a file name.
+import { exitFailedOf } from '../orchestrator/exit-code.js';
 import { basename } from 'node:path';
 import { listProducedDocuments } from './produced-documents.js';
 
 const TOOL = /^(?:mcp__[a-z0-9_]+?__)?(browser_upload|career_script|career_document)$/i;
-const exitFailed = (output) => /exitCode\\*"?\s*:\s*[1-9]/.test(JSON.stringify(output ?? ''));
+// Seconde relecture de nuit : the one reader of an answered exit code (orchestrator/exit-code.js).
+const exitFailed = (output) => exitFailedOf(output);
 const APPLY_REQUESTED = /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i;
 const name = (value) => (typeof value === 'string' && value ? basename(value) : null);
 // The gateway's JSON answer inside an ACP rawOutput/content, when there is one.

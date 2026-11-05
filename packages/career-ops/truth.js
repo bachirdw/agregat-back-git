@@ -1,3 +1,4 @@
+import { exitFailedOf } from '../orchestrator/exit-code.js';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
@@ -267,7 +268,8 @@ const outputText = (output) => {
   visit(output);
   return parts.join('\n');
 };
-const exitFailed = (output) => /exitCode\\*"?\s*:\s*[1-9]/.test(JSON.stringify(output ?? ''));
+// Seconde relecture de nuit : the one reader of an answered exit code (orchestrator/exit-code.js).
+const exitFailed = (output) => exitFailedOf(output);
 
 export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browserObserved }) {
   return (

@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
+import { exitFailedOf } from './exit-code.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
@@ -515,10 +516,7 @@ export class SkillProgress {
     // other than 0 — a number, null for a killed process, a code name — is a failure, as the
     // gateway reads it (relecture de nuit : one call no longer reads failed on one channel and
     // done on the other).
-    const exitCode = JSON.stringify(update.rawOutput ?? update.content ?? '').match(
-      /exitCode\\*"?\s*:\s*(-?\d+|null|\\*"[^"\\]*\\*")/,
-    )?.[1];
-    const exitFailed = exitCode !== undefined && exitCode !== '0';
+    const exitFailed = exitFailedOf(update.rawOutput ?? update.content);
     const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
     // E55, E58 : a step that declares a proof is done only when the call's effect proves it.
     const candidates = this.steps.filter(

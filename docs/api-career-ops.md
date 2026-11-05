@@ -243,7 +243,9 @@ Aucune règle métier dans l’orchestrateur : il transmet seulement le dossier 
 
 ## Offres et résultats
 
-`GET /api/career/offers` → `{opportunities: [...]}`. Une offre comprend :
+`GET /api/career/offers` → `{opportunities: [...]}` (liste complète, comportement conservé pour le
+front ; avec un des arguments de `career_offers` en chaîne de requête, la même page bornée que l’outil,
+voir plus bas). Une offre comprend :
 
 ```json
 {
@@ -267,6 +269,65 @@ L’outil `career_offer_save` (index facultatif) écrit les offres normalisées 
 une offre évaluée, un rapport Markdown au format Relay dans `relay/offers/<uuid>.md` — jamais dans
 `reports/` (voir la section suivante) ; le rapport du Skill s’écrit par `career_write` (voir plus haut). Les tableaux historiques amont restent lisibles par `career_read` et `career_script find` ;
 ils ne sont pas convertis arbitrairement en notes ou rapports A–H.
+
+### `career_offers` : pages bornées (E34)
+
+Un appel sans argument rendait tout l’index d’un coup (143 693 caractères sur une mission réelle), refusé
+par l’adaptateur Claude : l’agent ne pouvait pas relire ses fiches. L’outil pagine désormais, même famille
+qu’E7 (`career_read`) et E27 (`browser_snapshot`) : **aucune réponse ne dépasse `maxChars` caractères**
+(24 000 par défaut, 48 000 au plus).
+
+| Argument   | Type, bornes                                     | Effet                                                                                                      |
+| ---------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `offset`   | entier ≥ 0, défaut 0                             | Première fiche de la page (dans l’ordre rendu : plus récentes d’abord, ou l’ordre de `ids`)                |
+| `limit`    | entier 1 à 100, défaut 20                        | Fiches par page au plus                                                                                    |
+| `query`    | texte, 200 caractères au plus                    | Sous-chaîne du titre ou de l’entreprise, sans égard à la casse ; jamais le rapport                         |
+| `id`       | identifiant de fiche (36 caractères hexa/tirets) | Une fiche complète                                                                                         |
+| `ids`      | 1 à 100 identifiants                             | Fiches complètes dans l’ordre demandé ; `offset`/`limit` s’appliquent à cette liste ; inconnus → `missing` |
+| `maxChars` | entier 1 à 48 000, défaut 24 000                 | Borne de la réponse en caractères                                                                          |
+
+`id` et `ids` s’excluent. Sans `id` ni `ids`, la page est **résumée** (`view: "summary"`) : une ligne par
+fiche, champs `id`, `title`, `company`, `score`, `status` (`évaluée` si un rapport A–G existe, `repérée`
+sinon), `date` (`fetchedAt`) et `simulated`. La réponse dit `total` (fiches retenues, après `query`),
+`offset`, `limit`, `count`, `next` (prochain `offset`, ou `null` à la dernière page) ; quand `next` n’est pas
+`null`, relire avec `offset=next`. Exemple fictif, 300 fiches :
+
+```json
+{
+  "view": "summary",
+  "total": 300,
+  "offset": 0,
+  "limit": 20,
+  "maxChars": 24000,
+  "untrusted": true,
+  "count": 20,
+  "next": 20,
+  "truncated": false,
+  "opportunities": [
+    {
+      "id": "UUID",
+      "title": "Titre de l’offre",
+      "company": "Employeur cité",
+      "score": 4.2,
+      "status": "évaluée",
+      "date": "2026-11-05T10:00:00.000Z",
+      "simulated": true
+    }
+  ],
+  "notice": "Suite disponible : relire avec offset=20."
+}
+```
+
+Avec `id` ou `ids`, `view` vaut `"full"` et `opportunities` contient les fiches telles qu’écrites (rapport
+A–H compris) ; `missing` liste les identifiants sans fichier. Si la page dépasse `maxChars`, elle rend
+moins de fiches que `limit` et `next` pointe sur la première non rendue. Une fiche seule plus longue que
+`maxChars` est rendue avec ses sections de rapport coupées à longueur égale, `truncated: true` et une
+`notice` qui dit de relire avec `maxChars` plus grand (48 000 au plus). Les arguments hors bornes sont
+refusés par le schéma (erreur de validation MCP).
+
+`GET /api/career/offers?offset=0&limit=20`, `?query=…`, `?id=…`, `?ids=a,b,c` (séparés par des virgules),
+`?maxChars=…` rendent la même page que l’outil (mêmes bornes, `400` hors bornes) ; les autres clés de la
+chaîne de requête sont ignorées, et sans aucune de ces clés la route rend la liste complète comme avant.
 
 Le schéma publié aux agents ne contient ni `id` ni `contractVersion` : la plateforme génère l’`id`
 (UUID, seul texte utilisé pour les noms de fichiers), écrit `contractVersion: 2` et renvoie l’`id`.

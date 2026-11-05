@@ -456,6 +456,7 @@ export function createApp({
               typeof body.scoredUrl === 'string' ? body.scoredUrl.slice(0, 2048) : undefined,
             argument: typeof body.argument === 'string' ? body.argument.slice(0, 60) : undefined,
             tracker: body.tracker,
+            scan: body.scan,
           });
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

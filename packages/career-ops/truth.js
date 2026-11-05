@@ -52,6 +52,69 @@ export function reportScore(text) {
   if (!score || !url) return null;
   return { score: Number(score[1].replace(',', '.')), url: url[1] };
 }
+// C8 (E21): how many portals the Skill's scan reported in network failure, read from the scan
+// output itself (never from data/portal-health.tsv, never from a list of sites). The Skill prints
+// one line per source; a line counts when it carries a network error (« fetch failed », a Node
+// network code) or a bare `network` status token. A JSON summary counts its entries whose status
+// is `network` or whose error text is one. Nothing else is interpreted.
+const NETWORK_ERROR =
+  /fetch failed|\bE(?:NOTFOUND|CONNREFUSED|CONNRESET|TIMEDOUT|AI_AGAIN|HOSTUNREACH|NETUNREACH|PIPE)\b|UND_ERR_\w+|\bnetwork error\b/i;
+const NETWORK_STATUS = /(?:^|[\t|[(:]\s*)network(?=\s*(?:$|[\t|\])—:]))/i;
+const STATUS_FIELDS = ['status', 'health', 'state', 'outcome', 'result', 'reachability'];
+const ERROR_FIELDS = ['error', 'reason', 'message', 'detail'];
+export function scanNetworkFailures(text) {
+  const output = typeof text === 'string' ? text : '';
+  if (!output.trim()) return 0;
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    parsed = undefined;
+  }
+  if (parsed && typeof parsed === 'object') {
+    let count = 0;
+    const visit = (value, depth) => {
+      if (depth > 6 || !value || typeof value !== 'object') return;
+      if (Array.isArray(value)) return value.forEach((item) => visit(item, depth + 1));
+      const status = STATUS_FIELDS.map((key) => value[key]).find((v) => typeof v === 'string');
+      const error = ERROR_FIELDS.map((key) => value[key]).find((v) => typeof v === 'string');
+      if (status?.trim().toLowerCase() === 'network' || (error && NETWORK_ERROR.test(error)))
+        count += 1;
+      else Object.values(value).forEach((item) => visit(item, depth + 1));
+    };
+    visit(parsed, 0);
+    return count;
+  }
+  return output.split('\n').filter((line) => NETWORK_ERROR.test(line) || NETWORK_STATUS.test(line))
+    .length;
+}
+// The gateway answers a script as one JSON text { text, exitCode, untrusted }: read that field.
+const scriptOutput = (output) => {
+  let value = output;
+  for (let depth = 0; depth < 6; depth++) {
+    if (typeof value === 'string') {
+      try {
+        value = JSON.parse(value);
+        continue;
+      } catch {
+        return value;
+      }
+    }
+    if (Array.isArray(value)) {
+      value = value[0];
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      if (typeof value.text === 'string' && 'exitCode' in value) return value.text;
+      if (value.content !== undefined) value = value.content;
+      else if (typeof value.text === 'string') value = value.text;
+      else return '';
+      continue;
+    }
+    return '';
+  }
+  return '';
+};
 // merge-tracker.mjs ends with « 📊 Summary: +N added, 🔄M updated, ⏭️K skipped ».
 export function trackerSummary(text) {
   const match = String(text ?? '').match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
@@ -78,6 +141,8 @@ export function gatewayProgress(name, status, args, result) {
     const rows = trackerSummary(outputText(result?.content));
     return rows ? { argument, tracker: rows } : { argument };
   }
+  if (completed && name === 'career_script' && argument === 'scan')
+    return { argument, scan: { networkFailures: scanNetworkFailures(scriptOutput(result)) } };
   return { argument };
 }
 const outputText = (output) => {
@@ -142,6 +207,12 @@ export function createTurnTruth() {
   // Completed calls as the Bilan may know them (tool and argument prefix), one per call id.
   const proofs = new Map();
   let tracker = null;
+  // C8 : the last completed scan of the turn, as its own output says.
+  let scan = null;
+  const setScan = (networkFailures) => {
+    if (Number.isInteger(networkFailures) && networkFailures >= 0) scan = { networkFailures };
+    else scan ??= { networkFailures: null };
+  };
   const addTracker = (rows) => {
     if (!rows) return;
     tracker = {
@@ -217,13 +288,23 @@ export function createTurnTruth() {
           }
           if (name === 'career_script' && argument === 'merge-tracker')
             addTracker(trackerSummary(outputText(update.rawOutput ?? update.content)));
+          if (name === 'career_script' && argument === 'scan')
+            setScan(scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)));
         }
       }
     },
     recordGatewayTool(
       reportedName,
       status,
-      { jdRead: sourceRead = false, sent, toolCallId, scoredUrl, argument, tracker: rows } = {},
+      {
+        jdRead: sourceRead = false,
+        sent,
+        toolCallId,
+        scoredUrl,
+        argument,
+        tracker: rows,
+        scan: scanRows,
+      } = {},
     ) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
@@ -261,6 +342,7 @@ export function createTurnTruth() {
           rows.updated >= 0
         )
           addTracker({ added: rows.added, updated: rows.updated });
+        if (name === 'career_script' && safeArgument === 'scan') setScan(scanRows?.networkFailures);
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -283,6 +365,9 @@ export function createTurnTruth() {
     },
     trackerRows() {
       return tracker;
+    },
+    scanResult() {
+      return scan;
     },
     hasJdRead() {
       return jdRead;
@@ -405,7 +490,17 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
   // E29 : « aucune observée » next to « n échoués » would contradict itself.
   const failedLine =
     failures.join(' ; ') || (mixed.length ? 'voir Résultats mixtes' : 'aucune observée');
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}`;
+  // C8 : the scan's own summary of its portals, only after a completed scan.
+  const scan = truth.scanResult?.();
+  const scanRan = (truth.completedCalls?.() ?? []).some(
+    (call) => call.name === 'career_script' && call.argument === 'scan',
+  );
+  const scanLine = !scanRan
+    ? ''
+    : scan?.networkFailures
+      ? `\n- Scan : ${scan.networkFailures} portail(s) en échec réseau.`
+      : '\n- Scan : aucun échec réseau lu dans sa sortie.';
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${scanLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

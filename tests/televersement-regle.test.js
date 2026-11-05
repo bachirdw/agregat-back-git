@@ -138,16 +138,25 @@ test('E43 FICTIF : base64 URL-safe ou URL-encodé, nom accentué, tranches exact
 
 // Huitième relecture : le retrait des longues suites (le fichier en base64, d'autres blobs) avant la
 // recherche d'e-mail était quadratique sur des suites de 900 à 999 caractères (2,8 s sur 2 Mo,
-// boucle d'événements figée). Le découpage est désormais linéaire et garde les séparateurs.
+// boucle d'événements figée). Le découpage est désormais linéaire et garde les séparateurs. Mesure
+// par rapport, indépendante de la charge de la machine : à taille totale égale, des suites de 990
+// caractères ne doivent pas coûter beaucoup plus que des suites de 99 (dix fois plus si quadratique).
 test('E43 FICTIF : retrait des longues suites linéaire, contact toujours repéré', () => {
   const base64 = CV.toString('base64');
-  const runs = Array.from({ length: 2000 }, () => 'A'.repeat(990)).join(' ');
-  const started = Date.now();
-  assert.equal(
-    sendsFile(request(JSON.stringify({ file: base64, note: runs }), 'application/json'), cv),
-    true,
-  );
-  assert.ok(Date.now() - started < 500, `retrait trop lent : ${Date.now() - started} ms`);
+  const timed = (length) => {
+    const runs = Array.from({ length: Math.floor(600000 / (length + 1)) }, () =>
+      'A'.repeat(length),
+    ).join(' ');
+    const body = request(JSON.stringify({ file: base64, note: runs }), 'application/json');
+    const started = process.hrtime.bigint();
+    assert.equal(sendsFile(body, cv), true);
+    return Number(process.hrtime.bigint() - started) / 1e6;
+  };
+  timed(99);
+  const short = timed(99);
+  const long = timed(990);
+  assert.ok(long < short * 4 + 50, `retrait non linéaire : ${long} ms contre ${short} ms`);
+  const runs = Array.from({ length: 300 }, () => 'A'.repeat(990)).join(' ');
   assert.equal(
     sendsFile(
       request(

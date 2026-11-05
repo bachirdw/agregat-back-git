@@ -22,6 +22,8 @@ async function relay(t, options = {}) {
       const m = JSON.parse(raw.toString());
       commands.push(m);
       const emit = (message) => socket.send(JSON.stringify(message));
+      // E70 : a relay (or a frozen tab) that never answers the closing of a tab.
+      if (m.method === 'Target.closeTarget' && options.silentClose) return;
       let result = {};
       if (m.method === 'Target.createTarget') {
         if (options.mute) return;
@@ -42,6 +44,20 @@ async function relay(t, options = {}) {
             targetInfo: { targetId: 'owned', url: marker, type: 'page' },
           },
         });
+        // A window the mission's page opened : one of our targets too.
+        if (options.popup)
+          emit({
+            method: 'Target.attachedToTarget',
+            params: {
+              sessionId: 'popup-session',
+              targetInfo: {
+                targetId: 'popup',
+                openerId: 'owned',
+                url: 'about:blank',
+                type: 'page',
+              },
+            },
+          });
       } else if (m.method === 'Target.attachToTarget') result = { sessionId: 'own-session' };
       else if (m.method === 'Target.getTargetInfo')
         result = { targetInfo: { targetId: 'owned', url: marker, type: 'page' } };
@@ -146,5 +162,26 @@ test('transport propriétaire : relais absent et métadonnées invalides refusé
   await assert.rejects(
     ownerTransport(`http://127.0.0.1:${server.address().port}`, 100),
     /non local/,
+  );
+});
+
+// E70 (constaté la nuit du 05 au 06/11) : huit onglets de missions terminées restaient ouverts dans le
+// Chrome du propriétaire. En fin de mission, la plateforme envoie SIGTERM au groupe de l'agent puis
+// SIGKILL peu après ; la passerelle fermait ses onglets un par un, chacun borné à 10 s : un relais
+// lent ou un onglet figé suffisait pour être tuée avant d'avoir fini. Désormais tous les onglets de la
+// mission se ferment ensemble, chacun borné à 1 s. Relais FICTIF qui ne répond pas aux fermetures.
+test('transport propriétaire : fermeture de tous ses onglets ensemble, bornée à 1 s', async (t) => {
+  const fake = await relay(t, { silentClose: true, popup: true });
+  const transport = await ownerTransport(fake.endpoint, 10000);
+  const started = Date.now();
+  await transport.close();
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 2000, `fermeture trop longue : ${elapsed} ms`);
+  assert.deepEqual(
+    fake.commands
+      .filter((m) => m.method === 'Target.closeTarget')
+      .map((m) => m.params.targetId)
+      .sort(),
+    ['owned', 'popup'],
   );
 });

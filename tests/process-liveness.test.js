@@ -191,7 +191,9 @@ test('close : EPERM après SIGTERM → unknown, jamais de SIGKILL', { skip: !pos
       const elapsed = Date.now() - t0;
       const signals = calls.filter(([, signal]) => signal !== 0).map(([, signal]) => signal);
       assert.deepEqual(signals, ['SIGTERM']);
-      assert.ok(elapsed >= 1400 && elapsed < 2500, `attente bornée : ${elapsed} ms`);
+      // E70 (nuit du 06/11) : 3 s de grâce avant SIGKILL, pour que la passerelle ferme les onglets
+      // de la mission.
+      assert.ok(elapsed >= 2900 && elapsed < 4000, `attente bornée : ${elapsed} ms`);
     },
     // The group id now answers EPERM (reused by a foreign process): probing must not lead to SIGKILL.
     (pid, signal, calls) => {

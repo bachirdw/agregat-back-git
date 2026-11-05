@@ -434,11 +434,13 @@ export class AcpRuntime {
   }
 }
 
-const TERM_GRACE_MS = 1500;
+// E70 : the gateway in the agent's group closes the mission's tabs on SIGTERM (at most 1 s for the
+// page, then 1 s for all the tabs together) : 3 s before SIGKILL.
+const TERM_GRACE_MS = 3000;
 const KILL_WAIT_MS = 1000;
 const PROBE_MS = 100;
 // Timers stay ref'd: an awaited close() always settles and SIGKILL is not lost if the host is exiting
-// (bounded: at most 3.5 s, only for a group that ignores SIGTERM).
+// (bounded: at most 5 s, only for a group that ignores SIGTERM).
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Polls until the group is dead or the delay is over; returns the last state seen.

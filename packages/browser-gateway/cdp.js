@@ -1885,7 +1885,9 @@ export class CdpBrowser {
   async dropConnection() {
     this.networkAbort?.abort(new Error('Navigateur fermé'));
     try {
-      await this.page?.close();
+      // E70 : bounded, a frozen tab must not hold the closing of the others (the owner connection
+      // closes every tab of the mission below).
+      await Promise.race([this.page?.close(), new Promise((resolve) => setTimeout(resolve, 1000))]);
     } catch {
       /* already closed */
     }

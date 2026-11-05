@@ -2,6 +2,9 @@ import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 
+// E70 : the longest wait for the closing of one of our tabs at the end of a mission.
+const CLOSE_MS = 1000;
+
 // A local CDP view containing ONLY targets created by this connection. In particular never
 // forward root auto-attach or browser-wide settings to the user's existing tabs.
 export async function ownerTransport(endpoint, timeoutMs = 10000) {
@@ -39,13 +42,13 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
   const send = (message) => {
     if (downstream?.readyState === WebSocket.OPEN) downstream.send(JSON.stringify(message));
   };
-  const rpc = (method, params = {}, sessionId) =>
+  const rpc = (method, params = {}, sessionId, ms = timeoutMs) =>
     new Promise((resolve, reject) => {
       const id = ++seq;
       const timer = setTimeout(() => {
         pending.delete(id);
         reject(new Error(`Délai CDP : ${method}`));
-      }, timeoutMs);
+      }, ms);
       pending.set(id, { method, resolve, reject, timer });
       upstream.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
@@ -112,10 +115,15 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
   const close = async () => {
     if (closed) return;
     closed = true;
-    // Cleanup only our created targets and their popups, never the user inventory.
-    for (const targetId of targets)
-      if (upstream.readyState === WebSocket.OPEN)
-        await rpc('Target.closeTarget', { targetId }).catch(() => {});
+    // Cleanup only our created targets and their popups, never the user inventory. E70 : all at
+    // once, each bounded to 1 s : at the end of a mission the gateway gets SIGTERM, then SIGKILL
+    // after a short grace, and a slow relay or a frozen tab used to keep the next tabs open.
+    if (upstream.readyState === WebSocket.OPEN)
+      await Promise.all(
+        [...targets].map((targetId) =>
+          rpc('Target.closeTarget', { targetId }, undefined, CLOSE_MS).catch(() => {}),
+        ),
+      );
     downstream?.terminate();
     upstream.terminate();
     rejectPending();

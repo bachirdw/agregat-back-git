@@ -60,3 +60,20 @@ Sous-agent codeur (Opus), dossier `~/Downloads/agregat-back-astra`, branche `sui
 - Cause réelle de 05b34578 donnée par le manager (réponses d'outil en base) : navigation demandée sur `www.seek.com.au/job/<n>`, redirection vers `au.seek.com/job/<n>`, capture lisible (`loading: false`) sur l'URL finale ; note sur l'URL demandée ; `pageKey` (hôte + chemin) ne rapproche pas les deux. Hypothèse 2 de la section « Cause probable » confirmée.
 - Fixture `FICTIF_REDIRECTION` (career-agent) : la **vraie** `BrowserGateway` sur `FixturePageProvider` (redirection déjà prise en charge par le fournisseur : `pages[url].redirect`), page FICTIVE `https://www.exemple.test/offre/1` → `https://a.exemple.test/offre/1` ; sorties postées sur `RELAY_EVIDENCE_URL` comme `mcp-gateway/server.js` ; `browser.navigate` (URL demandée) puis `browser.snapshot` sans URL ; note sur l'URL demandée (ou `https://www.exemple.test/offre/2`, `AUTRE_CHEMIN`).
 - Rouge constaté : `E1 FICTIF : une offre lue après redirection vers un autre hôte est lue pour sa note` — `AssertionError [ERR_ASSERTION]: Mission incomplète : 1 offre(s) notée(s) sans lecture de leur page` (actual `failed`). La variante autre chemin est déjà verte (`failed`, contrôle exercé).
+
+## 13:14 — Point 5b : URL demandée gardée à côté de l'URL finale (vert)
+- `BrowserGateway.execute` (`packages/browser-gateway/index.js`) : pour `browser.navigate`, `browser.snapshot` et `browser.extract`, la sortie porte `requestedUrl` (URL donnée par l'agent) quand elle diffère de l'URL finale `url`. Une capture sans URL qui tombe sur la page de la dernière demande garde cette `requestedUrl`. Une page atteinte autrement (clic, autre URL) n'en a pas. Aucun nom de site.
+- `browser-proof.js` :
+  - `compactBrowserEvidence` garde `requestedUrl` (origine + chemin seulement, http(s), seulement si elle diffère).
+  - `readablePages` rend l'URL finale d'une capture lisible, sa `requestedUrl`, et la `requestedUrl` d'une navigation arrivée sur la même page. `incomplete()` n'a donc pas changé.
+  - `verifiedBrowserVisit` apparie aussi par `requestedUrl`.
+  - `assessBrowserClaims` : une citation de l'URL demandée compte comme lue.
+  - `missionReads` garde `requestedUrl`.
+- Bilan : je n'ai pas ajouté « redirigé vers <hôte> ». La phrase serait simple, mais il faudrait toucher `formatCareerBilan` côté pack. La preuve publique (`result.evidence`) porte déjà `url` et `requestedUrl`.
+- Tests :
+  - `tests/preuves-entre-tours.test.js` passe à 14/14. Bout en bout : redirection, note sur l'URL demandée → `completed` ; note sur un autre chemin → `failed`. Passerelle : `requestedUrl` présente seulement pour la même page. Unitaires : preuve compacte sans paramètres de requête, pages lues, `incomplete`, appariement, citation, `missionReads`, schéma `javascript:` refusé.
+  - Autres fichiers : browser-gateway 76/76, mcp-contract 10/10, owner-mode 13/13, career-sends 6/6, note-sans-lecture 8/8, elicitation 24/24, fix-resume 22/22, owner-permissions 27/27, skill-router 38/38, bilan-vs-events 6/6, bilan-mixtes 3/3, career-failure 11/11, career-integration 44/44, astra-proof 5/5, browser-proof 5/5, workflow-run 17/17, workflow-resume 8/8.
+  - check et format verts.
+- **Non vérifié** :
+  - En réel sur SEEK. `CdpBrowser` renvoie `url: page.url()` (URL finale) ; l'URL demandée est ajoutée par la passerelle et non par `cdp.js`, donc tous les fournisseurs l'ont.
+  - Suite complète.

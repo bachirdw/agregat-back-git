@@ -11,7 +11,16 @@ import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { reviewCareer } from '../packages/career-ops/integration.js';
 import { terminal } from '../packages/storage/index.js';
 import { analyseRun } from '../.manager/outils/bilan-vs-events.mjs';
-import { missionReads } from '../packages/orchestrator/browser-proof.js';
+import {
+  assessBrowserClaims,
+  compactBrowserEvidence,
+  missionReads,
+  readablePages,
+  verifiedBrowserVisit,
+} from '../packages/orchestrator/browser-proof.js';
+import { BrowserGateway, FixturePageProvider } from '../packages/browser-gateway/index.js';
+import { RunPolicy } from '../packages/policy-engine/run-policy.js';
+import { capabilityIds } from '../packages/capability-registry/index.js';
 import { createTurnTruth } from '../packages/career-ops/truth.js';
 import { SkillProgress } from '../packages/orchestrator/skill-router.js';
 
@@ -277,5 +286,84 @@ test('E1 FICTIF : après redirection, une note sur un autre chemin reste sans le
   assert.match(
     run.error,
     /^Mission incomplète : 1 offre\(s\) notée\(s\) sans lecture de leur page$/,
+  );
+});
+
+test('E1 FICTIF : la passerelle garde l’URL demandée à côté de l’URL finale, et seulement pour la même page', async () => {
+  const gateway = new BrowserGateway({
+    provider: new FixturePageProvider({
+      'https://www.exemple.test/offre/1': { redirect: 'https://a.exemple.test/offre/1' },
+      'https://a.exemple.test/offre/1': {
+        title: 'Offre FICTIVE',
+        text: 'Offre FICTIVE.',
+        elements: { e1: { tag: 'a', text: 'Autre offre FICTIVE' } },
+      },
+      'https://a.exemple.test/offre/3': { title: 'Autre FICTIVE', text: 'Autre FICTIVE.' },
+    }),
+    policy: new RunPolicy({
+      ownerMode: true,
+      allowedDomains: ['exemple.test'],
+      capabilities: capabilityIds,
+      resolveHost: async () => ['93.184.216.34'],
+    }),
+  });
+  const nav = await gateway.call('browser.navigate', { url: 'https://www.exemple.test/offre/1' });
+  assert.equal(nav.url, 'https://a.exemple.test/offre/1');
+  assert.equal(nav.requestedUrl, 'https://www.exemple.test/offre/1');
+  const snap = await gateway.call('browser.snapshot', {});
+  assert.equal(snap.requestedUrl, 'https://www.exemple.test/offre/1');
+  // Same URL asked and served: no requestedUrl.
+  const direct = await gateway.call('browser.snapshot', { url: 'https://a.exemple.test/offre/3' });
+  assert.equal(direct.requestedUrl, undefined);
+  const later = await gateway.call('browser.snapshot', {});
+  assert.equal(later.requestedUrl, undefined);
+});
+
+test('E1 FICTIF : preuve compacte, pages lues, appariement et citations par URL demandée ou finale', () => {
+  const nav = compactBrowserEvidence({
+    capability: 'browser.navigate',
+    url: 'https://a.exemple.test/offre/1?ref=FICTIF',
+    requestedUrl: 'https://www.exemple.test/offre/1?utm=FICTIF',
+    provider: 'fixture',
+  });
+  assert.equal(nav.requestedUrl, 'https://www.exemple.test/offre/1');
+  assert.doesNotMatch(JSON.stringify(nav), /utm|ref=/);
+  const snap = compactBrowserEvidence({
+    capability: 'browser.snapshot',
+    url: 'https://a.exemple.test/offre/1',
+    snapshot: 'Offre FICTIVE',
+    provider: 'fixture',
+  });
+  assert.equal(snap.requestedUrl, undefined);
+  assert.deepEqual(readablePages([nav, snap]).sort(), [
+    'https://a.exemple.test/offre/1',
+    'https://www.exemple.test/offre/1',
+  ]);
+  const progress = new SkillProgress([]);
+  assert.deepEqual(
+    progress.incomplete(readablePages([nav, snap]), false, [
+      { url: 'https://www.exemple.test/offre/1', toolCallId: 'a' },
+    ]),
+    [],
+  );
+  // A capture that carries requestedUrl pairs with the navigation even when the query differs.
+  const capture = { ...snap, sourceId: 'autre', requestedUrl: 'https://www.exemple.test/offre/1' };
+  assert.equal(verifiedBrowserVisit([nav, capture]).length, 2);
+  assert.equal(verifiedBrowserVisit([nav, { ...snap, sourceId: 'autre' }]).length, 0);
+  const claims = assessBrowserClaims('Lue : https://www.exemple.test/offre/1', [nav, capture]);
+  assert.deepEqual(claims.citations, [{ url: 'https://www.exemple.test/offre/1', status: 'read' }]);
+  assert.equal(
+    missionReads([nav, capture]).find((item) => item.capability === 'browser.snapshot')
+      .requestedUrl,
+    'https://www.exemple.test/offre/1',
+  );
+  assert.equal(
+    compactBrowserEvidence({
+      ...snap,
+      capability: 'browser.snapshot',
+      url: 'https://a.exemple.test/x',
+      requestedUrl: 'javascript:alert(1)',
+    }).requestedUrl,
+    undefined,
   );
 });

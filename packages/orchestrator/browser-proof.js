@@ -18,6 +18,16 @@ export function readableBrowserObservation(evidence) {
   return typeof content === 'string' && content.trim().length > 0;
 }
 
+// Origin and path of an http(s) URL, or null.
+function pageOf(value) {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.origin + url.pathname : null;
+  } catch {
+    return null;
+  }
+}
+
 // Private runs keep only the source URL without credentials, query or fragment and a
 // boolean observation. Never persist page text or the full MCP response in the public run.
 export function compactBrowserEvidence(output) {
@@ -31,9 +41,12 @@ export function compactBrowserEvidence(output) {
   }
   if (!['http:', 'https:'].includes(url.protocol)) return null;
   const provider = /^[a-z0-9-]{1,64}$/.test(output.provider ?? '') ? output.provider : 'unknown';
+  const requested = pageOf(output.requestedUrl);
   return {
     capability: output.capability,
     url: url.origin + url.pathname,
+    // E1 : the page the agent asked for when another one answered (redirection, other host).
+    ...(requested && requested !== url.origin + url.pathname ? { requestedUrl: requested } : {}),
     sourceId: sourceId(url),
     provider,
     loading: output.loading === true,
@@ -55,12 +68,21 @@ export function compactBrowserEvidence(output) {
 
 // Pages the platform saw readable. A navigation alone proves nothing: two navigations sent at
 // once share one tab, and only the last page is ever read.
-export const readablePages = (evidence = []) =>
-  evidence
-    .filter(
-      (item) => ['browser.snapshot', 'browser.extract'].includes(item?.capability) && item.readable,
-    )
-    .map((item) => item.url);
+// A readable page counts under the URL that answered and the URL that was asked for (E1): the
+// capture's own requestedUrl, or that of the navigation that landed on the same page.
+export const readablePages = (evidence = []) => {
+  const pages = [];
+  for (const item of evidence) {
+    if (!['browser.snapshot', 'browser.extract'].includes(item?.capability) || !item.readable)
+      continue;
+    pages.push(item.url);
+    if (item.requestedUrl) pages.push(item.requestedUrl);
+    for (const nav of evidence)
+      if (nav?.capability === 'browser.navigate' && nav.requestedUrl && nav.url === item.url)
+        pages.push(nav.requestedUrl);
+  }
+  return [...new Set(pages)];
+};
 
 // What a mission keeps of its browser proofs for its next execution (reprise from its checkpoint):
 // navigations and readable captures only, as compact entries (origin + path, hash, no page text),
@@ -78,6 +100,7 @@ export function missionReads(evidence = [], limit = 400) {
     kept.push({
       capability: item.capability,
       url: item.url,
+      ...(typeof item.requestedUrl === 'string' ? { requestedUrl: item.requestedUrl } : {}),
       sourceId: item.sourceId,
       provider: item.provider,
       loading: item.loading === true,
@@ -97,8 +120,9 @@ export function verifiedBrowserVisit(evidence = []) {
       navigation &&
       ['browser.snapshot', 'browser.extract'].includes(item.capability) &&
       item.readable &&
-      item.url === navigation.url &&
-      item.sourceId === navigation.sourceId
+      ((item.url === navigation.url && item.sourceId === navigation.sourceId) ||
+        (item.requestedUrl &&
+          [navigation.url, navigation.requestedUrl].includes(item.requestedUrl)))
     )
       verified.push(navigation, item);
   }
@@ -130,7 +154,7 @@ export function assessBrowserClaims(summary, evidence = []) {
     const observations = evidence.filter(
       (item) =>
         (item.sourceId && item.sourceId === key) ||
-        (samePage && item.url === url.origin + url.pathname),
+        (samePage && [item.url, item.requestedUrl].includes(url.origin + url.pathname)),
     );
     const read = observations.some(
       (item) => item.readable === true || readableBrowserObservation(item),

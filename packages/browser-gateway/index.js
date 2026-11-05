@@ -217,6 +217,16 @@ export class BrowserGateway {
           },
       this.policy,
     );
+    // The URL the agent asked for, next to the page that answered (redirections, other host): a
+    // later capture of that same page without a URL keeps it too.
+    let requestedUrl = null;
+    if (['browser.navigate', 'browser.snapshot', 'browser.extract'].includes(capabilityId)) {
+      if (args.url) {
+        requestedUrl = args.url;
+        this.lastRequest = { requestedUrl: args.url, url: output.url };
+      } else if (this.lastRequest && this.lastRequest.url === output.url)
+        requestedUrl = this.lastRequest.requestedUrl;
+    }
     return {
       untrusted: true,
       notice:
@@ -227,6 +237,7 @@ export class BrowserGateway {
       ...output,
       ...(output.text !== undefined ? { text: redactPageText(output.text) } : {}),
       ...(output.snapshot !== undefined ? { snapshot: redactPageText(output.snapshot) } : {}),
+      ...(requestedUrl && requestedUrl !== output.url ? { requestedUrl } : {}),
     };
   }
 }

@@ -10,8 +10,10 @@ Préparation : `node scripts/setup-career-ops.js` après installation du clone �
 Le registre garde l’empreinte du routeur, sa quarantaine et sa revue technique. Les scripts exécutables
 sont empreintés séparément. L’agent ne dispose que de l’activation de Skill comme outil natif ;
 les hooks et extensions sont désactivés par un paramétrage système **local à ce processus**.
-Les modes amont sont lus par `career_read`, les documents écrits par `career_write`. Les deux scripts
-exposés sont `scan.mjs` et `find.mjs` ; les parsers exécutables et plugins externes ne sont pas acceptés.
+Les modes amont sont lus par `career_read`, les documents écrits par `career_write`. Les scripts
+exposés par `career_script` sont `scan.mjs`, `find.mjs`, trois contrôles de CV et les scripts du Skill
+listés plus bas (« Parcours évaluer selon le Skill ») ; les parsers exécutables et plugins externes ne
+sont pas acceptés par le scan.
 Le scanner nécessite des portails configurés par l’utilisateur ; la recherche publique existante
 (`jobs_search_live`, Arbeitnow/Remotive, 40 offres par défaut) reste utilisable sans ces portails, mais
 seulement comme recherche de secours : le pack déclare le scan du Skill comme premier choix, et l’agent
@@ -26,6 +28,71 @@ run réel est lancé. Les envois SMTP ne partent qu’après approbation ponctue
 la même règle pour la soumission. Le mode propriétaire ne désactive pas la classe `send`.
 
 Voir [pièces jointes](api-attachments.md) et [envois](api-sends.md).
+
+## Parcours « évaluer » selon le Skill (rapport, suivi, offre déjà connue)
+
+Quand l’agent évalue une offre (« coller une URL », mode `oferta`), le résultat est celui du Skill, pas
+une fiche Relay. Le manifeste (`domain-packs/career-ops/skill-manifest.yaml`, intention `evaluate`)
+déclare l’ordre suivi au Bilan, comme `modes/auto-pipeline.md` et `modes/oferta.md` le décrivent :
+
+1. lecture de l’annonce (`browser_snapshot`/`browser_extract`, ou `career_read jds/…`) ;
+2. vivacité : `career_script` `check-liveness` avec `args: [url]` (dispensée quand l’annonce est collée
+   sans URL ; code 1 = expirée ou incertaine, l’agent n’évalue pas et le dit) ;
+3. numéro : `career_script` `reserve-report-num` (sortie `042`), libéré ensuite par
+   `args: ["--release", "042"]` ;
+4. rapport : `career_write` `reports/{###}-{company-slug}-{YYYY-MM-DD}.md` au format de
+   `modes/oferta.md` (en-tête `**Score:** X.X/5`, `**URL:**`, `**Legitimacy:**`, blocs A–G, H dès 4,5,
+   `## Job Description (archived verbatim)`, `## Machine Summary`) ;
+5. suivi : `career_write` `batch/tracker-additions/{num}-{company-slug}.tsv` (ligne d’en-tête
+   `num date company role status score pdf report notes url`, puis une seule ligne, statut `Evaluated`),
+   puis `career_script` `merge-tracker`. Un état change ensuite par `set-status` ;
+6. facultatif : `career_offer_save`, simple index du tableau Relay (`relay/offers`).
+
+Une offre déjà connue est reconnue par les mécanismes du Skill : `precheck-duplicate` (consultatif,
+lecture seule) avant un CV ou une candidature, et la déduplication de `merge-tracker` (URL normalisée par
+`url-key.mjs`, numéro de rapport, puis entreprise et poste) au moment de la fusion. `career_offer_save`
+ne déduplique pas ; il crée toujours une nouvelle fiche.
+
+### Chemins écrivables par `career_write`
+
+`cv.md`, `portals.yml`, `config/profile.yml`, `modes/_profile.md|_custom.md|_brief.md`,
+`data|output|documents|jds/*.(md|txt|yml|json|tsv)`, `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`
+(motif du Skill, refusé sinon) et `batch/tracker-additions/{num}-{company-slug}.tsv` (contenu contrôlé :
+en-tête, étiquettes requises du Skill, une seule ligne, score `X.X/5` ou `N/A` ; alias lus dans
+`tracker-aliases.json` de l’espace). **`data/applications.md` n’est plus écrivable** (règle 1 de
+« Pipeline Integrity » du Skill) : il reste lisible, et ne change que par `merge-tracker` et `set-status`.
+
+### Scripts du Skill admis par `career_script`
+
+Même reçu de revue (`relay/source-review.json`) et même refus de `.env` que `scan`, pas d’accord
+demandé (seul l’envoi final attend un clic). `args` : un argument par entrée, sans shell ; une valeur ne
+commence jamais par `-` et ne contient aucun caractère de contrôle ; un drapeau inconnu, répété ou
+écrit `--x=y` est refusé. Un code de sortie non nul est rendu avec la sortie, pas masqué.
+
+| Commande | Arguments admis |
+|---|---|
+| `reserve-report-num` | aucun, `--release NNN[-MMM]` ou `--gc` |
+| `merge-tracker` | `--dry-run`, `--verify` |
+| `set-status` | `<n° ou entreprise> <état>` ou `--report N <état>` / `--row N <état>`, `--note`, `--role`, `--on AAAA-MM-JJ`, `--dry-run`, `--json` |
+| `precheck-duplicate` | `--company`, `--title`, `--req`, `--url` (http(s)), `--json` |
+| `tracker` | `query`, `history` ou `sync`, puis `--status`, `--company`, `--role`, `--since`, `--min-score`, `--id`, `--limit`, `--json`, `--csv`, `--check` |
+| `verify-pipeline` | `--no-hints` |
+| `check-liveness` | 1 à 10 URL http(s) |
+
+Exclus volontairement : `--force`, `--undo` et réparations de `set-status`, migrations de
+`merge-tracker`, `--count` de `reserve-report-num`, `--file`/`--tracker`/`--apply` de `check-liveness`,
+`delete`/`export` de `tracker`.
+
+### Bilan
+
+Les critères « évaluation enregistrée » et « suivi écrit » viennent du manifeste (champ d’étape
+`proves`) : l’étape `report` (`career_write reports/`) ou `career_offer_save` prouve l’évaluation,
+l’étape `track` (`merge-tracker` réussi) prouve le suivi. Le Bilan affiche « Suivi du Skill : N ligne(s)
+ajoutée(s), M mise(s) à jour (merge-tracker) » (lu dans la sortie du script) et, si une évaluation
+demandée n’a pas été fusionnée, « suivi du Skill non écrit » : c’est une information, la mission n’est
+pas bloquée. La passerelle ne transmet à la plateforme que le préfixe du chemin (`reports/`,
+`batch/tracker-additions/`…), le nom de la commande, l’URL notée lue dans l’en-tête `**URL:**` et le
+nombre de lignes fusionnées : jamais le nom du fichier, le rapport ni le TSV.
 
 ## Offres et résultats
 
@@ -45,12 +112,13 @@ Voir [pièces jointes](api-attachments.md) et [envois](api-sends.md).
 }
 ```
 
-Exemple fictif de contrat. Note entière 1–5 ; `score` et `report` valent tous deux `null` avant
+Exemple fictif de contrat. Note 1–5, décimale admise (deux décimales au plus, comme `4.5`) ; `score` et `report` valent tous deux `null` avant
 évaluation. A–H obligatoire pour un rapport évalué ; la qualité factuelle de l’analyse reste celle
 du modèle et des sources citées. G expose les inconnus/preuves et H la prochaine action.
 
-L’outil `career_offer_save` écrit les offres normalisées dans `relay/offers/` et les rapports Markdown
-dans `reports/`. Les tableaux historiques amont restent lisibles par `career_read` et `career_script find` ;
+L’outil `career_offer_save` (index facultatif) écrit les offres normalisées dans `relay/offers/` et un
+rapport Markdown au format Relay dans `reports/<uuid>.md` ; le rapport du Skill s’écrit par `career_write`
+(voir plus haut). Les tableaux historiques amont restent lisibles par `career_read` et `career_script find` ;
 ils ne sont pas convertis arbitrairement en notes ou rapports A–H.
 
 Le schéma publié aux agents ne contient ni `id` ni `contractVersion` : la plateforme génère l’`id`

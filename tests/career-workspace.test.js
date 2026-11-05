@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CareerWorkspace, MAX_FILE_BYTES } from '../packages/career-ops/workspace.js';
+import {
+  CareerWorkspace,
+  DEFAULT_WORKSPACE,
+  MAX_FILE_BYTES,
+} from '../packages/career-ops/workspace.js';
 import { createApp } from '../apps/api/server.js';
 
 function fixture(t, options = {}) {
@@ -124,4 +128,39 @@ test('API pièces jointes : binaire, protection POST, MIME, id inconnu, racine a
   });
   assert.equal(plan.status, 400);
   assert.match((await plan.json()).error, /inconnue/);
+});
+
+test('Garde de test : un espace career-ops sans racine explicite est refusé, jamais l’espace réel', (t) => {
+  const saved = process.env.AGENT_PLATFORM_CAREER_WORKSPACE;
+  t.after(() => {
+    if (saved === undefined) delete process.env.AGENT_PLATFORM_CAREER_WORKSPACE;
+    else process.env.AGENT_PLATFORM_CAREER_WORKSPACE = saved;
+  });
+  delete process.env.AGENT_PLATFORM_CAREER_WORKSPACE;
+  assert.throws(() => new CareerWorkspace(), /racine explicite.*contexte de test/);
+  assert.throws(() => new CareerWorkspace({ roots: [tmpdir()] }), /racine explicite/);
+  // The variable that points the app at the owner's space is refused too, not silently honoured.
+  process.env.AGENT_PLATFORM_CAREER_WORKSPACE = join(tmpdir(), 'espace-reel-FICTIF');
+  assert.throws(() => new CareerWorkspace(), /AGENT_PLATFORM_CAREER_WORKSPACE.*refusé/);
+  assert.throws(
+    () => new CareerWorkspace({ root: DEFAULT_WORKSPACE, roots: [DEFAULT_WORKSPACE] }),
+    /espace career-ops réel/,
+  );
+  assert.throws(
+    () => new CareerWorkspace({ root: process.env.AGENT_PLATFORM_CAREER_WORKSPACE }),
+    /espace career-ops réel/,
+  );
+  const career = fixture(t);
+  assert.equal(career.real, false);
+});
+test('Garde de test : createApp sans espace explicite démarre mais n’ouvre aucun espace réel', async (t) => {
+  delete process.env.AGENT_PLATFORM_CAREER_WORKSPACE;
+  const dataDir = realpathSync(mkdtempSync(join(tmpdir(), 'career-FICTIF-data-')));
+  const app = createApp({ dataDir });
+  t.after(async () => {
+    await app.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+  assert.notEqual(app.engine.career.root, DEFAULT_WORKSPACE);
+  assert.throws(() => app.engine.career.path(), /introuvable/);
 });

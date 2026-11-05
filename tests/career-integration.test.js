@@ -23,6 +23,7 @@ import {
   selectAnnouncedCareerModel,
 } from '../packages/career-ops/integration.js';
 import { getPack } from '../packages/orchestrator/packs.js';
+import { workspacesRoot } from '../packages/orchestrator/isolation.js';
 import { terminal } from '../packages/storage/index.js';
 import { SkillProgress, selectSkillIntents } from '../packages/orchestrator/skill-router.js';
 import {
@@ -734,6 +735,58 @@ test('Réponse en texte libre (questions intake) : mission réussie, texte en r�
   const result = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
   assert.match(result.summary, /Questions FICTIVES/);
   assert.equal(result.simulated, true, 'un agent fictif reste étiqueté simulé');
+});
+
+test('Mission simulée : une racine temporaire sous .data/workspaces, l’espace du propriétaire reste intact', async (t) => {
+  const { root, career, app } = fixture(t, true);
+  reviewCareer(career, app.skills);
+  // The space the owner really uses: a workspace built without an explicit root (impossible in a
+  // test, so the flag is set by hand). A simulated agent must never write into it.
+  career.real = true;
+  const attachment = await career.upload(Buffer.from('CV FICTIF'), 'CV.md', 'text/markdown');
+  const before = readdirSync(root).sort();
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const run = await (
+    await fetch(base + '/api/runs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+      body: JSON.stringify({
+        prompt: 'mode intake TEXTE_LIBRE FICTIF',
+        agent: 'fixture',
+        pack: 'career-ops',
+        attachments: [attachment.id],
+      }),
+    })
+  ).json();
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  const stored = app.store.get(run.id);
+  assert.equal(stored.state, 'completed', stored.error);
+  assert.equal(stored.simulated, true);
+  assert.notEqual(stored.cwd, root);
+  assert.equal(stored.cwd, resolve(workspacesRoot(join(root, 'platform')), run.id));
+  // Nothing of the mission reached the owner's space: no relay/runs, no offer, no report.
+  assert.deepEqual(readdirSync(root).sort(), before);
+  assert.equal(existsSync(join(root, 'relay/runs')), false);
+  assert.equal(existsSync(join(root, 'relay/offers')), false);
+  assert.equal(existsSync(join(root, 'reports')), false);
+  assert.equal(existsSync(join(stored.cwd, `relay/runs/${run.id}-result.json`)), true);
+  // The app still serves the private result of that mission, read in its own workspace.
+  const result = await (await fetch(base + `/api/career/runs/${run.id}/result`)).json();
+  assert.equal(result.simulated, true);
+  const input = await (await fetch(base + `/api/career/runs/${run.id}/input`)).json();
+  assert.match(input.prompt, /TEXTE_LIBRE/);
 });
 
 test('Fixture career : questions puis réponse avec checkpoint dans une session neuve', async (t) => {

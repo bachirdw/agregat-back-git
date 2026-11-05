@@ -1,4 +1,4 @@
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { resolve, relative, isAbsolute, extname } from 'node:path';
 import { realpathSync, statSync, lstatSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -38,15 +38,49 @@ export async function convertCv(file, extension) {
   );
 }
 
+// `node --test` sets NODE_TEST_CONTEXT in every test process; NODE_ENV=test covers other runners.
+export const inTestContext = (env = process.env) =>
+  Boolean(env.NODE_TEST_CONTEXT) || env.NODE_ENV === 'test';
+const sameFolder = (a, b) => {
+  const real = (p) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return resolve(p);
+    }
+  };
+  return resolve(a) === resolve(b) || real(a) === real(b);
+};
+
 export class CareerWorkspace {
+  // `real` is true when the root comes from the environment or the default, i.e. the owner's own
+  // space; a root given by the caller (a temporary folder, a mission's folder) is never real.
   constructor({
-    root = process.env.AGENT_PLATFORM_CAREER_WORKSPACE || DEFAULT_WORKSPACE,
+    root,
     roots = (process.env.AGENT_PLATFORM_WORKSPACE_ROOTS || DEFAULT_WORKSPACE)
       .split(':')
       .filter(Boolean),
     converter = convertCv,
   } = {}) {
-    Object.assign(this, { root: resolve(root), roots: roots.map((p) => resolve(p)), converter });
+    const real = root === undefined;
+    if (inTestContext()) {
+      // A test must never open the owner's career-ops space: it would write fiches, reports and
+      // runs into data that is not fictitious (E31, E33).
+      const configured = process.env.AGENT_PLATFORM_CAREER_WORKSPACE;
+      if (real)
+        throw new Error(
+          `CareerWorkspace sans racine explicite refusé en contexte de test${configured ? ' (AGENT_PLATFORM_CAREER_WORKSPACE refusé aussi)' : ''} : passer { root, roots } vers un dossier temporaire`,
+        );
+      if (sameFolder(root, DEFAULT_WORKSPACE) || (configured && sameFolder(root, configured)))
+        throw new Error('Contexte de test : l’espace career-ops réel du propriétaire est refusé');
+    }
+    root = real ? process.env.AGENT_PLATFORM_CAREER_WORKSPACE || DEFAULT_WORKSPACE : root;
+    Object.assign(this, {
+      root: resolve(root),
+      roots: roots.map((p) => resolve(p)),
+      converter,
+      real,
+    });
   }
   path() {
     if (!this.roots.some((r) => within(r, this.root)))
@@ -107,6 +141,31 @@ export class CareerWorkspace {
     if (updateCv) writeConfined(root, 'cv.md', text);
     return item;
   }
+  // Copies what a mission reads (its attachments and cv.md) into another workspace, a simulated
+  // mission's temporary folder: the owner's space is only read, never written.
+  copyInputs(ids, target) {
+    const root = this.path();
+    for (const name of ['cv.md']) {
+      try {
+        writeConfined(target, name, readConfined(root, name, MAX_FILE_BYTES));
+      } catch (e) {
+        if (e.code !== 'ENOENT') throw e;
+      }
+    }
+    for (const id of ids) {
+      idSchema.parse(id);
+      for (const extension of ['.json', ...Object.keys(types)]) {
+        let bytes;
+        try {
+          bytes = readConfined(root, `inputs/${id}${extension}`, MAX_FILE_BYTES);
+        } catch (e) {
+          if (e.code === 'ENOENT') continue;
+          throw e;
+        }
+        writeConfined(target, `inputs/${id}${extension}`, bytes);
+      }
+    }
+  }
   attachments(ids) {
     const root = this.path();
     return ids.map((id) => {
@@ -142,4 +201,13 @@ export class CareerWorkspace {
       throw e;
     }
   }
+}
+
+// Default of the app and the engine. In a test context there is no owner space to open: the root
+// is a folder that does not exist, so any use fails with « Espace career-ops introuvable » and
+// nothing is ever written next to real data. Tests that need a workspace pass their own.
+export function defaultCareerWorkspace() {
+  if (!inTestContext()) return new CareerWorkspace();
+  const root = resolve(tmpdir(), `relay-test-sans-espace-career-${process.pid}`);
+  return new CareerWorkspace({ root, roots: [root] });
 }

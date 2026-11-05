@@ -111,6 +111,16 @@ export function formatAutoSendLine(events) {
   ).length;
   return n ? `Requêtes réseau d'envoi : ${n} accordées automatiquement (mode propriétaire).` : '';
 }
+// E66 : the owner's approvals of a send, and how many of the approved actions failed afterwards
+// (nothing sent by them) : an approval is not a send.
+export function formatSendLine(approved, failed) {
+  if (!approved) return '\nEnvoi par la plateforme : aucun approuvé.';
+  return `\nEnvoi par la plateforme : ${approved} approuvé(s) par le propriétaire${
+    failed
+      ? `, dont ${failed} sans effet (l’action a échoué après l’accord : rien n’a été envoyé par elle)`
+      : ''
+  }.`;
+}
 export function verificationScope(packId, simulated, observedBrowser = false) {
   if (observedBrowser && !simulated)
     return 'Page naviguée et observée ; autres affirmations non vérifiées';
@@ -409,8 +419,12 @@ export class Orchestrator {
     if (this.bridgeControl(runId, token) !== control) return { approved: false };
     // E64 : an approval the gateway is no longer waiting for sends nothing and is never counted.
     const approved = outcome.outcome?.optionId === 'allow' && !abandoned?.aborted;
-    if (request.actionClass === 'send' && approved)
+    if (request.actionClass === 'send' && approved) {
       control.sendsApproved = (control.sendsApproved ?? 0) + 1;
+      // E66 : the outcome of the approved action comes with the next browser action reported by
+      // the gateway (tool-outcome route).
+      control.sendsAwaiting = (control.sendsAwaiting ?? 0) + 1;
+    }
     return {
       approved,
       ...(this.expiredOutcomes.has(outcome) ? { expired: true } : {}),
@@ -1341,9 +1355,7 @@ export class Orchestrator {
             .join(' ; ');
       // Fact from the platform, next to the agent's own claims: a model can announce a send it never made.
       if (plan.pack.id === 'career-ops')
-        value.summary += control.sendsApproved
-          ? `\nEnvoi par la plateforme : ${control.sendsApproved} approuvé(s) par le propriétaire.`
-          : '\nEnvoi par la plateforme : aucun approuvé.';
+        value.summary += formatSendLine(control.sendsApproved ?? 0, control.sendsFailed ?? 0);
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));
         if (autoSendLine) value.summary += '\n' + autoSendLine;

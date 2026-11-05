@@ -232,40 +232,51 @@ export function selectSkillIntents(prompt, manifests) {
   const said = (phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `);
   const boosted = (intent) =>
     Boolean(intent.boost?.phrases.some(said) && !intent.boost.unlessPhrases?.some(said));
-  return manifests
-    .flatMap((raw) => {
-      const manifest = skillManifestSchema.parse(raw);
-      return manifest.intents
-        .filter(
-          (intent) =>
-            intent.phrases.some(said) ||
-            intent.keywords.some((word) => words.has(normalize(word))) ||
-            boosted(intent),
-        )
-        .map((intent) => ({
-          pack: manifest.pack,
-          intent: {
-            ...intent,
-            priority: boosted(intent) ? intent.boost.priority : intent.priority,
-            steps: (forbidSave ? intent.steps.filter((step) => !step.persists) : intent.steps).map(
-              (step) =>
+  return (
+    manifests
+      .flatMap((raw) => {
+        const manifest = skillManifestSchema.parse(raw);
+        return manifest.intents
+          .filter(
+            (intent) =>
+              intent.phrases.some(said) ||
+              intent.keywords.some((word) => words.has(normalize(word))) ||
+              boosted(intent),
+          )
+          .map((intent) => ({
+            // E68 : named by one of its phrases (or its boost), not only found by a keyword.
+            named: intent.phrases.some(said) || boosted(intent),
+            pack: manifest.pack,
+            intent: {
+              ...intent,
+              priority: boosted(intent) ? intent.boost.priority : intent.priority,
+              steps: (forbidSave
+                ? intent.steps.filter((step) => !step.persists)
+                : intent.steps
+              ).map((step) =>
                 (step.unlessUrl && hasUrl) ||
                 step.unlessPhrases?.some((phrase) =>
                   ` ${normalize(prompt)} `.includes(` ${normalize(phrase)} `),
                 )
                   ? { ...step, required: false, exempt: true }
                   : step,
-            ),
-          },
-        }));
-    })
-    .sort(
-      (a, b) =>
-        b.intent.priority - a.intent.priority ||
-        a.pack.localeCompare(b.pack) ||
-        a.intent.id.localeCompare(b.intent.id),
-    )
-    .slice(0, 1);
+              ),
+            },
+          }));
+      })
+      // E68 : an intent the prompt names by one of its phrases goes before one only found by a
+      // keyword (« postule à cette offre de ma pipeline » is an application, the keyword « pipeline »
+      // only names where the offer is) ; the pack's priority settles the rest.
+      .sort(
+        (a, b) =>
+          Number(b.named) - Number(a.named) ||
+          b.intent.priority - a.intent.priority ||
+          a.pack.localeCompare(b.pack) ||
+          a.intent.id.localeCompare(b.intent.id),
+      )
+      .slice(0, 1)
+      .map(({ pack, intent }) => ({ pack, intent }))
+  );
 }
 
 export function formatSkillOrder(selection) {

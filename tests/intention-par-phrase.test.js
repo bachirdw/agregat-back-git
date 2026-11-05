@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+import { selectSkillIntents, skillManifestSchema } from '../packages/orchestrator/skill-router.js';
+
+// E68 (constaté la nuit du 05 au 06/11, essai C, mission 5fa9108d) : « Postule à cette offre de ma
+// pipeline » était suivi comme l'intention `pipeline` (traiter la boîte d'entrée), car le mot-clé
+// « pipeline » (priorité 110) l'emportait sur la phrase « postule » (apply, 60) : seule la priorité
+// départageait. Une intention nommée par une de ses phrases (ou par son renfort) passe désormais
+// avant une intention trouvée par un simple mot-clé ; la priorité départage ensuite. Prompts FICTIFS.
+const career = skillManifestSchema.parse(
+  parse(
+    readFileSync(
+      new URL('../domain-packs/career-ops/skill-manifest.yaml', import.meta.url),
+      'utf8',
+    ),
+  ),
+);
+const intentOf = (prompt) => selectSkillIntents(prompt, [career])[0]?.intent.id;
+
+test('E68 FICTIF : la phrase de l’objectif l’emporte sur un mot-clé qui nomme la source', () => {
+  assert.equal(
+    intentOf('Postule à cette offre de ma pipeline : https://emplois.example.test/job/1'),
+    'apply',
+  );
+  assert.equal(intentOf('Évalue cette offre de ma pipeline'), 'evaluate');
+  assert.equal(intentOf('Cherche des offres et ajoute-les à ma pipeline'), 'search');
+});
+
+test('E68 FICTIF : sans phrase, le mot-clé suffit ; entre phrases, la priorité départage', () => {
+  assert.equal(intentOf('Traite ma pipeline'), 'pipeline');
+  // « offres en attente » (phrase de pipeline) devant le mot-clé « offres » de search.
+  assert.equal(intentOf('Traite les offres en attente'), 'pipeline');
+  // Deux phrases : la priorité départage, comme avant (bilan-06, E48) : le renfort du scan (120)
+  // l'emporte sur la boîte d'entrée qu'on ne fait que nommer, et « traite » annule ce renfort.
+  assert.equal(
+    intentOf('Scanne les portails et ajoute les nouvelles offres à la boîte d’entrée'),
+    'search',
+  );
+  assert.equal(intentOf('Scanne les portails puis traite la boîte d’entrée'), 'pipeline');
+  assert.equal(intentOf('Traite la boîte d’entrée puis postule aux meilleures'), 'pipeline');
+});

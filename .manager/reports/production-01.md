@@ -110,3 +110,30 @@ uniquement (`example.test`), aucun secret, aucun fichier du Skill modifié.
   précédent) ; pas de rôle « produire le CV ». Dans `evaluate`, la chaîne CV est facultative : un agent en mode
   oferta la verra « ignorée », pas « non exécutée ».
 
+## Point 4 — Bilan (`truth.js`)
+
+- 00:49 Rouge constaté, `tests/career-skill-production.test.js` (6 tests ajoutés) : `ℹ fail 1` sur le fichier
+  entier (`SyntaxError: … does not provide an export named 'factsUnsourced'`).
+- `truth.js` : critères `CV produit` et `lettre produite` lus dans le manifeste (`proves`, même mécanisme
+  `proved()` que « évaluation enregistrée »). Lignes du Bilan : « CV du Skill : produit (PDF) / non produit »
+  (affichée si un CV est demandé — verbes préparer/rédiger/adapter/générer… + « CV » — ou s'il a été
+  produit), « Lettre : produite / non produite » (même règle avec « lettre »), « CV non vérifié : n fait(s)
+  sans source (verify-cv-facts) » quand le dernier `verify-cv-facts` a rendu un code non nul (effacée par une
+  relance à zéro ; « verify-cv-facts a échoué (code non nul) » si rien n'est compté : fichier absent, erreur).
+  Comptage `factsUnsourced(text)` : sortie `--json` (`invented` + `unsupportedFacts`) ou texte (items « - »
+  sous « … absent from sources: ») ; les phrases interdites (`forbidden`) ne sont **pas** comptées (règle de
+  style, pas une source manquante ; premier essai les comptait, 2 rouges, corrigé). Deux canaux : ACP
+  (`rawOutput`, code non nul) et passerelle (`gatewayProgress` renvoie `facts: {unsourced}` pour un
+  `verify-cv-facts` échoué ; `recordGatewayTool` le lit). `WRITE_PREFIXES` gagne `output/` (préfixe seulement,
+  jamais le nom du fichier). Un `generate-pdf` à code non nul ne prouve rien (règle existante).
+  « rédaction de document » (critère `Non exécuté`) inchangé, mais lu dans le prompt hors négations.
+- **Fichier hors périmètre touché : `apps/api/server.js`, 1 ligne** (`facts: body.facts` transmis à
+  `recordGatewayTool`), indispensable au canal passerelle (seul canal fiable pour Gemini), comme `argument`/`tracker`
+  au chantier précédent. `packages/mcp-gateway/server.js` non touché (il étale déjà `gatewayProgress`).
+- 00:52 Vert : `career-skill-production` 8/8 ; sous-ensemble (10 fichiers dont `career-truth`,
+  `bilan-vs-events`, `truth-tool-names`, `owner-permissions`, `agent-silence`, `tool-watchdog`) 130/132,
+  mêmes 2 « Agent non détecté ». `check`/`format:check` verts.
+- Non vérifié : le format exact de sortie du vrai `verify-cv-facts.mjs` est pris de son `runCli` (lu, non
+  exécuté) ; si une version future change ses en-têtes, le Bilan dira « a échoué (code non nul) » (vérité
+  dégradée, pas fausse).
+

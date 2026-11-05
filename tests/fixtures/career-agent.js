@@ -518,6 +518,27 @@ const app = agent({ name: 'career-FICTIF' })
       // pipeline-01 : « traite la boîte d'entrée » selon modes/pipeline.md (balayage de vivacité,
       // puis chaque « - [ ] » évaluée comme une annonce collée, puis cochée ; une page inaccessible
       // devient « - [!] » sans évaluation). « n'enregistre rien » : lecture et contrôles seulement.
+      // bilan-06 (E51/E52) : boîte lue, vivacité balayée, une entrée AJOUTÉE (écriture sans cocher),
+      // rien d'évalué ; puis un dernier message sans demande (E51) ou qui demande au propriétaire de
+      // choisir, en prose, sans formulaire ni champ `question` (E52, texte réel du registre).
+      if (request.objective.includes('FICTIF_PIPELINE_AJOUT')) {
+        const inbox = await call('career_read', { path: 'data/pipeline.md' });
+        const pending = [...inbox.text.matchAll(/^- \[ \] (https?:\/\/\S+)/gm)].map((m) => m[1]);
+        await call('career_script', { command: 'check-liveness', args: pending });
+        await call('career_write', {
+          path: 'data/pipeline.md',
+          text: inbox.text.replace(
+            '\n## Processed',
+            '- [ ] https://jobs.example.test/offre/9 | Ajout FICTIF | Poste FICTIF\n\n## Processed',
+          ),
+        });
+        await send(
+          request.objective.includes('DEMANDE')
+            ? `Boîte d'entrée FICTIVE lue : ${pending.length} entrées en attente, 1 ajoutée.\n\nDis-moi lesquelles t'intéressent en priorité : les 6 pistes repérées, les offres déjà dans le pipeline, ou une sélection que tu choisis toi-même.`
+            : `Boîte d'entrée FICTIVE lue : ${pending.length} entrées en attente, 1 ajoutée depuis le scan FICTIF.`,
+        );
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_PIPELINE')) {
         const dry = /n[’']enregistre rien/i.test(request.objective);
         const inbox = await call('career_read', { path: 'data/pipeline.md' });

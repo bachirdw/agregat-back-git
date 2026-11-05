@@ -844,3 +844,43 @@ test('Boîte d’entrée FICTIVE : trois entrées traitées à la suite, étapes
   assert.equal(result.orderDeviation, false);
   assert.deepEqual(progress.incomplete([], true), []);
 });
+
+// bilan-06 (E51) : un résultat que le pack déclare non atteint (ici la boîte d'entrée, étiquette
+// `proves` du manifeste) rend la mission incomplète quand une étape sélectionnée, ni facultative ni
+// dispensée par le prompt, devait le prouver. Le moteur ne connaît que l'étiquette.
+test('bilan-06 FICTIF (E51) : résultat non atteint déclaré par le pack → mission incomplète', () => {
+  const unreached = [
+    { proves: 'boîte d’entrée traitée', cause: 'boîte d’entrée non traitée (0 sur 3)' },
+  ];
+  const pipeline = new SkillProgress(
+    selectSkillIntents('Traite la boîte d’entrée FICTIVE', [career]),
+  );
+  pipeline.start();
+  pipeline.observe(skillCall('r', 'career_read', { path: 'data/pipeline.md' }));
+  pipeline.observe(skillCall('w', 'career_write', { path: 'data/pipeline.md' }));
+  assert.deepEqual(pipeline.incomplete([], false, [], unreached), [
+    'boîte d’entrée non traitée (0 sur 3)',
+  ]);
+  // Étape dispensée (« à sec ») ou retirée (« n’enregistre rien ») : rien n'est exigé.
+  for (const prompt of [
+    'Traite la boîte d’entrée FICTIVE à sec',
+    'Traite la boîte d’entrée FICTIVE, n’enregistre rien',
+  ]) {
+    const progress = new SkillProgress(selectSkillIntents(prompt, [career]));
+    progress.start();
+    assert.deepEqual(progress.incomplete([], false, [], unreached), [], prompt);
+  }
+  // Un intent sans étape qui prouve ce résultat (search) n'est pas concerné.
+  const search = new SkillProgress(searchOf('Trouve des offres FICTIVES'));
+  search.start();
+  search.observe(completedCall('a', { tool: 'career_script', command: 'scan' }));
+  assert.deepEqual(search.incomplete([], false, [], unreached), []);
+  // Les étapes publiées disent si le prompt les a dispensées (pour le Bilan du pack).
+  const dry = new SkillProgress(
+    selectSkillIntents('Traite la boîte d’entrée FICTIVE à sec', [career]),
+  );
+  dry.start();
+  const steps = dry.finish().steps;
+  assert.equal(steps.find((step) => step.id === 'mark').exempt, true);
+  assert.equal(steps.find((step) => step.id === 'inbox').exempt, false);
+});

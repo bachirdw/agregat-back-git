@@ -542,7 +542,29 @@ function proved(manifest, truth, label) {
   );
 }
 
-export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
+// bilan-06 (E51) : the inbox the mission was to process, untouched: N entries pending before the
+// turn, none ticked « [x] » nor marked « [!] » since (a line added is an inbox written, not processed).
+// The label is the manifest's `proves`; the engine makes it « Mission incomplète » when a selected step
+// was to prove it. A prompt that limits the number of entries itself says how far to go: nothing is
+// claimed then (« 3 entrées », « les 2 premières », « une seule offre », « first 3 entries », « au plus 5 »).
+const NUMBER =
+  '(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|two|three|four|five|six|seven|eight|nine|ten)';
+const UNIT =
+  '(?:entr[ée]es?|offres?|annonces?|lignes?|urls?|entr(?:y|ies)|offers?|postings?|lines?)';
+const COUNT_LIMIT = new RegExp(
+  `(?:^|[^\\p{L}\\p{N}])(?:${NUMBER}\\s+(?:seules?\\s+|premi[èe]res?\\s*)?${UNIT}|${NUMBER}\\s+(?:seules?|premi[èe]res?)|(?:une?|a|one)\\s+(?:seule?|single)\\s+${UNIT}|(?:seulement|au plus|maximum|max|at most|only|first|limite(?:-toi|z-vous)? à|limit(?:ed)? to)\\s+${NUMBER})(?![\\p{L}\\p{N}])`,
+  'iu',
+);
+export function inboxUnprocessed(truth, prompt) {
+  const inbox = truth.inboxDelta?.() ?? null;
+  if (!inbox || !inbox.pending || inbox.processed || inbox.unconfirmed) return null;
+  if (COUNT_LIMIT.test(String(prompt ?? ''))) return null;
+  return { proves: INBOX_PROCESSED, cause: `boîte d’entrée non traitée (0 sur ${inbox.pending})` };
+}
+
+// `skillSteps`: the steps of the selected intent as the engine published them (title, state,
+// optional, exempt): a step neither optional nor waived that never ran is said as missing.
+export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), skillSteps = []) {
   const requested = prompt.replace(
     /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
     ' ',
@@ -645,18 +667,24 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
       prompt,
     );
   const inbox = truth.inboxDelta?.() ?? null;
+  const unprocessed = inboxUnprocessed(truth, prompt);
   const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
   let inboxLine = '';
-  if (proved(manifest, truth, INBOX_PROCESSED))
+  if (proved(manifest, truth, INBOX_PROCESSED)) {
     inboxLine = inbox
       ? `\n- Boîte d’entrée : ${plural(inbox.processed, 'traitée')}, ${plural(inbox.unconfirmed, 'non confirmée')} [!], ${plural(inbox.remaining, 'restante')}${inbox.missing ? `, ${plural(inbox.missing, 'disparue')}` : ''}.`
       : '\n- Boîte d’entrée : écriture observée, fichier non relu.';
-  else if (inboxRequested) {
+    // bilan-06 (E51) : a write that ticks nothing (a line added) leaves the inbox unprocessed.
+    if (unprocessed && !dryRun) missing.push(unprocessed.cause);
+  } else if (inboxRequested) {
     if (inbox && !inbox.pending) inboxLine = '\n- Boîte d’entrée : aucune entrée en attente.';
     else if (dryRun)
       inboxLine = `\n- Boîte d’entrée : aucune écriture (le prompt l’interdit)${inbox ? `, ${plural(inbox.remaining, 'restante')}` : ''}.`;
     else
-      missing.push(`${INBOX_PROCESSED}${inbox ? ` (${plural(inbox.remaining, 'restante')})` : ''}`);
+      missing.push(
+        unprocessed?.cause ??
+          `${INBOX_PROCESSED}${inbox ? ` (${plural(inbox.remaining, 'restante')})` : ''}`,
+      );
   }
   const rows = truth.trackerRows?.();
   const trackerLine = trackerProved
@@ -680,7 +708,17 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
     : scan?.networkFailures
       ? `\n- Scan : ${scan.networkFailures} portail(s) en échec réseau.`
       : '\n- Scan : aucun échec réseau lu dans sa sortie.';
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}${inboxLine}${scanLine}`;
+  // bilan-06 (E51) : « aucune action manquante » never stands above a step that was neither
+  // optional nor waived by the prompt and did not run (its line follows, in « Étapes du Skill »).
+  const pendingSteps = skillSteps
+    .filter((step) => step.state === 'pending' && !step.optional && !step.exempt)
+    .map((step) => step.title);
+  const missingLine =
+    missing.join(' ; ') ||
+    (pendingSteps.length
+      ? `${pendingSteps.length > 1 ? 'étapes du Skill non exécutées' : 'étape du Skill non exécutée'} : ${pendingSteps.join(' ; ')}`
+      : 'aucune action demandée identifiable comme manquante');
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missingLine}.${trackerLine}${documentLines.join('')}${inboxLine}${scanLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

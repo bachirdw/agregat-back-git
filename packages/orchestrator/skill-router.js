@@ -329,6 +329,8 @@ export class SkillProgress {
         title: step.title,
         tool: step.tool,
         optional: step.optional,
+        // Waived by the prompt (`unlessPhrases`, `unlessUrl`): told to the pack's Bilan as well.
+        exempt: step.exempt === true,
         definition: step,
         state: 'pending',
         toolCallId: null,
@@ -463,10 +465,20 @@ export class SkillProgress {
   // What the owner asked for and the platform did not observe. `readPages` holds platform evidence.
   // `scoredOffers` comes from the platform's own turn record: it covers prompts that no intent
   // recognised, and an offer already counted through an intent is not counted twice.
-  incomplete(readPages = [], sourceRead = false, scoredOffers = []) {
+  // `unreached` (bilan-06, E51): outcomes the pack reports as not reached, by their own `proves`
+  // label ({ proves, cause }); one is missing when a selected step that is neither optional nor
+  // waived by the prompt was to prove it. The engine knows the label, never the rule behind it.
+  incomplete(readPages = [], sourceRead = false, scoredOffers = [], unreached = []) {
     const causes = this.steps
       .filter((step) => step.definition.required && step.state !== 'done')
       .map((step) => `${step.title} (${step.state === 'failed' ? 'échouée' : 'non exécutée'})`);
+    for (const { proves, cause } of unreached)
+      if (
+        this.steps.some(
+          (step) => step.definition.proves === proves && !step.optional && !step.exempt,
+        )
+      )
+        causes.push(cause);
     const read = new Set(readPages.map(pageKey));
     const scored = new Set(this.scored);
     for (const offer of scoredOffers) if (pageKey(offer.url)) scored.add(pageKey(offer.url));

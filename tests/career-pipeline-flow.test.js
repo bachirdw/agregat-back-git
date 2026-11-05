@@ -187,3 +187,23 @@ test('Boîte d’entrée FICTIVE, « n’enregistre rien » : aucune écriture, 
   assert.match(summary, /✓ Balayer la vivacité des entrées en attente \(faite\)/);
   assert.doesNotMatch(summary, /Cocher l'entrée/, 'étape retirée par « n’enregistre rien »');
 });
+
+// bilan-06 (E51) : l'agent lit la boîte, balaie la vivacité, ajoute une entrée à data/pipeline.md
+// (une écriture, aucune entrée cochée) et termine sans question : la mission est incomplète et le
+// Bilan le dit, jamais « aucune action demandée identifiable comme manquante ».
+test('E51 FICTIF : boîte de 3 entrées lue, 1 ajoutée, 0 traitée → mission incomplète, Bilan explicite', async (t) => {
+  const { root, done } = await runPipelineFixture(
+    t,
+    'Traite la boîte d’entrée FICTIVE FICTIF_PIPELINE_AJOUT',
+  );
+  assert.equal(done.state, 'failed');
+  assert.equal(done.error, 'Mission incomplète : boîte d’entrée non traitée (0 sur 3)');
+  const inbox = readFileSync(join(root, 'data/pipeline.md'), 'utf8');
+  assert.equal(inbox.match(/^- \[ \] /gm).length, 4, 'trois entrées plus l’ajout, aucune cochée');
+  const summary = done.result.summary;
+  assert.match(summary, /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./);
+  assert.doesNotMatch(summary, /aucune action demandée identifiable/);
+  assert.match(summary, /- Boîte d’entrée : 0 traitée, 0 non confirmée \[!\], 4 restantes\./);
+  assert.match(summary, /· Réserver le numéro du rapport \(non exécutée\)/);
+  assert.match(summary, /\nMission incomplète : boîte d’entrée non traitée \(0 sur 3\)\.$/);
+});

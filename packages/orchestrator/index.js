@@ -1351,8 +1351,14 @@ export class Orchestrator {
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible). Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer.';
-      if (questionCount.asked)
-        value.summary += `\nQuestions : ${questionCount.asked} posée(s), ${questionCount.answered} répondue(s).`;
+      // E60 : every question of the mission counts — a form asked during the turn (ACP
+      // elicitation) as well as a question that ends a turn (structured or in prose).
+      const missionEvents = this.store.events(run.id);
+      const asked = missionEvents.filter((event) => event.type === 'question').length;
+      const answered = missionEvents.filter(
+        (event) => event.type === 'answer' && event.data?.action === 'accept',
+      ).length;
+      if (asked) value.summary += `\nQuestions : ${asked} posée(s), ${answered} répondue(s).`;
       // bilan-06 (E51) : what the pack says was not reached. Not when the owner was asked and did
       // not answer (declined or expired question): the agent stopped on that, not on the work.
       const unreached =

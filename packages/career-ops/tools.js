@@ -898,11 +898,28 @@ export class CareerTools {
         };
       if (controls[command] && Number.isInteger(error.code) && !signal?.aborted)
         return { text: error.stdout || error.stderr || '', exitCode: error.code, untrusted: true };
+      // E47: scan and find that ran and exited non-zero tell the agent why, bounded.
+      if (Number.isInteger(error.code) && !signal?.aborted)
+        throw new Error(
+          `Commande career-ops ${command} terminée avec le code ${error.code}${scriptCause(root, error)}`,
+        );
       throw new Error(
         'Commande career-ops échouée, annulée ou expirée ; consulter la configuration locale',
       );
     }
   }
+}
+// The first 300 characters of a script's error output (stdout when stderr is empty), on one line.
+// The workspace becomes <espace> (its relative tail stays readable), every other absolute path
+// <chemin>: the agent reads the cause, never a path.
+function scriptCause(root, error) {
+  const raw = String(error.stderr || error.stdout || '')
+    .replaceAll(root, '<espace>')
+    .replace(/(?<![>\w])\/(?:[^\s/:'"`<>]+\/)*[^\s/:'"`<>]+/g, '<chemin>')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .trim();
+  if (!raw) return ' (aucune sortie d’erreur)';
+  return ` : ${raw.length > 300 ? raw.slice(0, 300) + '…' : raw}`;
 }
 export function sourceSnapshot(root) {
   const files = {};

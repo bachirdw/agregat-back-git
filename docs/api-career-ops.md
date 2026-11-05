@@ -111,6 +111,10 @@ Même reçu de revue (`relay/source-review.json`) et même refus de `.env` que `
 demandé (seul l’envoi final attend un clic). `args` : un argument par entrée, sans shell ; une valeur ne
 commence jamais par `-` et ne contient aucun caractère de contrôle ; un drapeau inconnu, répété ou
 écrit `--x=y` est refusé. Un code de sortie non nul est rendu avec la sortie, pas masqué.
+Quand `scan` ou `find` a tourné et s’est terminé avec un code non nul, l’erreur rendue à l’agent dit le
+code et les 300 premiers caractères de la sortie d’erreur (une ligne, espace de travail noté `<espace>`,
+tout autre chemin absolu `<chemin>`) ; délai dépassé et annulation gardent le message générique (bilan-04,
+E47 : `find` répondait « Commande career-ops échouée, annulée ou expirée » sans cause).
 Appel complet : `{ command: "verify-cv-structure", args: ["output/<fichier>.json"] }` ; `path` et `query`
 ne servent jamais à un script du Skill (`path` : contrôles `jd-skill-gap`, `cv-title-check`,
 `verify-cv-facts` ; `query` : `find`). Un refus de grammaire rappelle la forme attendue du script et nomme

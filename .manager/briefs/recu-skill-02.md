@@ -1,0 +1,19 @@
+# recu-skill-02 — Renouveler le reçu de revue des sources du Skill pour 35b7c53
+
+Le Skill career-ops (`~/Downloads/agregat-career-ops`, dépôt du propriétaire) a été mis à jour de 2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af à **35b7c531** le 05/11. La revue `.manager/reports/revue-skill-02.md` (Opus, lecture seule) conclut : renouvelable sous réserves, aucune trouvaille bloquante, ~20 % du code exécutable lu ligne à ligne. **Le propriétaire a donné son accord** (voir journal `reprise-05-11.md`, heure notée par le manager). Dossier `~/Downloads/agregat-back-astra`, branche `suite-astra`. Modèle : Sonnet. Commits par chemins explicites.
+
+## À lire d'abord
+`packages/career-ops/review-migration.js` (REVIEWED_COMMIT, `measure`, `planReviewMigration`, `applyReviewMigration`, blocages « Révision non revue »), `packages/career-ops/integration.js` (`keepExistingReceipt` : un reçu existant est comparé, jamais réécrit ; s'il est absent, `reviewCareer` écrit un instantané neuf), `packages/career-ops/tools.js` (`sourceSnapshot`, `assertSourceReview`), `scripts/career-review-migrate.js`, tests `tests/career-review-migrate.test.js`, `tests/astra-source-review*.test.js`, `tests/career-integration.test.js`, rapport `.manager/reports/recu-02-11.md` (procédure suivie la dernière fois).
+
+## But
+Un reçu `relay/source-review.json` **versionné et estampillé** (`review.reviewer`, `review.reviewedAt`, `review.sourceCommit = 35b7c531…`, empreintes de tous les fichiers de la portée `career-code-v2-js-json-sh` à ce commit), l'ancien reçu conservé en copie `relay/source-review.legacy-<12 hex>.json`, sans jamais approuver « ce qui a changé » en silence : le renouvellement exige la révision cible explicite et l'empreinte du plan.
+
+## Points
+1. `review-migration.js` : `REVIEWED_COMMIT` → `35b7c531` (hash complet à lire par `git --no-optional-locks -C <clone> rev-parse HEAD`, en lecture seule) ; ajouter une opération **`renew`** à côté de la migration : à sec par défaut (`planRenewal(root)` : révision du clone = révision revue, fichiers suivis non modifiés, reçu actuel lu et son empreinte calculée, nombre de fichiers ajoutés/supprimés/modifiés par rapport à l'ancien reçu), puis `applyRenewal(root, { reviewer, plan })` qui exige l'empreinte du plan, sauvegarde l'ancien reçu, écrit le nouveau (écriture atomique comme `applyReviewMigration`), relit et vérifie. Blocages : révision différente, fichier suivi modifié, `relay` en lien symbolique, reçu absent ou trop gros, sauvegarde déjà présente et différente.
+2. `scripts/career-review-migrate.js` : option `--renew` (à sec) et `--renew --apply --plan <hash> --reviewer <nom>` ; sortie JSON comme aujourd'hui ; code 2 si non applicable.
+3. Tests : nouveau `tests/career-review-renew.test.js` sur un clone FICTIF (dépôt git temporaire avec quelques fichiers, deux commits) : à sec sans écriture, refus si révision différente ou fichier modifié ou plan faux, application correcte (ancien reçu sauvegardé, nouveau vérifié par `assertSourceReview`), idempotence (second `renew` sur le même commit : rien à faire). Tests existants verts.
+4. Essai à sec réel sur le clone du propriétaire : `node scripts/career-review-migrate.js --renew` ; coller la sortie (nombre de fichiers, ajoutés/supprimés/modifiés, empreinte du plan) au rapport. **Ne pas appliquer** : le manager applique lui-même avec `--reviewer` après lecture de l'essai à sec.
+5. `docs/api-career-ops.md` ou `docs/validation-architecture.md` : paragraphe « renouveler le reçu après une mise à jour du Skill ». `npm run check`, `npm run format:check`.
+
+## Contraintes
+Lecture seule sur le clone du Skill hors `relay/` ; aucune écriture dans le clone sauf par `--apply` que tu ne lances pas ; aucun secret ; aucune donnée personnelle ; pas de serveur relancé, pas de mission. Rapport `.manager/reports/recu-skill-02.md` horodaté.

@@ -1,0 +1,27 @@
+# sources-01 — Le scan accepte les fournisseurs du Skill, filtre aussi les hôtes de careers_url ; Apify reste désactivé
+
+Deuxième morceau du rapprochement décidé par le propriétaire (05/11 10:20). Dossier `~/Downloads/agregat-back-astra`, branche `suite-astra`. Modèle : Sonnet. Un seul écrivain dans l'arbre pendant ce chantier (le manager n'écrit que des rapports) ; commits par chemins explicites quand même.
+
+## À lire d'abord
+- `.manager/reports/audit-career-ops-05-11/02-relay-vs-skill.md` (Q1 scan, Q3 replis, Q6 point 4 « Scan ») et `.manager/reports/revue-skill-02.md` (« À surveiller » : 19 nouveaux fournisseurs choisis d'après l'hôte de `careers_url`, réserves : `config/plugins.yml` vide, variables à ne pas fournir, hôtes de `careers_url` à filtrer aussi).
+- Skill (LECTURE SEULE, `~/Downloads/agregat-career-ops` à 35b7c53) : `providers/README.md`, `providers/ADDING_A_PROVIDER.md`, `providers/_registry.mjs` (comment un fournisseur est choisi d'après `provider:` ou d'après l'hôte de `careers_url`), `docs/SUPPORTED_JOB_BOARDS.md`, `docs/KEEPING_PORTALS_LIVE.md`, `modes/scan.md` (replis en cas de panne : API, `scan_query`, `skipped_error`), `templates/portals.example.yml`, `plugins/apify/*` (comment il s'active : `config/plugins.yml` `enabled: true` + `APIFY_TOKEN`, entrée `provider: apify`). Interdits : `portals.yml` réel, `cv.md`, `config/profile.yml`, `data/`, `reports/`, `relay/`, `.env`.
+- Relay : `packages/career-ops/tools.js` lignes ~440-480 (validation de `portals.yml` avant `scan` : liste de 6 `provider` en dur, refus en bloc « provider ou exécutable non autorisé »), `scripts.js` si la liste y vit, `domain-packs/career-ops/skill-manifest.yaml` (intent `search` : `fallbackTools: jobs_search_live`, rôle « Chercher des offres », note C8 « portail en échec au scan → lecture navigateur »), `manifest.yaml` (variables d'environnement transmises aux scripts), `docs/api-career-ops.md`, tests `tests/career-script*.test.js`, `tests/career-integration.test.js`, `tests/skill-router.test.js`.
+
+## But
+1. Relay n'oppose plus sa propre liste de 6 fournisseurs : il accepte **tous les fournisseurs livrés par le Skill** (noms des fichiers `providers/*.mjs` sans `_`, lus dans le clone en lecture seule au démarrage ou à l'appel, jamais codés en dur dans le moteur) ; un `provider:` inconnu du Skill reste refusé avec le nom du fournisseur dans le message ; `local-parser` (exécutable local déclaré dans `portals.yml`) reste refusé tant que l'exécutable n'est pas dans le clone revu (dire pourquoi dans le message).
+2. Le contrôle s'étend aux **hôtes de `careers_url`** : le Skill choisit un fournisseur d'après l'hôte même sans `provider:` ; Relay vérifie que chaque hôte est https et n'est pas une adresse locale ou privée (réutiliser la politique réseau existante), sans liste d'hôtes métier en dur.
+3. Le repli en cas de panne de portail suit le **Skill** (`modes/scan.md` : API, `scan_query`, `skipped_error`, puis on continue, et la lecture navigateur des offres du portail en échec, note C8 déjà en place) ; `jobs_search_live` sort de `fallbackTools` du manifeste et reste un outil disponible que l'agent peut appeler si le prompt le demande (aucune restriction : on cesse seulement de le recommander à la place des fournisseurs `arbeitnow`/`remotive` du Skill).
+4. **Apify** : rien à activer (décision du propriétaire : désactivé pour l'instant). Relay ne doit pas transmettre `APIFY_TOKEN` ni les variables listées par la revue (`PRIVACY_*`, `CAREER_OPS_PDF_SHARED`, `CAREER_OPS_BROWSER_AUTODETECT`, `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, `CLAUDE_PLUGIN_*`) aux scripts : test de l'environnement transmis. Documente dans `docs/api-career-ops.md` ce qu'il faudra le jour où le propriétaire l'activera (son jeton dans l'`.env` du Skill, `config/plugins.yml`, entrée `portals.yml`), sans le faire.
+
+## Points (un commit `[sources-01]` par point ; test rouge puis vert)
+1. Fournisseurs du Skill : test « `portals.yml` FICTIF avec `provider: greenhouse` / `lever` / `workday` / `jobstreet` / `arbeitnow` accepté, `provider: inconnu-fictif` refusé avec son nom, `local-parser` refusé avec la raison ». Lecture des fournisseurs : fonction générique du paquet career (`listSkillProviders(root)`), mise en cache par processus, qui tolère l'absence du dossier (alors refus explicite « fournisseurs du Skill introuvables »).
+2. Hôtes de `careers_url` : test « hôte https public accepté ; `http://`, `localhost`, `127.0.0.1`, `10.x`, `.local` refusés avec l'hôte dans le message ».
+3. Manifeste : `fallbackTools` sans `jobs_search_live` ; note du rôle « Chercher des offres » alignée sur `modes/scan.md` (replis du Skill) ; `tests/skill-router.test.js`, `doubt-tools` si le texte des rôles y est figé (adapter le test en le disant).
+4. Environnement des scripts : test que les variables listées ne sont pas transmises même si présentes chez le parent ; doc.
+5. `npm run check`, `npm run format:check`, tests ciblés ; suite complète lancée par le manager.
+
+## Contraintes
+Aucune règle métier nouvelle dans `packages/orchestrator` ; aucune restriction de l'agent ; Skill intouché ; aucune donnée personnelle (le `portals.yml` réel n'est jamais lu : fixtures FICTIVES) ; pas de serveur relancé, pas de mission. Rapport `.manager/reports/sources-01.md` horodaté (`date`).
+
+## Hors périmètre
+Renouvellement du reçu de revue (chantier `recu-skill-02`), production CV/lettre, pipeline, Apify activé.

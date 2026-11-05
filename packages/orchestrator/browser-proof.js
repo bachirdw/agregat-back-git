@@ -38,6 +38,8 @@ export function compactBrowserEvidence(output) {
     provider,
     loading: output.loading === true,
     readable: readableBrowserObservation(output),
+    // E29 : an extract is a reading like a snapshot; its content stays untrusted page text.
+    ...(output.untrusted === true ? { untrusted: true } : {}),
     // Tab facts (no page text): a hidden tab and a short text explain a missing description.
     ...(typeof output.hidden === 'boolean' ? { hidden: output.hidden } : {}),
     ...(Number.isInteger(output.textLength) && output.textLength >= 0
@@ -94,10 +96,15 @@ export function assessBrowserClaims(summary, evidence = []) {
     const key = sourceId(url);
     if (seen.has(key)) continue;
     seen.add(key);
-    const observations = evidence.filter((item) =>
-      item.sourceId
-        ? item.sourceId === key
-        : !url.search && !url.hash && item.url === url.origin + url.pathname,
+    // Same full source (hash), or the same page when the citation names it without query or
+    // fragment: the proof keeps origin and path, and that page was read (E29, offers cited
+    // without the parameters of the link that opened them). A citation with parameters must
+    // match the exact source.
+    const samePage = !url.search && !url.hash;
+    const observations = evidence.filter(
+      (item) =>
+        (item.sourceId && item.sourceId === key) ||
+        (samePage && item.url === url.origin + url.pathname),
     );
     const read = observations.some(
       (item) => item.readable === true || readableBrowserObservation(item),

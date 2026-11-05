@@ -139,6 +139,29 @@ const app = agent({ name: 'career-FICTIF' })
         await send('Terminé.');
         return { stopReason: 'end_turn' };
       }
+      if (request.objective.includes('FICTIF_RESULTATS_MIXTES')) {
+        // E29 (mission 380ef9ff reconstituée) : le même outil réussit puis échoue dans le tour.
+        for (const [id, status] of [
+          ['FICTIF-extract-ok', 'completed'],
+          ['FICTIF-extract-ko', 'failed'],
+        ]) {
+          await connection.client.notify(methods.client.session.update, {
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate: 'tool_call',
+              toolCallId: id,
+              title: 'browser_extract',
+              status: 'in_progress',
+            },
+          });
+          await connection.client.notify(methods.client.session.update, {
+            sessionId: session.sessionId,
+            update: { sessionUpdate: 'tool_call_update', toolCallId: id, status },
+          });
+        }
+        await send('Terminé.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_NOTES_SANS_SOURCE')) {
         await send('Correspondance parfaite 5/5 pour une offre FICTIVE.');
         return { stopReason: 'end_turn' };

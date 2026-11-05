@@ -979,7 +979,7 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
   for (const [prompt, expected, scope] of [
     [
       'FICTIF_ACTION_ECHOUEE postule',
-      /Action\(s\) échouée\(s\) : browser_click —/,
+      /- Actions échouées : browser_click — écriture automatisée interdite/,
       /actions échouées/,
     ],
     [
@@ -997,6 +997,8 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
       readFileSync(join(career.path(), `relay/runs/${run.id}-result.json`), 'utf8'),
     );
     assert.match(privateResult.summary, expected);
+    // E29 : the Bilan is the only place that lists failed actions (no duplicated line above it).
+    assert.doesNotMatch(privateResult.summary, /Action\(s\) échouée\(s\)/);
     assert.match(privateResult.summary, /Bilan\n- Actions réussies : career_read/);
     assert.match(
       app.store.get(run.id).result.summary,

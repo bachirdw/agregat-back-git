@@ -335,8 +335,9 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
   const mixed = [];
   for (const [name, group] of byName) {
     if (group.completed.length && group.failed.length) {
+      // E29 : the only line about a partly failed tool, with the cause of its last failure.
       mixed.push(
-        `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''}`,
+        `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''} (${group.failed.at(-1).cause})`,
       );
     } else if (group.completed.length) {
       const sent = group.completed.at(-1).sent;
@@ -401,7 +402,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
           : 'fusion réussie, nombre de lignes non lu'
       } (merge-tracker).`
     : '';
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}`;
+  // E29 : « aucune observée » next to « n échoués » would contradict itself.
+  const failedLine =
+    failures.join(' ; ') || (mixed.length ? 'voir Résultats mixtes' : 'aucune observée');
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

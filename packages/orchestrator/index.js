@@ -1217,13 +1217,7 @@ export class Orchestrator {
           value.evidence = [];
           this.store.event(run.id, 'career_no_browser_action', { resumed: true });
         }
-        if (turnTruth.failedActions().length)
-          value.summary +=
-            '\nAction(s) échouée(s) : ' +
-            turnTruth
-              .failedActions()
-              .map(({ name, cause }) => `${name} — ${cause}`)
-              .join(' ; ');
+        // Failed actions are listed once, by the Bilan (E29): no extra line above it.
         const agentAnswer = value.summary.trim();
         value.summary +=
           '\n' +
@@ -1250,7 +1244,7 @@ export class Orchestrator {
       }
       if (plan.pack.id !== 'career-ops' && skillResult.steps.length)
         value.summary += '\nBilan\n' + formatSkillBilan(skillResult);
-      if (turnTruth.failedActions().length)
+      if (plan.pack.id !== 'career-ops' && turnTruth.failedActions().length)
         value.summary +=
           '\nAction(s) échouée(s) : ' +
           turnTruth

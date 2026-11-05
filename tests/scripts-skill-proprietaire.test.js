@@ -23,6 +23,9 @@ const ENTRIES = [
   'verify-cv-structure',
   // Script de la racine du Skill absent de la liste auditée.
   'verify-portals',
+  // Contrôles (forme path) qui sont aussi des scripts de la racine du Skill.
+  'jd-skill-gap',
+  'cv-title-check',
 ];
 function workspace(t, { ownerMode = true } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-proprietaire-FICTIF-')));
@@ -128,4 +131,42 @@ test('E59 FICTIF : hors mode propriétaire, la grammaire fermée reste', async (
     /Arguments refusés pour reserve-report-num/,
   );
   await assert.rejects(tools.script({ command: 'verify-portals' }), /non autorisée/);
+});
+
+// Essai C de la nuit (06/11, mission 5fa9108d) : l'agent, suivant modes/pdf.md, appelle jd-skill-gap
+// avec son chemin et le drapeau --summary ; refus « Arguments supplémentaires non autorisés », car
+// les trois contrôles n'acceptaient que path, même en mode propriétaire. En mode propriétaire, un
+// contrôle prend aussi les drapeaux de son script (après le chemin, toujours isolé), et sans path il
+// est un script de la racine comme un autre ; seul le confinement des chemins reste.
+test('E59 FICTIF : en mode propriétaire, un contrôle prend aussi les drapeaux de son script', async (t) => {
+  const { root, tools } = workspace(t);
+  mkdirSync(join(root, 'jds'));
+  writeFileSync(join(root, 'jds/offre-FICTIVE.md'), '# Offre FICTIVE');
+  const control = await tools.script({
+    command: 'jd-skill-gap',
+    path: 'jds/offre-FICTIVE.md',
+    args: ['--summary'],
+  });
+  assert.deepEqual(JSON.parse(control.text), {
+    script: 'jd-skill-gap',
+    args: ['jds/offre-FICTIVE.md', '--summary'],
+  });
+  assert.deepEqual(await run(tools, 'jd-skill-gap', ['jds/offre-FICTIVE.md', '--summary']), {
+    script: 'jd-skill-gap',
+    args: ['jds/offre-FICTIVE.md', '--summary'],
+  });
+  await assert.rejects(
+    tools.script({ command: 'jd-skill-gap', path: 'jds/offre-FICTIVE.md', args: ['--out=/tmp/x'] }),
+    /hors de l’espace career-ops/,
+  );
+});
+
+test('E59 FICTIF : hors mode propriétaire, un contrôle n’accepte que son chemin', async (t) => {
+  const { root, tools } = workspace(t, { ownerMode: false });
+  mkdirSync(join(root, 'jds'));
+  writeFileSync(join(root, 'jds/offre-FICTIVE.md'), '# Offre FICTIVE');
+  await assert.rejects(
+    tools.script({ command: 'jd-skill-gap', path: 'jds/offre-FICTIVE.md', args: ['--summary'] }),
+    /Arguments supplémentaires non autorisés/,
+  );
 });

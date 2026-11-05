@@ -885,10 +885,12 @@ export class CareerTools {
     // verify-cv-facts is both a control (path, --json added here) and a Skill entry (args): the
     // control form answers a `path`, the Skill form answers `args`. E59 : in owner mode, any root
     // script of the reviewed clone is a Skill entry as well.
+    // Essai C de la nuit : in owner mode a control called without its path (args only) is a root
+    // script like any other.
     const rootEntry =
       this.ownerMode &&
       !Object.hasOwn(SKILL_ENTRIES, command) &&
-      !controls[command] &&
+      !(controls[command] && path) &&
       !['scan', 'find'].includes(command) &&
       ownerRootScript(root, command);
     const skillEntry =
@@ -904,8 +906,13 @@ export class CareerTools {
         root,
         [path && 'path', query && 'query'].filter(Boolean),
       );
-    else if (scriptArgs.length)
-      throw new Error('Arguments supplémentaires non autorisés pour cette commande');
+    else if (scriptArgs.length) {
+      // Essai C de la nuit : in owner mode a control (path) also takes its own script's flags,
+      // after the path, still isolated ; only the confinement of paths stays.
+      if (this.ownerMode && controls[command])
+        ownerScriptArgs(command, scriptArgs, root, [query && 'query'].filter(Boolean));
+      else throw new Error('Arguments supplémentaires non autorisés pour cette commande');
+    }
     if (controls[command] && !skillEntry) {
       if (query || !controls[command].pattern.test(path))
         throw new Error('Chemin de contrôle hors du périmètre career-ops');
@@ -938,7 +945,7 @@ export class CareerTools {
     ];
     const execArgs =
       controls[command] && !skillEntry
-        ? isolate(`${command}.mjs`, path, ...controls[command].flags)
+        ? isolate(`${command}.mjs`, path, ...controls[command].flags, ...scriptArgs)
         : skillEntry
           ? SKILL_ENTRIES[command]?.isolated
             ? isolate(`${command}.mjs`, ...scriptArgs)
@@ -1176,7 +1183,7 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Chaîne CV/lettre de modes/pdf.md et modes/cover.md, fichiers sous output/ : cv-templates (args ["resolve","cv"]), build-cv-html (args [payload.json, cv.html, template?]), verify-cv-facts (args [cv.html]), generate-pdf (args [cv.html, cv.pdf, "--format=a4", "--report=042"]), mark-pdf-ready (args ["042"]), generate-cover-letter (args ["--payload", "output/cover-payload-….json"]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine ; verify-cv-facts : fait absent du CV source). Appel complet : { command: "verify-cv-structure", args: ["output/<fichier>.json"] } — jamais path ni query pour un script du Skill (path sert aux seuls contrôles jd-skill-gap, cv-title-check, verify-cv-facts ; query à find) ; un refus rappelle la forme attendue du script.${ownerMode ? ' Mode propriétaire : tout script <nom>.mjs à la racine du Skill est admis, avec tous les arguments de sa propre ligne de commande (ex. reserve-report-num ["--count","5"], merge-tracker ["--backfill-urls"]) ; seuls un chemin hors de l’espace career-ops et une valeur malformée sont refusés.' : ''}`,
+    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Chaîne CV/lettre de modes/pdf.md et modes/cover.md, fichiers sous output/ : cv-templates (args ["resolve","cv"]), build-cv-html (args [payload.json, cv.html, template?]), verify-cv-facts (args [cv.html]), generate-pdf (args [cv.html, cv.pdf, "--format=a4", "--report=042"]), mark-pdf-ready (args ["042"]), generate-cover-letter (args ["--payload", "output/cover-payload-….json"]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine ; verify-cv-facts : fait absent du CV source). Appel complet : { command: "verify-cv-structure", args: ["output/<fichier>.json"] } — jamais path ni query pour un script du Skill (path sert aux seuls contrôles jd-skill-gap, cv-title-check, verify-cv-facts ; query à find) ; un refus rappelle la forme attendue du script.${ownerMode ? ' Mode propriétaire : tout script <nom>.mjs à la racine du Skill est admis, avec tous les arguments de sa propre ligne de commande (ex. reserve-report-num ["--count","5"], merge-tracker ["--backfill-urls"]) ; un contrôle avec path prend aussi les drapeaux de son script (ex. jd-skill-gap, path et args ["--summary"]) ; seuls un chemin hors de l’espace career-ops et une valeur malformée sont refusés.' : ''}`,
     z
       .object({
         command: z.string().min(1).max(200),

@@ -340,15 +340,16 @@ const pageKey = (value) => {
     return null;
   }
 };
-// The URL a completed call acted on: the URL it was given (the gateway passes the page it landed
-// on) or else the `url` its result reports (ACP).
+// The URL a completed call acted on : the page its result reports it landed on (ACP), or else the
+// URL it was given (the gateway passes the page it landed on there). Revue Opus du 06/11 : the URL
+// the agent gave came first, so an offer redirected to a results page counted as the offer.
 const callUrl = (update) => {
-  const given = toolInput(update).url;
-  if (pageKey(given)) return given;
   const reported = JSON.stringify(update.rawOutput ?? update.content ?? '').match(
     /\\*"url\\*"\s*:\s*\\*"(https?:\/\/[^"\\\s]+)/,
   )?.[1];
-  return pageKey(reported) ? reported : null;
+  if (pageKey(reported)) return reported;
+  const given = toolInput(update).url;
+  return pageKey(given) ? given : null;
 };
 // The page of that call, host and path only, as pageKey.
 const callPage = (update) => pageKey(callUrl(update));
@@ -378,25 +379,32 @@ function listPage(value, words) {
       .filter(Boolean);
   const identifier = (token) =>
     /^\d{4,}$/.test(token) || (token.length >= 8 && /\d/.test(token) && /[a-z]/.test(token));
-  if (tokensOf(url.pathname).some(identifier)) return false;
-  for (const [key, field] of url.searchParams) {
-    const name = key.toLowerCase();
-    if (QUERY_ITEM.test(name) && /^[a-z0-9_-]{3,}$/i.test(field)) return false;
-    // `id` names an item only as a number (troisième relecture) : « ?id=4012345 ».
-    if (name === 'id' && /^\d{3,}$/.test(field)) return false;
-  }
   const segments = url.pathname.toLowerCase().split('/').filter(Boolean);
   const listSegment = (segment) => {
     const tokens = tokensOf(segment).filter((token) => !EXTENSIONS.has(token));
     return tokens.length > 0 && words.includes(tokens.at(-1));
   };
   const last = segments.findLastIndex(listSegment);
+  // A filter after the list segment : a place (« in-sydney ») or a page number (« page-2 » ; revue
+  // Opus du 06/11 : « p-assistant-commercial » is an item's name, not a page).
+  const filter = (segment) => /^(?:in|near)-/.test(segment) || /^(?:page|p)-\d+$/.test(segment);
+  // Revue Opus du 06/11 : the postcode of a place filter (« in-surry-hills-nsw-2010 ») is no item.
+  const itemTokens = segments
+    .filter((segment, index) => !(last >= 0 && index > last && filter(segment)))
+    .flatMap(tokensOf);
+  if (itemTokens.some(identifier)) return false;
+  for (const [key, field] of url.searchParams) {
+    const name = key.toLowerCase();
+    if (QUERY_ITEM.test(name) && /^[a-z0-9_-]{3,}$/i.test(field)) return false;
+    // `id` names an item only as a number (troisième relecture) : « ?id=4012345 ».
+    if (name === 'id' && /^\d{3,}$/.test(field)) return false;
+  }
   if (last < 0) return false;
   // What follows the list segment : filters only (« in-sydney », « page-2 ») or a page number
   // after « page » or « p » (troisième relecture) ; a bare number is an item's identifier.
   const rest = segments.slice(last + 1);
   for (let index = 0; index < rest.length; index += 1) {
-    if (/^(?:in|near|page|p)-/.test(rest[index])) continue;
+    if (filter(rest[index])) continue;
     if (/^(?:page|p)$/.test(rest[index]) && /^\d{1,4}$/.test(rest[index + 1] ?? '')) {
       index += 1;
       continue;

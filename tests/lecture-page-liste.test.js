@@ -219,3 +219,40 @@ test('E56 FICTIF : ?id= numérique, petit identifiant et pagination en deux segm
   ])
     assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
 });
+
+// Revue Opus du 06/11 :
+// - constat 10 : un code postal de 4 chiffres dans un filtre de lieu (« …/in-Surry-Hills-NSW-2010 »)
+//   passait pour l'identifiant d'une annonce : la page de résultats créditait la lecture ;
+// - constat 11 : sur le canal ACP, l'URL donnée par l'agent l'emportait sur la page d'arrivée
+//   rapportée par le résultat : une annonce redirigée vers une liste créditait la lecture ;
+// - constat 13, en partie : « p-… » et « page-… » ne sont des filtres qu'avec un numéro.
+const RESULTS_POSTCODE = 'https://emplois.example.test/data-engineer-jobs/in-Surry-Hills-NSW-2010';
+const RESULTS_POSTCODE_JOBS = 'https://emplois.example.test/jobs/in-Melbourne-VIC-3000';
+test('E56 FICTIF : un code postal dans un filtre de lieu n’est pas une annonce', () => {
+  for (const url of [RESULTS_POSTCODE, RESULTS_POSTCODE_JOBS]) {
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
+    assert.equal(readOffer(PIPELINE, [gatewaySnapshot('g1', url)]).state, 'pending', url);
+  }
+  // Un numéro d'annonce, lui, reste une annonce, même sous un filtre de lieu.
+  assert.equal(
+    readOffer(PIPELINE, [acpSnapshot('s1', 'https://emplois.example.test/job/95692808')]).state,
+    'done',
+  );
+});
+
+test('E56 FICTIF : une annonce redirigée vers une liste ne prouve pas la lecture (canal ACP)', () => {
+  const redirected = { ...acpSnapshot('a1', RESULTS_QUERY), rawInput: { url: OFFER } };
+  assert.equal(readOffer(PIPELINE, [redirected]).state, 'pending');
+  // L'URL donnée sert encore quand le résultat n'en rapporte aucune.
+  const given = { ...acpSnapshot('a2', null), rawInput: { url: OFFER } };
+  assert.equal(readOffer(PIPELINE, [given]).state, 'done');
+});
+
+test('E56 FICTIF : « p-… » sans numéro est le nom d’une annonce, pas un filtre', () => {
+  const offer = 'https://emplois.example.test/jobs/p-assistant-commercial-fictif';
+  assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', offer)]).state, 'done');
+  assert.equal(
+    readOffer(PIPELINE, [acpSnapshot('s2', 'https://emplois.example.test/jobs/page-2')]).state,
+    'pending',
+  );
+});

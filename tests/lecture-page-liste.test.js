@@ -202,3 +202,20 @@ test('E56 FICTIF : sites carrières, titres contenant un mot de liste, listes fi
   ])
     assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
 });
+
+// Troisième relecture de nuit : `?id=` numérique nomme une annonce ; un petit numéro seul après le
+// mot de liste aussi (ATS à petits identifiants) ; seul « page/2 » ou « p/2 » est une pagination.
+test('E56 FICTIF : ?id= numérique, petit identifiant et pagination en deux segments', () => {
+  for (const url of [
+    'https://acme.example.test/careers?id=4012345',
+    'https://acme.example.test/jobs?id=12345',
+    'https://acme.example.test/jobs/245',
+  ])
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'done', url);
+  for (const url of [
+    'https://acme.example.test/jobs/page/2',
+    'https://acme.example.test/jobs/in-sydney/p/3',
+    'https://acme.example.test/careers?id=recherche',
+  ])
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
+});

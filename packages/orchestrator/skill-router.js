@@ -343,11 +343,11 @@ const VISITS = 50;
 // E56 : a page that lists items rather than showing one. An identifier marks an item : in the path
 // (4 digits or more, or a token of 8 characters or more mixing letters and digits, as an ID or a
 // part of a UUID) or a query field that names one item (`gh_jid`, `jk`, `jobId`… of 3 characters
-// or more). A selection inside a results page (`currentJobId`, `vjk`) decides nothing. Otherwise
+// or more, `id` as a number). A selection inside a results page (`currentJobId`, `vjk`) decides nothing. Otherwise
 // the last list segment of the path decides (seconde relecture de nuit) : a segment whose last word
 // (file extension aside) is one of the pack's list words — « jobs », « ai-engineer-jobs »,
 // « q-ai-engineer-l-sydney-jobs.html » — makes a list when only filters follow it (« in-sydney »,
-// « page-2 », a page number) ; followed by anything else (a slug), it names one item.
+// « page-2 », « page/2 ») ; followed by anything else (a slug, a short number), it names one item.
 const QUERY_ITEM = /^(?:gh_jid|jid|jobid|job_id|jk|postingid|posting_id|reqid|req_id)$/;
 const EXTENSIONS = new Set(['html', 'htm', 'php', 'asp', 'aspx', 'jsp']);
 function listPage(value, words) {
@@ -365,16 +365,31 @@ function listPage(value, words) {
   const identifier = (token) =>
     /^\d{4,}$/.test(token) || (token.length >= 8 && /\d/.test(token) && /[a-z]/.test(token));
   if (tokensOf(url.pathname).some(identifier)) return false;
-  for (const [key, field] of url.searchParams)
-    if (QUERY_ITEM.test(key.toLowerCase()) && /^[a-z0-9_-]{3,}$/i.test(field)) return false;
+  for (const [key, field] of url.searchParams) {
+    const name = key.toLowerCase();
+    if (QUERY_ITEM.test(name) && /^[a-z0-9_-]{3,}$/i.test(field)) return false;
+    // `id` names an item only as a number (troisième relecture) : « ?id=4012345 ».
+    if (name === 'id' && /^\d{3,}$/.test(field)) return false;
+  }
   const segments = url.pathname.toLowerCase().split('/').filter(Boolean);
   const listSegment = (segment) => {
     const tokens = tokensOf(segment).filter((token) => !EXTENSIONS.has(token));
     return tokens.length > 0 && words.includes(tokens.at(-1));
   };
-  const filter = (segment) => /^(?:in|near|page|p)-/.test(segment) || /^\d{1,3}$/.test(segment);
   const last = segments.findLastIndex(listSegment);
-  return last >= 0 && segments.slice(last + 1).every(filter);
+  if (last < 0) return false;
+  // What follows the list segment : filters only (« in-sydney », « page-2 ») or a page number
+  // after « page » or « p » (troisième relecture) ; a bare number is an item's identifier.
+  const rest = segments.slice(last + 1);
+  for (let index = 0; index < rest.length; index += 1) {
+    if (/^(?:in|near|page|p)-/.test(rest[index])) continue;
+    if (/^(?:page|p)$/.test(rest[index]) && /^\d{1,4}$/.test(rest[index + 1] ?? '')) {
+      index += 1;
+      continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 function toolName(update, expected) {

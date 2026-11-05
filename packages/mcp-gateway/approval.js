@@ -7,12 +7,16 @@ import { request as httpsRequest } from 'node:https';
 // then sent nothing. The approval goes through a plain request with no deadline of its own; the
 // platform always answers (a decision, an expiry, the end of the run, which also ends this
 // process). An optional ceiling (`timeoutMs`, from RELAY_APPROVAL_TIMEOUT_MS) bounds an idle wait.
+// `signal` is the agent's call itself : when the agent gives up its tool call (MCP cancellation,
+// connection closed), the request is cut, the platform takes the card back and a later
+// « Approuver » never sends anything.
 // Resolves to true (approved), false (refused) or 'expired'; rejects when no decision came back.
-export function requestDecision(url, token, payload, { timeoutMs } = {}) {
+export function requestDecision(url, token, payload, { timeoutMs, signal } = {}) {
   const lost = (why) =>
     new Error(
       `Accord non obtenu (${why}) : action non effectuée, ne la refais pas par une autre voie.`,
     );
+  if (signal?.aborted) return Promise.reject(lost('appel annulé'));
   return new Promise((resolve, reject) => {
     let target;
     try {
@@ -52,13 +56,19 @@ export function requestDecision(url, token, payload, { timeoutMs } = {}) {
         });
       },
     );
-    req.on('error', (error) =>
-      reject(lost(error.code === 'RELAY_APPROVAL_TIMEOUT' ? 'délai dépassé' : 'pont injoignable')),
-    );
+    const why = {
+      RELAY_APPROVAL_TIMEOUT: 'délai dépassé',
+      RELAY_APPROVAL_CANCELLED: 'appel annulé',
+    };
+    req.on('error', (error) => reject(lost(why[error.code] ?? 'pont injoignable')));
     if (timeoutMs > 0)
       req.setTimeout(timeoutMs, () =>
         req.destroy(Object.assign(new Error('timeout'), { code: 'RELAY_APPROVAL_TIMEOUT' })),
       );
+    const onCancel = () =>
+      req.destroy(Object.assign(new Error('cancelled'), { code: 'RELAY_APPROVAL_CANCELLED' }));
+    signal?.addEventListener('abort', onCancel, { once: true });
+    req.on('close', () => signal?.removeEventListener('abort', onCancel));
     req.end(body);
   });
 }

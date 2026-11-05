@@ -369,3 +369,39 @@ test('frontière humaine : Origin web refusée, appel natif local non authentifi
   assert.equal((await decide()).status, 200);
   assert.equal((await request).outcome.optionId, 'allow');
 });
+
+// E64, suite (nuit du 05 au 06/11) : la demande d'accord meurt avec l'appel de l'agent. L'agent
+// abandonne son browser_click pendant que la carte d'envoi attend : la carte disparaît, un accord
+// donné ensuite est impossible et aucun envoi ne part.
+test(
+  'pont d’approbation : appel abandonné par l’agent → carte retirée, aucun envoi',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { app, run, mcp, hits, origin } = await setup(t);
+    await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
+    const snapshot = await mcp.callTool({ name: 'browser_snapshot', arguments: {} });
+    const ref = JSON.stringify(snapshot).match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, JSON.stringify(snapshot).slice(0, 400));
+    const call = new AbortController();
+    const clicked = mcp
+      .callTool({ name: 'browser_click', arguments: { ref } }, undefined, {
+        timeout: 90000,
+        signal: call.signal,
+      })
+      .catch((error) => error);
+    let card;
+    for (let i = 0; i < 400 && !card; i++) {
+      card = [...app.engine.permissions.values()].find((p) => p.runId === run.id);
+      if (!card) await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.ok(card, 'carte d’envoi attendue');
+    call.abort();
+    assert.ok((await clicked) instanceof Error);
+    for (let i = 0; i < 200 && app.engine.permissions.has(card.id); i++)
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.equal(app.engine.permissions.has(card.id), false, 'carte toujours affichée');
+    assert.throws(() => app.engine.decide(card.id, 'allow'), /expirée/);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(hits.posts, 0);
+  },
+);

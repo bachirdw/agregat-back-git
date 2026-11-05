@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
@@ -30,12 +31,17 @@ const failure = (e) => ({
   content: [{ type: 'text', text: String(e.message ?? e) }],
 });
 
+// E64 : the agent's tool call in progress. An approval asked during that call dies with it : when
+// the agent gives the call up (MCP cancellation, connection closed), the platform takes the card
+// back and no later « Approuver » sends anything.
+const callContext = new AsyncLocalStorage();
 async function approve(request) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
   // E64 : no deadline of the gateway's own beyond the platform's (see approval.js).
   return requestDecision(url, process.env.RELAY_APPROVAL_TOKEN, request, {
     timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
+    signal: callContext.getStore()?.signal,
   });
 }
 
@@ -130,7 +136,7 @@ server.registerTool = (name, definition, handler) =>
       try {
         if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
           await meter('tool_call', 1);
-        result = await handler(args, extra);
+        result = await callContext.run({ signal: extra?.signal }, () => handler(args, extra));
       } catch (e) {
         result = failure(e);
       }

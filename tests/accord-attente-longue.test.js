@@ -189,3 +189,31 @@ test('E64 : l’attente du clic final suspend aussi le délai du tour de l’age
   assert.equal(ordinary.outcome.optionId, 'allow');
   assert.deepEqual(calls, []);
 });
+
+// E64, suite (relecture de la nuit) : la demande d'accord meurt avec l'appel de l'agent. Si l'agent
+// abandonne son appel d'outil (annulation MCP, fin de connexion), la requête au pont est coupée :
+// la plateforme retire la carte, et un accord donné plus tard ne fait jamais partir de clic.
+test('E64 : la demande d’accord est coupée quand l’appel de l’agent est annulé', async (t) => {
+  let closed = false;
+  const server = await serve((req, res) => {
+    req.resume();
+    res.on('close', () => {
+      closed = !res.writableFinished;
+    });
+    // Jamais de réponse : le propriétaire n'a pas encore cliqué.
+  });
+  t.after(() => server.closeAllConnections());
+  t.after(() => server.close());
+  const url = `http://127.0.0.1:${server.address().port}/api/internal/approvals/FICTIF`;
+  const call = new AbortController();
+  const pending = requestDecision(url, 'JETON', {}, { signal: call.signal });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  call.abort();
+  await assert.rejects(pending, /Accord non obtenu \(appel annulé\).*ne la refais pas/);
+  for (let i = 0; i < 50 && !closed; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(closed, true, 'la requête au pont doit être fermée');
+  // Un appel déjà annulé ne demande rien.
+  const gone = new AbortController();
+  gone.abort();
+  await assert.rejects(requestDecision(url, 'JETON', {}, { signal: gone.signal }), /appel annulé/);
+});

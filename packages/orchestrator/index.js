@@ -407,10 +407,12 @@ export class Orchestrator {
       abandoned ? AbortSignal.any([control.abort.signal, abandoned]) : control.abort.signal,
     );
     if (this.bridgeControl(runId, token) !== control) return { approved: false };
-    if (request.actionClass === 'send' && outcome.outcome?.optionId === 'allow')
+    // E64 : an approval the gateway is no longer waiting for sends nothing and is never counted.
+    const approved = outcome.outcome?.optionId === 'allow' && !abandoned?.aborted;
+    if (request.actionClass === 'send' && approved)
       control.sendsApproved = (control.sendsApproved ?? 0) + 1;
     return {
-      approved: outcome.outcome?.optionId === 'allow',
+      approved,
       ...(this.expiredOutcomes.has(outcome) ? { expired: true } : {}),
     };
   }

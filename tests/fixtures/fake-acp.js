@@ -7,6 +7,8 @@
 // proseQuestion: the first turn ends with a structured `question` in its JSON answer (no form); the
 // owner's answer turn ({"platform":{"turnKind":"answer"}}) is quoted back ({message?, options?,
 // always?: ask again on every turn}). callsFile: ACP methods received so far, written at each prompt.
+// composeTool: a call the agent composes for minutes before handing it over (stall-01, E49):
+// {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true}; see the prompt handler.
 import {
   agent,
   methods,
@@ -17,7 +19,8 @@ import {
 import { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
+import { connectMcp } from '../../packages/mcp-gateway/client.js';
 const cfg = JSON.parse(process.env.FAKE_ACP ?? '{}');
 const grandchild = cfg.grandchild
   ? spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"], {
@@ -27,6 +30,8 @@ const grandchild = cfg.grandchild
 if (cfg.pidFile) writeFileSync(cfg.pidFile, String(process.pid));
 const calls = [];
 const state = { mode: null, model: null };
+// MCP servers the platform declared at session/new or session/load (composeTool calls one).
+let mcpServers = [];
 const never = () => new Promise(() => {});
 const guard = async (method) => {
   calls.push(method);
@@ -100,6 +105,7 @@ const app = agent({ name: 'fake-acp' })
     )
       throw new RequestError(-32000, 'Cadre du propriétaire absent');
     if (cfg.authRequired) throw new RequestError(-32000, 'Fake API key is missing');
+    mcpServers = ctx.params.mcpServers ?? [];
     return sessionPayload('fake-session-1');
   })
   .onRequest(methods.agent.authenticate, async () => {
@@ -109,6 +115,7 @@ const app = agent({ name: 'fake-acp' })
   .onRequest(methods.agent.session.load, async (ctx) => {
     await guard('session/load');
     if (cfg.loadError) throw new RequestError(-32603, 'Internal error', { details: cfg.loadError });
+    mcpServers = ctx.params.mcpServers ?? [];
     if (cfg.replayBrowserToolOnLoad)
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
@@ -166,6 +173,63 @@ const app = agent({ name: 'fake-acp' })
       const request = JSON.parse(ctx.params.prompt[0].text);
       if (!request.instructions?.includes('about:blank'))
         throw new RequestError(-32000, 'Consigne de reprise navigateur FICTIVE absente');
+    }
+    // composeTool (stall-01, E49): the adapter opens the call (status pending, then a partial
+    // rawInput), then nothing until the text is complete, as a real agent composing a long report.
+    // goFile: the composition ends when the test creates that file. The call is then handed over:
+    // a permission request (unless permission is false), the platform's MCP gateway (mcp), or both.
+    // stall: once handed over, never answered.
+    if (cfg.composeTool) {
+      const compose = cfg.composeTool;
+      const toolCallId = 'FICTIF-compose';
+      const title = compose.title ?? 'mcp__platform__career_write';
+      const update = (fields) =>
+        connection.client.notify(methods.client.session.update, {
+          sessionId: ctx.params.sessionId,
+          update: { toolCallId, ...fields },
+        });
+      await update({ sessionUpdate: 'tool_call', title, kind: 'edit', status: 'pending' });
+      await update({ sessionUpdate: 'tool_call_update', rawInput: { path: compose.path } });
+      if (compose.goFile)
+        while (!existsSync(compose.goFile)) await new Promise((r) => setTimeout(r, 20));
+      const rawInput = {
+        path: compose.path,
+        text: compose.text ?? 'Rapport FICTIF\n' + 'x'.repeat(compose.textLength ?? 3000),
+      };
+      await update({ sessionUpdate: 'tool_call_update', rawInput });
+      if (compose.permission !== false)
+        await connection.client.request(methods.client.session.requestPermission, {
+          sessionId: ctx.params.sessionId,
+          toolCall: { toolCallId, title, kind: 'edit', rawInput },
+          options: [{ optionId: 'allow', name: 'Autoriser', kind: 'allow_once' }],
+        });
+      if (compose.mcp) {
+        const mcp = await connectMcp(mcpServers[0]);
+        try {
+          const r = await mcp.callTool({ name: 'career_write', arguments: rawInput });
+          if (r.isError)
+            throw new RequestError(-32000, 'career_write FICTIF : ' + r.content?.[0]?.text);
+        } finally {
+          await mcp.close();
+        }
+      }
+      if (compose.stall) await never();
+      await update({ sessionUpdate: 'tool_call_update', status: 'completed' });
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: JSON.stringify({
+              simulated: true,
+              summary: 'Rapport FICTIF enregistré',
+              evidence: [],
+            }),
+          },
+        },
+      });
+      return { stopReason: 'end_turn' };
     }
     if (cfg.stallTool) {
       if (cfg.stallToolPrelude)

@@ -59,6 +59,7 @@ import {
   readsBeforeScore,
 } from './skill-router.js';
 import { withDoubtRule } from './doubt-rule.js';
+import { ToolGuard, TERMINAL_TOOL_STATUS, isPlatformToolCall } from './tool-guard.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
 import { AnswerError, proseQuestion, publicQuestion, validateContent } from './questions.js';
@@ -192,6 +193,9 @@ export class Orchestrator {
     store.bindCurrency(this.pricing.currency);
     store.limits.monthlyCapCents = this.pricing.monthlyCapCents;
     this.approvalBase = null; // set by the HTTP server once listening
+    // Clock of the mission guards (silence, tool, deadline): tests replace it by a simulated one
+    // and advance it without waiting.
+    this.timers = { setTimeout, clearTimeout };
   }
   timeoutFor(packId) {
     return packId === 'career-ops' ? this.careerTimeoutMs : this.timeoutMs;
@@ -226,6 +230,8 @@ export class Orchestrator {
     if (!['browser_action', 'data_search', 'document_generation', 'tool_call'].includes(dimension))
       throw new Error('Mètre non autorisé depuis la gateway');
     if (!Number.isFinite(units) || units <= 0 || units > 1000) throw new Error('Unités invalides');
+    // The gateway meters a call before running it: the call is in its hands (stall-01).
+    control.toolDelivered?.(null, 'gateway');
     return { cents: this.meter(runId, dimension, units) };
   }
   // MCP capability server for a run: browser provider, per-run policy and the approval bridge.
@@ -349,6 +355,7 @@ export class Orchestrator {
     }
     if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
       throw new Error('Run inactif ou annulé');
+    control.toolDelivered?.(null, 'gateway');
     // apply-01 (E42, E26): a form submission is titled with its button's label, action (host + path),
     // method, multipart, filled fields and attachment, so « Suivant » never reads like « Envoyer ».
     const submission = request.preview?.submission;
@@ -809,9 +816,11 @@ export class Orchestrator {
     let sessionReset = false;
     let rateLimit = null;
     this.expiredPermissions.delete(run.id);
-    const toolTimers = new Map();
     const toolTitles = new Map();
     const recentToolCalls = new Map();
+    // MCP servers of this run, set once the session opens: their tools reach the platform, which
+    // observes the hand-over of each call.
+    let gatewayServers = [];
     const observedToolIds = new Set();
     let promptStarted = false;
     // A reprise continues the same mission: what its earlier executions proved (pages read, a job
@@ -843,20 +852,19 @@ export class Orchestrator {
     let warningTimer;
     // An open owner question pauses every silence/idle/mission deadline: the agent waits for a human.
     let pauses = 0;
-    const pendingTools = new Set();
     const clearSilence = () => {
-      clearTimeout(silenceTimer);
-      clearTimeout(warningTimer);
+      this.timers.clearTimeout(silenceTimer);
+      this.timers.clearTimeout(warningTimer);
     };
     const armSilence = () => {
       if (!promptStarted || pauses) return;
       clearSilence();
       const warningMs = Math.min(60000, Math.max(1, Math.floor(this.silentMs / 2)));
-      warningTimer = setTimeout(
+      warningTimer = this.timers.setTimeout(
         () => this.store.event(run.id, 'agent_silent', { elapsedMs: warningMs, stopped: false }),
         warningMs,
       );
-      silenceTimer = setTimeout(() => {
+      silenceTimer = this.timers.setTimeout(() => {
         this.store.event(run.id, 'agent_silent', { elapsedMs: this.silentMs, stopped: true });
         const error = new Error('Agent inactif');
         error.code = 'agent_silent';
@@ -875,39 +883,41 @@ export class Orchestrator {
       }
       if (this.ownerMode) this.store.event(run.id, 'agent_diagnostic', { text: diagnostic });
     };
+    // stall-01 (E49): a tool call is guarded once handed over to the platform, not when the agent
+    // opens it (a long report streams for minutes behind one pending tool_call). See ToolGuard.
+    const toolGuard = new ToolGuard({
+      idleMs: this.toolIdleMs,
+      timers: this.timers,
+      deferred: (update) => isPlatformToolCall(update, gatewayServers),
+      onArm: (toolCallId, via) => this.store.event(run.id, 'tool_armed', { toolCallId, via }),
+      onStall: (id) => {
+        this.store.event(run.id, 'tool_stalled', { toolCallId: id, afterMs: this.toolIdleMs });
+        const error = new Error('Outil sans mise à jour');
+        error.code = 'tool_stalled';
+        error.afterMs = this.toolIdleMs;
+        error.toolTitle = toolTitles.get(id);
+        control.abort.abort(error);
+      },
+    });
     const watchTool = (update) => {
       if (!promptStarted || !update.toolCallId) return;
       if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate)) return;
       const id = update.toolCallId;
-      clearTimeout(toolTimers.get(id));
-      toolTimers.delete(id);
       if (update.title === 'Searching the web') toolTitles.set(id, 'Searching the web');
-      if (['completed', 'failed', 'cancelled'].includes(update.status)) {
-        toolTitles.delete(id);
-        pendingTools.delete(id);
-        return;
-      }
-      pendingTools.add(id);
-      if (!pauses) armTool(id);
+      if (TERMINAL_TOOL_STATUS.has(update.status)) toolTitles.delete(id);
+      toolGuard.observe(update);
     };
-    const armTool = (id) =>
-      toolTimers.set(
-        id,
-        setTimeout(() => {
-          this.store.event(run.id, 'tool_stalled', { toolCallId: id, afterMs: this.toolIdleMs });
-          const error = new Error('Outil sans mise à jour');
-          error.code = 'tool_stalled';
-          error.afterMs = this.toolIdleMs;
-          error.toolTitle = toolTitles.get(id);
-          control.abort.abort(error);
-        }, this.toolIdleMs),
-      );
+    // Hand-over observed by the platform: a permission decision (naming its call) or any activity
+    // of the MCP gateway (usage meter before a handler, approval, evidence, outcome).
+    control.toolDelivered = (toolCallId, via) => {
+      if (promptStarted) toolGuard.deliver(toolCallId, via);
+    };
     let missionLeft = this.timeoutFor(plan.pack.id);
     let missionSince = 0;
     let timer;
     const armMission = () => {
       missionSince = Date.now();
-      timer = setTimeout(
+      timer = this.timers.setTimeout(
         () => control.abort.abort(new Error('Délai maximal dépassé')),
         missionLeft,
       );
@@ -916,15 +926,14 @@ export class Orchestrator {
     control.suspendTimers = () => {
       if (pauses++ > 0) return;
       clearSilence();
-      for (const t of toolTimers.values()) clearTimeout(t);
-      toolTimers.clear();
-      clearTimeout(timer);
+      toolGuard.suspend();
+      this.timers.clearTimeout(timer);
       missionLeft = Math.max(1, missionLeft - (Date.now() - missionSince));
     };
     control.resumeTimers = () => {
       if (pauses === 0 || --pauses > 0) return;
       armMission();
-      for (const id of pendingTools) armTool(id);
+      toolGuard.resume();
       armSilence();
     };
     const onAbort = () => {
@@ -1040,6 +1049,7 @@ export class Orchestrator {
       control.runtime = runtime;
       const info = await runtime.start();
       const mcpServers = [this.mcpServerFor(run, plan.pack)];
+      gatewayServers = mcpServers;
       let session;
       try {
         session = await runtime.session(mcpServers, previous?.sessionId);
@@ -1413,9 +1423,9 @@ export class Orchestrator {
         finishedAt: new Date().toISOString(),
       });
     } finally {
-      clearTimeout(timer);
+      this.timers.clearTimeout(timer);
       clearSilence();
-      for (const timer of toolTimers.values()) clearTimeout(timer);
+      toolGuard.clear();
       control.abort.signal.removeEventListener('abort', onAbort);
       this.clearPermissions(run.id);
       this.clearQuestions(run.id);
@@ -1436,7 +1446,16 @@ export class Orchestrator {
     }
   }
   permission(runId, p, simulated, signal, observedTool) {
-    if (simulated || signal.aborted) return { outcome: { outcome: 'cancelled' } };
+    if (signal.aborted) return { outcome: { outcome: 'cancelled' } };
+    // A decision hands the call over to the agent's tool: its guard starts here (stall-01).
+    const delivered = () => {
+      if (!signal.aborted)
+        this.active.get(runId)?.toolDelivered?.(p.toolCall?.toolCallId, 'permission');
+    };
+    if (simulated) {
+      delivered();
+      return { outcome: { outcome: 'cancelled' } };
+    }
     const toolName = permissionToolName(p, observedTool);
     const allowed = p.options?.find((option) => option.kind === 'allow_once');
     // Owner mode: only a final send waits for the owner's click.
@@ -1450,6 +1469,7 @@ export class Orchestrator {
           ? { host: redact(host).slice(0, 100) }
           : {}),
       });
+      delivered();
       return { outcome: { outcome: 'selected', optionId: allowed.optionId } };
     }
     const id = randomUUID();
@@ -1464,6 +1484,7 @@ export class Orchestrator {
         clearTimeout(timer);
         this.permissions.delete(id);
         if (suspended) this.active.get(runId)?.resumeTimers?.();
+        delivered();
         if (!terminal.has(this.store.get(runId).state))
           this.store.update(runId, {
             state: [...this.permissions.values()].some((p) => p.runId === runId)

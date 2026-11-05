@@ -164,6 +164,9 @@ intents:
         done: Script scan terminé avec code zéro
         optional: false
         required: true
+        # E44 : un prompt qui donne une URL (page de résultats à lire) nomme lui-même la source ;
+        # le scan des portails n'est plus exigé, il reste crédité s'il tourne.
+        unlessUrl: true
         unlessPhrases:
           [
             sans scan,

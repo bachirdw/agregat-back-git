@@ -69,6 +69,9 @@ const stepSchema = z
     // Without this step the mission is reported as incomplete, unless the prompt waives it.
     required: z.boolean().optional(),
     unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(10).optional(),
+    // The step is waived, like a matched `unlessPhrases` entry, when the prompt carries a URL: the
+    // prompt names the page itself (E44: a results page to read is not a portal scan).
+    unlessUrl: z.boolean().optional(),
     // A score saved by this step needs the page behind its `url` read during the mission.
     readFirst: z.boolean().optional(),
     // The step writes the work (report, record): dropped when the prompt forbids saving.
@@ -159,6 +162,7 @@ export function selectSkillIntents(prompt, manifests) {
       prompt,
     );
   const words = new Set(objective.match(/[\p{L}\p{N}]+/gu) ?? []);
+  const hasUrl = /https?:\/\/\S+/iu.test(prompt);
   return manifests
     .flatMap((raw) => {
       const manifest = skillManifestSchema.parse(raw);
@@ -174,6 +178,7 @@ export function selectSkillIntents(prompt, manifests) {
             ...intent,
             steps: (forbidSave ? intent.steps.filter((step) => !step.persists) : intent.steps).map(
               (step) =>
+                (step.unlessUrl && hasUrl) ||
                 step.unlessPhrases?.some((phrase) =>
                   ` ${normalize(prompt)} `.includes(` ${normalize(phrase)} `),
                 )

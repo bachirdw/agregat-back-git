@@ -1,0 +1,174 @@
+✔ Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé (2.770346ms)
+✔ Bilan FICTIF : faits du tour, échec anonymisé et candidature non exécutée (45.846085ms)
+✔ Bilan FICTIF : appels réels mixtes comptés sans contradiction ni doublon ACP (0.470301ms)
+✔ Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon (0.309352ms)
+✔ Modèle career-ops : conserve le défaut annoncé, refuse un identifiant absent (0.286827ms)
+✔ Reprise privée : un nouveau CV joint est transmis avec les pièces existantes, les IDs invalides sont refusés (191.009551ms)
+✔ Plan career-ops : rapport A–G et accord explicite avant tout envoi (0.545339ms)
+✔ Outils privés : lecture/écriture confinées, secrets et scripts refusés, symlinks refusés (42.294074ms)
+✔ Script tiers FICTIF : revue et accord explicite avant exécution en mode propriétaire (86.513038ms)
+✔ Offres : note 1–5, A–H complet, provenance et données fictives obligatoires (23.411021ms)
+✔ Registre : quarantaine, revue liée au hash natif, mutation du Skill ou configuration bloque (27.321541ms)
+✔ Scripts : liste fermée, code modifié, arguments et secrets implicites refusés (55.745935ms)
+✔ Contrôles CV FICTIFS : manque et fait inventé détectés, chemins et délais imposés (180.178983ms)
+✔ Contrôles CV FICTIFS : réseau et écriture hors espace bloqués (123.240471ms)
+✔ Auto : trouve des offres, évalue cette offre et postule routés vers le pack privé (4.41207ms)
+✔ Auto : un Skill explicitement choisi détermine son pack avant les mots-clés (1.061191ms)
+✔ Auto : demandes d’emploi et de profil courantes routées vers career-ops (6.335123ms)
+✔ Auto propriétaire : profil et fichiers career-ops utilisent le pack privé avant le navigateur (94.573551ms)
+✖ Agent explicite compatible ACP : career-ops conserve Codex sans imposer de clé Gemini (37.299668ms)
+✖ Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini (31.209875ms)
+✔ API → plan → ACP FICTIF → MCP → offres : CV accessible, natif refusé, rien de privé dans SQLite (1325.467911ms)
+✔ Espace privé actif : deuxième mission et modification du CV/profil refusées (39.50143ms)
+✔ Lecture privée paginée et script annulé : sortie bornée, processus arrêté (18.174458ms)
+✔ Propriétaire local : les étapes de l’agent career-ops sont diffusées en direct (1218.114767ms)
+✔ Réponse en texte libre (questions intake) : mission réussie, texte en résultat privé (968.804593ms)
+✔ Mission simulée : une racine temporaire sous .data/workspaces, l’espace du propriétaire reste intact (988.268491ms)
+✔ Fixture career : questions puis réponse avec checkpoint dans une session neuve (1964.185514ms)
+✔ Reprise FICTIVE rapide sans navigateur : résultat privé signale l’absence d’action (2006.382124ms)
+✔ Modèle choisi dans l’interface : appliqué via la session ACP sans variable Gemini pour un autre agent (1291.725189ms)
+✔ Instructions career-ops : méthode du Skill et résultat véridique (0.780194ms)
+✔ consigne career-ops : un consentement manquant est demandé à l’utilisateur, sans tout permettre (0.229015ms)
+✔ consigne career-ops : le Skill s’applique tel quel, aucune levée ni restriction ajoutée par Relay (décision du propriétaire du 05/11) (0.218437ms)
+✔ Prompt ACP FICTIF : le Skill arrive en tête des consignes, sans levée par la plateforme (1196.241649ms)
+✔ Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prompt (1097.845508ms)
+✔ E44 FICTIF : lire une page de résultats avec URL ne rend pas la mission incomplète (1102.069387ms)
+✔ Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé (3786.64908ms)
+✔ Preuve navigateur FICTIVE : capacité du tour en mémoire, contenu privé absent des événements (22.03826ms)
+✔ Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés (23.864125ms)
+✔ Instructions career-ops : méthode du Skill sans ordre métier codé dans la plateforme (0.351744ms)
+✔ Instructions career-ops : aucune source ou action inventée (0.151426ms)
+✔ Instructions career-ops : contenu privé conservé et questions en cas de manque (0.188654ms)
+✔ Coller une URL FICTIVE : rapport du Skill, ligne de suivi par merge-tracker, Bilan fidèle (1770.849584ms)
+✔ Coller une URL FICTIVE : career_offer_save seul, le Bilan dit que le suivi du Skill manque, sans bloquer (1584.325872ms)
+✔ CV adapté FICTIF : chaîne pdf.md + cover.md du Skill, colonne PDF marquée, Bilan « CV du Skill : produit (PDF) », « Lettre : produite » (2188.620799ms)
+✔ CV adapté FICTIF : verify-cv-facts refuse un fait inventé, aucun PDF, Bilan « CV non vérifié : 2 fait(s) sans source », mission terminée (2010.667229ms)
+✔ liveness : pid invalide ou le nôtre, jamais vivant ni mort à coup sûr (1.180222ms)
+✔ liveness : vrai processus enfant vivant, puis mort à coup sûr après exit (14.157815ms)
+✔ liveness : groupe détaché vivant, puis mort après SIGKILL du groupe (20.826704ms)
+✔ liveness : EPERM = vivant mais pas à nous, jamais « mort » (1.31055ms)
+✔ liveness : sous Windows, pas de groupe POSIX, état inconnu (0.796482ms)
+✔ close : runtime sans processus → none (1.359527ms)
+✔ close : groupe qui sort sur SIGTERM → dead, aucun SIGKILL (110.936327ms)
+✖ close : groupe qui ignore SIGTERM, petit-enfant compris → SIGKILL, dead (2920.827551ms)
+✔ close : EPERM après SIGTERM → unknown, jamais de SIGKILL (1590.245036ms)
+✔ close : groupe déjà mort avant close → dead, aucun signal (4.841175ms)
+✔ close : groupe étranger dès le départ (EPERM) → unknown, aucun signal (1008.079968ms)
+✔ timeout réel : initialize sans réponse rejeté dans le délai (1567.738244ms)
+✔ timeout réel : session/new sans réponse (1675.21967ms)
+✔ timeout réel : prompt sans réponse, puis réponse tardive ignorée (3159.820115ms)
+✔ annulation par signal externe pendant le prompt (297.301015ms)
+✔ signal déjà annulé : aucune requête envoyée (158.70672ms)
+✔ crash de l’agent pendant une requête : erreur explicite immédiate (172.629033ms)
+✔ crash au démarrage (149.086297ms)
+✔ bruit non JSON sur stdout toléré (144.817771ms)
+✔ permission en attente puis annulation : pas de blocage (474.561791ms)
+✔ double cancel et close idempotents ; requête après fermeture refusée (240.90896ms)
+✔ auth requise : erreur de session explicite (168.96483ms)
+✔ environnement en liste blanche : la clé Gemini ne fuit pas vers un autre agent (177.396163ms)
+✔ environnement : la clé Gemini est transmise au seul profil qui la déclare (260.513259ms)
+✔ buildChildEnv : base, LC_*, profil, valeurs vides ignorées (0.393247ms)
+✔ redact masque valeurs connues et motifs de clés (2.902417ms)
+✔ mode sûr choisi parmi les modes annoncés (modes) (188.364464ms)
+✔ mode sûr via configOptions (style OpenCode) (180.077893ms)
+✔ mode ACP explicitement choisi : sélection annoncée, mode interdit refusé (146.90861ms)
+✔ mode sûr absent : refus de lancer (153.12946ms)
+✔ aucun mécanisme de mode annoncé pour un profil exigeant : refus (170.719434ms)
+✔ modèle via configOptions (179.787614ms)
+✔ modèle via models + session/set_model (style Gemini) (224.660388ms)
+✔ modèle non annoncé refusé ; vide garde le défaut (147.230405ms)
+✔ reprise : capacité load insuffisante sans frontière causale qualifiée (317.503697ms)
+✔ describe() n’expose ni environnement ni secrets (187.865146ms)
+✔ normalisation : sessionModels / sessionModes / capacités (0.783592ms)
+✔ routeur Auto : mode démo → fixture explicite (0.88374ms)
+✔ routeur Auto : préférence, rejets expliqués (0.371811ms)
+✔ routeur Auto : session refusée au dernier test → agent suivant (0.330103ms)
+✔ routeur Auto : exigence de modèle et de reprise (0.360576ms)
+✔ routeur Auto : capacité obligatoire inconnue ne prime pas sur une capacité prouvée (0.461652ms)
+✔ routeur Auto : ordre explicite et transport MCP http (0.206319ms)
+✔ routeur Auto : aucun candidat → erreur, jamais de repli fixture silencieux (0.273408ms)
+✔ découverte : agents.json, chemins absolus exigés, node_modules exclu du PATH (5.520892ms)
+✔ découverte : un dossier exécutable ne constitue pas un CLI (0.40054ms)
+✔ détection : CLI factice Gemini sans option ACP → incompatible avec raison (17.991343ms)
+✔ détection : CLI factice Gemini avec --acp → compatible (6.330015ms)
+✔ détection : sortie version et erreur CLI ne divulguent pas un secret (7.625696ms)
+✔ détection : les sondes --version et --help utilisent la liste blanche du profil (8.272815ms)
+✔ sondes : persistance atomique, fichier corrompu ignoré (1.707003ms)
+✔ reprise avec clé API : load non qualifié refusé, session neuve isolée sans clé transmise (162.792711ms)
+✔ reprise sans clé API : pas d’authenticate, pas de dossier isolé (172.572218ms)
+✔ routeur Auto : dernier prompt refusé pour authentification → agent écarté, avec raison (0.607257ms)
+✔ sondes : fusion — une sonde de session n’efface pas le résultat d’inférence (0.76384ms)
+✔ sondes : une nouvelle session réussie efface une ancienne erreur sans masquer la date d’inférence (0.626686ms)
+✔ sécurité : échec du mode sûr interdit ensuite le prompt et start après close (159.814616ms)
+✔ sécurité : secrets masqués dans événements, permissions, erreurs et SQLite (192.550813ms)
+✔ sécurité : secret du pont MCP ajouté à la liste de masquage, fermeture rejette un pair muet (343.382758ms)
+✔ chemin de workspace MCP visible dans les erreurs, jeton MCP toujours masqué (176.937982ms)
+✔ sécurité : valeur opaque du pont MCP masquée même si son nom ne désigne pas un secret (173.499829ms)
+✔ sécurité : changement asynchrone vers un mode dangereux ferme le runtime (183.581601ms)
+✖ sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du parent (2857.125174ms)
+✔ modèle courant non annoncé : refusé même sans changement de session (3.537356ms)
+✔ close : groupe mort à la sortie du leader → aucun signal, même si l’identifiant est réutilisé (527.876877ms)
+ℹ tests 110
+ℹ suites 0
+ℹ pass 106
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31586.735903
+
+✖ failing tests:
+
+test at tests/career-integration.test.js:462:1
+✖ Agent explicite compatible ACP : career-ops conserve Codex sans imposer de clé Gemini (37.299668ms)
+  Error: Agent non détecté sur cette machine
+      at Orchestrator.plan (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/packages/orchestrator/index.js:485:34)
+      at async TestContext.<anonymous> (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/tests/career-integration.test.js:468:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/career-integration.test.js:487:1
+✖ Career Ops : une configuration Gemini modifiée ne bloque pas Codex, mais bloque Gemini (31.209875ms)
+  Error: Agent non détecté sur cette machine
+      at Orchestrator.plan (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/packages/orchestrator/index.js:485:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/tests/career-integration.test.js:498:16)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/process-liveness.test.js:162:1
+✖ close : groupe qui ignore SIGTERM, petit-enfant compris → SIGKILL, dead (2920.827551ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'alive' !== 'dead'
+  
+      at file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/tests/process-liveness.test.js:173:14
+      at async withKillSpy (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/tests/process-liveness.test.js:43:12)
+      at async TestContext.<anonymous> (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/tests/process-liveness.test.js:171:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'alive',
+    expected: 'dead',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/runtime.test.js:829:1
+✖ sécurité : petit-enfant ignorant SIGTERM arrêté même après sortie du parent (2857.125174ms)
+  AssertionError [ERR_ASSERTION]: groupe arrêté, petit-enfant compris
+  
+  'alive' !== 'dead'
+  
+      at TestContext.<anonymous> (file:///tmp/claude-0/-home-user-agregat-back-git/f57163e5-5a5c-5875-b1d5-68f7cef91897/scratchpad/base-dev/tests/runtime.test.js:839:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'alive',
+    expected: 'dead',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+EXIT 1

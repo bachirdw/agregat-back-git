@@ -1,0 +1,48 @@
+✖ (a) appel en composition : 150 s simulées sans mise à jour, puis remise (accord + passerelle) → aucun tool_stalled, la mission continue (612.096013ms)
+✖ (a bis) remise par la passerelle seule (aucun accord demandé) : 150 s de composition puis entrée dans le handler MCP → armé via gateway, mission terminée (519.177618ms)
+✔ (b) appel remis (accord) puis sans réponse : tool_stalled à 120 s simulées, mission failed, message inchangé (499.446869ms)
+✖ (b bis) appel remis à la passerelle (aucun accord) puis jamais clos par l’agent : tool_stalled à 120 s (120002.986304ms)
+✔ (c) outil natif hors passerelle (in_progress, aucune remise observable) : règle inchangée, armé dès le tool_call (372.629754ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 236786.53777
+
+✖ failing tests:
+
+test at tests/tool-stall-delivery.test.js:135:1
+✖ (a) appel en composition : 150 s simulées sans mise à jour, puis remise (accord + passerelle) → aucun tool_stalled, la mission continue (612.096013ms)
+  AssertionError [ERR_ASSERTION]: garde armée à l’ouverture du tool_call : ["state","state","session","agent","agent","agent_silent","tool_stalled"]
+      at TestContext.<anonymous> (file:///home/user/agregat-back-git/tests/tool-stall-delivery.test.js:140:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/tool-stall-delivery.test.js:164:1
+✖ (a bis) remise par la passerelle seule (aucun accord demandé) : 150 s de composition puis entrée dans le handler MCP → armé via gateway, mission terminée (519.177618ms)
+  AssertionError [ERR_ASSERTION]: ["state","state","session","agent","agent","agent_silent","tool_stalled"]
+      at TestContext.<anonymous> (file:///home/user/agregat-back-git/tests/tool-stall-delivery.test.js:169:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/tool-stall-delivery.test.js:207:1
+✖ (b bis) appel remis à la passerelle (aucun accord) puis jamais clos par l’agent : tool_stalled à 120 s (120002.986304ms)
+  'test timed out after 120000ms'
+EXIT 1

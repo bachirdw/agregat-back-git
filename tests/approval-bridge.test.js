@@ -66,6 +66,9 @@ async function setup(t, options = {}) {
     await mcp.close();
     app.engine.active.delete(run.id);
     await app.close();
+    // Chrome ouvre parfois une connexion d'avance au site, jamais utilisée : sans la fermer, le
+    // processus de test survivait plusieurs minutes et la phase Chrome de la suite débordait.
+    siteServer.closeAllConnections();
     siteServer.close();
     process.env = saved;
   });

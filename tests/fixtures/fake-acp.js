@@ -8,7 +8,8 @@
 // owner's answer turn ({"platform":{"turnKind":"answer"}}) is quoted back ({message?, options?,
 // always?: ask again on every turn}). callsFile: ACP methods received so far, written at each prompt.
 // composeTool: a call the agent composes for minutes before handing it over (stall-01, E49):
-// {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true}; see the prompt handler.
+// {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true, doneFile?}; see the prompt
+// handler. doneFile: written once the hand-over is complete (decision received, MCP call answered).
 import {
   agent,
   methods,
@@ -213,6 +214,7 @@ const app = agent({ name: 'fake-acp' })
           await mcp.close();
         }
       }
+      if (compose.doneFile) writeFileSync(compose.doneFile, 'remis');
       if (compose.stall) await never();
       await update({ sessionUpdate: 'tool_call_update', status: 'completed' });
       await connection.client.notify(methods.client.session.update, {

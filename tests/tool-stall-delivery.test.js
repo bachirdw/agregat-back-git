@@ -55,7 +55,11 @@ async function startMission(fake, { wait = false } = {}) {
   await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
   const timers = fakeTimers();
   app.engine.timers = timers;
-  const files = { goFile: join(root, 'go-FICTIF'), cancelFile: join(root, 'cancel-observed') };
+  const files = {
+    goFile: join(root, 'go-FICTIF'),
+    doneFile: join(root, 'remis-FICTIF'),
+    cancelFile: join(root, 'cancel-observed'),
+  };
   const run = {
     id: randomUUID(),
     state: 'queued',
@@ -85,6 +89,7 @@ async function startMission(fake, { wait = false } = {}) {
             ? {
                 composeTool: {
                   path: REPORT,
+                  doneFile: files.doneFile,
                   ...(wait ? { goFile: files.goFile } : {}),
                   ...fake.composeTool,
                 },
@@ -200,6 +205,7 @@ test('(b) appel remis (accord) puis sans réponse : tool_stalled à 120 s simul�
   const m = await startMission({ composeTool: { stall: true } });
   try {
     await m.waitFor(() => m.types().includes('permission_auto'));
+    await m.waitFor(() => existsSync(m.files.doneFile));
     m.timers.tick(119999);
     assert.ok(!m.types().includes('tool_stalled'), 'coupé avant 120 s');
     m.timers.tick(1);
@@ -222,6 +228,8 @@ test('(b bis) appel remis à la passerelle (aucun accord) puis jamais clos par l
   const m = await startMission({ composeTool: { mcp: true, permission: false, stall: true } });
   try {
     await m.waitFor(() => m.types().includes('tool_armed'));
+    // The gateway arms the call before running it: wait for its answer before advancing the clock.
+    await m.waitFor(() => existsSync(m.files.doneFile));
     assert.ok(existsSync(join(m.root, REPORT)), 'la passerelle a bien reçu l’appel');
     m.timers.tick(119999);
     assert.ok(!m.types().includes('tool_stalled'));

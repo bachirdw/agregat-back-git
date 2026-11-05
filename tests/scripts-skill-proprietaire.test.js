@@ -94,6 +94,10 @@ test('E59 FICTIF : seuls les chemins hors de l’espace et les valeurs malformé
     // Seconde relecture : une URL https en tête de liste ne cache pas ce qui la suit.
     ['check-liveness', ['https://jobs.example.test/o/1,file:///etc/hosts']],
     ['check-liveness', ['https://jobs.example.test/o/1, /etc/hosts']],
+    // Troisième relecture : « file: » avec une seule barre (ou aucune) est aussi une URL de fichier.
+    ['check-liveness', ['file:/etc/hosts']],
+    ['check-liveness', ['--url=FILE:/Users/fictif/.ssh/id_rsa']],
+    ['check-liveness', ['https://jobs.example.test/o/1,file:/etc/hosts']],
   ])
     await assert.rejects(
       tools.script({ command, args }),

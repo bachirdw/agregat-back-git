@@ -454,18 +454,19 @@ const outsidePath = (root, value) => {
   const target = resolve(root, value);
   return target !== root && !target.startsWith(root + sep);
 };
-// An http(s) URL is never a file. A file:// URL is the path it names; any other URL scheme is
-// refused (a Skill script reads the web over http(s) only).
+// An http(s) URL is never a file. A file: URL is the path it names, whatever its slashes
+// (« file:/etc/hosts », troisième relecture) ; any other URL scheme with « // » is refused (a Skill
+// script reads the web over http(s) only).
 const outsideItem = (root, item) => {
-  const scheme = item.match(/^([a-z][a-z0-9+.-]*):\/\//i)?.[1]?.toLowerCase();
-  if (scheme === 'http' || scheme === 'https') return false;
-  if (scheme === 'file') {
+  if (/^file:/i.test(item)) {
     try {
-      return outsidePath(root, fileURLToPath(item));
+      return outsidePath(root, fileURLToPath(new URL(item)));
     } catch {
       return true;
     }
   }
+  const scheme = item.match(/^([a-z][a-z0-9+.-]*):\/\//i)?.[1]?.toLowerCase();
+  if (scheme === 'http' || scheme === 'https') return false;
   if (scheme) return true;
   return outsidePath(root, item);
 };

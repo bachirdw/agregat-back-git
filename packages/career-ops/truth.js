@@ -271,21 +271,21 @@ export function createTurnTruth({ root, seed } = {}) {
   const scored = new Map();
   // Completed calls as the Bilan may know them (tool and argument prefix), one per call id.
   const proofs = new Map();
-  let tracker = null;
+  // E37 : ACP may deliver the same terminal update of a call twice. Counts are kept per call
+  // (key of `proofs`): a repeated update replaces that call's value, the last one is authoritative.
+  const trackers = new Map();
   // Last verdict of the Skill's fact gate: null when the last run passed, else the count it listed.
   let factsUnsourcedCount = null;
-  // C8 : the last completed scan of the turn, as its own output says.
-  let scan = null;
-  const setScan = (networkFailures) => {
-    if (Number.isInteger(networkFailures) && networkFailures >= 0) scan = { networkFailures };
-    else scan ??= { networkFailures: null };
-  };
-  const addTracker = (rows) => {
-    if (!rows) return;
-    tracker = {
-      added: (tracker?.added ?? 0) + rows.added,
-      updated: (tracker?.updated ?? 0) + rows.updated,
-    };
+  // C8 : the last completed scan of the turn, as its own output says (one entry per call, in
+  // the order calls first completed: a replayed earlier scan does not become the last one).
+  const scans = new Map();
+  const setScan = (key, networkFailures) =>
+    scans.set(
+      key,
+      Number.isInteger(networkFailures) && networkFailures >= 0 ? networkFailures : null,
+    );
+  const addTracker = (key, rows) => {
+    if (rows) trackers.set(key, rows);
   };
   return {
     observe(update) {
@@ -361,9 +361,15 @@ export function createTurnTruth({ root, seed } = {}) {
             if (header) scored.set(update.toolCallId, header.url);
           }
           if (name === 'career_script' && argument === 'merge-tracker')
-            addTracker(trackerSummary(outputText(update.rawOutput ?? update.content)));
+            addTracker(
+              `acp:${update.toolCallId}`,
+              trackerSummary(outputText(update.rawOutput ?? update.content)),
+            );
           if (name === 'career_script' && argument === 'scan')
-            setScan(scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)));
+            setScan(
+              `acp:${update.toolCallId}`,
+              scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)),
+            );
         }
       }
     },
@@ -423,8 +429,9 @@ export function createTurnTruth({ root, seed } = {}) {
           rows.added >= 0 &&
           rows.updated >= 0
         )
-          addTracker({ added: rows.added, updated: rows.updated });
-        if (name === 'career_script' && safeArgument === 'scan') setScan(scanRows?.networkFailures);
+          addTracker(`gateway:${key}`, { added: rows.added, updated: rows.updated });
+        if (name === 'career_script' && safeArgument === 'scan')
+          setScan(`gateway:${key}`, scanRows?.networkFailures);
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -446,14 +453,22 @@ export function createTurnTruth({ root, seed } = {}) {
       return [...proofs.values()];
     },
     trackerRows() {
-      return tracker;
+      if (!trackers.size) return null;
+      const rows = [...trackers.values()];
+      return {
+        added: rows.reduce((sum, row) => sum + row.added, 0),
+        updated: rows.reduce((sum, row) => sum + row.updated, 0),
+      };
     },
     // null: the fact gate passed last (or never ran); a number: claims it listed on its last refusal.
     factsUnsourced() {
       return factsUnsourcedCount;
     },
+    // The last scan whose output gave a count, else a scan without a readable count, else null.
     scanResult() {
-      return scan;
+      if (!scans.size) return null;
+      const counted = [...scans.values()].filter((value) => value !== null);
+      return { networkFailures: counted.length ? counted.at(-1) : null };
     },
     hasJdRead() {
       return jdRead;

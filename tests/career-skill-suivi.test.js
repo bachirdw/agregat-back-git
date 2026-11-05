@@ -261,3 +261,20 @@ test('Passerelle : compte rendu d’un appel (argument, URL notée, lignes du su
     /Entreprise|entreprise-fictive|Evaluation/,
   );
 });
+
+test('career_write : la création initiale de data/applications.md (en-tête seul, AGENTS.md « Step 4 ») est admise, puis plus rien', (t) => {
+  const { tools, root } = workspace(t);
+  const header =
+    '# Applications Tracker\n\n| # | Date | Company | Role | Score | Status | PDF | Report | Notes |\n|---|------|---------|------|-------|--------|-----|--------|-------|\n';
+  assert.throws(
+    () =>
+      tools.write(
+        'data/applications.md',
+        header + '| 1 | 2026-01-01 | FICTIF | x | 3/5 | Evaluated | | | |\n',
+      ),
+    /merge-tracker/,
+  );
+  assert.equal(tools.write('data/applications.md', header).saved, true);
+  assert.equal(readFileSync(join(root, 'data/applications.md'), 'utf8'), header);
+  assert.throws(() => tools.write('data/applications.md', header), /merge-tracker/);
+});

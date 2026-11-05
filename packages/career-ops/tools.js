@@ -381,6 +381,23 @@ function fetchedAtFor(value) {
     ...(typeof value === 'string' ? { fetchedAtAgent: value.slice(0, 100) } : {}),
   };
 }
+// First-run creation of the tracker (AGENTS.md « Step 4: Tracker »): file absent, text made of an
+// optional title and the header table only (header row + separator), not a single data row.
+export function isTrackerFirstRun(root, text) {
+  if (existsSync(resolve(root, 'data/applications.md'))) return false;
+  const lines = String(text ?? '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const table = lines.filter((l) => l.startsWith('|'));
+  const other = lines.filter((l) => !l.startsWith('|'));
+  if (table.length !== 2 || other.some((l) => !l.startsWith('#'))) return false;
+  const [header, separator] = table;
+  return (
+    /^\|\s*#\s*\|.*\|\s*Date\s*\|/i.test(header) && /^\|(?:\s*:?-{3,}:?\s*\|)+$/.test(separator)
+  );
+}
+
 export class CareerTools {
   constructor(
     career,
@@ -443,9 +460,11 @@ export class CareerTools {
   }
   write(path, text) {
     validatePath(path, true);
-    if (path === 'data/applications.md')
+    // AGENTS.md « Step 4: Tracker » : the host agent creates data/applications.md when it does not
+    // exist, with the header alone; every row then comes through merge-tracker.mjs.
+    if (path === 'data/applications.md' && !isTrackerFirstRun(this.career.path(), text))
       throw new Error(
-        'data/applications.md ne s’écrit pas directement : écrire batch/tracker-additions/{num}-{company-slug}.tsv puis career_script merge-tracker ; un état change par career_script set-status',
+        'data/applications.md ne s’écrit pas directement : écrire batch/tracker-additions/{num}-{company-slug}.tsv puis career_script merge-tracker ; un état change par career_script set-status (seule la création initiale, en-tête seul, est admise)',
       );
     // DATA_CONTRACT.md: the PDF↔report manifest is written by generate-pdf.mjs (--report=NNN).
     if (path === 'data/pdf-index.tsv')

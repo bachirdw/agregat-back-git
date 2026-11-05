@@ -330,6 +330,8 @@ const callUrl = (update) => {
 };
 // The page of that call, host and path only, as pageKey.
 const callPage = (update) => pageKey(callUrl(update));
+// E41 : the visits kept, the latest ones.
+const VISITS = 50;
 // E56 : a page that lists items rather than showing one. An identifier marks an item : in the path
 // (4 digits or more, or a token of 8 characters or more mixing letters and digits, as an ID or a
 // part of a UUID) or a query field that names one item (`gh_jid`, `jk`, `jobId`… of 3 characters
@@ -486,7 +488,10 @@ export class SkillProgress {
     this.completions = [];
     // E41 : completed calls of a URL-bound step's tool that its pattern did not accept, with
     // their page. The next step of the intent done on that same page proves the step after all.
+    // Seconde relecture de nuit : the latest per tool and page, at most VISITS of them.
     this.visits = [];
+    // The page of the last completed call that reported one : where the agent was.
+    this.lastPage = null;
     this.orderDeviation = false;
     this.scored = new Set();
   }
@@ -533,17 +538,26 @@ export class SkillProgress {
     const page = next === 'done' ? callPage(completed) : null;
     const uses = (step, tool = name) =>
       step.tool === tool || step.definition.alternativeTools?.includes(tool);
+    // Seconde relecture de nuit : a call of the step's own tool (a navigation) visits its page ; a
+    // call of an alternative tool (a click) visits one only when it changed page, from the page
+    // known before it. A click on a banner of the offer is no way to the form ; without a known
+    // page before the click, nothing is assumed.
+    const moved = Boolean(page && this.lastPage && page !== this.lastPage);
     if (
       page &&
       this.steps.some(
         (step) =>
           step.definition.urlPattern &&
           step.state === 'pending' &&
-          uses(step) &&
+          (step.tool === name || (moved && uses(step))) &&
           !candidates.includes(step),
       )
-    )
+    ) {
+      this.visits = this.visits.filter((item) => item.page !== page || item.name !== name);
       this.visits.push({ name, toolCallId: update.toolCallId, page });
+      if (this.visits.length > VISITS) this.visits.shift();
+    }
+    if (page) this.lastPage = page;
     const waits = (step) =>
       step.definition.requiresStep &&
       this.steps.find(

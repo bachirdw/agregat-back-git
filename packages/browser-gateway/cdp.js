@@ -880,6 +880,11 @@ export class CdpBrowser {
   async currentUrl() {
     return this.page?.url() ?? null;
   }
+  // E65 : the mission's page may wait in a background tab, frozen by the browser on an idle
+  // machine, while the owner decides : bring it to the front before acting on it again.
+  async wake() {
+    await this.page?.bringToFront();
+  }
   async targetLocator(target) {
     if (typeof target === 'string') return this.page.locator(target).first();
     const { ref } = target;

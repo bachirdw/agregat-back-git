@@ -190,9 +190,12 @@ export class BrowserGateway {
       sending || (step && !this.policy.ownerMode)
         ? await this.provider.submissionPreview?.(target)
         : null;
+    // E65 : whether this call waited for a human decision (the page may have changed meanwhile).
+    let asked = false;
     if (sending || sensitive || (cap.effect !== 'read' && !this.policy.ownerMode)) {
       const needsHuman = sending || sensitive || !this.autoApprove.has(capabilityId);
       if (needsHuman) {
+        asked = true;
         const approved = await this.approve({
           capability: capabilityId,
           sensitive,
@@ -226,18 +229,37 @@ export class BrowserGateway {
           throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
       }
     }
-    const current = !element
-      ? null
-      : fields
-        ? await Promise.all(fields.map((field) => this.provider.describe({ ref: field.ref })))
-        : await this.provider.describe(target);
-    if (
-      element &&
-      (!isDeepStrictEqual(element, current) || pageBefore !== (await this.provider.currentUrl?.()))
-    )
-      throw new Error('Élément ou page modifié pendant l’approbation');
-    if (sending && !isDeepStrictEqual(preview, await this.provider.submissionPreview?.(target)))
-      throw new Error('Formulaire modifié pendant l’approbation');
+    // E65 : after a wait for the owner's decision the page may sit frozen in a background tab or
+    // have been reloaded (idle machine) : bring it back to the front, then check it again. A page
+    // that changed or no longer answers means nothing was done, and the agent is told so plainly.
+    if (asked) await this.provider.wake?.().catch(() => {});
+    const changed = (cause) =>
+      new Error(
+        asked
+          ? `Page modifiée, rechargée ou sans réponse pendant l’attente de l’accord (${cause}) : action non effectuée, rien n’a été envoyé. Relire la page (browser_snapshot) et refaire la saisie avant de redemander l’accord.`
+          : cause,
+      );
+    let current, pageNow, previewNow;
+    try {
+      current = !element
+        ? null
+        : fields
+          ? await Promise.all(fields.map((field) => this.provider.describe({ ref: field.ref })))
+          : await this.provider.describe(target);
+      pageNow = element ? await this.provider.currentUrl?.() : undefined;
+      previewNow = sending ? await this.provider.submissionPreview?.(target) : undefined;
+    } catch (error) {
+      if (!asked) throw error;
+      throw changed(
+        String(error?.message ?? error)
+          .split('\n')[0]
+          .slice(0, 160),
+      );
+    }
+    if (element && (!isDeepStrictEqual(element, current) || pageBefore !== pageNow))
+      throw changed('Élément ou page modifié pendant l’approbation');
+    if (sending && !isDeepStrictEqual(preview, previewNow))
+      throw changed('Formulaire modifié pendant l’approbation');
     if (capabilityId === 'browser.upload') {
       // Freeze the approved bytes; Playwright must not reopen a path that may have changed.
       const real = realpathSync(this.policy.workspacePath(rawArgs.path));

@@ -113,8 +113,9 @@ export function formatAutoSendLine(events) {
 }
 // E66 : the owner's approvals of a send, and what became of the approved actions : an approval is
 // not a send. `failed` : the gateway stopped before acting (nothing sent) ; `uncertain` : the
-// action failed after it started (something may have left : to check on the site).
-export function formatSendLine(approved, failed = 0, uncertain = 0) {
+// action failed after it started (something may have left : to check on the site). `unknown`
+// (revue Opus du 06/11) : approved calls whose outcome the gateway never reported.
+export function formatSendLine(approved, failed = 0, uncertain = 0, unknown = 0) {
   if (!approved) return '\nEnvoi par la plateforme : aucun approuvé.';
   const notes = [
     ...(failed
@@ -124,6 +125,9 @@ export function formatSendLine(approved, failed = 0, uncertain = 0) {
       ? [
           `${uncertain} à l’issue incertaine (échec après le début de l’action : vérifier sur le site)`,
         ]
+      : []),
+    ...(unknown
+      ? [`${unknown} sans issue connue (la passerelle n’a rien rapporté : vérifier sur le site)`]
       : []),
   ];
   return `\nEnvoi par la plateforme : ${approved} approuvé(s) par le propriétaire${
@@ -1369,6 +1373,7 @@ export class Orchestrator {
           control.sendsApproved ?? 0,
           control.sendsFailed ?? 0,
           control.sendsUncertain ?? 0,
+          control.sendCalls?.size ?? 0,
         );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));

@@ -24,6 +24,12 @@ test('E66 : la ligne d’envoi distingue l’accord, l’arrêt avant d’agir e
     formatSendLine(3, 1, 1),
     '\nEnvoi par la plateforme : 3 approuvé(s) par le propriétaire, dont 1 sans effet (arrêtée avant d’agir après l’accord : rien n’a été envoyé), dont 1 à l’issue incertaine (échec après le début de l’action : vérifier sur le site).',
   );
+  // Revue Opus du 06/11 : un accord dont la passerelle n'a jamais rapporté l'issue n'est pas un
+  // envoi fait ; il est dit tel quel.
+  assert.equal(
+    formatSendLine(2, 0, 0, 1),
+    '\nEnvoi par la plateforme : 2 approuvé(s) par le propriétaire, dont 1 sans issue connue (la passerelle n’a rien rapporté : vérifier sur le site).',
+  );
 });
 
 test('E66 : l’issue est lue sur l’appel même qui a demandé l’accord', async (t) => {

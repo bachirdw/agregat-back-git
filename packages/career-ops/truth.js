@@ -469,9 +469,12 @@ export function createTurnTruth({ root, seed } = {}) {
     completedCalls() {
       return [...proofs.values()];
     },
+    // One call seen by both channels has two keys: as in toolOutcomes(), the gateway's counts
+    // stand when it gave any, the ACP ones otherwise.
     trackerRows() {
       if (!trackers.size) return null;
-      const rows = [...trackers.values()];
+      const gateway = [...trackers].filter(([key]) => key.startsWith('gateway:'));
+      const rows = (gateway.length ? gateway : [...trackers]).map(([, row]) => row);
       return {
         added: rows.reduce((sum, row) => sum + row.added, 0),
         updated: rows.reduce((sum, row) => sum + row.updated, 0),

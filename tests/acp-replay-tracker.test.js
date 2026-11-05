@@ -59,3 +59,17 @@ test('E37 FICTIF : un scan ancien rejoué après un scan plus récent ne remplac
   assert.deepEqual(truth.scanResult(), { networkFailures: 0 });
   assert.match(formatCareerBilan('Cherche des offres FICTIVES.', truth), /Scan : aucun échec/);
 });
+
+// Le même appel vu par les deux canaux (identifiant ACP, identifiant UUID de la passerelle) :
+// comme pour toolOutcomes(), le compte de la passerelle fait foi quand elle en donne un.
+test('E37 FICTIF : un appel vu par l’ACP et par la passerelle compte une fois', () => {
+  const truth = createTurnTruth();
+  script(truth, 'm1', 'merge-tracker', MERGE(1, 2));
+  truth.recordGatewayTool('career_script', 'completed', {
+    toolCallId: '00000000-0000-4000-8000-0000000000bb',
+    argument: 'merge-tracker',
+    tracker: { added: 1, updated: 2 },
+  });
+  script(truth, 'm1', 'merge-tracker', MERGE(1, 2));
+  assert.deepEqual(truth.trackerRows(), { added: 1, updated: 2 });
+});

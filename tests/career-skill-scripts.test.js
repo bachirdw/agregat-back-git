@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,14 @@ const ENTRIES = [
   'tracker',
   'verify-pipeline',
   'check-liveness',
+  // production-01 : chaîne CV/lettre de modes/pdf.md et modes/cover.md.
+  'build-cv-html',
+  'verify-cv-facts',
+  'verify-cv-structure',
+  'generate-pdf',
+  'generate-cover-letter',
+  'mark-pdf-ready',
+  'cv-templates',
 ];
 function workspace(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-scripts-FICTIF-')));
@@ -165,4 +173,202 @@ test('MCP career-ops : career_script publie les scripts du Skill et refuse une c
   });
   assert.equal(refused.isError, true);
   assert.match(refused.content[0].text, /non autorisée/);
+});
+
+// production-01, point 1 : chaîne CV/lettre du Skill (modes/pdf.md étapes 17b–21, modes/cover.md étape 9,
+// mark-pdf-ready en fin de mode pdf). Grammaires fermées tirées de l'analyse d'arguments de chaque script.
+const CV_JSON = 'output/cv-candidat-fictif-042-entreprise-fictive.json';
+const CV_HTML = 'output/cv-candidat-fictif-042-entreprise-fictive.html';
+const CV_PDF = 'output/cv-candidat-fictif-042-entreprise-fictive-2026-11-05.pdf';
+test('career_script : chaîne CV/lettre du Skill admise avec les arguments de modes/pdf.md et cover.md', async (t) => {
+  const { root, tools } = workspace(t);
+  const args = async (command, list) => (await run(tools, command, list)).args;
+  assert.deepEqual(await args('build-cv-html', [CV_JSON, CV_HTML]), [CV_JSON, CV_HTML]);
+  assert.deepEqual(await args('build-cv-html', [CV_JSON, CV_HTML, 'templates/cv-template.html']), [
+    CV_JSON,
+    CV_HTML,
+    'templates/cv-template.html',
+  ]);
+  // Chemin absolu tel que « cv-templates resolve cv » l'imprime, dans l'espace seulement.
+  const resolved = `${root}/data/templates/cv-template-moderne.html`;
+  assert.deepEqual(await args('build-cv-html', [CV_JSON, CV_HTML, resolved]), [
+    CV_JSON,
+    CV_HTML,
+    resolved,
+  ]);
+  assert.deepEqual(await args('build-cv-html', ['--preview', CV_JSON]), ['--preview', CV_JSON]);
+  assert.deepEqual(await args('build-cv-html', [CV_JSON, '--markdown', 'output/cv-fictif.md']), [
+    CV_JSON,
+    '--markdown',
+    'output/cv-fictif.md',
+  ]);
+  assert.deepEqual(await args('verify-cv-facts', [CV_HTML]), [CV_HTML]);
+  assert.deepEqual(await args('verify-cv-facts', [CV_HTML, '--json']), [CV_HTML, '--json']);
+  assert.deepEqual(await args('verify-cv-structure', [CV_JSON]), [CV_JSON]);
+  assert.deepEqual(await args('generate-pdf', [CV_HTML, CV_PDF, '--format=a4', '--report=042']), [
+    CV_HTML,
+    CV_PDF,
+    '--format=a4',
+    '--report=042',
+  ]);
+  assert.deepEqual(
+    await args('generate-pdf', [
+      CV_HTML,
+      CV_PDF,
+      '--country=DE',
+      '--kind=cv',
+      '--max-pages=1',
+      '--strict-pages',
+      '--allow-nonchronological',
+      '--allow-reorder',
+    ]),
+    [
+      CV_HTML,
+      CV_PDF,
+      '--country=DE',
+      '--kind=cv',
+      '--max-pages=1',
+      '--strict-pages',
+      '--allow-nonchronological',
+      '--allow-reorder',
+    ],
+  );
+  assert.deepEqual(
+    await args('generate-cover-letter', [
+      '--payload',
+      'output/cover-payload-entreprise-fictive.json',
+      '--out',
+      'output/entreprise-fictive-poste-fictif-cover.pdf',
+      '--format',
+      'a4',
+      '--country',
+      'DE',
+      '--report',
+      '042',
+    ]),
+    [
+      '--payload',
+      'output/cover-payload-entreprise-fictive.json',
+      '--out',
+      'output/entreprise-fictive-poste-fictif-cover.pdf',
+      '--format',
+      'a4',
+      '--country',
+      'DE',
+      '--report',
+      '042',
+    ],
+  );
+  assert.deepEqual(await args('mark-pdf-ready', ['042']), ['042']);
+  assert.deepEqual(await args('mark-pdf-ready', ['42', '--dry-run', '--json']), [
+    '42',
+    '--dry-run',
+    '--json',
+  ]);
+  assert.deepEqual(await args('cv-templates', ['resolve', 'cv']), ['resolve', 'cv']);
+  assert.deepEqual(await args('cv-templates', ['list', 'cover', '--format=html']), [
+    'list',
+    'cover',
+    '--format=html',
+  ]);
+  assert.deepEqual(await args('cv-templates', ['resolve', 'cv', 'Modele FICTIF', '--fallback']), [
+    'resolve',
+    'cv',
+    'Modele FICTIF',
+    '--fallback',
+  ]);
+  assert.deepEqual(await args('cv-templates', ['lint', 'cover']), ['lint', 'cover']);
+});
+
+test('career_script : chaîne CV/lettre, chemins hors output/, portes désactivées et drapeaux hors liste refusés', async (t) => {
+  const { tools } = workspace(t);
+  for (const [command, args] of [
+    ['build-cv-html', []],
+    ['build-cv-html', [CV_JSON]],
+    ['build-cv-html', ['cv.json', CV_HTML]],
+    ['build-cv-html', [CV_JSON, 'reports/cv.html']],
+    ['build-cv-html', [CV_JSON, 'output/cv.txt']],
+    ['build-cv-html', [CV_JSON, CV_HTML, '../cv-template.html']],
+    ['build-cv-html', [CV_JSON, CV_HTML, '/etc/passwd']],
+    ['build-cv-html', [CV_JSON, CV_HTML, 'templates/cv-template.html', 'x']],
+    ['build-cv-html', ['--test']],
+    ['build-cv-html', ['--preview']],
+    ['build-cv-html', [CV_JSON, '--markdown', CV_HTML]],
+    ['verify-cv-facts', []],
+    ['verify-cv-facts', ['cv.md']],
+    ['verify-cv-facts', [CV_HTML, '--source', CV_HTML]],
+    ['verify-cv-facts', [CV_HTML, '--config', 'output/x.json']],
+    ['verify-cv-facts', ['--self-test']],
+    ['verify-cv-facts', [CV_HTML, CV_JSON]],
+    ['verify-cv-structure', [CV_HTML]],
+    ['verify-cv-structure', [CV_JSON, '--source', 'cv.md']],
+    ['generate-pdf', [CV_HTML]],
+    ['generate-pdf', [CV_HTML, '../cv.pdf']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--skip-fact-check']],
+    ['generate-pdf', ['--batch=output/manifest.json']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--format', 'a4']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--format=pdf']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--report=abc']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--report=']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--country=Allemagne']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--kind=letter']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--max-pages=0']],
+    ['generate-pdf', [CV_HTML, CV_PDF, '--format=a4', '--format=letter']],
+    ['generate-cover-letter', []],
+    ['generate-cover-letter', ['--out', 'output/x-cover.pdf']],
+    ['generate-cover-letter', ['--payload', '/tmp/cover-payload.json']],
+    ['generate-cover-letter', ['--payload', 'output/p.json', '--out', 'drafts/x.pdf']],
+    ['generate-cover-letter', ['--payload=output/p.json']],
+    ['generate-cover-letter', ['--payload', 'output/p.json', '--format', 'pdf']],
+    ['mark-pdf-ready', []],
+    ['mark-pdf-ready', ['abc']],
+    ['mark-pdf-ready', ['042', '--force']],
+    ['mark-pdf-ready', ['042', '43']],
+    ['cv-templates', []],
+    ['cv-templates', ['list']],
+    ['cv-templates', ['delete', 'cv']],
+    ['cv-templates', ['list', 'latex']],
+    ['cv-templates', ['resolve', 'cv', '../x']],
+    ['cv-templates', ['list', 'cv', '--format=pdf']],
+  ])
+    await assert.rejects(
+      tools.script({ command, args }),
+      /Arguments|argument/i,
+      `${command} ${JSON.stringify(args)}`,
+    );
+});
+
+test('career_script : les contrôles CV du Skill tournent isolés (sans réseau, sans écriture)', async (t) => {
+  const { root, tools } = workspace(t);
+  mkdirSync(join(root, 'output'));
+  writeFileSync(join(root, CV_HTML), '<p>CV FICTIF</p>');
+  writeFileSync(join(root, 'verify-cv-facts.mjs'), 'await fetch("http://127.0.0.1:4321/fictif")');
+  writeFileSync(
+    join(root, 'cv-templates.mjs'),
+    'import { writeFileSync } from "node:fs"; writeFileSync("output/escape.txt", "FICTIF")',
+  );
+  // build-cv-html écrit son HTML : il n'est pas isolé.
+  writeFileSync(
+    join(root, 'build-cv-html.mjs'),
+    'import { writeFileSync } from "node:fs"; writeFileSync(process.argv[3], "<p>FICTIF</p>"); console.log("ok")',
+  );
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const network = await tools.script({ command: 'verify-cv-facts', args: [CV_HTML] });
+  assert.equal(network.exitCode, 1);
+  assert.match(network.text, /Réseau interdit/);
+  const write = await tools.script({ command: 'cv-templates', args: ['list', 'cv'] });
+  assert.equal(write.exitCode, 1);
+  assert.match(write.text, /ERR_ACCESS_DENIED/);
+  const built = await tools.script({ command: 'build-cv-html', args: [CV_JSON, CV_HTML] });
+  assert.equal(built.exitCode, 0);
+  assert.equal(readFileSync(join(root, CV_HTML), 'utf8'), '<p>FICTIF</p>');
+  // La forme « contrôle » (path) de verify-cv-facts reste admise.
+  writeFileSync(
+    join(root, 'verify-cv-facts.mjs'),
+    'console.log(JSON.stringify(process.argv.slice(2)))',
+  );
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  writeFileSync(join(root, 'output/cv-fictif.md'), 'CV FICTIF');
+  const control = await tools.script({ command: 'verify-cv-facts', path: 'output/cv-fictif.md' });
+  assert.deepEqual(JSON.parse(control.text), ['output/cv-fictif.md', '--json']);
 });

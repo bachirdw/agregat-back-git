@@ -143,7 +143,95 @@ const httpUrl = (v) => {
     return false;
   }
 };
+// Files of the CV/letter chain (modes/pdf.md, modes/cover.md): payload, HTML, PDF and letter live
+// under output/ of the workspace; a template is one the Skill ships (templates/) or one the user
+// made (data/templates/), named relative to the workspace or absolute inside it, as
+// `cv-templates resolve` prints it. Never a parent segment, never a dot file.
+const noDotSegment = (v) =>
+  !v.split('/').some((segment) => !segment || segment === '..' || segment.startsWith('.'));
+const outputFile = (extensions) => (v) =>
+  v.length <= 300 &&
+  noControl(v) &&
+  new RegExp(`^output/[\\p{L}\\p{N}_ /.-]+\\.(?:${extensions})$`, 'u').test(v) &&
+  noDotSegment(v);
+const templateFile = (root) => (v) => {
+  if (v.length > 400 || !noControl(v)) return false;
+  const relative = v.startsWith(`${root}/`) ? v.slice(root.length + 1) : v;
+  return (
+    /^(?:data\/)?templates\/[\p{L}\p{N}_ /.-]+\.html$/u.test(relative) && noDotSegment(relative)
+  );
+};
+const pageFormat = (v) => /^(?:letter|a4)$/i.test(v);
+const country = (v) => /^[A-Za-z]{2}$/.test(v);
+// build-cv-html.mjs has three render forms (modes/pdf.md step 18, « Live preview », modes/text.md):
+//   <in.json> <out.html> [template] · --preview <in.json> [template] · <in.json> --markdown <out.md> [template]
+const buildCvHtmlArgs = (args, root) => {
+  const json = outputFile('json');
+  const template = templateFile(root);
+  let files;
+  if (args[0] === '--preview') files = [args.slice(1), [json]];
+  else if (args.includes('--markdown')) {
+    const index = args.indexOf('--markdown');
+    const output = args[index + 1];
+    if (typeof output !== 'string' || !outputFile('md')(output)) return false;
+    files = [args.filter((_, i) => i !== index && i !== index + 1), [json]];
+  } else files = [args, [json, outputFile('html')]];
+  const [positional, required] = files;
+  if (positional.length < required.length || positional.length > required.length + 1) return false;
+  return positional.every((value, i) => (required[i] ?? template)(value));
+};
 const SKILL_ENTRIES = {
+  'build-cv-html': { custom: buildCvHtmlArgs },
+  'verify-cv-facts': {
+    positional: [outputFile('html|md')],
+    minPositional: 1,
+    flags: { '--json': null },
+    isolated: true,
+  },
+  'verify-cv-structure': {
+    positional: [outputFile('json')],
+    minPositional: 1,
+    flags: {},
+    isolated: true,
+  },
+  'generate-pdf': {
+    positional: [outputFile('html'), outputFile('pdf')],
+    minPositional: 2,
+    flags: { '--allow-reorder': null, '--allow-nonchronological': null, '--strict-pages': null },
+    assigns: {
+      '--format': pageFormat,
+      '--country': country,
+      '--report': number,
+      '--kind': (v) => /^(?:cv|cover)$/.test(v),
+      '--max-pages': (v) => /^[1-9]\d{0,2}$/.test(v),
+    },
+  },
+  'generate-cover-letter': {
+    flags: {
+      '--payload': outputFile('json'),
+      '--out': outputFile('pdf'),
+      '--format': pageFormat,
+      '--country': country,
+      '--report': number,
+    },
+    requiredFlags: ['--payload'],
+  },
+  'mark-pdf-ready': {
+    positional: [number],
+    minPositional: 1,
+    flags: { '--dry-run': null, '--json': null },
+  },
+  'cv-templates': {
+    positional: [
+      (v) => ['list', 'resolve', 'lint'].includes(v),
+      (v) => ['cv', 'cover'].includes(v),
+      (v) => /^[\p{L}\p{N}][\p{L}\p{N} _-]{0,79}$/u.test(v),
+    ],
+    minPositional: 2,
+    flags: { '--fallback': null },
+    assigns: { '--format': (v) => /^(?:html|tex)$/.test(v) },
+    isolated: true,
+  },
   'reserve-report-num': {
     flags: { '--release': (v) => /^\d{1,4}(?:-\d{1,4})?$/.test(v), '--gc': null },
     maxFlags: 1,
@@ -190,21 +278,45 @@ const SKILL_ENTRIES = {
   'check-liveness': { positional: Array(10).fill(httpUrl), minPositional: 1, flags: {} },
 };
 export const SKILL_SCRIPT_NAMES = Object.keys(SKILL_ENTRIES);
-function validateSkillArgs(command, args) {
+// `flags` take their value as the next argument, `assigns` as `--flag=value` (the only form
+// generate-pdf.mjs reads without a missing-operand error), `custom` replaces the whole grammar.
+function validateSkillArgs(command, args, root) {
   const spec = SKILL_ENTRIES[command];
   const positional = spec.positional ?? [];
+  const flags = spec.flags ?? {};
+  const assigns = spec.assigns ?? {};
   const seen = new Set();
   let count = 0;
   const fail = () => {
     throw new Error(`Arguments refusés pour ${command} : voir docs/api-career-ops.md`);
   };
-  if (!Array.isArray(args) || args.some((arg) => typeof arg !== 'string' || !arg)) fail();
+  if (
+    !Array.isArray(args) ||
+    args.some((arg) => typeof arg !== 'string' || !arg || !noControl(arg) || arg.length > 1000)
+  )
+    fail();
+  if (spec.custom) {
+    if (!spec.custom(args, root)) fail();
+    return args;
+  }
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg.startsWith('-')) {
-      if (!Object.hasOwn(spec.flags, arg) || seen.has(arg)) fail();
+      const assigned = arg.indexOf('=');
+      if (assigned > 0) {
+        const name = arg.slice(0, assigned);
+        if (
+          !Object.hasOwn(assigns, name) ||
+          seen.has(name) ||
+          !assigns[name](arg.slice(assigned + 1))
+        )
+          fail();
+        seen.add(name);
+        continue;
+      }
+      if (!Object.hasOwn(flags, arg) || seen.has(arg)) fail();
       seen.add(arg);
-      const value = spec.flags[arg];
+      const value = flags[arg];
       if (value) {
         const next = args[++i];
         if (typeof next !== 'string' || next.startsWith('-') || !value(next)) fail();
@@ -212,6 +324,7 @@ function validateSkillArgs(command, args) {
     } else if (count >= positional.length || !positional[count++](arg)) fail();
   }
   if (seen.size > (spec.maxFlags ?? Infinity) || count < (spec.minPositional ?? 0)) fail();
+  if ((spec.requiredFlags ?? []).some((flag) => !seen.has(flag))) fail();
   return args;
 }
 const validatePath = (path, write = false) => {
@@ -432,17 +545,19 @@ export class CareerTools {
         flags: ['--json'],
       },
     };
-    const skillEntry = Object.hasOwn(SKILL_ENTRIES, command);
+    // verify-cv-facts is both a control (path, --json added here) and a Skill entry (args): the
+    // control form answers a `path`, the Skill form answers `args`.
+    const skillEntry = Object.hasOwn(SKILL_ENTRIES, command) && !(controls[command] && path);
     if (!['scan', 'find'].includes(command) && !controls[command] && !skillEntry)
       throw new Error(
         `Commande career-ops non autorisée : utiliser « scan », « find », « scripts/<fichier> », un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) ou un script du Skill (${SKILL_SCRIPT_NAMES.join(', ')})`,
       );
-    if (skillEntry) validateSkillArgs(command, scriptArgs);
+    if (skillEntry) validateSkillArgs(command, scriptArgs, root);
     else if (scriptArgs.length)
       throw new Error('Arguments supplémentaires non autorisés pour cette commande');
-    if (skillEntry && query) {
+    if (skillEntry && (query || path)) {
       throw new Error('Requête non attendue pour cette commande');
-    } else if (controls[command]) {
+    } else if (controls[command] && !skillEntry) {
       if (query || !controls[command].pattern.test(path))
         throw new Error('Chemin de contrôle hors du périmètre career-ops');
       validatePath(path);
@@ -461,22 +576,27 @@ export class CareerTools {
       });
       validatePortalsConfig(config, root);
     }
-    const execArgs = controls[command]
-      ? [
-          '--permission',
-          `--allow-fs-read=${root}`,
-          `--allow-fs-read=${noNetworkPreload}`,
-          '--require',
-          noNetworkPreload,
-          `${command}.mjs`,
-          path,
-          ...controls[command].flags,
-        ]
-      : skillEntry
-        ? [`${command}.mjs`, ...scriptArgs]
-        : command === 'scan'
-          ? ['scan.mjs', '--quiet']
-          : ['find.mjs', '--json', query];
+    // Read-only checks (controls, and Skill entries marked isolated) run without network and
+    // without any write; a renderer that writes output/ (build-cv-html, generate-pdf) runs as scan.
+    const isolate = (file, ...args) => [
+      '--permission',
+      `--allow-fs-read=${root}`,
+      `--allow-fs-read=${noNetworkPreload}`,
+      '--require',
+      noNetworkPreload,
+      file,
+      ...args,
+    ];
+    const execArgs =
+      controls[command] && !skillEntry
+        ? isolate(`${command}.mjs`, path, ...controls[command].flags)
+        : skillEntry
+          ? SKILL_ENTRIES[command].isolated
+            ? isolate(`${command}.mjs`, ...scriptArgs)
+            : [`${command}.mjs`, ...scriptArgs]
+          : command === 'scan'
+            ? ['scan.mjs', '--quiet']
+            : ['find.mjs', '--json', query];
     if (!controls[command] && !skillEntry && (query.length > 500 || query.startsWith('-')))
       throw new Error('Requête de recherche invalide');
     try {
@@ -679,7 +799,7 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine).`,
+    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Chaîne CV/lettre de modes/pdf.md et modes/cover.md, fichiers sous output/ : cv-templates (args ["resolve","cv"]), build-cv-html (args [payload.json, cv.html, template?]), verify-cv-facts (args [cv.html]), generate-pdf (args [cv.html, cv.pdf, "--format=a4", "--report=042"]), mark-pdf-ready (args ["042"]), generate-cover-letter (args ["--payload", "output/cover-payload-….json"]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine ; verify-cv-facts : fait absent du CV source).`,
     z
       .object({
         command: z.string().min(1).max(200),

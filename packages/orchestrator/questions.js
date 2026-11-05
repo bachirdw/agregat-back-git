@@ -63,6 +63,27 @@ export function proseQuestion(id, question, askedAt) {
   };
 }
 
+// bilan-06 (E52) : a turn that ends by asking the owner to decide, in prose with no form and no
+// `question` field, is a question all the same. The last paragraph is the question when it asks
+// (« dis-moi », « veux-tu », « voulez-vous », « lesquel(le)s », « préfères-tu », « souhaites-tu »,
+// « do you want », « would you like », « which one(s) », or a final « ? »). The agent's own words,
+// nothing rephrased; no options, the owner answers freely.
+const ASKS =
+  /(?:^|[^\p{L}])(?:dis[-‑ ]?moi|dites[-‑ ]?moi|veux[-‑ ]?tu|voulez[-‑ ]?vous|lesquel(?:le)?s?|laquelle|lequel|prefere[sz][-‑ ]?(?:tu|vous)|souhaite[sz][-‑ ]?(?:tu|vous)|do you want|would you like|which one(?:s)?|let me know which|tell me which)(?![\p{L}])/iu;
+export function decisionRequest(summary) {
+  if (typeof summary !== 'string') return null;
+  const last = summary
+    .split(/\n[ \t]*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .at(-1);
+  if (!last) return null;
+  const plain = last.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const end = plain.replace(/[\s*_`"'»)\]]+$/u, '');
+  if (!end.endsWith('?') && !ASKS.test(plain)) return null;
+  return { message: last.slice(0, MAX_MESSAGE) };
+}
+
 function checkField(key, schema, value) {
   const fail = (why) => {
     throw new AnswerError(`Champ « ${key} » invalide : ${why}`);

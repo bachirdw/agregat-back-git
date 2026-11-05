@@ -62,7 +62,13 @@ import {
 import { withDoubtRule } from './doubt-rule.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
-import { AnswerError, proseQuestion, publicQuestion, validateContent } from './questions.js';
+import {
+  AnswerError,
+  decisionRequest,
+  proseQuestion,
+  publicQuestion,
+  validateContent,
+} from './questions.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
@@ -1163,9 +1169,12 @@ export class Orchestrator {
       };
       let agentValue = readResult();
       // A structured `question` waits for the owner, then the agent continues in the SAME session.
+      // bilan-06 (E52) : so does a last paragraph that asks the owner to decide, in plain prose.
       const questionCount = { asked: 0, answered: 0 };
-      while (agentValue.question) {
-        const { question, ...rest } = agentValue;
+      for (;;) {
+        const { question: structured, ...rest } = agentValue;
+        const question = structured ?? decisionRequest(rest.summary);
+        if (!question) break;
         const said = rest.summary.trim();
         const close = (line) => ({ ...rest, summary: [said, line].filter(Boolean).join('\n') });
         if (questionCount.asked >= MAX_QUESTIONS) {

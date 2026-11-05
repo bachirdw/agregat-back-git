@@ -67,7 +67,8 @@ writeFileSync(tracker, lines.join('\\n') + '\\n');
 console.log('\\n📊 Summary: +' + added + ' added, 🔄0 updated, ⏭️0 skipped');
 `,
 };
-async function runPipelineFixture(t, prompt) {
+// `until` : état qui arrête l'attente (par défaut un état terminal ; `awaiting_owner` pour E52).
+async function runPipelineFixture(t, prompt, until = (state) => terminal.has(state)) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'pipeline-flow-FICTIF-')));
   mkdirSync(join(root, '.agents/skills/career-ops'), { recursive: true });
   writeFileSync(
@@ -109,9 +110,21 @@ async function runPipelineFixture(t, prompt) {
       body: JSON.stringify({ prompt, agent: 'fixture', attachments: [attachment.id] }),
     })
   ).json();
-  for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
-    await new Promise((r) => setTimeout(r, 20));
-  return { root, done: app.store.get(run.id), app, run };
+  const waitUntil = async (check) => {
+    for (let i = 0; i < 1500 && !check(app.store.get(run.id).state); i++)
+      await new Promise((r) => setTimeout(r, 20));
+    return app.store.get(run.id);
+  };
+  const answer = async (body) =>
+    (
+      await fetch(`${base}/api/runs/${run.id}/answer`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+        body: JSON.stringify(body),
+      })
+    ).status;
+  const done = await waitUntil(until);
+  return { root, done, app, run, answer, waitUntil };
 }
 
 test('Boîte d’entrée FICTIVE de 3 entrées : 2 traitées [x], 1 [!], rapports, suivi et Bilan fidèles', async (t) => {
@@ -206,4 +219,74 @@ test('E51 FICTIF : boîte de 3 entrées lue, 1 ajoutée, 0 traitée → mission 
   assert.match(summary, /- Boîte d’entrée : 0 traitée, 0 non confirmée \[!\], 4 restantes\./);
   assert.match(summary, /· Réserver le numéro du rapport \(non exécutée\)/);
   assert.match(summary, /\nMission incomplète : boîte d’entrée non traitée \(0 sur 3\)\.$/);
+});
+
+// bilan-06 (E52) : même mission, mais le dernier message demande au propriétaire de choisir (texte
+// réel du registre, en prose, sans formulaire) : la mission attend (`awaiting_owner`), la réponse
+// relance le même agent dans la même session, avec la réponse pour consigne du tour suivant.
+const DEMANDE =
+  'Dis-moi lesquelles t’intéressent en priorité : les 6 pistes repérées, les offres déjà dans le pipeline, ou une sélection que tu choisis toi-même.';
+const pausedOnOwner = (state) => state === 'awaiting_owner' || terminal.has(state);
+test('E52 FICTIF : dernier paragraphe en prose qui demande un choix → awaiting_owner, réponse → même session, completed', async (t) => {
+  const { root, done, app, run, answer, waitUntil } = await runPipelineFixture(
+    t,
+    'Traite la boîte d’entrée FICTIVE FICTIF_PIPELINE_AJOUT DEMANDE',
+    pausedOnOwner,
+  );
+  assert.equal(done.state, 'awaiting_owner', done.error ?? done.state);
+  assert.equal(done.pendingQuestion.kind, 'prose');
+  assert.equal(done.pendingQuestion.message, DEMANDE);
+  assert.deepEqual(done.pendingQuestion.options, []);
+  const sessionId = done.sessionId;
+  assert.ok(sessionId, 'session ACP posée');
+  assert.equal(
+    await answer({ action: 'accept', content: { reponse: 'les 6 pistes repérées' } }),
+    200,
+  );
+  const final = await waitUntil((state) => terminal.has(state));
+  assert.equal(final.state, 'completed', final.error);
+  assert.equal(final.sessionId, sessionId, 'même session');
+  assert.equal(final.pendingQuestion, null);
+  const summary = final.result.summary;
+  assert.match(
+    summary,
+    /^Tour de réponse FICTIF : consigne reçue « les 6 pistes repérées », 1 entrée cochée\./,
+  );
+  assert.match(summary, /Questions : 1 posée\(s\), 1 répondue\(s\)/);
+  assert.match(summary, /- Boîte d’entrée : 1 traitée, 0 non confirmée \[!\], 3 restantes\./);
+  assert.doesNotMatch(summary, /non traitée|Mission incomplète/);
+  assert.match(
+    readFileSync(join(root, 'data/pipeline.md'), 'utf8'),
+    /^- \[x\] #-- \| https:\/\/jobs\.example\.test\/offre\/1 \| skipped \(réponse FICTIVE\)$/m,
+  );
+  const types = app.store.events(run.id).map((e) => e.type);
+  assert.ok(types.includes('question') && types.includes('answer'));
+});
+
+test('E52 FICTIF : question en prose refusée → l’agent n’est pas relancé, mission completed, Bilan fidèle', async (t) => {
+  const { done, answer, waitUntil } = await runPipelineFixture(
+    t,
+    'Traite la boîte d’entrée FICTIVE FICTIF_PIPELINE_AJOUT DEMANDE',
+    pausedOnOwner,
+  );
+  assert.equal(done.state, 'awaiting_owner', done.error ?? done.state);
+  assert.equal(await answer({ action: 'decline' }), 200);
+  const final = await waitUntil((state) => terminal.has(state));
+  // Question restée sans réponse du propriétaire : pas « Mission incomplète », mais le Bilan dit le fait.
+  assert.equal(final.state, 'completed', final.error);
+  const summary = final.result.summary;
+  assert.match(
+    summary,
+    new RegExp(`Question refusée par le propriétaire : ${DEMANDE.replace(/[.*+?()]/g, '\\$&')}`),
+  );
+  assert.match(summary, /Questions : 1 posée\(s\), 0 répondue\(s\)/);
+  assert.match(summary, /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./);
+  assert.doesNotMatch(summary, /Mission incomplète/);
+});
+
+test('E52 FICTIF : un dernier message sans demande reste completed (boîte traitée)', async (t) => {
+  const { done } = await runPipelineFixture(t, 'Traite la boîte d’entrée FICTIVE FICTIF_PIPELINE');
+  assert.equal(done.state, 'completed', done.error);
+  assert.equal(done.pendingQuestion ?? null, null);
+  assert.doesNotMatch(done.result.summary, /Questions : /);
 });

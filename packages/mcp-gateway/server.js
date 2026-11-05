@@ -79,7 +79,9 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
       name,
       status,
       toolCallId,
-      ...(name === 'browser_navigate' && status === 'completed'
+      // The page a navigation landed on, and the page a form was filled on (E41: the next step
+      // done on the page of a navigation proves it). Host and path are all the platform keeps.
+      ...(['browser_navigate', 'browser_fillForm'].includes(name) && status === 'completed'
         ? {
             landedUrl: (() => {
               try {

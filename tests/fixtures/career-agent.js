@@ -261,6 +261,97 @@ const app = agent({ name: 'career-FICTIF' })
         await send(`Évaluation FICTIVE selon le Skill : ${report}, note 4.5/5, suivi fusionné.`);
         return { stopReason: 'end_turn' };
       }
+      // pipeline-01 : « traite la boîte d'entrée » selon modes/pipeline.md (balayage de vivacité,
+      // puis chaque « - [ ] » évaluée comme une annonce collée, puis cochée ; une page inaccessible
+      // devient « - [!] » sans évaluation). « n'enregistre rien » : lecture et contrôles seulement.
+      if (request.objective.includes('FICTIF_PIPELINE')) {
+        const dry = /n[’']enregistre rien/i.test(request.objective);
+        const inbox = await call('career_read', { path: 'data/pipeline.md' });
+        const pending = [...inbox.text.matchAll(/^- \[ \] (https?:\/\/\S+)(.*)$/gm)].map((m) => ({
+          url: m[1],
+          line: m[0],
+        }));
+        const live = await call('career_script', {
+          command: 'check-liveness',
+          args: pending.map((entry) => entry.url),
+        });
+        if (live.exitCode !== 0) throw new Error('Vivacité FICTIVE inattendue');
+        const date = new Date().toISOString().slice(0, 10);
+        let processed = 0;
+        for (const entry of pending) {
+          await call('career_script', {
+            command: 'precheck-duplicate',
+            args: [
+              '--company',
+              'Entreprise FICTIVE',
+              '--title',
+              'Poste FICTIF',
+              '--url',
+              entry.url,
+            ],
+          });
+          if (dry) continue;
+          const current = (await call('career_read', { path: 'data/pipeline.md' })).text;
+          if (entry.url.endsWith('/3')) {
+            // Page FICTIVE derrière une connexion : non confirmée, jamais « fermée » sans preuve.
+            await call('career_write', {
+              path: 'data/pipeline.md',
+              text: current.replace(entry.line, `- [!] ${entry.url} — Error: login required`),
+            });
+            continue;
+          }
+          await call('career_write', {
+            path: `jds/offre-fictive-${++processed}.md`,
+            text: `Offre FICTIVE lue : ${entry.url}`,
+          });
+          await call('career_read', { path: `jds/offre-fictive-${processed}.md` });
+          const num = (await call('career_script', { command: 'reserve-report-num' })).text.trim();
+          const report = `reports/${num}-entreprise-fictive-${date}.md`;
+          await call('career_write', {
+            path: report,
+            text: [
+              '# Evaluation: Entreprise FICTIVE — Poste FICTIF',
+              '',
+              `**Date:** ${date}`,
+              `**URL:** ${entry.url}`,
+              '**Score:** 4.5/5',
+              '**Legitimacy:** High Confidence',
+              '**PDF:** not generated',
+              '',
+              ...'ABCDEFG'
+                .split('')
+                .map((key) => `## ${key}) Bloc FICTIF\n\nAnalyse ${key} FICTIVE.\n`),
+              '## Job Description (archived verbatim)\n\nOffre FICTIVE lue\n',
+              '## Machine Summary\n\n```yaml\nfinal_decision: Apply\n```\n',
+            ].join('\n'),
+          });
+          await call('career_script', { command: 'reserve-report-num', args: ['--release', num] });
+          await call('career_write', {
+            path: `batch/tracker-additions/${num}-entreprise-fictive.tsv`,
+            text:
+              'num\tdate\tcompany\trole\tstatus\tscore\tpdf\treport\tnotes\turl\n' +
+              `${num}\t${date}\tEntreprise FICTIVE\tPoste FICTIF\tEvaluated\t4.5/5\t❌\t[${num}](${report})\tNote FICTIVE\t${entry.url}\n`,
+          });
+          const merged = await call('career_script', { command: 'merge-tracker' });
+          if (merged.exitCode !== 0) throw new Error('Fusion FICTIVE échouée : ' + merged.text);
+          const ticked = `- [x] #${num} | ${entry.url} | Entreprise FICTIVE | Poste FICTIF | 4.5/5 | PDF ❌`;
+          await call('career_write', {
+            path: 'data/pipeline.md',
+            text:
+              current
+                .replace(entry.line + '\n', '')
+                .replace(/\n## Processed\n/, '\n## Processed\n') +
+              ticked +
+              '\n',
+          });
+        }
+        await send(
+          dry
+            ? `Boîte d'entrée FICTIVE lue : ${pending.length} entrées, rien d'enregistré.`
+            : `Boîte d'entrée FICTIVE traitée : ${processed} évaluées, 1 non confirmée.`,
+        );
+        return { stopReason: 'end_turn' };
+      }
       await readOffer();
       let controlEvidence = '';
       if (request.objective.includes('CONTROLES_FICTIFS')) {

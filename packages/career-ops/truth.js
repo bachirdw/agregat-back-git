@@ -25,7 +25,9 @@ export function progressArgument(name, args = {}) {
       : /^[a-z][a-z0-9-]{1,40}$/.test(command)
         ? command
         : null;
-  if (name === 'career_read') return path.startsWith('jds/') ? 'jds/' : null;
+  // A read of the Skill's inbox proves the first step of modes/pipeline.md; other reads say nothing.
+  if (name === 'career_read')
+    return path.startsWith('jds/') ? 'jds/' : path === 'data/pipeline.md' ? path : null;
   if (name === 'career_write')
     return WRITE_PREFIXES.find((prefix) => path.startsWith(prefix)) ?? null;
   return null;

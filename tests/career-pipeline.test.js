@@ -4,7 +4,11 @@ import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerTools, SKILL_SCRIPT_NAMES, sourceSnapshot } from '../packages/career-ops/tools.js';
-import { createTurnTruth, formatCareerBilan } from '../packages/career-ops/truth.js';
+import {
+  createTurnTruth,
+  formatCareerBilan,
+  progressArgument,
+} from '../packages/career-ops/truth.js';
 
 // pipeline-01 : la boîte d'entrée data/pipeline.md du Skill (modes/pipeline.md « Format of
 // pipeline.md »). Espace FICTIF, URL example.test ; aucun script du Skill lancé : des faux qui
@@ -247,6 +251,13 @@ test('Bilan : boîte d’entrée vide ou absente, sans dossier connu, prompt san
     createTurnTruth({ root }),
   );
   assert.doesNotMatch(bilan, /oîte d’entrée/);
+});
+
+test('Passerelle : la lecture de data/pipeline.md est transmise comme argument, pas les autres lectures', () => {
+  assert.equal(progressArgument('career_read', { path: 'data/pipeline.md' }), 'data/pipeline.md');
+  assert.equal(progressArgument('career_read', { path: 'data/pipeline.bridge.md' }), null);
+  assert.equal(progressArgument('career_read', { path: 'cv.md' }), null);
+  assert.equal(progressArgument('career_read', { path: 'jds/offre-fictive.md' }), 'jds/');
 });
 
 test('Bilan : canal ACP, une entrée disparue est dite, une entrée ajoutée pendant le tour reste en attente', (t) => {

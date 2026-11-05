@@ -86,6 +86,17 @@ intents:
         persists: true
         readFirst: true
         proves: évaluation enregistrée
+      # modes/oferta.md « Save report » : le numéro réservé est libéré une fois le rapport écrit
+      # (E38). Constaté seulement : facultatif, la plateforme ne libère rien elle-même.
+      - id: release
+        title: Libérer le numéro du rapport
+        tool: career_script
+        argument: reserve-report-num
+        args: ['--release', '{###}']
+        precondition: Rapport reports/{###}-….md écrit
+        done: reserve-report-num --release {###} terminé (args ["--release","{###}"]), reports/{###}-RESERVED.md retiré
+        optional: true
+        persists: true
       # auto-pipeline Step 3 : le CV adapté vient des scripts du Skill (modes/pdf.md), entre le rapport et le
       # suivi ; facultatif car le mode oferta n'a pas de PDF automatique. Payload JSON écrit sous output/.
       - id: cv-build

@@ -2,6 +2,7 @@ import { readConfined } from '../../packages/policy-engine/files.js';
 import { linkedInDraft } from '../../packages/career-ops/sends.js';
 import http from 'node:http';
 import { CareerTools } from '../../packages/career-ops/tools.js';
+import { scriptTokens } from '../../packages/career-ops/truth.js';
 import { defaultCareerWorkspace, MAX_FILE_BYTES } from '../../packages/career-ops/workspace.js';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -466,7 +467,13 @@ export function createApp({
             sessionUpdate: 'tool_call',
             toolCallId: body.toolCallId,
             title: body.name,
-            rawInput: { command: body.argument, path: body.argument, url: body.landedUrl },
+            rawInput: {
+              command: body.argument,
+              path: body.argument,
+              url: body.landedUrl,
+              // Leading flags of a script (E38), as gatewayProgress filtered them.
+              args: scriptTokens(body.args),
+            },
             status: body.status,
           });
         }

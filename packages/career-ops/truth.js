@@ -160,10 +160,27 @@ export function trackerSummary(text) {
   const match = String(text ?? '').match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
   return match ? { added: Number(match[1]), updated: Number(match[2]) } : null;
 }
+// bilan-03 (E38) : the leading flags and numbers of a script call (e.g. ["--release","042"]),
+// enough for a manifest step to tell two uses of one script apart. Stops at the first other
+// value: a URL, a name or a path never leaves the gateway this way.
+const SCRIPT_TOKEN = /^(?:--?[a-z][a-z0-9-]{0,30}|\d{1,6}(?:-\d{1,6})?)$/;
+export function scriptTokens(args) {
+  const tokens = [];
+  for (const arg of Array.isArray(args) ? args.slice(0, 10) : []) {
+    if (typeof arg !== 'string' || !SCRIPT_TOKEN.test(arg)) break;
+    tokens.push(arg);
+  }
+  return tokens;
+}
 // What the MCP gateway reports to the platform for one call: the progress argument, the URL of
-// a scored offer (Relay record or Skill report header), the rows merge-tracker counted. Never the
-// report, the TSV or any page text.
+// a scored offer (Relay record or Skill report header), the rows merge-tracker counted, the
+// leading flags of a script. Never the report, the TSV or any page text.
 export function gatewayProgress(name, status, args, result) {
+  const progress = callProgress(name, status, args, result);
+  const tokens = name === 'career_script' ? scriptTokens(args?.args) : [];
+  return tokens.length ? { ...progress, args: tokens } : progress;
+}
+function callProgress(name, status, args, result) {
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
   if (

@@ -44,6 +44,13 @@ const stepSchema = z
     tool: toolId,
     alternativeTools: z.array(toolId).max(5).optional(),
     argument: z.string().trim().min(1).max(100).optional(),
+    // Leading arguments a call must carry to prove this step, for two uses of the same command
+    // (e.g. a flag). `{name}` stands for any non-empty value. A call without them does not count.
+    args: z
+      .array(z.string().regex(/^\S{1,60}$/))
+      .min(1)
+      .max(10)
+      .optional(),
     // The pack names the URL path segments that prove this step (e.g. a form page). No regex:
     // whole lowercase words, compared to each path segment, case-insensitively.
     urlPattern: z
@@ -267,8 +274,20 @@ function matches(step, update, name) {
       return false;
     }
   }
-  if (!step.argument || step.tool !== name) return true;
+  if (step.tool !== name) return true;
   const input = toolInput(update);
+  if (
+    step.args &&
+    !step.args.every((expected, index) => {
+      const actual = Array.isArray(input.args) ? input.args[index] : undefined;
+      return (
+        typeof actual === 'string' &&
+        (/^\{[^{}]+\}$/.test(expected) ? actual.length > 0 : actual === expected)
+      );
+    })
+  )
+    return false;
+  if (!step.argument) return true;
   return [input.command, input.script, input.path, input.args, update.title].some(
     (x) => typeof x === 'string' && x.includes(step.argument),
   );

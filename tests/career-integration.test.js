@@ -1463,6 +1463,8 @@ test('Coller une URL FICTIVE : rapport du Skill, ligne de suivi par merge-tracke
     "Vérifier que l'annonce est encore ouverte",
     'Réserver le numéro du rapport',
     'Écrire le rapport du Skill',
+    // bilan-03 (E38) : le faux agent libère le numéro par la passerelle MCP seule.
+    'Libérer le numéro du rapport',
     "Écrire la ligne d'ajout au suivi",
     'Fusionner le suivi du Skill',
   ])

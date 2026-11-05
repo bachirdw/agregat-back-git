@@ -457,6 +457,7 @@ export function createApp({
             argument: typeof body.argument === 'string' ? body.argument.slice(0, 60) : undefined,
             tracker: body.tracker,
             facts: body.facts,
+            scan: body.scan,
           });
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

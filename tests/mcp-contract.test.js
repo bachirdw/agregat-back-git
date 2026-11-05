@@ -146,3 +146,26 @@ test('MCP réel : browser_verify publié en lecture avec un schéma strict', asy
     assert.match(response.content[0].text, /validation|Fournir|exige/i);
   }
 });
+
+// E27 : browser_snapshot borné comme career_read (E7) : 24 000 caractères par défaut, 48 000 au plus,
+// suite avec offset=nextOffset. Une capture non bornée dépassait la limite de l'adaptateur Claude.
+test('MCP réel : browser_snapshot expose maxChars (défaut 24 000, max 48 000) et offset', async (t) => {
+  const client = await fixture(t, 'isolated', 'core', ['browser.navigate', 'browser.snapshot']);
+  const tool = (await client.listTools()).tools.find((entry) => entry.name === 'browser_snapshot');
+  assert.ok(tool, 'browser_snapshot exposé');
+  assert.equal(tool.inputSchema.properties.maxChars.default, 24000);
+  assert.equal(tool.inputSchema.properties.maxChars.maximum, 48000);
+  assert.equal(tool.inputSchema.properties.maxChars.minimum, 1);
+  assert.equal(tool.inputSchema.properties.offset.minimum, 0);
+  assert.equal(tool.inputSchema.properties.offset.default, 0);
+  assert.match(tool.description, /offset=nextOffset/);
+  for (const args of [{ maxChars: 0 }, { maxChars: 48001 }, { offset: -1 }, { offset: 1.5 }]) {
+    const response = await client.callTool({ name: 'browser_snapshot', arguments: args });
+    assert.equal(response.isError, true, JSON.stringify(args));
+    assert.match(response.content[0].text, /validation/i);
+  }
+  const simulated = (await (await fixture(t, 'fixture')).listTools()).tools.find(
+    (entry) => entry.name === 'browser_snapshot',
+  );
+  assert.equal(simulated.inputSchema.properties.maxChars.maximum, 48000);
+});

@@ -71,3 +71,13 @@ test('Accords automatiques FICTIFS : un appel passerelle approuvé compte comme 
   assert.deepEqual(out.contradictions, []);
   assert.deepEqual(out.calls, ['browser_navigate:approved']);
 });
+
+// E25 : le Bilan écrit le nom déclaré (`browser_fillForm`), les événements ACP sont comparés en
+// minuscules ; la casse ne doit pas produire « aucun appel observé ».
+test('Casse FICTIVE : browser_fillForm du Bilan retrouve l’appel browser_fillform des événements', () => {
+  const out = analyseRun(run('completed', bilan('browser_fillForm, browser_navigate')), [
+    call('f', 'mcp__platform__browser_fillform', 'completed'),
+    call('n', 'browser_navigate', 'completed'),
+  ]);
+  assert.deepEqual(out.contradictions, []);
+});

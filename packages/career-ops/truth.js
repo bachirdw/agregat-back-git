@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
 import { loadSkillManifest } from '../orchestrator/skill-router.js';
 import { inboxEntries, inboxDelta } from './inbox.js';
+import { capabilities } from '../capability-registry/index.js';
 
 // The outcomes the career Bilan checks. Which tool calls prove them is declared by the pack's
 // manifest (step field `proves`), never by a tool name written here.
@@ -17,6 +18,20 @@ const FACT_GATE = 'verify-cv-facts';
 const INBOX_PROCESSED = 'boîte d’entrée traitée';
 let careerManifest;
 const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
+
+// E25 : one tool, one name. The ACP channel lowercases what the agent wrote, the gateway reports
+// the declared name (`browser_fillForm`); both map to the registry's spelling, other names to
+// lowercase. The title must still be the exact name (E22): only its casing is normalised here.
+const DECLARED_TOOL_NAMES = new Map(
+  capabilities.map((capability) => {
+    const declared = capability.id.replace('.', '_');
+    return [declared.toLowerCase(), declared];
+  }),
+);
+export const canonicalToolName = (name) => {
+  const lower = String(name ?? '').toLowerCase();
+  return DECLARED_TOOL_NAMES.get(lower) ?? lower;
+};
 
 // What the progress tracker and the Bilan may learn of a call: a command name or a path prefix,
 // never a file name (report and TSV names carry the company).
@@ -77,6 +92,69 @@ export function factsUnsourced(text) {
   }
   return count;
 }
+// C8 (E21): how many portals the Skill's scan reported in network failure, read from the scan
+// output itself (never from data/portal-health.tsv, never from a list of sites). The Skill prints
+// one line per source; a line counts when it carries a network error (« fetch failed », a Node
+// network code) or a bare `network` status token. A JSON summary counts its entries whose status
+// is `network` or whose error text is one. Nothing else is interpreted.
+const NETWORK_ERROR =
+  /fetch failed|\bE(?:NOTFOUND|CONNREFUSED|CONNRESET|TIMEDOUT|AI_AGAIN|HOSTUNREACH|NETUNREACH|PIPE)\b|UND_ERR_\w+|\bnetwork error\b/i;
+const NETWORK_STATUS = /(?:^|[\t|[(:]\s*)network(?=\s*(?:$|[\t|\])—:]))/i;
+const STATUS_FIELDS = ['status', 'health', 'state', 'outcome', 'result', 'reachability'];
+const ERROR_FIELDS = ['error', 'reason', 'message', 'detail'];
+export function scanNetworkFailures(text) {
+  const output = typeof text === 'string' ? text : '';
+  if (!output.trim()) return 0;
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    parsed = undefined;
+  }
+  if (parsed && typeof parsed === 'object') {
+    let count = 0;
+    const visit = (value, depth) => {
+      if (depth > 6 || !value || typeof value !== 'object') return;
+      if (Array.isArray(value)) return value.forEach((item) => visit(item, depth + 1));
+      const status = STATUS_FIELDS.map((key) => value[key]).find((v) => typeof v === 'string');
+      const error = ERROR_FIELDS.map((key) => value[key]).find((v) => typeof v === 'string');
+      if (status?.trim().toLowerCase() === 'network' || (error && NETWORK_ERROR.test(error)))
+        count += 1;
+      else Object.values(value).forEach((item) => visit(item, depth + 1));
+    };
+    visit(parsed, 0);
+    return count;
+  }
+  return output.split('\n').filter((line) => NETWORK_ERROR.test(line) || NETWORK_STATUS.test(line))
+    .length;
+}
+// The gateway answers a script as one JSON text { text, exitCode, untrusted }: read that field.
+const scriptOutput = (output) => {
+  let value = output;
+  for (let depth = 0; depth < 6; depth++) {
+    if (typeof value === 'string') {
+      try {
+        value = JSON.parse(value);
+        continue;
+      } catch {
+        return value;
+      }
+    }
+    if (Array.isArray(value)) {
+      value = value[0];
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      if (typeof value.text === 'string' && 'exitCode' in value) return value.text;
+      if (value.content !== undefined) value = value.content;
+      else if (typeof value.text === 'string') value = value.text;
+      else return '';
+      continue;
+    }
+    return '';
+  }
+  return '';
+};
 // merge-tracker.mjs ends with « 📊 Summary: +N added, 🔄M updated, ⏭️K skipped ».
 export function trackerSummary(text) {
   const match = String(text ?? '').match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
@@ -105,6 +183,8 @@ export function gatewayProgress(name, status, args, result) {
   }
   if (status === 'failed' && name === 'career_script' && argument === FACT_GATE)
     return { argument, facts: { unsourced: factsUnsourced(scriptText(result?.content)) } };
+  if (completed && name === 'career_script' && argument === 'scan')
+    return { argument, scan: { networkFailures: scanNetworkFailures(scriptOutput(result)) } };
   return { argument };
 }
 // The `text` a career_script result carries (stdout and stderr of the script), as the gateway wraps it.
@@ -192,6 +272,12 @@ export function createTurnTruth({ root } = {}) {
   let tracker = null;
   // Last verdict of the Skill's fact gate: null when the last run passed, else the count it listed.
   let factsUnsourcedCount = null;
+  // C8 : the last completed scan of the turn, as its own output says.
+  let scan = null;
+  const setScan = (networkFailures) => {
+    if (Number.isInteger(networkFailures) && networkFailures >= 0) scan = { networkFailures };
+    else scan ??= { networkFailures: null };
+  };
   const addTracker = (rows) => {
     if (!rows) return;
     tracker = {
@@ -213,7 +299,9 @@ export function createTurnTruth({ root } = {}) {
         .match(
           /^(?:mcp__[a-z0-9_]+?__)?(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/i,
         );
-      const name = match?.[1]?.replace('.', '_').toLowerCase() ?? names.get(update.toolCallId);
+      const name = match
+        ? canonicalToolName(match[1].replace('.', '_'))
+        : names.get(update.toolCallId);
       if (!name) return;
       names.set(update.toolCallId, name);
       const path = update.rawInput?.path ?? update.rawInput?.arguments?.path;
@@ -272,11 +360,13 @@ export function createTurnTruth({ root } = {}) {
           }
           if (name === 'career_script' && argument === 'merge-tracker')
             addTracker(trackerSummary(outputText(update.rawOutput ?? update.content)));
+          if (name === 'career_script' && argument === 'scan')
+            setScan(scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)));
         }
       }
     },
     recordGatewayTool(
-      name,
+      reportedName,
       status,
       {
         jdRead: sourceRead = false,
@@ -286,15 +376,17 @@ export function createTurnTruth({ root } = {}) {
         argument,
         tracker: rows,
         facts,
+        scan: scanRows,
       } = {},
     ) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
-          name,
+          reportedName,
         ) ||
         !['completed', 'failed'].includes(status)
       )
         throw new Error('Résultat d’outil invalide');
+      const name = canonicalToolName(reportedName);
       const key = toolCallId ?? `anonymous-${++anonymousCall}`;
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),
@@ -330,6 +422,7 @@ export function createTurnTruth({ root } = {}) {
           rows.updated >= 0
         )
           addTracker({ added: rows.added, updated: rows.updated });
+        if (name === 'career_script' && safeArgument === 'scan') setScan(scanRows?.networkFailures);
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -356,6 +449,9 @@ export function createTurnTruth({ root } = {}) {
     // null: the fact gate passed last (or never ran); a number: claims it listed on its last refusal.
     factsUnsourced() {
       return factsUnsourcedCount;
+    },
+    scanResult() {
+      return scan;
     },
     hasJdRead() {
       return jdRead;
@@ -413,8 +509,9 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
   const mixed = [];
   for (const [name, group] of byName) {
     if (group.completed.length && group.failed.length) {
+      // E29 : the only line about a partly failed tool, with the cause of its last failure.
       mixed.push(
-        `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''}`,
+        `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''} (${group.failed.at(-1).cause})`,
       );
     } else if (group.completed.length) {
       const sent = group.completed.at(-1).sent;
@@ -515,7 +612,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
           : 'fusion réussie, nombre de lignes non lu'
       } (merge-tracker).`
     : '';
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}${inboxLine}`;
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}${inboxLine}${scanLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

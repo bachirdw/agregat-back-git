@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  assessBrowserClaims,
   browserObservationFailure,
   compactBrowserEvidence,
   readableBrowserObservation,
@@ -131,4 +132,63 @@ test('waitedFor reste dans la preuve compacte : texte attendu non apparu, captur
       .waitedFor,
     undefined,
   );
+});
+
+// C5 c (E19) : le Bilan dit, à partir des seuls champs de preuve, qu'un texte attendu n'est pas
+// apparu et si un défilement a été observé ; aucune règle sur un site ou un contenu.
+test('C5 c FICTIF : « Capture : texte attendu non apparu » à partir de waitedFor, scrolled, hidden, textLength', () => {
+  const capture = (extra) =>
+    compactBrowserEvidence({
+      capability: 'browser.snapshot',
+      url: 'https://offres.example.test/offre/1',
+      snapshot: '- heading "Offre FICTIVE"',
+      provider: 'playwriter-owner',
+      loading: false,
+      ...extra,
+    });
+  const missing = assessBrowserClaims(
+    'Description absente de https://offres.example.test/offre/1',
+    [
+      capture({
+        waitedFor: { text: 'Responsabilités FICTIVES', found: false },
+        hidden: true,
+        textLength: 2506,
+      }),
+      capture({
+        waitedFor: { text: 'Responsabilités FICTIVES', found: false },
+        hidden: true,
+        textLength: 2506,
+      }),
+    ],
+  );
+  assert.match(
+    missing.notice,
+    /\nCapture : texte attendu non apparu \(2\) ; défilement : non observé ; onglet caché ; texte de la page : 2506 caractères\.$/,
+  );
+  assert.deepEqual(missing.captures, {
+    expectedTextMissing: 2,
+    scrolled: false,
+    hidden: true,
+    textLength: 2506,
+  });
+  assert.doesNotMatch(missing.notice, /Responsabilités/);
+  const scrolled = assessBrowserClaims('Rien.', [
+    capture({ waitedFor: { text: 'Suite', found: false }, textLength: 900 }),
+    capture({ scrolled: 'bottom', textLength: 1200 }),
+  ]);
+  assert.match(
+    scrolled.notice,
+    /\nCapture : texte attendu non apparu \(1\) ; défilement : observé ; texte de la page : 900 caractères\.$/,
+  );
+  assert.equal(scrolled.captures.hidden, false);
+  // Expected text present, or no expectation: no line, counts stay available.
+  for (const evidence of [
+    [capture({ waitedFor: { text: 'Offre', found: true }, scrolled: 'page' })],
+    [capture({})],
+    [],
+  ]) {
+    const result = assessBrowserClaims('Rien.', evidence);
+    assert.doesNotMatch(result.notice, /Capture :/);
+    assert.equal(result.captures.expectedTextMissing, 0);
+  }
 });

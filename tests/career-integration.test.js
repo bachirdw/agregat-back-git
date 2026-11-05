@@ -979,7 +979,7 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
   for (const [prompt, expected, scope] of [
     [
       'FICTIF_ACTION_ECHOUEE postule',
-      /Action\(s\) échouée\(s\) : browser_click —/,
+      /- Actions échouées : browser_click — écriture automatisée interdite/,
       /actions échouées/,
     ],
     [
@@ -997,6 +997,8 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
       readFileSync(join(career.path(), `relay/runs/${run.id}-result.json`), 'utf8'),
     );
     assert.match(privateResult.summary, expected);
+    // E29 : the Bilan is the only place that lists failed actions (no duplicated line above it).
+    assert.doesNotMatch(privateResult.summary, /Action\(s\) échouée\(s\)/);
     assert.match(privateResult.summary, /Bilan\n- Actions réussies : career_read/);
     assert.match(
       app.store.get(run.id).result.summary,
@@ -1141,6 +1143,26 @@ test('Bilan FICTIF : pont d’outil lié au tour, jeton et statut vérifiés', a
     { name: 'career_read', status: 'completed' },
   ]);
   assert.equal(control.turnTruth.hasJdRead(), true);
+  // C8 : the scan's network-failure count crosses the bridge like merge-tracker rows.
+  const scanReport = await fetch(
+    `http://127.0.0.1:${app.server.address().port}/api/internal/tool-outcome/${id}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-platform-request': '1',
+        'x-relay-token': 'JETON_FICTIF',
+      },
+      body: JSON.stringify({
+        name: 'career_script',
+        status: 'completed',
+        argument: 'scan',
+        scan: { networkFailures: 2 },
+      }),
+    },
+  );
+  assert.equal(scanReport.status, 200);
+  assert.deepEqual(control.turnTruth.scanResult(), { networkFailures: 2 });
   control.skillProgress = new SkillProgress(
     selectSkillIntents('Postule à cette offre FICTIVE', [getPack('career-ops').skillManifest]),
   );

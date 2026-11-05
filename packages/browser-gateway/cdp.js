@@ -14,6 +14,7 @@ import { resolve, basename, relative, isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
 
 import { ownerTransport } from './owner-transport.js';
+import { paginateText } from './paginate.js';
 import { waitForExtension } from './relay-start.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
@@ -1339,11 +1340,14 @@ export class CdpBrowser {
         } else followed = await followWindow();
         const { loading, ...extras } = await prepareCapture(page, args);
         const snapshot = await page.ariaSnapshot({ mode: 'ai', timeout: 5000 });
+        // References come from the whole capture; the agent receives one bounded page of it (E27).
         this.snapshotRefs = snapshotRefs(snapshot);
+        const { page: bounded, ...paging } = paginateText(snapshot, args);
         return {
           url: page.url(),
           title: await page.title(),
-          snapshot,
+          snapshot: bounded,
+          ...paging,
           loading,
           ...extras,
           ...followed,

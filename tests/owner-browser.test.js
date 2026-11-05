@@ -1617,3 +1617,74 @@ test(
     assert.match(result.snapshot, /FICTIF page sans la description/);
   },
 );
+
+// E27 : une page longue est capturée par pages de 24 000 caractères ; les références restent
+// celles de la capture complète, donc utilisables au-delà de la coupure.
+test(
+  'Chrome FICTIF : snapshot borné à maxChars, suite par offset, références intactes',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const items = Array.from(
+      { length: 1500 },
+      (_, i) => `<li>Ligne FICTIVE numéro ${i} avec un libellé assez long pour peser</li>`,
+    ).join('');
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        `<title>FICTIF long</title><ul>${items}</ul><button onclick="document.body.dataset.fin = 'oui'">Fin FICTIVE</button>`,
+      );
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => {
+      server.closeAllConnections();
+      return new Promise((resolve) => server.close(resolve));
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    t.after(() => provider.close());
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-long',
+        workspace: temporary(),
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    const first = await gateway.call('browser.snapshot', {});
+    assert.equal(first.snapshot.length, 24000);
+    assert.equal(first.truncated, true);
+    assert.equal(first.offset, 0);
+    assert.equal(first.nextOffset, 24000);
+    assert.match(first.truncation, /offset=24000/);
+    assert.match(first.notice, /non fiables/);
+    assert.ok(first.totalChars > 48000, String(first.totalChars));
+    assert.doesNotMatch(first.snapshot, /Fin FICTIVE/);
+    const second = await gateway.call('browser.snapshot', {
+      offset: first.nextOffset,
+      maxChars: 48000,
+    });
+    assert.equal(second.offset, 24000);
+    assert.equal(second.snapshot.length, Math.min(48000, first.totalChars - 24000));
+    assert.equal(second.truncated, first.totalChars > 24000 + 48000);
+    assert.equal(second.totalChars, first.totalChars);
+    let tail = second;
+    for (let pages = 0; tail.truncated && pages < 10; pages++)
+      tail = await gateway.call('browser.snapshot', { offset: tail.nextOffset, maxChars: 48000 });
+    assert.equal(tail.truncated, false);
+    assert.equal(tail.nextOffset, null);
+    assert.equal(tail.truncation, undefined);
+    const ref = tail.snapshot
+      .split('\n')
+      .find((line) => line.includes('Fin FICTIVE'))
+      ?.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, 'référence du bouton au-delà de la coupure');
+    await gateway.call('browser.click', { ref });
+    assert.equal(await provider.page.locator('body').getAttribute('data-fin'), 'oui');
+    await assert.rejects(gateway.call('browser.snapshot', { maxChars: 48001 }));
+    await assert.rejects(gateway.call('browser.snapshot', { offset: -1 }));
+  },
+);

@@ -40,7 +40,10 @@ const failure = (e) => {
 // E64, E66 : the agent's tool call in progress (see calls.js).
 const calls = new CallRegistry();
 const currentCall = () => calls.current();
-async function approve(request) {
+// Revue Opus du 06/11 : a write already granted (`trace`, owner mode) is only recorded ; the
+// request leaves anyway, so its trace never dies with a cancelled call and waits 10 s at most.
+const TRACE_MS = 10000;
+async function approve(request, { trace = false } = {}) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
   const call = currentCall();
@@ -50,10 +53,12 @@ async function approve(request) {
     url,
     process.env.RELAY_APPROVAL_TOKEN,
     { ...request, ...(call?.toolCallId ? { callId: call.toolCallId } : {}) },
-    {
-      timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
-      signal: call?.signal,
-    },
+    trace
+      ? { timeoutMs: TRACE_MS }
+      : {
+          timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
+          signal: call?.signal,
+        },
   );
 }
 
@@ -201,12 +206,10 @@ if (mode === 'fixture') {
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
   // Owner mode: network writes that follow no send click are granted; the platform only records them.
   const onAutoSend = ({ host }) =>
-    approve({
-      capability: 'browser.send',
-      sensitive: false,
-      actionClass: 'network',
-      args: { host },
-    });
+    approve(
+      { capability: 'browser.send', sensitive: false, actionClass: 'network', args: { host } },
+      { trace: true },
+    );
   const gateway = new BrowserGateway({
     provider,
     policy,

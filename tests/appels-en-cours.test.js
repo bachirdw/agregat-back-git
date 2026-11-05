@@ -86,3 +86,26 @@ test('Appels FICTIFS : un appel navigateur annulé et bloqué s’efface devant 
   stuckWait.release();
   await stuckDone;
 });
+
+// Revue Opus du 06/11 : un rappel créé pendant un appel peut tourner bien après lui (les rappels
+// réseau de Playwright héritaient de l'appel qui avait ouvert le navigateur) ; un appel fini n'est
+// plus l'appel de personne. Le cas réel, avec Chrome : tests/appels-rappels-reseau.test.js.
+test('Appels FICTIFS : un rappel tardif d’un appel fini voit l’appel en cours, ou aucun', async () => {
+  const calls = new CallRegistry();
+  const opener = { toolCallId: 'ouverture-FICTIVE', signal: AbortSignal.abort() };
+  const later = () => new Promise((resolve) => setTimeout(resolve, 20)).then(() => calls.current());
+  let late;
+  await calls.run('browser_navigate', opener, async () => {
+    late = later();
+  });
+  assert.equal(await late, null);
+  const click = { toolCallId: 'clic-FICTIF', signal: new AbortController().signal };
+  const clickWait = pending();
+  const clickDone = calls.run('browser_click', click, () => clickWait.promise);
+  await calls.run('browser_navigate', opener, async () => {
+    late = later();
+  });
+  assert.equal(await late, click);
+  clickWait.release();
+  await clickDone;
+});

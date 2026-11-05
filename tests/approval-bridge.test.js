@@ -51,7 +51,16 @@ async function setup(t, options = {}) {
     ...(options.ownerMode ? { ownerMode: true } : {}),
   });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
-  const run = { id: crypto.randomUUID(), state: 'running', budgetCents: 0, cwd: temporary() };
+  // Revue Opus du 06/11 : sans navigateur nommé, une mission du mode propriétaire prend le Chrome
+  // du propriétaire par le relais Playwriter (moteur, mcpServerFor) : ces tests pilotaient son vrai
+  // navigateur et, en client « default », coupaient toute mission en cours. Chrome isolé, toujours.
+  const run = {
+    id: crypto.randomUUID(),
+    state: 'running',
+    budgetCents: 0,
+    cwd: temporary(),
+    browser: 'isolated',
+  };
   mkdirSync(run.cwd, { recursive: true });
   app.store.create(run);
   app.engine.active.set(run.id, { abort: new AbortController() });
@@ -462,5 +471,56 @@ test(
     assert.equal(control.sendsUncertain ?? 0, 0);
     assert.equal(control.sendCalls?.size ?? 0, 0);
     assert.equal(hits.posts, 0);
+  },
+);
+
+// Revue Opus du 06/11 : la trace d'une écriture réseau accordée d'office en mode propriétaire
+// (onAutoSend) passait par le signal de l'appel en cours ; un appel abandonné par l'agent la faisait
+// perdre, alors que la requête du site partait quand même : le Bilan la taisait.
+test(
+  'pont d’approbation : écriture du site pendant un appel abandonné → partie et tracée',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    // Un clic hors envoi, puis l'écriture du site 2,5 s après (dans la fenêtre de 8 s du clic) :
+    // accordée d'office et tracée en mode propriétaire.
+    const page =
+      '<!doctype html><title>Site FICTIF</title><p>Page FICTIVE</p>' +
+      "<button onclick=\"setTimeout(() => fetch('/stats', { method: 'POST', body: 'FICTIF' }), 2500)\">" +
+      'Plus d’infos</button>';
+    const { app, run, mcp, hits, origin } = await setup(t, {
+      ownerMode: true,
+      allowJavaScript: true,
+      page,
+    });
+    await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
+    const snapshot = await mcp.callTool({ name: 'browser_snapshot', arguments: {} });
+    const ref = JSON.parse(snapshot.content[0].text).snapshot.match(
+      /button "Plus d’infos" \[ref=((?:f\d+)?e\d+)\]/,
+    )?.[1];
+    assert.ok(ref, JSON.stringify(snapshot).slice(0, 400));
+    const clicked = await mcp.callTool({ name: 'browser_click', arguments: { ref } });
+    assert.notEqual(clicked.isError, true, JSON.stringify(clicked).slice(0, 300));
+    assert.doesNotMatch(JSON.stringify(clicked), /playwriter/, 'jamais le Chrome du propriétaire');
+    // Une capture qui attend un texte absent (8 s au plus), abandonnée aussitôt par l'agent.
+    const call = new AbortController();
+    const waiting = mcp
+      .callTool(
+        { name: 'browser_snapshot', arguments: { waitForText: 'jamais FICTIF' } },
+        undefined,
+        { signal: call.signal, timeout: 30000 },
+      )
+      .catch(() => null);
+    await new Promise((r) => setTimeout(r, 300));
+    call.abort();
+    await waiting;
+    for (let i = 0; i < 100 && hits.posts === 0; i++) await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 1500));
+    assert.equal(hits.posts, 1);
+    assert.ok(
+      app.store
+        .events(run.id)
+        .some((e) => e.type === 'permission_auto' && e.data?.capability === 'browser.send'),
+      'écriture partie mais non tracée',
+    );
   },
 );

@@ -12,12 +12,19 @@ import {
 } from 'node:fs';
 import { resolve, basename, relative, isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
+import { AsyncResource } from 'node:async_hooks';
 
 import { ownerTransport } from './owner-transport.js';
 import { paginateText } from './paginate.js';
 import { waitForExtension } from './relay-start.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
+
+// Revue Opus du 06/11 (E64, E66) : Playwright runs its callbacks (routes, events) in the async
+// context where the browser connection was created. Opened inside an agent's tool call, every later
+// network callback saw that call (finished long ago, maybe cancelled), whose approvals then ended at
+// once. The connection is opened from this module's own context, outside any tool call.
+const outsideCalls = AsyncResource.bind((work) => work());
 
 // Real browser provider over the Chrome DevTools Protocol, through playwright-core.
 // - endpoint: a CDP endpoint (Playwriter relay `http://127.0.0.1:19988`, or Chrome started with
@@ -480,7 +487,7 @@ export class CdpBrowser {
       this.pageSession = null;
     }
     if (this.page) return this.page;
-    this.#opening = this.open(policy).catch(async (error) => {
+    this.#opening = outsideCalls(() => this.open(policy)).catch(async (error) => {
       // Startup is transactional: never leave a partially guarded context available for reuse.
       this.#closed = true;
       await this.release();

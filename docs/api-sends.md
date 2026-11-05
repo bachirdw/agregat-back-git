@@ -51,3 +51,24 @@ renvoie `{id,name,size,type}` utilisable dans `email_send` ; il préserve le `cv
 L’outil `linkedin_draft` ouvre automatiquement le profil/conversation via la passerelle navigateur
 si elle est disponible ; sinon le lien reste utilisable manuellement. Le texte n’est jamais saisi
 dans LinkedIn par l’agent. L’interface affiche le brouillon et un bouton de copie.
+
+## Ce qui demande un clic, ce qui n’en demande pas (mode propriétaire)
+
+Décision du propriétaire du 05/11 : le seul clic humain est celui qui précède un envoi final.
+
+- **Demande un clic (`Approuver l’envoi`, sans expiration sauf plafond)** : le clic ou le téléchargement de
+  l’agent sur un bouton d’envoi (soumission de formulaire, y compris un bouton « Continue » placé dans un formulaire, `Envoyer`, `Apply`,
+  `Submit`, `Send`), ainsi que
+  toute requête qui en découle pendant et après ce clic (fenêtre de 8 s) ; une soumission de formulaire par
+  navigation (POST d’un document) ; l’e-mail (`email_send`).
+- **Ne demande plus de clic** : toute autre requête réseau d’écriture émise par la page (fetch, mutation
+  GraphQL, `apply` ou `send` dans l’URL ou l’opération) quand elle ne suit pas un clic d’envoi approuvé :
+  chargement de page, clic sur un élément qui n’est pas un formulaire, étape intermédiaire. Elle est
+  accordée automatiquement et tracée : événement `permission_auto` avec la capacité `browser.send`
+  (hôte seulement, jamais l’URL, le corps ni la requête), `networkSends` dans le résultat de l’outil
+  navigateur, et ligne du Bilan « Requêtes réseau d'envoi : n accordées automatiquement (mode propriétaire) ».
+- Restent bloqués sans question : les POST tiers hors navigation (traceurs), les corps de plus de 100 Ko
+  non approuvés, tout CAPTCHA ou détection de robot (aucun contournement).
+- Hors mode propriétaire rien ne change : chaque écriture demande l’accord.
+- Risque accepté : un envoi déclenché par une requête que la page émet hors de tout clic d’envoi (script,
+  lien GET) passe sans clic ; il est compté et visible au Bilan.

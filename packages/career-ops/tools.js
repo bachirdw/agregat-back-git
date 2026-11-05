@@ -10,6 +10,7 @@ import { parse } from 'yaml';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { buildChildEnv } from '../agent-runtime/env.js';
 import { validatePortalsConfig } from './providers.js';
+import { inboxEntries } from './inbox.js';
 import { emailSchema, EmailGateway, linkedInDraft } from './sends.js';
 const exec = promisify(execFile);
 const noNetworkPreload = fileURLToPath(new URL('./no-network.cjs', import.meta.url));
@@ -124,38 +125,7 @@ function checkTrackerAddition(root, text) {
   if (!scoreCell((row[header.indexOf('score')] ?? '').trim()))
     fail('score illisible (X.X/5 ou N/A)');
 }
-// pipeline-01: the Skill's inbox (modes/pipeline.md « Format of pipeline.md »). A pending entry
-// is « - [ ] url | company | title » (1 to 5 cells, then labelled segments), an unreachable one
-// « - [!] url — note », a processed one « - [x] #NNN | url | … », « - [x] #-- | url | skipped (…) »,
-// « - [x] [NNN](reports/…) | url | … » or « - [x] ~~url | company | title~~ — posting expired ».
-// Headings and free text are the file's own (scan.mjs skeleton, sections in any language). An
-// entry is only ever ticked, by the mode, scan.mjs or reconcile-pipeline.mjs: never removed.
-const INBOX_ITEM = /^- \[([ x!])\] (.*)$/;
-const INBOX_LIKE = /^\s*[-*]\s*\[.?\]/;
-const INBOX_URL = /(?:https?:\/\/|local:)[^\s|]+/;
-const inboxKey = (url) => url.replace(/[~/]+$/, '');
-function inboxEntries(text, strict) {
-  const entries = [];
-  const refuse = (index) => {
-    if (strict)
-      throw new Error(
-        `data/pipeline.md : ligne ${index + 1} refusée ; une entrée est « - [ ] url | entreprise | poste », « - [x] #NNN | url | … » ou « - [!] url — note » (modes/pipeline.md)`,
-      );
-  };
-  text.split(/\r?\n/).forEach((line, index) => {
-    const item = line.match(INBOX_ITEM);
-    if (!item) {
-      if (INBOX_LIKE.test(line)) refuse(index);
-      return;
-    }
-    const body = item[2].replace(/^~~([\s\S]*?)~~/, '$1').trim();
-    const url = body.match(INBOX_URL)?.[0];
-    const leadsWithUrl = INBOX_URL.test(body.split(/[\s|]+/)[0] ?? '');
-    if (!url || (item[1] !== 'x' && !leadsWithUrl)) return refuse(index);
-    entries.push({ state: item[1], key: inboxKey(url) });
-  });
-  return entries;
-}
+// pipeline-01: form of the Skill's inbox, and no entry removed (packages/career-ops/inbox.js).
 function checkPipelineInbox(root, text) {
   const kept = new Set(inboxEntries(text, true).map((entry) => entry.key));
   let previous = '';

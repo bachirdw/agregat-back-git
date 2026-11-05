@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerTools, SKILL_SCRIPT_NAMES, sourceSnapshot } from '../packages/career-ops/tools.js';
+import { createTurnTruth, formatCareerBilan } from '../packages/career-ops/truth.js';
 
 // pipeline-01 : la boîte d'entrée data/pipeline.md du Skill (modes/pipeline.md « Format of
 // pipeline.md »). Espace FICTIF, URL example.test ; aucun script du Skill lancé : des faux qui
@@ -157,4 +158,117 @@ test('career_write data/pipeline.md : une entrée existante ne disparaît jamais
   // Un fichier absent ou vide ne contraint rien.
   rmSync(join(root, 'data/pipeline.md'));
   assert.equal(tools.write('data/pipeline.md', SKELETON).saved, true);
+});
+
+// Point 3 : le Bilan relit data/pipeline.md avant et après (lecture seule) et lit la preuve
+// « boîte d’entrée traitée » dans le manifeste ; aucune règle dans l'orchestrateur.
+const PROMPT = 'Traite la boîte d’entrée FICTIVE';
+test('Bilan : boîte d’entrée FICTIVE de 3 entrées, 2 cochées [x] et 1 [!] → comptes lus dans le fichier', (t) => {
+  const { root, tools } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  tools.write(
+    'data/pipeline.md',
+    PROCESSED.replace(
+      `- [ ] ${URLS[2]}\n`,
+      `- [x] #043 | ${URLS[2]} | Entreprise FICTIVE | Poste FICTIF | 2.1/5 | PDF ❌\n`,
+    ),
+  );
+  truth.recordGatewayTool('career_write', 'completed', { argument: 'data/pipeline.md' });
+  const bilan = formatCareerBilan(PROMPT, truth);
+  assert.match(bilan, /- Boîte d’entrée : 2 traitées, 1 non confirmée \[!\], 0 restante\./);
+  assert.doesNotMatch(bilan, /Non exécuté :[^\n]*boîte d’entrée/);
+  assert.deepEqual(truth.inboxDelta(), {
+    pending: 3,
+    processed: 2,
+    unconfirmed: 1,
+    remaining: 0,
+    missing: 0,
+  });
+});
+
+test('Bilan : boîte d’entrée demandée mais rien de coché → non exécuté, avec les entrées restantes', (t) => {
+  const { root } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  truth.recordGatewayTool('career_read', 'completed', { argument: 'data/pipeline.md' });
+  truth.recordGatewayTool('career_script', 'completed', { argument: 'check-liveness' });
+  const bilan = formatCareerBilan(PROMPT, truth);
+  assert.match(bilan, /Non exécuté :[^\n]*boîte d’entrée traitée \(3 restantes\)/);
+  assert.doesNotMatch(bilan, /- Boîte d’entrée :/);
+  // L'étape « pipeline » de search (sans proves) n'est pas une preuve.
+  assert.match(
+    formatCareerBilan('Pipeline FICTIF', truth),
+    /Non exécuté :[^\n]*boîte d’entrée traitée/,
+  );
+});
+
+test('Bilan : « n’enregistre rien » ou « sans écrire » → aucune écriture attendue, le Bilan le dit', (t) => {
+  const { root } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  for (const prompt of [
+    `${PROMPT}, n’enregistre rien`,
+    `${PROMPT} sans écrire`,
+    `${PROMPT} à sec`,
+  ]) {
+    const bilan = formatCareerBilan(prompt, createTurnTruth({ root }));
+    assert.doesNotMatch(bilan, /Non exécuté :[^\n]*boîte/, prompt);
+    assert.match(
+      bilan,
+      /- Boîte d’entrée : aucune écriture \(le prompt l’interdit\), 3 restantes\./,
+      prompt,
+    );
+  }
+});
+
+test('Bilan : boîte d’entrée vide ou absente, sans dossier connu, prompt sans rapport', (t) => {
+  const { root } = workspace(t);
+  // Vide : rien à traiter, rien de manquant.
+  writeFileSync(join(root, 'data/pipeline.md'), SKELETON + '\n## Processed\n');
+  let bilan = formatCareerBilan(PROMPT, createTurnTruth({ root }));
+  assert.match(bilan, /- Boîte d’entrée : aucune entrée en attente\./);
+  assert.doesNotMatch(bilan, /Non exécuté :[^\n]*boîte/);
+  // Absente : idem (scan.mjs la crée au premier ajout).
+  rmSync(join(root, 'data/pipeline.md'));
+  bilan = formatCareerBilan(PROMPT, createTurnTruth({ root }));
+  assert.match(bilan, /- Boîte d’entrée : aucune entrée en attente\./);
+  // Sans dossier : la preuve compte, le fichier n'est pas relu.
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('career_write', 'completed', { argument: 'data/pipeline.md' });
+  assert.match(
+    formatCareerBilan(PROMPT, truth),
+    /- Boîte d’entrée : écriture observée, fichier non relu\./,
+  );
+  assert.equal(truth.inboxDelta(), null);
+  // Prompt sans boîte d'entrée : aucune ligne, rien de manquant.
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  bilan = formatCareerBilan(
+    'Évalue cette offre FICTIVE, n’enregistre rien',
+    createTurnTruth({ root }),
+  );
+  assert.doesNotMatch(bilan, /oîte d’entrée/);
+});
+
+test('Bilan : canal ACP, une entrée disparue est dite, une entrée ajoutée pendant le tour reste en attente', (t) => {
+  const { root } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  truth.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'w',
+    title: 'career_write',
+    rawInput: { path: 'data/pipeline.md', text: 'x' },
+  });
+  truth.observe({ sessionUpdate: 'tool_call_update', toolCallId: 'w', status: 'completed' });
+  // Écrit hors de career_write (fichier réécrit par un autre chemin) : une entrée manque, une nouvelle attend.
+  writeFileSync(
+    join(root, 'data/pipeline.md'),
+    SKELETON +
+      `- [ ] https://jobs.example.test/offre/9\n\n## Processed\n- [x] #042 | ${URLS[0]} | E | P | 4.2/5 | PDF ❌\n- [!] ${URLS[1]} — Error: FICTIF\n`,
+  );
+  const bilan = formatCareerBilan(PROMPT, truth);
+  assert.match(
+    bilan,
+    /- Boîte d’entrée : 1 traitée, 1 non confirmée \[!\], 1 restante, 1 disparue\./,
+  );
 });

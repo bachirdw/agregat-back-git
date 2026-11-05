@@ -57,6 +57,16 @@ test('E68 FICTIF : LinkedIn comme lieu de recherche, pipeline comme objet', () =
   assert.equal(intentOf('Évalue ma pipeline puis postule'), 'pipeline');
   assert.equal(intentOf('Traite ma pipeline et postule aux meilleures'), 'pipeline');
   assert.equal(intentOf('Postule à cette offre de ma pipeline'), 'apply');
-  // E54, 2e occurrence (f336641e) : « Prépare un CV pour les cinq » était suivi comme une recherche.
-  assert.equal(intentOf('Prépare un CV pour les cinq offres évaluées'), 'documents');
+  // Cinquième relecture : « prépare un CV » n'est pas une phrase de documents ; ajoutée, elle faisait
+  // passer documents (70) devant apply (60) quand le prompt demande aussi de postuler. « Prépare un
+  // CV pour les cinq » reste suivi comme une recherche (E54, à trancher : une intention par mission).
+  assert.equal(
+    intentOf(
+      'Prépare un CV et une lettre puis postule à l’offre https://emplois.example.test/job/1',
+    ),
+    'apply',
+  );
+  assert.equal(intentOf('Prépare un CV, une lettre et postule'), 'apply');
+  assert.equal(intentOf('Cherche des jobs et prépare un CV adapté'), 'search');
+  assert.equal(intentOf('Prépare un CV adapté pour les cinq offres'), 'documents');
 });

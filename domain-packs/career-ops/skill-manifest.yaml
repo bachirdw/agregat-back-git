@@ -190,7 +190,20 @@ intents:
   - id: search
     title: Chercher des offres
     priority: 100
-    phrases: [trouve des offres, recherche des offres, cherche des offres, offres d'emploi]
+    # E68 (cinquième relecture) : « jobs » et « emplois » nomment aussi la recherche ; sans ces
+    # phrases, « Cherche des jobs et prépare un CV adapté » suivait documents.
+    phrases:
+      [
+        trouve des offres,
+        recherche des offres,
+        cherche des offres,
+        offres d'emploi,
+        trouve des jobs,
+        cherche des jobs,
+        recherche des jobs,
+        trouve des emplois,
+        cherche des emplois,
+      ]
     keywords: [offres, jobs, job, emploi]
     # bilan-06 (E48) : « scan » / « scanner les portails » sans « traite(r) » : la recherche passe devant
     # la boîte d'entrée (110), même si le prompt la nomme (« ajoute les nouvelles offres à la boîte
@@ -426,10 +439,6 @@ intents:
         redige une lettre,
         prépare mon cv,
         prepare mon cv,
-        prépare un cv,
-        prepare un cv,
-        prépare les cv,
-        prepare les cv,
         adapte mon cv,
         cv adapté,
         cv + lettre,

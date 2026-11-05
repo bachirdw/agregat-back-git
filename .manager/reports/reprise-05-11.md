@@ -160,3 +160,7 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 - Vérifié : URL notée = URL lue (fiche, rapport, navigation) ; rapport et TSV au format du Skill ; le Skill n'est pas modifié (`git status` du clone : aucun fichier suivi modifié, HEAD = origin/main 35b7c531) ; l'agent a bien exécuté les scripts du Skill sans détour.
 - Correctifs du manager : `career_write` admet la création initiale de `data/applications.md` (en-tête seul, `AGENTS.md:315`), test ; commits poussés. Brief `preuves-entre-tours-01` écrit (Opus, après la suite complète en cours). Registre : E34, E35, E36.
 - Suite complète lancée sur l'arbre fusionné (`full-05-11-c.log`).
+
+## 12:33 — Suite verte sur l'arbre fusionné ; main avancé ; chantier E35 lancé
+- `npm test` sur 4165d1f : 670 parallèles (668 ✔, 2 ignorés), 148 Chrome (148 ✔), 0 échec, check et format à zéro (`full-05-11-c.log`). `main` avancé à 4165d1f et poussé.
+- Sous-agent Opus lancé sur `preuves-entre-tours-01` (E35) ; API non relancée en attendant (le code actuel de l'API, 969102b, n'a pas les fusions ; la relance se fera avec E35 corrigé pour que les missions à questions ne finissent plus `failed` à tort).

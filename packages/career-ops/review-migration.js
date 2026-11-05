@@ -17,7 +17,7 @@ import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
 import { assertSourceReview, sourceSnapshot } from './tools.js';
 
-export const REVIEWED_COMMIT = '2d6ed587e60cbb1aaaac7e3dd4a9f5b7b46a26af';
+export const REVIEWED_COMMIT = '35b7c5315837478ae35316429669a954923ccd6b';
 const RECEIPT = 'relay/source-review.json';
 const MAX_RECEIPT = 200000; // The limit career_script reads the receipt with.
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -192,6 +192,134 @@ export function applyReviewMigration(
     throw error;
   }
   // Read back as career_script does, with its size limit.
+  assertSourceReview(JSON.parse(readConfined(root, RECEIPT, MAX_RECEIPT)), sourceSnapshot(root));
+  return { ...plan, applied: true, backup, review: receipt.review };
+}
+
+// Renewal: the owner reviewed one commit of the library (REVIEWED_COMMIT). Renewing moves a versioned
+// receipt to that commit, keeping the old one as a copy. It never approves silently: the plan hash
+// covers the target commit, the old receipt and every measured file hash.
+function measureRenewal(root, reviewedCommit) {
+  const sourceCommit = git(root, 'rev-parse', 'HEAD').trim();
+  const trackedChanges = git(root, 'status', '--porcelain', '--untracked-files=no')
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.slice(3));
+  const snapshot = sourceSnapshot(root);
+  const problem = receiptProblem(root);
+  const bytes = problem ? null : readFileSync(resolve(root, RECEIPT));
+  const blockers = problem ? [problem] : [];
+  let receipt = null;
+  try {
+    if (bytes) receipt = JSON.parse(bytes);
+  } catch {
+    receipt = null;
+  }
+  const versionedReceipt =
+    receipt &&
+    typeof receipt === 'object' &&
+    !Array.isArray(receipt) &&
+    Object.hasOwn(receipt, 'schemaVersion') &&
+    receipt.files &&
+    typeof receipt.files === 'object' &&
+    !Array.isArray(receipt.files);
+  const files = versionedReceipt ? receipt.files : {};
+  const added = Object.keys(snapshot.files)
+    .filter((path) => !Object.hasOwn(files, path))
+    .sort();
+  const removed = Object.keys(files)
+    .filter((path) => !Object.hasOwn(snapshot.files, path))
+    .sort();
+  const changed = Object.keys(files)
+    .filter((path) => Object.hasOwn(snapshot.files, path) && files[path] !== snapshot.files[path])
+    .sort();
+  const previousCommit = versionedReceipt ? (receipt.review?.sourceCommit ?? null) : null;
+  const upToDate =
+    Boolean(versionedReceipt) &&
+    previousCommit === sourceCommit &&
+    !added.length &&
+    !removed.length &&
+    !changed.length;
+  if (!problem && !versionedReceipt)
+    blockers.push('Reçu non versionné ou illisible : migrer ou refaire une revue');
+  if (upToDate) blockers.push('Reçu déjà renouvelé pour cette révision : rien à faire');
+  if (sourceCommit !== reviewedCommit) blockers.push(`Révision non revue : ${sourceCommit}`);
+  if (trackedChanges.length) blockers.push(`Fichiers suivis modifiés : ${trackedChanges.length}`);
+  if (
+    versionedReceipt &&
+    JSON.stringify(versioned(snapshot, snapshot.files)).length > MAX_RECEIPT - 2000
+  )
+    blockers.push('Reçu renouvelé trop volumineux pour être relu par career_script');
+  const receiptSha256 = bytes ? sha256(bytes) : null;
+  return {
+    bytes,
+    snapshot,
+    plan: {
+      sourceCommit,
+      reviewedCommit,
+      previousCommit,
+      receiptSha256,
+      entries: Object.keys(files).length,
+      measured: Object.keys(snapshot.files).length,
+      trackedChanges,
+      added,
+      removed,
+      changed,
+      upToDate,
+      blockers,
+      applicable: blockers.length === 0,
+      planSha256: sha256(JSON.stringify({ sourceCommit, receiptSha256, files: snapshot.files })),
+    },
+  };
+}
+
+export function planRenewal(root, { reviewedCommit = REVIEWED_COMMIT } = {}) {
+  return measureRenewal(root, reviewedCommit).plan;
+}
+
+export function applyRenewal(
+  root,
+  { reviewer, plan: expected, now = new Date(), reviewedCommit = REVIEWED_COMMIT } = {},
+) {
+  const name = typeof reviewer === 'string' ? reviewer.trim() : '';
+  if (!name || name.length > 120) throw new Error('Auteur du renouvellement requis (--reviewer)');
+  const { bytes, snapshot, plan } = measureRenewal(root, reviewedCommit);
+  if (!plan.applicable) throw new Error(`Renouvellement refusé : ${plan.blockers.join(' ; ')}`);
+  if (expected !== plan.planSha256)
+    throw new Error('Renouvellement refusé : le plan ne correspond pas à l’essai à sec (--plan)');
+  const backup = `relay/source-review.legacy-${plan.receiptSha256.slice(0, 12)}.json`;
+  const receipt = {
+    ...versioned(snapshot, snapshot.files),
+    review: {
+      reviewer: name,
+      reviewedAt: now.toISOString(),
+      sourceCommit: plan.sourceCommit,
+      kind: 'renouvellement-apres-mise-a-jour',
+      note: 'Renouvelé sur décision explicite du propriétaire pour la révision cible, après revue des sources.',
+      renewedFrom: {
+        sha256: plan.receiptSha256,
+        commit: plan.previousCommit,
+        entries: plan.entries,
+        added: plan.added.length,
+        removed: plan.removed.length,
+        changed: plan.changed.length,
+        copy: backup,
+      },
+    },
+  };
+  const target = resolve(root, RECEIPT);
+  const temporary = `${target}.tmp-${process.pid}`;
+  writeBackup(resolve(root, backup), bytes);
+  try {
+    createExclusive(temporary, JSON.stringify(receipt));
+    const last = measureRenewal(root, reviewedCommit);
+    if (last.plan.planSha256 !== plan.planSha256)
+      throw new Error('Renouvellement refusé : le code ou le reçu a changé pendant l’opération');
+    renameSync(temporary, target);
+  } catch (error) {
+    rmSync(temporary, { force: true });
+    throw error;
+  }
   assertSourceReview(JSON.parse(readConfined(root, RECEIPT, MAX_RECEIPT)), sourceSnapshot(root));
   return { ...plan, applied: true, backup, review: receipt.review };
 }

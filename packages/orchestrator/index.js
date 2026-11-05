@@ -141,7 +141,11 @@ export class Orchestrator {
       live = false,
       timeoutMs,
       toolIdleMs = 120000,
-      silentMs = 180000,
+      // A long report or CV is generated without any visible event until the tool call is
+      // emitted: the owner may raise this ceiling (AGENT_PLATFORM_SILENT_MS) rather than lose it.
+      silentMs = Number(process.env.AGENT_PLATFORM_SILENT_MS) > 0
+        ? Number(process.env.AGENT_PLATFORM_SILENT_MS)
+        : 180000,
       // Absolute wait for one owner question, only when configured (default: none).
       questionTimeoutMs = Number(process.env.AGENT_PLATFORM_QUESTION_TIMEOUT_MS) > 0
         ? Number(process.env.AGENT_PLATFORM_QUESTION_TIMEOUT_MS)

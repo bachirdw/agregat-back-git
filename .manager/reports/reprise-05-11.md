@@ -234,3 +234,4 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 ## 14:54 — Suite verte sur l'arbre fusionné ; main avancé ; passation écrite
 - `npm test` sur 9d97d8e : 693 parallèles (691 ✔, 2 ignorés), 148 Chrome (148 ✔), check et format à zéro (`suite-14h45.log`). `main` avancé à HEAD et poussé avec `suite-astra`.
 - Passation `.manager/reports/passation-05-11.md` (df64bde, mise à jour avec ce verdict) ; outils `lancer.py`, `suivre.py`, `guetter.py` dans `.manager/outils/` ; mémoire du manager pointée sur la passation. Prompt de reprise remis au propriétaire.
+- 14:55 : API 4310 arrêtée puis relancée (onglet c2, annoncé) sur le code fusionné (= `main`), garde 15 min ; répond. Aucune mission active au moment de la relance. Fin de session : passation à jour.

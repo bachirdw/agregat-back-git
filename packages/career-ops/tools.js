@@ -273,23 +273,32 @@ const buildCvHtmlArgs = (args, root) => {
   if (positional.length < required.length || positional.length > required.length + 1) return false;
   return positional.every((value, i) => (required[i] ?? template)(value));
 };
+// E45: `usage` is the form a refusal shows the agent for this script (positionals, flags, example).
 const SKILL_ENTRIES = {
-  'build-cv-html': { custom: buildCvHtmlArgs },
+  'build-cv-html': {
+    custom: buildCvHtmlArgs,
+    usage:
+      'args: ["output/<fichier>.json", "output/<fichier>.html"] (modèle facultatif en 3e ; ou ["--preview", "output/<fichier>.json"] ; ou ["output/<fichier>.json", "--markdown", "output/<fichier>.md"])',
+  },
   'verify-cv-facts': {
     positional: [outputFile('html|md')],
     minPositional: 1,
     flags: { '--json': null },
     isolated: true,
+    usage: 'args: ["output/<fichier>.html"] (ou .md ; drapeau --json)',
   },
   'verify-cv-structure': {
     positional: [outputFile('json')],
     minPositional: 1,
     flags: {},
     isolated: true,
+    usage: 'args: ["output/<fichier>.json"] (un positionnel, aucun drapeau)',
   },
   'generate-pdf': {
     positional: [outputFile('html'), outputFile('pdf')],
     minPositional: 2,
+    usage:
+      'args: ["output/<fichier>.html", "output/<fichier>.pdf"] puis "--format=a4|letter", "--report=NNN", "--country=XX", "--kind=cv|cover", "--max-pages=N" ; drapeaux --allow-reorder, --allow-nonchronological, --strict-pages',
     flags: { '--allow-reorder': null, '--allow-nonchronological': null, '--strict-pages': null },
     assigns: {
       '--format': pageFormat,
@@ -308,11 +317,14 @@ const SKILL_ENTRIES = {
       '--report': number,
     },
     requiredFlags: ['--payload'],
+    usage:
+      'args: ["--payload", "output/<fichier>.json"] (obligatoire) puis "--out", "output/<fichier>.pdf", "--format", "a4|letter", "--country", "XX", "--report", "NNN"',
   },
   'mark-pdf-ready': {
     positional: [number],
     minPositional: 1,
     flags: { '--dry-run': null, '--json': null },
+    usage: 'args: ["NNN"] (numéro du rapport ; drapeaux --dry-run, --json)',
   },
   'cv-templates': {
     positional: [
@@ -324,12 +336,18 @@ const SKILL_ENTRIES = {
     flags: { '--fallback': null },
     assigns: { '--format': (v) => /^(?:html|tex)$/.test(v) },
     isolated: true,
+    usage:
+      'args: ["resolve", "cv"] (list|resolve|lint, puis cv|cover, puis un nom facultatif ; "--format=html|tex", --fallback)',
   },
   'reserve-report-num': {
     flags: { '--release': (v) => /^\d{1,4}(?:-\d{1,4})?$/.test(v), '--gc': null },
     maxFlags: 1,
+    usage: 'args: [] ou ["--release", "NNN"] ou ["--gc"]',
   },
-  'merge-tracker': { flags: { '--dry-run': null, '--verify': null } },
+  'merge-tracker': {
+    flags: { '--dry-run': null, '--verify': null },
+    usage: 'args: [] (drapeaux --dry-run, --verify)',
+  },
   'set-status': {
     positional: [plain(120), (v) => /^[\p{L}][\p{L} _-]{1,29}$/u.test(v)],
     flags: {
@@ -341,6 +359,8 @@ const SKILL_ENTRIES = {
       '--dry-run': null,
       '--json': null,
     },
+    usage:
+      'args: ["--report", "NNN", "<état>"] ou ["<n° ou entreprise>", "<état>"] ; drapeaux --row N, --note "…", --role "…", --on AAAA-MM-JJ, --dry-run, --json',
   },
   'precheck-duplicate': {
     flags: {
@@ -350,6 +370,8 @@ const SKILL_ENTRIES = {
       '--url': httpUrl,
       '--json': null,
     },
+    usage:
+      'args: ["--company", "…", "--title", "…", "--url", "https://…"] ; aussi --req <id>, --json',
   },
   tracker: {
     positional: [(v) => ['query', 'history', 'sync'].includes(v)],
@@ -366,14 +388,27 @@ const SKILL_ENTRIES = {
       '--csv': null,
       '--check': null,
     },
+    usage:
+      'args: ["query"] (query|history|sync ; drapeaux --status, --company, --role, --since AAAA-MM-JJ, --min-score, --id, --limit, --json, --csv, --check)',
   },
-  'verify-pipeline': { flags: { '--no-hints': null } },
-  'check-liveness': { positional: Array(10).fill(httpUrl), minPositional: 1, flags: {} },
+  'verify-pipeline': {
+    flags: { '--no-hints': null },
+    usage: 'args: [] ou ["--no-hints"]',
+  },
+  'check-liveness': {
+    positional: Array(10).fill(httpUrl),
+    minPositional: 1,
+    flags: {},
+    usage: 'args: ["https://…"] (1 à 10 URL http(s), aucun drapeau)',
+  },
   // pipeline-01: the inbox scripts of modes/pipeline.md. reconcile-pipeline moves batch-processed
   // entries to Processed (path flags --pipeline/--state left out, as --file above); rank-pipeline
   // annotates pending rows with « rank: » through an agent CLI (opt-in, --limit capped at 200 by
   // the script itself). url-key.mjs is a library without a command line: not an entry.
-  'reconcile-pipeline': { flags: { '--dry-run': null } },
+  'reconcile-pipeline': {
+    flags: { '--dry-run': null },
+    usage: 'args: [] ou ["--dry-run"]',
+  },
   'rank-pipeline': {
     flags: {
       '--limit': (v) => /^(?:[1-9]\d?|1\d\d|200)$/.test(v),
@@ -382,12 +417,15 @@ const SKILL_ENTRIES = {
       '--dry-run': null,
       '--self-test': null,
     },
+    usage: 'args: [] (drapeaux --limit N, --cli <id>, --model <nom>, --dry-run, --self-test)',
   },
 };
 export const SKILL_SCRIPT_NAMES = Object.keys(SKILL_ENTRIES);
 // `flags` take their value as the next argument, `assigns` as `--flag=value` (the only form
 // generate-pdf.mjs reads without a missing-operand error), `custom` replaces the whole grammar.
-function validateSkillArgs(command, args, root) {
+// E45: the refusal shows the form this script expects and names any key the call carried that a
+// Skill script never takes (`path`, `query`), so the agent can retry with `args`.
+function validateSkillArgs(command, args, root, unknownKeys = []) {
   const spec = SKILL_ENTRIES[command];
   const positional = spec.positional ?? [];
   const flags = spec.flags ?? {};
@@ -395,8 +433,15 @@ function validateSkillArgs(command, args, root) {
   const seen = new Set();
   let count = 0;
   const fail = () => {
-    throw new Error(`Arguments refusés pour ${command} : voir docs/api-career-ops.md`);
+    throw new Error(
+      `Arguments refusés pour ${command} : forme attendue ${spec.usage}` +
+        (unknownKeys.length
+          ? ` ; clé inconnue pour ce script : ${unknownKeys.join(', ')} (un script du Skill ne prend que args)`
+          : '') +
+        ' ; voir docs/api-career-ops.md',
+    );
   };
+  if (unknownKeys.length) fail();
   if (
     !Array.isArray(args) ||
     args.some((arg) => typeof arg !== 'string' || !arg || !noControl(arg) || arg.length > 1000)
@@ -768,12 +813,16 @@ export class CareerTools {
       throw new Error(
         `Commande career-ops non autorisée : utiliser « scan », « find », « scripts/<fichier> », un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) ou un script du Skill (${SKILL_SCRIPT_NAMES.join(', ')})`,
       );
-    if (skillEntry) validateSkillArgs(command, scriptArgs, root);
+    if (skillEntry)
+      validateSkillArgs(
+        command,
+        scriptArgs,
+        root,
+        [path && 'path', query && 'query'].filter(Boolean),
+      );
     else if (scriptArgs.length)
       throw new Error('Arguments supplémentaires non autorisés pour cette commande');
-    if (skillEntry && (query || path)) {
-      throw new Error('Requête non attendue pour cette commande');
-    } else if (controls[command] && !skillEntry) {
+    if (controls[command] && !skillEntry) {
       if (query || !controls[command].pattern.test(path))
         throw new Error('Chemin de contrôle hors du périmètre career-ops');
       validatePath(path);
@@ -1023,7 +1072,7 @@ export function registerCareerTools(
   );
   register(
     'career_script',
-    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Chaîne CV/lettre de modes/pdf.md et modes/cover.md, fichiers sous output/ : cv-templates (args ["resolve","cv"]), build-cv-html (args [payload.json, cv.html, template?]), verify-cv-facts (args [cv.html]), generate-pdf (args [cv.html, cv.pdf, "--format=a4", "--report=042"]), mark-pdf-ready (args ["042"]), generate-cover-letter (args ["--payload", "output/cover-payload-….json"]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine ; verify-cv-facts : fait absent du CV source).`,
+    `Lancer un outil revu de career-ops. command : « scan » lance le scan des portails du Skill (sans path ni args), « find » avec query, « scripts/<fichier> » pour un script du dossier scripts/, un contrôle (jd-skill-gap, cv-title-check, verify-cv-facts) avec path, ou un script du Skill avec args (un argument par entrée, drapeaux du script seulement) : ${SKILL_SCRIPT_NAMES.join(', ')}. Ex. reserve-report-num (args [] ou ["--release","042"]), merge-tracker (args []), set-status (args ["--report","42","Applied"]), precheck-duplicate (args ["--company","…","--title","…","--url","…"]), check-liveness (args [url]). Chaîne CV/lettre de modes/pdf.md et modes/cover.md, fichiers sous output/ : cv-templates (args ["resolve","cv"]), build-cv-html (args [payload.json, cv.html, template?]), verify-cv-facts (args [cv.html]), generate-pdf (args [cv.html, cv.pdf, "--format=a4", "--report=042"]), mark-pdf-ready (args ["042"]), generate-cover-letter (args ["--payload", "output/cover-payload-….json"]). Un exitCode non nul signale un échec ou un verdict du script (check-liveness : offre expirée ou incertaine ; verify-cv-facts : fait absent du CV source). Appel complet : { command: "verify-cv-structure", args: ["output/<fichier>.json"] } — jamais path ni query pour un script du Skill (path sert aux seuls contrôles jd-skill-gap, cv-title-check, verify-cv-facts ; query à find) ; un refus rappelle la forme attendue du script.`,
     z
       .object({
         command: z.string().min(1).max(200),

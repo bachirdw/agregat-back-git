@@ -99,6 +99,16 @@ intents:
         persists: true
       # auto-pipeline Step 3 : le CV adapté vient des scripts du Skill (modes/pdf.md), entre le rapport et le
       # suivi ; facultatif car le mode oferta n'a pas de PDF automatique. Payload JSON écrit sous output/.
+      # E45 : le contrôle de structure (17b) est déclaré ici aussi, pour que le Bilan dise ce qui a tourné
+      # (un verify-cv-structure refusé ne crédite jamais « Vérifier les faits », tenu par verify-cv-facts).
+      - id: cv-structure
+        title: Contrôler la structure du payload
+        tool: career_script
+        argument: verify-cv-structure
+        precondition: Payload écrit (args [output/….json])
+        done: verify-cv-structure terminé ; avertissement seulement, code 1 = payload illisible à corriger (modes/pdf.md étape 17b)
+        optional: true
+        persists: true
       - id: cv-build
         title: Construire le HTML du CV adapté
         tool: career_script

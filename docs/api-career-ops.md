@@ -101,6 +101,11 @@ Même reçu de revue (`relay/source-review.json`) et même refus de `.env` que `
 demandé (seul l’envoi final attend un clic). `args` : un argument par entrée, sans shell ; une valeur ne
 commence jamais par `-` et ne contient aucun caractère de contrôle ; un drapeau inconnu, répété ou
 écrit `--x=y` est refusé. Un code de sortie non nul est rendu avec la sortie, pas masqué.
+Appel complet : `{ command: "verify-cv-structure", args: ["output/<fichier>.json"] }` ; `path` et `query`
+ne servent jamais à un script du Skill (`path` : contrôles `jd-skill-gap`, `cv-title-check`,
+`verify-cv-facts` ; `query` : `find`). Un refus de grammaire rappelle la forme attendue du script et nomme
+la clé en trop (bilan-04, E45 : `{ command: "verify-cv-structure", path: … }` était refusé sans dire
+que la forme est `args: [...]`, et le PDF partait sans contrôle).
 
 | Commande             | Arguments admis                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -143,8 +148,8 @@ rendu en PDF local), mais le manifeste ne l’indique plus comme voie de product
    `career_script generate-cover-letter` `args: ["--payload", …]` → `output/{company-slug}-{role-slug}-cover.pdf` ;
    `proves: lettre produite`.
 
-Dans l’intention `evaluate` (« coller une URL »), les étapes `cv-build` → `cv-verify` → `cv-pdf` suivent
-le rapport et précèdent le TSV, comme `modes/auto-pipeline.md` (Step 3) ; elles sont facultatives (le mode
+Dans l’intention `evaluate` (« coller une URL »), les étapes `cv-structure` → `cv-build` → `cv-verify` →
+`cv-pdf` suivent le rapport et précèdent le TSV, comme `modes/auto-pipeline.md` (Step 3) ; elles sont facultatives (le mode
 `oferta` n’a pas de PDF automatique) et le TSV porte `pdf ✅` si le PDF a été produit. Aucune étape n’est
 obligatoire : le Bilan dit ce qui a été produit.
 

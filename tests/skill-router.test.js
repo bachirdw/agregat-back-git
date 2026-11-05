@@ -495,6 +495,8 @@ test('Évaluation FICTIVE : ordre du Skill déclaré par le manifeste', () => {
       // bilan-03 (E38) : libération du numéro réservé, facultative, après le rapport.
       ['release', 'career_script', 'reserve-report-num'],
       // production-01 : auto-pipeline Step 3, le PDF entre le rapport et le suivi (facultatif : oferta sans PDF).
+      // bilan-04 (E45) : le contrôle de structure (17b) est visible au Bilan de l'évaluation aussi.
+      ['cv-structure', 'career_script', 'verify-cv-structure'],
       ['cv-build', 'career_script', 'build-cv-html'],
       ['cv-verify', 'career_script', 'verify-cv-facts'],
       ['cv-pdf', 'career_script', 'generate-pdf'],
@@ -504,7 +506,7 @@ test('Évaluation FICTIVE : ordre du Skill déclaré par le manifeste', () => {
     ],
   );
   assert.equal(selected.intent.steps.at(-1).optional, true);
-  for (const id of ['cv-build', 'cv-verify', 'cv-pdf'])
+  for (const id of ['cv-structure', 'cv-build', 'cv-verify', 'cv-pdf'])
     assert.equal(selected.intent.steps.find((step) => step.id === id).optional, true, id);
   assert.equal(selected.intent.steps.find((step) => step.id === 'cv-pdf').proves, 'CV produit');
   const order = formatSkillOrder([selected]);
@@ -543,6 +545,7 @@ test('Évaluation FICTIVE : le parcours du Skill complète les étapes sans éca
       ['reserve', 'done'],
       ['report', 'done'],
       ['release', 'skipped'],
+      ['cv-structure', 'skipped'],
       ['cv-build', 'skipped'],
       ['cv-verify', 'skipped'],
       ['cv-pdf', 'skipped'],

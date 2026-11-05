@@ -228,7 +228,7 @@ test('mission privée : le cadre du propriétaire part dans le canal système de
       safeModes: [],
       fixedEnv: {
         FAKE_ACP: JSON.stringify({
-          expectSystemPrompt: 'la plateforme suspend l’envoi',
+          expectSystemPrompt: 'la plateforme la suspend',
           result: { simulated: true, summary: 'FICTIF', evidence: [] },
         }),
       },

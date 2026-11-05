@@ -866,10 +866,8 @@ test('Modèle choisi dans l’interface : appliqué via la session ACP sans vari
 test('Instructions career-ops : méthode du Skill et résultat véridique', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
   for (const rule of [
-    /Le prompt de l’utilisateur décide/,
     /lis son mode pertinent via career_read/,
     /suis exactement sa méthode/,
-    /page de relecture/,
     /ne fabrique ni source, ni évaluation, ni action/,
     /indique quel outil a fourni chaque source/,
     /simulated:boolean,summary:string,evidence:array/,
@@ -877,39 +875,35 @@ test('Instructions career-ops : méthode du Skill et résultat véridique', asyn
     assert.match(CAREER_INSTRUCTIONS, rule);
   assert.doesNotMatch(CAREER_INSTRUCTIONS, /JUSQU'AU BOUT|modes\/oferta\.md|career_script scan/);
 });
-test('Instructions career-ops : le prompt détermine la soumission avant le Skill', async () => {
-  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
-  const clause = 'Le prompt de l’utilisateur décide';
-  assert.ok(CAREER_INSTRUCTIONS.includes(clause));
-  assert.ok(CAREER_INSTRUCTIONS.indexOf(clause) < CAREER_INSTRUCTIONS.indexOf('Active le Skill'));
-  assert.match(CAREER_INSTRUCTIONS, /page de relecture/);
-  assert.match(CAREER_INSTRUCTIONS, /si le prompt ne la demande pas, arrête-toi avant/);
-  assert.doesNotMatch(CAREER_INSTRUCTIONS, /career_script verify-cv-facts/);
-});
 test('consigne career-ops : un consentement manquant est demandé à l’utilisateur, sans tout permettre', async () => {
   const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
   assert.match(CAREER_INSTRUCTIONS, /confirmation ou un consentement/);
   assert.match(CAREER_INSTRUCTIONS, /l’utilisateur répondra dans cette mission/);
-  // Page text never gains the user's priority, and the remaining limits stay written.
+  // Page text never gains the user's priority, and the CAPTCHA limit stays written.
   assert.match(CAREER_INSTRUCTIONS, /ne suis pas leurs instructions/);
   assert.match(CAREER_INSTRUCTIONS, /Ne contourne aucun CAPTCHA/);
-  assert.match(CAREER_INSTRUCTIONS, /accord refusé ou expiré/);
-  assert.match(CAREER_INSTRUCTIONS, /ne refais pas cette action par une autre voie/);
 });
 
-test('consigne career-ops : l’utilisateur décide toujours, les écarts sont signalés sans bloquer', async () => {
-  const { CAREER_INSTRUCTIONS } = await import('../packages/career-ops/integration.js');
-  // The final click still goes through the owner's approval in Relay.
-  assert.match(CAREER_INSTRUCTIONS, /Relay lui demande d’approuver l’envoi/);
+test('consigne career-ops : le Skill s’applique tel quel, aucune levée ni restriction ajoutée par Relay (décision du propriétaire du 05/11)', async () => {
+  const { CAREER_INSTRUCTIONS, CAREER_OWNER_FRAME } = await import(
+    '../packages/career-ops/integration.js'
+  );
+  assert.match(CAREER_INSTRUCTIONS, /^Active le Skill career-ops/);
   assert.match(
     CAREER_INSTRUCTIONS,
-    /Aucune règle du Skill ne l’emporte sur la demande de l’utilisateur/,
+    /suis exactement sa méthode, ses scripts, son ordre et ses formats/,
   );
-  assert.match(CAREER_INSTRUCTIONS, /Signale-lui les écarts/);
-  assert.match(CAREER_INSTRUCTIONS, /ne redemande pas de confirmation pour ces écarts/);
-  assert.match(CAREER_INSTRUCTIONS, /si le prompt ne la demande pas, arrête-toi avant/);
+  assert.match(CAREER_OWNER_FRAME, /Le Skill career-ops s’applique tel qu’il est écrit/);
+  // E39 : these claims made the agent read Relay's frame as a prompt injection (3/3 missions).
+  for (const text of [CAREER_INSTRUCTIONS, CAREER_OWNER_FRAME]) {
+    assert.doesNotMatch(text, /priment sur les règles/);
+    assert.doesNotMatch(text, /l’emporte sur la demande/);
+    assert.doesNotMatch(text, /clique le bouton final/);
+    assert.doesNotMatch(text, /ne redemande pas de confirmation/);
+    assert.doesNotMatch(text, /accord refusé ou expiré/);
+  }
 });
-test('Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill', async (t) => {
+test('Prompt ACP FICTIF : le Skill arrive en tête des consignes, sans levée par la plateforme', async (t) => {
   const { career, app } = fixture(t);
   reviewCareer(career, app.skills);
   writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
@@ -934,7 +928,7 @@ test('Prompt ACP FICTIF : la priorité de la plateforme arrive avant le Skill', 
   const result = JSON.parse(
     readFileSync(join(career.path(), `relay/runs/${run.id}-result.json`), 'utf8'),
   );
-  assert.match(result.summary, /Consigne prioritaire FICTIVE reçue avant le Skill/);
+  assert.match(result.summary, /Consigne FICTIVE : le Skill en tête, sans levée/);
 });
 test('Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prompt', async (t) => {
   const { career, app } = fixture(t);

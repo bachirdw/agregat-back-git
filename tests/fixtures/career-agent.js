@@ -251,13 +251,12 @@ const app = agent({ name: 'career-FICTIF' })
       if (request.objective.includes('FICTIF_PRIORITE')) {
         const instructions = request.instructions ?? '';
         if (
-          !instructions.startsWith('Le prompt de l’utilisateur décide') ||
-          !instructions.includes('clique le bouton final') ||
-          instructions.indexOf('Le prompt de l’utilisateur décide') >
-            instructions.indexOf('Active le Skill')
+          !instructions.startsWith('Active le Skill career-ops') ||
+          instructions.includes('clique le bouton final') ||
+          instructions.includes('priment sur les règles')
         )
-          throw new Error('Priorité de la plateforme absente du prompt FICTIF');
-        await send('Consigne prioritaire FICTIVE reçue avant le Skill.');
+          throw new Error('Consignes FICTIVES : le Skill doit arriver en tête, sans levée');
+        await send('Consigne FICTIVE : le Skill en tête, sans levée.');
         return { stopReason: 'end_turn' };
       }
       if (request.objective.includes('FICTIF_ROUTEUR')) {

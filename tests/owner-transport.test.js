@@ -20,9 +20,23 @@ async function relay(t, options = {}) {
     );
   });
   const wss = new WebSocketServer({ server });
-  wss.on('connection', (socket) => {
+  // paths[i] : the path of connection i + 1. With playwriterIds, the relay behaves like Playwriter
+  // 0.7 (cdp-relay.ts, « /cdp/:clientId? ») : clients kept by id (« default » without one), a second
+  // client with the same id refused (4004), and any closing removes its id from the table, even the
+  // refused duplicate's : the first client stays connected but its commands are never served.
+  const paths = [];
+  const clients = new Map();
+  wss.on('connection', (socket, req) => {
     const origin = ++connections;
+    paths.push(req.url);
+    const id = req.url.match(/^\/cdp\/([^/?]+)/)?.[1] ?? 'default';
+    if (options.playwriterIds) {
+      socket.on('close', () => clients.delete(id));
+      if (clients.has(id)) return socket.close(4004, 'Duplicate Playwright clientId');
+      clients.set(id, socket);
+    }
     socket.on('message', (raw) => {
+      if (options.playwriterIds && clients.get(id) !== socket) return;
       const m = JSON.parse(raw.toString());
       commands.push(m);
       origins.push(origin);
@@ -83,6 +97,8 @@ async function relay(t, options = {}) {
     endpoint: `http://127.0.0.1:${server.address().port}`,
     commands,
     origins,
+    paths,
+    wsUrl: `ws://127.0.0.1:${server.address().port}/cdp`,
     // The relay drops our connection (idle, extension restarted) but keeps running.
     drop: () => wss.clients.forEach((socket) => socket.terminate()),
     stop,
@@ -231,6 +247,30 @@ test('transport propriétaire : connexion coupée et relais muet, fermeture born
   const elapsed = Date.now() - started;
   assert.ok(elapsed < 1500, `fermeture trop longue : ${elapsed} ms`);
   assert.deepEqual(closedBy(fake), ['owned@2', 'popup@2']);
+});
+
+// E65, E69, E70 (sondes du 06/11 sur le relais réel) : toutes les connexions de la plateforme
+// prenaient l'identifiant « default » ; le moindre autre client sans identifiant (autre mission,
+// outil, sonde) retirait la mission en cours de la table du relais : captures et navigations
+// expirées, onglets jamais fermés. Chaque connexion a désormais son propre identifiant.
+test('transport propriétaire : identifiant de client propre, un autre client du relais ne le coupe pas', async (t) => {
+  const fake = await relay(t, { popup: true, playwriterIds: true });
+  const transport = await ownerTransport(fake.endpoint, 10000);
+  t.after(() => transport.close());
+  const other = await ownerTransport(fake.endpoint, 10000);
+  t.after(() => other.close());
+  assert.match(fake.paths[0], /^\/cdp\/relay-[0-9a-f-]{36}$/);
+  assert.notEqual(fake.paths[0], fake.paths[1]);
+  // Un client sans identifiant (« default ») arrive deux fois, puis repart.
+  for (let i = 0; i < 2; i++) {
+    const intruder = new WebSocket(fake.wsUrl);
+    await new Promise((r) => intruder.once('open', r));
+    intruder.close();
+  }
+  await dropped();
+  await other.close();
+  await transport.close();
+  assert.deepEqual(closedBy(fake), ['owned@1', 'owned@2', 'popup@1', 'popup@2']);
 });
 
 test('transport propriétaire : relais disparu, fermeture sans erreur', async (t) => {

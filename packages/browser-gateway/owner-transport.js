@@ -5,9 +5,22 @@ import { WebSocket, WebSocketServer } from 'ws';
 // E70 : the longest wait for the closing of one of our tabs at the end of a mission.
 const CLOSE_MS = 1000;
 
-// E70 (essai V3, 06/11) : the relay dropped the gateway's connection during a long mission, and the
-// mission's tabs stayed open in the owner's Chrome. Target identifiers do not change : a short new
-// connection closes them by id, all at once, settled within `ms`; a relay that is gone is ignored.
+// E65, E69, E70 (sondes du 06/11 sur le relais réel) : Playwriter keeps its clients by id
+// (cdp-relay.ts, « /cdp/:clientId? », « default » without one). It refuses a second client with the
+// same id (4004) but, closing it, removes the FIRST one from its table : that client stays connected
+// and is never answered again (snapshots and navigations time out, tabs are never closed). Every
+// connection of the platform therefore takes its own id ; another client (another mission, a tool,
+// a probe) no longer cuts it. Other CDP endpoints (a plain Chrome) keep their address.
+function clientUrl(url, info) {
+  const own = new URL(url);
+  if (/^Playwriter\//.test(info?.Browser ?? '') && /^\/cdp\/?$/.test(own.pathname))
+    own.pathname = `/cdp/relay-${randomUUID()}`;
+  return own;
+}
+
+// E70 (essai V3, 06/11) : if the relay dropped the gateway's connection, the mission's tabs would
+// stay open in the owner's Chrome. Target identifiers do not change : a short new connection, with
+// its own client id, closes them by id, all at once, settled within `ms`; a relay gone is ignored.
 async function closeThrough(url, ids, ms) {
   const socket = new WebSocket(url, { maxPayload: 1024 * 1024 });
   socket.on('error', () => {});
@@ -62,7 +75,7 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
     url.password
   )
     throw new Error('WebSocket du relais non local');
-  const upstream = new WebSocket(url, { maxPayload: 16 * 1024 * 1024 });
+  const upstream = new WebSocket(clientUrl(url, info), { maxPayload: 16 * 1024 * 1024 });
   const pending = new Map(),
     targets = new Set(),
     sessions = new Set();
@@ -158,7 +171,7 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
           rpc('Target.closeTarget', { targetId }, undefined, CLOSE_MS).catch(() => {}),
         ),
       );
-    else if (targets.size) await closeThrough(url, [...targets], CLOSE_MS);
+    else if (targets.size) await closeThrough(clientUrl(url, info), [...targets], CLOSE_MS);
     downstream?.terminate();
     upstream.terminate();
     rejectPending();

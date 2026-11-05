@@ -130,8 +130,10 @@ test('Rôles des outils : le prompt career-ops reçoit ceux que le pack déclare
   assert.match(instructions, /Rôles des outils déclarés par le pack career-ops/);
   assert.match(
     instructions,
-    /Chercher des offres : career_script avec command: "scan"[^\n]*secours : jobs_search_live, seulement si career_script scan a rendu un code de sortie non nul[^\n]*n’est pas un échec[^\n]*dis-le dans summary/,
+    /Chercher des offres : career_script avec command: "scan"[^\n]*repli du Skill[^\n]*scan_query[^\n]*skipped_error[^\n]*navigateur[^\n]*quels portails ont échoué/,
   );
+  // sources-01 : jobs_search_live n’est plus recommandé en secours du scan (il reste appelable).
+  assert.doesNotMatch(instructions, /^- Chercher des offres :[^\n]*jobs_search_live/m);
   assert.match(
     instructions,
     /Lire une offre : browser_navigate puis browser_snapshot[^\n]*une page à la fois/,
@@ -170,8 +172,11 @@ test('Rôles des outils : le champ est validé par le schéma du manifeste', () 
   reject([role, role]); // identifiant dupliqué
   reject([{ ...role, extra: 'inconnu' }]); // champ inconnu
   reject([{ ...role, tool: 'career script' }]); // nom d’outil invalide
-  reject([{ ...role, fallbackWhen: undefined }]); // secours sans condition
-  reject([{ ...role, fallbackTools: undefined }]); // condition sans secours
+  // sources-01 : le rôle de recherche n’a plus de secours ; le schéma garde ses règles.
+  const withFallback = { ...role, fallbackTools: ['jobs_search_live'], fallbackWhen: 'si besoin' };
+  router.skillManifestSchema.parse({ ...base, toolRoles: [withFallback] });
+  reject([{ ...withFallback, fallbackWhen: undefined }]); // secours sans condition
+  reject([{ ...withFallback, fallbackTools: undefined }]); // condition sans secours
   reject([{ ...role, fallbackTools: [role.tool], fallbackWhen: 'jamais' }]); // secours = outil principal
   reject([{ ...role, note: 'x'.repeat(300) }]);
   reject(Array.from({ length: 21 }, (_, index) => ({ ...role, id: `role-${index}` })));
@@ -185,9 +190,12 @@ test('Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le
   const search = manifest.toolRoles.find((role) => role.id === 'search-offers');
   assert.equal(search.tool, 'career_script');
   assert.match(search.usage, /command: "scan"/);
-  assert.deepEqual(search.fallbackTools, ['jobs_search_live']);
-  assert.match(search.fallbackWhen, /code de sortie non nul/);
-  assert.match(search.fallbackWhen, /scan réussi sans ce site n’est pas un échec/);
+  // sources-01 : plus de secours déclaré ; le repli suit modes/scan.md du Skill.
+  assert.equal(search.fallbackTools, undefined);
+  assert.equal(search.fallbackWhen, undefined);
+  assert.match(search.note, /modes\/scan\.md/);
+  assert.match(search.note, /scan_query/);
+  assert.match(search.note, /skipped_error/);
   const read = manifest.toolRoles.find((role) => role.id === 'read-offer');
   assert.equal(read.tool, 'browser_navigate');
   assert.deepEqual(read.then, ['browser_snapshot']);
@@ -205,7 +213,7 @@ test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () 
     text,
     [
       'Rôles des outils déclarés par le pack career-ops. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :',
-      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; si un portail échoue au scan (réseau, 403), lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué ; secours : jobs_search_live, seulement si career_script scan a rendu un code de sortie non nul, ou si le prompt dit « sans scan » ou nomme jobs_search_live ; un scan réussi sans ce site n’est pas un échec ; dis-le dans summary.',
+      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; repli du Skill si un portail échoue (modes/scan.md) : son API, puis scan_query, puis skipped_error et on continue ; lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué.',
       '- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante ; si la description manque, recapture avec scroll bottom ou waitForText, puis clique « plus » par sa ref et recapture.',
       '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.',
     ].join('\n'),

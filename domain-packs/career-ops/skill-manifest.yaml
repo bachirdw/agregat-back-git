@@ -6,9 +6,7 @@ toolRoles:
     task: Chercher des offres
     tool: career_script
     usage: 'command: "scan" (sans path ni args)'
-    note: si un portail échoue au scan (réseau, 403), lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué
-    fallbackTools: [jobs_search_live]
-    fallbackWhen: seulement si career_script scan a rendu un code de sortie non nul, ou si le prompt dit « sans scan » ou nomme jobs_search_live ; un scan réussi sans ce site n’est pas un échec ; dis-le dans summary
+    note: 'repli du Skill si un portail échoue (modes/scan.md) : son API, puis scan_query, puis skipped_error et on continue ; lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué'
   - id: read-offer
     task: Lire une offre
     tool: browser_navigate
@@ -145,7 +143,7 @@ intents:
         title: Ajouter les offres retenues à data/pipeline.md
         tool: career_write
         argument: data/pipeline.md
-        precondition: Offres retenues hors scan (navigateur, jobs_search_live)
+        precondition: Offres retenues hors scan (navigateur ; jobs_search_live si le prompt le demande)
         done: Éléments « - [ ] url | entreprise | poste » ajoutés à data/pipeline.md, par scan.mjs (scan réussi) ou par career_write (modes/pipeline.md)
         optional: true
         persists: true

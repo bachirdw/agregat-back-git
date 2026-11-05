@@ -5,6 +5,9 @@ Réorganisé le 05/11/2026 à 20:20 à la demande du propriétaire (anciennes pa
 fusionnées ; tout reste lisible dans l'historique Git avec `git show <commit>:<chemin>`).
 
 ## État courant (à lire en premier)
+- **Nuit du 05 au 06/11** (branche `nuit-06-11`, non fusionnée, dossier `~/Downloads/agregat-back-nuit`) :
+  [`reports/nuit-06-11.md`](reports/nuit-06-11.md) — synthèse au réveil en tête (vérifié en réel, à vérifier,
+  décisions à prendre), puis le journal horodaté ; registre mis à jour (E43, E46, E55-E70).
 - **Passation du jour** : [`reports/passation-05-11.md`](reports/passation-05-11.md), sections 13
   (20:04), 14 (22:10, fusions bilan-06 et stall-01, API relancée) et 15 (22:45, essai réel f336641e) pour l'état du soir ; section 2 pour les règles permanentes du propriétaire ; section 5
   pour le protocole « éprouver le système » (compartiment `apply`, cycles courts, cinq étapes).

@@ -8,6 +8,8 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  existsSync,
+  readdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -1190,4 +1192,127 @@ test('Instructions career-ops : contenu privé conservé et questions en cas de 
   );
   assert.match(CAREER_INSTRUCTIONS, /Enregistre les documents privés dans l’espace de travail/);
   assert.doesNotMatch(CAREER_INSTRUCTIONS, /jds\/<slug>\.md|career_script cv-title-check/);
+});
+
+// skill-suivi-01, point 5 : parcours « coller une URL » conforme au Skill, de bout en bout
+// (API → plan → ACP FICTIF → passerelle MCP → scripts FICTIFS → Bilan). Les vrais scripts du Skill
+// ne sont pas lancés : des faux au même contrat d'appel et de sortie tiennent leur place.
+const SKILL_STUBS = {
+  'check-liveness.mjs':
+    '// FICTIF : tient la place de check-liveness.mjs du Skill\nconsole.log(`✅ active ${process.argv[2]}`);\n',
+  'reserve-report-num.mjs':
+    "// FICTIF : tient la place de reserve-report-num.mjs du Skill\nif (process.argv[2] === '--release') process.exit(0);\nconsole.log('042');\n",
+  'merge-tracker.mjs': `// FICTIF : tient la place de merge-tracker.mjs du Skill (TSV d'ajout → data/applications.md)
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const root = process.env.CAREER_OPS_ROOT;
+const dir = join(root, 'batch/tracker-additions');
+const tracker = join(root, 'data/applications.md');
+const states = readFileSync(join(root, 'templates/states.yml'), 'utf8');
+const lines = existsSync(tracker)
+  ? readFileSync(tracker, 'utf8').trimEnd().split('\\n')
+  : ['| # | Date | Company | Role | Score | Status | PDF | Report | Notes |', '|---|---|---|---|---|---|---|---|---|'];
+let added = 0;
+mkdirSync(join(dir, 'merged'), { recursive: true });
+for (const name of readdirSync(dir).filter((n) => n.endsWith('.tsv'))) {
+  const [head, row] = readFileSync(join(dir, name), 'utf8').trim().split('\\n');
+  const cells = row.split('\\t');
+  const v = Object.fromEntries(head.split('\\t').map((k, i) => [k, cells[i]]));
+  if (!states.includes('label: ' + v.status)) { console.error('statut non canonique'); process.exitCode = 1; continue; }
+  lines.push(['', v.num, v.date, v.company, v.role, v.score, v.status, v.pdf, v.report.replace('(reports/', '(../reports/'), v.notes, ''].join(' | ').trim());
+  added++;
+  renameSync(join(dir, name), join(dir, 'merged', name));
+}
+mkdirSync(join(root, 'data'), { recursive: true });
+writeFileSync(tracker, lines.join('\\n') + '\\n');
+console.log('\\n📊 Summary: +' + added + ' added, 🔄0 updated, ⏭️0 skipped');
+`,
+};
+async function runCareerFixture(t, prompt) {
+  const { root, career, app } = fixture(t, true);
+  mkdirSync(join(root, 'templates'));
+  writeFileSync(
+    join(root, 'templates/states.yml'),
+    'states:\n  - id: evaluated\n    label: Evaluated\n  - id: applied\n    label: Applied\n',
+  );
+  for (const [name, text] of Object.entries(SKILL_STUBS)) writeFileSync(join(root, name), text);
+  reviewCareer(career, app.skills);
+  const attachment = await career.upload(Buffer.from('CV FICTIF'), 'CV.md', 'text/markdown');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const run = await (
+    await fetch(base + '/api/runs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+      body: JSON.stringify({ prompt, agent: 'fixture', attachments: [attachment.id] }),
+    })
+  ).json();
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  return { root, done: app.store.get(run.id), app, run };
+}
+
+test('Coller une URL FICTIVE : rapport du Skill, ligne de suivi par merge-tracker, Bilan fidèle', async (t) => {
+  const { root, done, app, run } = await runCareerFixture(
+    t,
+    'évalue cette offre FICTIVE FICTIF_SKILL_URL https://jobs.example.test/offre/42',
+  );
+  assert.equal(
+    done.state,
+    'completed',
+    done.error ?? JSON.stringify(app.store.events(run.id).slice(-4)),
+  );
+  const date = new Date().toISOString().slice(0, 10);
+  const report = readFileSync(join(root, `reports/042-entreprise-fictive-${date}.md`), 'utf8');
+  assert.match(report, /^\*\*Score:\*\* 4\.5\/5$/m);
+  assert.match(report, /^\*\*URL:\*\* https:\/\/jobs\.example\.test\/offre\/42$/m);
+  assert.match(report, /^\*\*Legitimacy:\*\* High Confidence$/m);
+  assert.match(report, /## Machine Summary/);
+  assert.match(report, /## Job Description \(archived verbatim\)/);
+  const tracker = readFileSync(join(root, 'data/applications.md'), 'utf8').trim().split('\n');
+  assert.equal(tracker.length, 3, 'en-tête, séparateur et une ligne');
+  assert.match(
+    tracker[2],
+    /\| 042 \| .* \| Entreprise FICTIVE \| Poste FICTIF \| 4\.5\/5 \| Evaluated \|/,
+  );
+  assert.match(tracker[2], /\(\.\.\/reports\/042-entreprise-fictive-/);
+  assert.equal(
+    readdirSync(join(root, 'batch/tracker-additions/merged')).length,
+    1,
+    'TSV archivé par la fusion',
+  );
+  const summary = done.result.summary;
+  assert.doesNotMatch(summary, /Non exécuté :[^\n]*(?:évaluation enregistrée|suivi)/);
+  assert.match(summary, /Suivi du Skill : 1 ligne ajoutée, 0 mise à jour \(merge-tracker\)/);
+  for (const step of [
+    "Lire réellement l'annonce",
+    "Vérifier que l'annonce est encore ouverte",
+    'Réserver le numéro du rapport',
+    'Écrire le rapport du Skill',
+    "Écrire la ligne d'ajout au suivi",
+    'Fusionner le suivi du Skill',
+  ])
+    assert.match(summary, new RegExp(`✓ ${step} \\(faite\\)`), step);
+  assert.match(summary, /Indexer l'offre dans Relay \(facultatif\) \(ignorée\)/);
+  assert.match(summary, /Écart d’ordre : aucun constaté/);
+  // Aucune fiche Relay : le résultat est celui du Skill.
+  assert.equal(existsSync(join(root, 'relay/offers')), false);
+});
+
+test('Coller une URL FICTIVE : career_offer_save seul, le Bilan dit que le suivi du Skill manque, sans bloquer', async (t) => {
+  const { root, done } = await runCareerFixture(t, 'évalue cette offre FICTIVE');
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /Non exécuté :[^\n]*suivi du Skill non écrit/);
+  assert.doesNotMatch(done.result.summary, /Non exécuté :[^\n]*évaluation enregistrée/);
+  assert.equal(existsSync(join(root, 'data/applications.md')), false);
 });

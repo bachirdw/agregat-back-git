@@ -12,14 +12,22 @@ const CHROME =
   process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const temporary = () => mkdtempSync(join(tmpdir(), 'relay-bridge-'));
 
-function site() {
-  const hits = { posts: 0 };
+const PAGE =
+  '<title>Site</title><form method="post" action="/a"><button id="apply">Postuler</button></form>';
+// Troisième relecture : une page FICTIVE qui se remplace d'elle-même quand le test le demande
+// (interrogation espacée d'une seconde : la navigation doit pouvoir atteindre le repos réseau).
+const CHANGING_PAGE = `${PAGE}<script>setInterval(() => fetch('/state').then((r) => r.text()).then((s) => { if (s === 'changed') location.replace('/autre'); }), 1000);</script>`;
+function site(page = PAGE) {
+  const hits = { posts: 0, changed: false };
   const server = http.createServer((req, res) => {
     if (req.method === 'POST') hits.posts++;
+    if (req.url === '/state') {
+      res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end(hits.changed ? 'changed' : 'same');
+      return;
+    }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end(
-      '<title>Site</title><form method="post" action="/a"><button id="apply">Postuler</button></form>',
-    );
+    res.end(req.url === '/autre' ? '<title>Autre</title><p>Page FICTIVE remplacée</p>' : page);
   });
   return new Promise((r) =>
     server.listen(0, '127.0.0.1', () =>
@@ -29,7 +37,7 @@ function site() {
 }
 
 async function setup(t, options = {}) {
-  const { server: siteServer, hits, origin } = await site();
+  const { server: siteServer, hits, origin } = await site(options.page);
   const saved = { ...process.env };
   Object.assign(process.env, {
     AGENT_PLATFORM_BROWSER: 'isolated',
@@ -38,7 +46,10 @@ async function setup(t, options = {}) {
     AGENT_PLATFORM_BROWSER_JAVASCRIPT: options.allowJavaScript ? '1' : '0',
     AGENT_PLATFORM_BROWSER_SHARED_CONTEXT: '0',
   });
-  const app = createApp({ dataDir: temporary() });
+  const app = createApp({
+    dataDir: temporary(),
+    ...(options.ownerMode ? { ownerMode: true } : {}),
+  });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   const run = { id: crypto.randomUUID(), state: 'running', budgetCents: 0, cwd: temporary() };
   mkdirSync(run.cwd, { recursive: true });
@@ -402,6 +413,51 @@ test(
     assert.equal(app.engine.permissions.has(card.id), false, 'carte toujours affichée');
     assert.throws(() => app.engine.decide(card.id, 'allow'), /expirée/);
     await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(hits.posts, 0);
+  },
+);
+
+// Troisième relecture de nuit (E66) : de bout en bout, à travers la vraie passerelle MCP. Le
+// propriétaire approuve « Postuler », mais la page s'est remplacée pendant l'attente : rien ne part,
+// et l'issue parvient à la plateforme sur l'appel même de l'accord, marquée « non effectuée » ; le
+// Bilan dira « 1 approuvé(s), dont 1 sans effet » et non « issue incertaine ».
+test(
+  'pont d’approbation : page remplacée pendant l’accord → rien ne part, la plateforme le sait',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { app, run, mcp, hits, origin } = await setup(t, {
+      allowJavaScript: true,
+      ownerMode: true,
+      page: CHANGING_PAGE,
+    });
+    // Le tour de l'agent est lancé : la plateforme accepte les issues d'outil de la passerelle.
+    const control = app.engine.active.get(run.id);
+    control.promptStarted = true;
+    await mcp.callTool({ name: 'browser_navigate', arguments: { url: origin + '/' } });
+    const snapshot = await mcp.callTool({ name: 'browser_snapshot', arguments: {} });
+    const ref = JSON.stringify(snapshot).match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, JSON.stringify(snapshot).slice(0, 400));
+    const clicked = mcp.callTool({ name: 'browser_click', arguments: { ref } }, undefined, {
+      timeout: 90000,
+    });
+    let card;
+    for (let i = 0; i < 400 && !card; i++) {
+      card = [...app.engine.permissions.values()].find((p) => p.runId === run.id);
+      if (!card) await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.ok(card, 'carte d’envoi attendue');
+    hits.changed = true;
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    app.engine.decide(card.id, 'allow');
+    const result = await clicked;
+    assert.equal(result.isError, true);
+    assert.match(result.content[0].text, /action non effectuée, rien n’a été envoyé/);
+    for (let i = 0; i < 100 && !control.sendsFailed; i++)
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(control.sendsApproved, 1);
+    assert.equal(control.sendsFailed, 1);
+    assert.equal(control.sendsUncertain ?? 0, 0);
+    assert.equal(control.sendCalls?.size ?? 0, 0);
     assert.equal(hits.posts, 0);
   },
 );

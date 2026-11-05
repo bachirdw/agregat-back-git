@@ -5,6 +5,7 @@ import { producedBy } from '../career-ops/attachments.js';
 import { landedUrl } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { proofWatch } from './proofs.js';
+import { notDone } from '../policy-engine/not-done.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
@@ -26,10 +27,15 @@ const pack = getPack(process.argv[2] ?? 'core');
 const server = new McpServer({ name: 'agent-platform-capabilities', version: '0.2.0' });
 const mode = process.env.RELAY_BROWSER ?? 'fixture';
 const text = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
-const failure = (e) => ({
-  isError: true,
-  content: [{ type: 'text', text: String(e.message ?? e) }],
-});
+// E66 : failures raised before the action ran (`actionDone: false` on the error, troisième
+// relecture : a structured mark, no longer a reading of the message). Kept beside the result,
+// never sent to the agent.
+const notDoneResults = new WeakSet();
+const failure = (e) => {
+  const result = { isError: true, content: [{ type: 'text', text: String(e.message ?? e) }] };
+  if (e?.actionDone === false) notDoneResults.add(result);
+  return result;
+};
 
 // E64 : the agent's tool call in progress. An approval asked during that call dies with it : when
 // the agent gives the call up (MCP cancellation, connection closed), the platform takes the card
@@ -61,7 +67,7 @@ async function approve(request) {
 async function meter(dimension, units = 1) {
   const url = process.env.RELAY_USAGE_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN)
-    throw new Error('Pont de mesure requis pour les actions réelles');
+    throw notDone('Pont de mesure requis pour les actions réelles');
   const r = await fetch(url, {
     method: 'POST',
     headers: {
@@ -72,7 +78,8 @@ async function meter(dimension, units = 1) {
     body: JSON.stringify({ dimension, units }),
     signal: AbortSignal.timeout(15000),
   });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'Mesure refusée');
+  // A refused charge refuses the action : nothing was done.
+  if (!r.ok) throw notDone((await r.json().catch(() => ({}))).error ?? 'Mesure refusée');
 }
 
 function attachmentNames(name, status, args, result) {
@@ -122,11 +129,9 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
       // E55, E58 : the manifest steps this call's effect proved (keys only), when measured.
       ...(proofs ? { proofs } : {}),
       // E66 : a failure the gateway raised before acting (page changed while the owner decided,
-      // call cancelled, approval expired) says so ; any other failure leaves the outcome open.
-      ...(status === 'failed' &&
-      /action non effectuée|rien n’a été envoyé/.test(String(result?.content?.[0]?.text ?? ''))
-        ? { actionDone: false }
-        : {}),
+      // call cancelled, approval expired, charge refused) says so ; any other failure leaves the
+      // outcome open.
+      ...(status === 'failed' && notDoneResults.has(result) ? { actionDone: false } : {}),
     }),
     signal: AbortSignal.timeout(5000),
   });

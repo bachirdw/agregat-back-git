@@ -2,6 +2,7 @@ import { realpathSync, statSync, mkdirSync, readFileSync, readdirSync } from 'no
 import { resolve, basename, relative, isAbsolute, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
+import { notDone } from '../policy-engine/not-done.js';
 import { getCapability } from '../capability-registry/index.js';
 import { paginateText } from './paginate.js';
 import { summarizeSubmission } from './submission.js';
@@ -224,18 +225,17 @@ export class BrowserGateway {
           page: await this.provider.currentUrl?.(),
         });
         if (approved === 'expired')
-          throw new Error(
+          throw notDone(
             `Accord expiré sans réponse : ${capabilityId} ; action non effectuée, ne la refais pas par une autre voie.`,
           );
-        if (approved !== true)
-          throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
+        if (approved !== true) throw notDone(`Action refusée par l’utilisateur : ${capabilityId}`);
       }
     }
     // Seconde relecture de nuit : an agent that gave its call up while the owner decided gets
     // nothing done behind its back.
     const cancelled = () => {
       if (asked && this.callSignal?.()?.aborted)
-        throw new Error(
+        throw notDone(
           'Appel annulé par l’agent pendant l’attente de l’accord : action non effectuée, rien n’a été envoyé.',
         );
     };
@@ -250,7 +250,7 @@ export class BrowserGateway {
         new Promise((resolve) => setTimeout(resolve, 5000).unref?.()),
       ]);
     const changed = (cause) =>
-      new Error(
+      notDone(
         asked
           ? `Page modifiée, rechargée ou sans réponse pendant l’attente de l’accord (${cause}) : action non effectuée, rien n’a été envoyé. Relire la page (browser_snapshot) et refaire la saisie avant de redemander l’accord.`
           : cause,
@@ -283,9 +283,9 @@ export class BrowserGateway {
       const root = realpathSync(this.policy.workspace);
       const rel = relative(root, real);
       if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel) || real !== args.path)
-        throw new Error('Fichier modifié pendant l’approbation');
+        throw notDone('Fichier modifié pendant l’approbation');
       const buffer = readFileSync(real);
-      if (buffer.length > this.policy.maxDownloadBytes) throw new Error('Fichier trop volumineux');
+      if (buffer.length > this.policy.maxDownloadBytes) throw notDone('Fichier trop volumineux');
       args.filePayload = { name: basename(real), mimeType: 'application/octet-stream', buffer };
     }
     await this.meter(cap.meter, 1, capabilityId);

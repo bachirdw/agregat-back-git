@@ -7,6 +7,7 @@ import { createApp } from '../apps/api/server.js';
 import { formatSendLine } from '../packages/orchestrator/index.js';
 import { BrowserGateway, FixturePageProvider } from '../packages/browser-gateway/index.js';
 import { RunPolicy } from '../packages/policy-engine/run-policy.js';
+import { requestDecision } from '../packages/mcp-gateway/approval.js';
 
 // E66 (constaté la nuit du 05 au 06/11, essai A sur la page FICTIVE) : le propriétaire a approuvé
 // l'envoi, puis le clic a échoué ; rien n'est parti, mais le Bilan disait « 1 approuvé(s) par le
@@ -115,7 +116,33 @@ test('Seconde relecture : un appel annulé pendant l’attente de l’accord n�
   await gateway.call('browser.navigate', { url: 'https://emplois.example.test/candidature' });
   await assert.rejects(
     gateway.call('browser.click', { ref: 'e1' }),
-    /Appel annulé par l’agent pendant l’attente de l’accord : action non effectuée, rien n’a été envoyé/,
+    (error) =>
+      /Appel annulé par l’agent pendant l’attente de l’accord : action non effectuée, rien n’a été envoyé/.test(
+        error.message,
+      ) && error.actionDone === false,
   );
   assert.ok(!provider.actions.some((action) => action.id === 'browser.click'));
+});
+
+// Troisième relecture de nuit : « rien n'a été envoyé » se lisait dans le texte de l'erreur ; un
+// refus avant l'envoi au libellé différent (mesure refusée, envoi déjà réservé) devenait « issue
+// incertaine ». La marque est désormais structurée (actionDone: false sur l'erreur), posée là où
+// l'action est arrêtée ; l'accord non obtenu la porte aussi.
+test('Troisième relecture : un accord non obtenu porte la marque « non effectuée »', async () => {
+  await assert.rejects(
+    requestDecision(
+      'http://127.0.0.1:9/accord-FICTIF',
+      'jeton-FICTIF',
+      {},
+      {
+        signal: AbortSignal.abort(),
+      },
+    ),
+    (error) =>
+      /Accord non obtenu \(appel annulé\)/.test(error.message) && error.actionDone === false,
+  );
+  await assert.rejects(
+    requestDecision('http://127.0.0.1:9/accord-FICTIF', 'jeton-FICTIF', {}),
+    (error) => /Accord non obtenu/.test(error.message) && error.actionDone === false,
+  );
 });

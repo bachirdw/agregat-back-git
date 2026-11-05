@@ -1,5 +1,6 @@
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import { notDone } from '../policy-engine/not-done.js';
 
 // E64 : a decision takes as long as the owner needs (final send : AGENT_PLATFORM_SEND_TIMEOUT_MS,
 // or no ceiling at all). The gateway used to cut its request at 130 s while the card stayed open
@@ -13,7 +14,7 @@ import { request as httpsRequest } from 'node:https';
 // Resolves to true (approved), false (refused) or 'expired'; rejects when no decision came back.
 export function requestDecision(url, token, payload, { timeoutMs, signal } = {}) {
   const lost = (why) =>
-    new Error(
+    notDone(
       `Accord non obtenu (${why}) : action non effectuée, ne la refais pas par une autre voie.`,
     );
   if (signal?.aborted) return Promise.reject(lost('appel annulé'));

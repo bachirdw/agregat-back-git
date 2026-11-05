@@ -85,12 +85,14 @@ test('SMTP FICTIF : refus = zéro, approbation = exactement un, répétition et 
     },
   });
   const draft = email();
-  await assert.rejects(gateway.send(draft), /refusé/);
+  // E66 (troisième relecture) : une erreur levée avant l'envoi porte la marque « non effectuée ».
+  const notDone = (pattern) => (error) => pattern.test(error.message) && error.actionDone === false;
+  await assert.rejects(gateway.send(draft), notDone(/refusé/));
   assert.equal(messages.length, 0);
   approved = true;
   assert.equal((await gateway.send(draft)).sent, true);
   assert.equal(messages.length, 1);
-  await assert.rejects(gateway.send(draft), /déjà utilisé/);
+  await assert.rejects(gateway.send(draft), notDone(/déjà utilisé/));
   await assert.rejects(
     new EmailGateway({ career, config, approve: async () => true }).send(draft),
     /déjà utilisé/,
@@ -108,10 +110,12 @@ test('SMTP : double demande, annulation, budget et résultat incertain ne relanc
   const draft = email(),
     signal = new AbortController();
   const first = gateway.send(draft, signal.signal);
-  await assert.rejects(gateway.send(draft), /en cours/);
+  // E66 (troisième relecture) : refus avant l'envoi marqués « non effectué », l'incertain non.
+  const notDone = (pattern) => (error) => pattern.test(error.message) && error.actionDone === false;
+  await assert.rejects(gateway.send(draft), notDone(/en cours/));
   signal.abort();
   release(true);
-  await assert.rejects(first, /annulé/);
+  await assert.rejects(first, notDone(/annulé/));
   gateway.approve = async () => true;
   gateway.meter = () => {
     throw new Error('Budget dépassé FICTIF');
@@ -125,7 +129,10 @@ test('SMTP : double demande, annulation, budget et résultat incertain ne relanc
     close() {},
   });
   const uncertain = email();
-  await assert.rejects(gateway.send(uncertain), /incertain/);
+  await assert.rejects(
+    gateway.send(uncertain),
+    (error) => /incertain/.test(error.message) && error.actionDone === undefined,
+  );
   await assert.rejects(gateway.send(uncertain), /déjà utilisé/);
   assert.equal(messages.length, 0);
 });

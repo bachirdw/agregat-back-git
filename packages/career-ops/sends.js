@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import { readConfined, writeConfined, safeDirectory } from '../policy-engine/files.js';
+import { notDone } from '../policy-engine/not-done.js';
 import { recipientInCareerSources } from './truth.js';
 
 const address = z
@@ -96,7 +97,7 @@ export class EmailGateway {
       .update(Buffer.concat(files.map((f) => f.content)))
       .digest('hex');
     const key = root + '/' + email.id;
-    if (pending.has(key)) throw new Error('Envoi déjà en cours');
+    if (pending.has(key)) throw notDone('Envoi déjà en cours');
     pending.add(key);
     const journal = `outbox/${email.id}.json`;
     try {
@@ -107,7 +108,7 @@ export class EmailGateway {
         if (e.code !== 'ENOENT') throw e;
       }
       if (previous)
-        throw new Error(
+        throw notDone(
           'Identifiant déjà utilisé ; vérifier le suivi avant toute nouvelle tentative',
         );
       writeConfined(root, `drafts/${email.id}.json`, JSON.stringify(email));
@@ -118,7 +119,7 @@ export class EmailGateway {
           composeUrl: gmailCompose(email),
           manualSendOnly: true,
         };
-      if (signal?.aborted) throw new Error('Envoi annulé');
+      if (signal?.aborted) throw notDone('Envoi annulé');
       const approved = await this.approve({
         capability: 'email.send',
         actionClass: 'send',
@@ -129,15 +130,15 @@ export class EmailGateway {
           attachments: files.map(({ content, ...f }) => ({ ...f, size: content.length })),
         },
       });
-      if (approved !== true || signal?.aborted) throw new Error('Envoi refusé ou annulé');
+      if (approved !== true || signal?.aborted) throw notDone('Envoi refusé ou annulé');
       await this.meter('tool_call', 1);
-      if (signal?.aborted) throw new Error('Envoi annulé');
+      if (signal?.aborted) throw notDone('Envoi annulé');
       safeDirectory(root, 'outbox');
       let reservation;
       try {
         reservation = openSync(resolve(root, journal), 'wx', 0o600);
       } catch (e) {
-        if (e.code === 'EEXIST') throw new Error('Identifiant déjà réservé par un autre envoi');
+        if (e.code === 'EEXIST') throw notDone('Identifiant déjà réservé par un autre envoi');
         throw e;
       }
       try {

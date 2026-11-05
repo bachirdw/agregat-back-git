@@ -116,14 +116,39 @@ export function assessBrowserClaims(summary, evidence = []) {
     });
   }
   const unverified = citations.filter((item) => item.status !== 'read').length;
+  const captures = captureFacts(evidence);
   return {
     claimsVerified: false,
     citations,
+    captures,
     notice:
       'Affirmations de l’agent : non vérifiées.' +
-      (unverified ? ` ${unverified} lien(s) cité(s) sans lecture prouvée dans ce tour.` : ''),
+      (unverified ? ` ${unverified} lien(s) cité(s) sans lecture prouvée dans ce tour.` : '') +
+      (captures.expectedTextMissing ? `\n${captureLine(captures)}` : ''),
   };
 }
+
+// C5 c (E19): what the captures of the turn say by their proof fields alone (never page text,
+// never a rule about a site): how many waited for a text that did not appear, whether a scroll
+// was observed, whether those captures were taken in a hidden tab and how long their page was.
+function captureFacts(evidence = []) {
+  const captures = evidence.filter((item) =>
+    ['browser.snapshot', 'browser.extract'].includes(item?.capability),
+  );
+  const missing = captures.filter((item) => item.waitedFor?.found === false);
+  const textLength = missing.findLast((item) => Number.isInteger(item.textLength))?.textLength;
+  return {
+    expectedTextMissing: missing.length,
+    scrolled: captures.some((item) => ['bottom', 'page'].includes(item.scrolled)),
+    hidden: missing.some((item) => item.hidden === true),
+    ...(Number.isInteger(textLength) ? { textLength } : {}),
+  };
+}
+const captureLine = ({ expectedTextMissing, scrolled, hidden, textLength }) =>
+  `Capture : texte attendu non apparu (${expectedTextMissing}) ; défilement : ${scrolled ? 'observé' : 'non observé'}` +
+  (hidden ? ' ; onglet caché' : '') +
+  (Number.isInteger(textLength) ? ` ; texte de la page : ${textLength} caractères` : '') +
+  '.';
 
 export function browserObservationFailure(evidence) {
   const last = [...evidence]

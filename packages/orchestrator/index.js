@@ -784,7 +784,8 @@ export class Orchestrator {
     const recentToolCalls = new Map();
     const observedToolIds = new Set();
     let promptStarted = false;
-    const turnTruth = createTurnTruth();
+    // The pack's Bilan may compare a workspace file before and after the turn (read-only).
+    const turnTruth = createTurnTruth({ root: run.cwd });
     control.turnTruth = turnTruth;
     const skillProgress = new SkillProgress(plan.skillSelection ?? [], (step) => {
       this.store.event(run.id, 'skill_progress', step);

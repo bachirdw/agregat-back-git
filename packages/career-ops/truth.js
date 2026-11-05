@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
 import { loadSkillManifest } from '../orchestrator/skill-router.js';
+import { inboxEntries, inboxDelta } from './inbox.js';
 
 // The outcomes the career Bilan checks. Which tool calls prove them is declared by the pack's
 // manifest (step field `proves`), never by a tool name written here.
@@ -12,6 +13,8 @@ const COVER_PRODUCED = 'lettre produite';
 // The Skill's fact gate (verify-cv-facts.mjs, modes/pdf.md step 19): a non-zero exit is a claim absent
 // from the CV source, reported as a count, never as the claims themselves.
 const FACT_GATE = 'verify-cv-facts';
+// pipeline-01: the inbox step of modes/pipeline.md (career_write data/pipeline.md, proves it).
+const INBOX_PROCESSED = 'boîte d’entrée traitée';
 let careerManifest;
 const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
 
@@ -33,7 +36,9 @@ export function progressArgument(name, args = {}) {
       : /^[a-z][a-z0-9-]{1,40}$/.test(command)
         ? command
         : null;
-  if (name === 'career_read') return path.startsWith('jds/') ? 'jds/' : null;
+  // A read of the Skill's inbox proves the first step of modes/pipeline.md; other reads say nothing.
+  if (name === 'career_read')
+    return path.startsWith('jds/') ? 'jds/' : path === 'data/pipeline.md' ? path : null;
   if (name === 'career_write')
     return WRITE_PREFIXES.find((prefix) => path.startsWith(prefix)) ?? null;
   return null;
@@ -159,8 +164,19 @@ export function gatewayToolOutcome(name, result) {
   }
 }
 
+// The Skill's inbox as the turn found it, read once and never written: the Bilan compares it
+// with the file at the end. Absent, unreadable or no workspace: nothing to compare.
+function readInbox(root) {
+  if (typeof root !== 'string' || !root) return null;
+  try {
+    return inboxEntries(readConfined(root, 'data/pipeline.md', 10 * 1024 * 1024).toString('utf8'));
+  } catch (e) {
+    return e.code === 'ENOENT' ? [] : null;
+  }
+}
 // ACP can replay old tool updates on session/load. Create one tracker for each new prompt.
-export function createTurnTruth() {
+export function createTurnTruth({ root } = {}) {
+  const inboxBefore = readInbox(root);
   const names = new Map();
   const paths = new Map();
   const failed = new Map();
@@ -344,6 +360,11 @@ export function createTurnTruth() {
     hasJdRead() {
       return jdRead;
     },
+    // data/pipeline.md before the turn and now (read-only): null without a workspace or file.
+    inboxDelta() {
+      const after = readInbox(root);
+      return inboxBefore && after ? inboxDelta(inboxBefore, after) : null;
+    },
     // Offers saved with a score, by the ACP update or by the gateway: one entry per tool call
     // (the same call seen by both channels counts once, the gateway uses its own id).
     scoredOffers() {
@@ -462,6 +483,30 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
         ? `\n- CV non vérifié : ${unsourced} fait(s) sans source (${FACT_GATE}).`
         : `\n- CV non vérifié : ${FACT_GATE} a échoué (code non nul).`,
     );
+  // pipeline-01: the inbox of modes/pipeline.md. What was ticked is read in the file, never
+  // claimed from the prompt; a prompt that forbids writing is reported as such.
+  const inboxRequested =
+    /(?:^|[^\p{L}])(?:pipeline|inbox)(?=$|[^\p{L}])|bo[iî]te d.entr[ée]e|offres en attente|pending (?:offers|urls)/iu.test(
+      requested,
+    );
+  const dryRun =
+    /(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder|écrire|rien écrire)(?=$|[^\p{L}])|(?:^|[^\p{L}])à sec(?=$|[^\p{L}]))/iu.test(
+      prompt,
+    );
+  const inbox = truth.inboxDelta?.() ?? null;
+  const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+  let inboxLine = '';
+  if (proved(manifest, truth, INBOX_PROCESSED))
+    inboxLine = inbox
+      ? `\n- Boîte d’entrée : ${plural(inbox.processed, 'traitée')}, ${plural(inbox.unconfirmed, 'non confirmée')} [!], ${plural(inbox.remaining, 'restante')}${inbox.missing ? `, ${plural(inbox.missing, 'disparue')}` : ''}.`
+      : '\n- Boîte d’entrée : écriture observée, fichier non relu.';
+  else if (inboxRequested) {
+    if (inbox && !inbox.pending) inboxLine = '\n- Boîte d’entrée : aucune entrée en attente.';
+    else if (dryRun)
+      inboxLine = `\n- Boîte d’entrée : aucune écriture (le prompt l’interdit)${inbox ? `, ${plural(inbox.remaining, 'restante')}` : ''}.`;
+    else
+      missing.push(`${INBOX_PROCESSED}${inbox ? ` (${plural(inbox.remaining, 'restante')})` : ''}`);
+  }
   const rows = truth.trackerRows?.();
   const trackerLine = trackerProved
     ? `\n- Suivi du Skill : ${
@@ -470,7 +515,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
           : 'fusion réussie, nombre de lignes non lu'
       } (merge-tracker).`
     : '';
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}`;
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}${inboxLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

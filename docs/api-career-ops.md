@@ -92,6 +92,8 @@ en-tête, étiquettes requises du Skill, une seule ligne, score `X.X/5` ou `N/A`
 `mark-pdf-ready`. **`data/pdf-index.tsv`** n’est pas écrivable non plus : `generate-pdf --report=NNN`
 l’alimente (DATA_CONTRACT.md). Les PDF ne s’écrivent pas par `career_write` (binaires produits par
 `generate-pdf` et `generate-cover-letter`) ; `drafts/` reste le dossier des brouillons d’e-mail de Relay.
+`data/pipeline.md` (boîte d’entrée du Skill) est contrôlé à l’écriture : voir le parcours « pipeline »
+ci-dessous.
 
 ### Scripts du Skill admis par `career_script`
 
@@ -100,19 +102,23 @@ demandé (seul l’envoi final attend un clic). `args` : un argument par entrée
 commence jamais par `-` et ne contient aucun caractère de contrôle ; un drapeau inconnu, répété ou
 écrit `--x=y` est refusé. Un code de sortie non nul est rendu avec la sortie, pas masqué.
 
-| Commande             | Arguments admis                                                                                                                                 |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `reserve-report-num` | aucun, `--release NNN[-MMM]` ou `--gc`                                                                                                          |
-| `merge-tracker`      | `--dry-run`, `--verify`                                                                                                                         |
-| `set-status`         | `<n° ou entreprise> <état>` ou `--report N <état>` / `--row N <état>`, `--note`, `--role`, `--on AAAA-MM-JJ`, `--dry-run`, `--json`             |
-| `precheck-duplicate` | `--company`, `--title`, `--req`, `--url` (http(s)), `--json`                                                                                    |
-| `tracker`            | `query`, `history` ou `sync`, puis `--status`, `--company`, `--role`, `--since`, `--min-score`, `--id`, `--limit`, `--json`, `--csv`, `--check` |
-| `verify-pipeline`    | `--no-hints`                                                                                                                                    |
-| `check-liveness`     | 1 à 10 URL http(s)                                                                                                                              |
+| Commande             | Arguments admis                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `reserve-report-num` | aucun, `--release NNN[-MMM]` ou `--gc`                                                                                                           |
+| `merge-tracker`      | `--dry-run`, `--verify`                                                                                                                          |
+| `set-status`         | `<n° ou entreprise> <état>` ou `--report N <état>` / `--row N <état>`, `--note`, `--role`, `--on AAAA-MM-JJ`, `--dry-run`, `--json`              |
+| `precheck-duplicate` | `--company`, `--title`, `--req`, `--url` (http(s)), `--json`                                                                                     |
+| `tracker`            | `query`, `history` ou `sync`, puis `--status`, `--company`, `--role`, `--since`, `--min-score`, `--id`, `--limit`, `--json`, `--csv`, `--check`  |
+| `verify-pipeline`    | `--no-hints`                                                                                                                                     |
+| `check-liveness`     | 1 à 10 URL http(s)                                                                                                                               |
+| `reconcile-pipeline` | aucun ou `--dry-run` (déplace en Processed les entrées évaluées par le chemin batch, `batch/batch-state.tsv`)                                    |
+| `rank-pipeline`      | `--limit` 1–200, `--cli <id>`, `--model <nom>`, `--dry-run`, `--self-test` (annote `rank:` via un CLI d’agent, jetons dépensés ; ne retire rien) |
 
 Exclus volontairement : `--force`, `--undo` et réparations de `set-status`, migrations de
 `merge-tracker`, `--count` de `reserve-report-num`, `--file`/`--tracker`/`--apply` de `check-liveness`,
-`delete`/`export` de `tracker`.
+`delete`/`export` de `tracker`, `--pipeline`/`--state` (chemins) de `reconcile-pipeline`. `url-key.mjs`
+n’est pas un script (bibliothèque sans ligne de commande) : sa clé d’URL s’applique par
+`precheck-duplicate --url` et par `merge-tracker`.
 
 ## Parcours « CV adapté et lettre » selon le Skill (`modes/pdf.md`, `modes/cover.md`)
 
@@ -179,6 +185,61 @@ non produit » et « Lettre : produite / non produite » (quand c’est demandé
 code non nul (compte lu dans sa sortie, texte ou `--json` ; jamais les faits eux-mêmes). Rien n’est bloqué. La passerelle ne transmet à la plateforme que le préfixe du chemin (`reports/`,
 `batch/tracker-additions/`…), le nom de la commande, l’URL notée lue dans l’en-tête `**URL:**` et le
 nombre de lignes fusionnées : jamais le nom du fichier, le rapport ni le TSV.
+
+## Parcours « pipeline » : la boîte d’entrée `data/pipeline.md`
+
+Un prompt « traite la boîte d’entrée », « pipeline », « travaille les offres en attente », « process the
+inbox » sélectionne l’intention `pipeline` du manifeste (priorité 110, au-dessus de `search`), qui suit
+`modes/pipeline.md` du Skill. Le scan du Skill (`career_script scan`) et l’étape `pipeline` de
+l’intention `search` remplissent la boîte (`- [ ] url | entreprise | poste` en section Pending) ; cette
+intention la vide :
+
+1. `career_read data/pipeline.md` : relever les lignes `- [ ]` de la section Pending (ne pas relire tout
+   le fichier) ;
+2. balayage de vivacité **avant toute URL** : `career_script check-liveness` avec `args: [url, …]`
+   (10 au plus par appel, LinkedIn exclu) ; expirée → `- [x] ~~url | entreprise | poste~~ — posting
+expired (liveness sweep)` ; incertaine ou illisible → reste `- [ ]` ;
+3. facultatif, consultatif : `career_script precheck-duplicate` (`--company`, `--title`, `--url`) ; une
+   correspondance se dit au Bilan, elle ne bloque pas (le Skill déduplique à `merge-tracker`) ;
+4. pour chaque entrée vivante, le parcours « évaluer » ci-dessus : lecture (une page à la fois),
+   `reserve-report-num`, rapport `reports/{###}-…`, `--release`, TSV, `merge-tracker` ;
+5. `career_write data/pipeline.md` : l’entrée passe de Pending à Processed en
+   `- [x] #NNN | url | entreprise | poste | X.X/5 | PDF ✅/❌` ; une page inaccessible devient
+   `- [!] url — note` ; une page illisible reste `- [ ]` avec `unreadable: code`, jamais « fermée » sans
+   preuve ; `- [x] #-- | url | skipped (pre-screen mismatch: …)` pour le pré-filtre du Skill.
+
+Les étapes 4 et 5 portent `persists` (retirées par « n’enregistre rien ») et sont dispensées par « sans
+écrire », « à sec » ; le balayage par « sans vérifier ». Rien n’est obligatoire : le Bilan dit ce qui a
+été fait.
+
+### Contrôle de `career_write data/pipeline.md`
+
+Forme (`modes/pipeline.md` « Format of pipeline.md ») : toute ligne qui ressemble à une case doit être
+exactement `- [ ] …`, `- [x] …` ou `- [!] …` ; une entrée `- [ ]` ou `- [!]` commence par une URL
+(`https?://` ou `local:`), une entrée `- [x]` en contient une (`#NNN | url`, `#-- | url | skipped`,
+`[NNN](reports/…) | url`, `~~url | …~~ — posting expired`). Les titres de section (toute langue) et le
+texte libre du squelette de `scan.mjs` passent tels quels. Une ligne refusée est nommée par son numéro.
+**Aucune entrée ne disparaît** : chaque entrée du fichier existant (clé = URL, barre finale ignorée, rien
+d’autre normalisé) doit encore figurer dans le nouveau texte, cochée ou non ; sinon « N entrée(s)
+supprimée(s) ; le Skill coche et ne supprime pas ». Un doublon visible vaut mieux qu’une fusion
+silencieuse (`url-key.mjs`) : la plateforme n’invente pas de dédoublonnage.
+
+### Bilan de la boîte d’entrée
+
+La plateforme lit `data/pipeline.md` une fois au début du tour et le relit au Bilan (lecture seule,
+`packages/career-ops/inbox.js`). La preuve « boîte d’entrée traitée » vient du manifeste (`proves` de
+l’étape `mark`, `career_write data/pipeline.md`, par les deux canaux). Lignes possibles :
+
+- « Boîte d’entrée : n traitée(s), m non confirmée(s) [!], k restante(s)[, j disparue(s)] » : parmi les
+  `- [ ]` du début, celles devenues `[x]`, `[!]`, restées `[ ]` (toutes les `[ ]` d’après, y compris
+  ajoutées pendant le tour), ou absentes du fichier (impossible par `career_write`) ;
+- « Boîte d’entrée : écriture observée, fichier non relu » sans espace connu ;
+- demandée sans écriture : « Non exécuté : boîte d’entrée traitée (k restantes) », sauf si le prompt
+  l’interdit (« aucune écriture (le prompt l’interdit), k restantes ») ou si rien n’attendait (« aucune
+  entrée en attente »).
+
+Aucune règle métier dans l’orchestrateur : il transmet seulement le dossier de l’espace
+(`createTurnTruth({ root })`).
 
 ## Offres et résultats
 

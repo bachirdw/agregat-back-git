@@ -10,6 +10,7 @@ import { parse } from 'yaml';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { buildChildEnv } from '../agent-runtime/env.js';
 import { validatePortalsConfig } from './providers.js';
+import { inboxEntries } from './inbox.js';
 import { emailSchema, EmailGateway, linkedInDraft } from './sends.js';
 const exec = promisify(execFile);
 const noNetworkPreload = fileURLToPath(new URL('./no-network.cjs', import.meta.url));
@@ -125,6 +126,25 @@ function checkTrackerAddition(root, text) {
   if (row.length > header.length) fail('plus de valeurs que d’étiquettes');
   if (!scoreCell((row[header.indexOf('score')] ?? '').trim()))
     fail('score illisible (X.X/5 ou N/A)');
+}
+// pipeline-01: form of the Skill's inbox, and no entry removed (packages/career-ops/inbox.js).
+function checkPipelineInbox(root, text) {
+  const kept = new Set(inboxEntries(text, true).map((entry) => entry.key));
+  let previous = '';
+  try {
+    previous = readConfined(root, 'data/pipeline.md', 10 * 1024 * 1024).toString('utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  const removed = new Set(
+    inboxEntries(previous, false)
+      .filter((entry) => !kept.has(entry.key))
+      .map((entry) => entry.key),
+  ).size;
+  if (removed)
+    throw new Error(
+      `data/pipeline.md : ${removed} entrée(s) supprimée(s) ; le Skill coche (« - [x] », « - [!] ») et ne supprime pas (modes/pipeline.md)`,
+    );
 }
 const systemPath =
   /^(AGENTS\.md|DATA_CONTRACT\.md|(?:modes|templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml))$/u;
@@ -278,6 +298,20 @@ const SKILL_ENTRIES = {
   },
   'verify-pipeline': { flags: { '--no-hints': null } },
   'check-liveness': { positional: Array(10).fill(httpUrl), minPositional: 1, flags: {} },
+  // pipeline-01: the inbox scripts of modes/pipeline.md. reconcile-pipeline moves batch-processed
+  // entries to Processed (path flags --pipeline/--state left out, as --file above); rank-pipeline
+  // annotates pending rows with « rank: » through an agent CLI (opt-in, --limit capped at 200 by
+  // the script itself). url-key.mjs is a library without a command line: not an entry.
+  'reconcile-pipeline': { flags: { '--dry-run': null } },
+  'rank-pipeline': {
+    flags: {
+      '--limit': (v) => /^(?:[1-9]\d?|1\d\d|200)$/.test(v),
+      '--cli': (v) => /^[a-z][a-z0-9-]{0,30}$/.test(v),
+      '--model': (v) => /^[\p{L}\p{N}][\p{L}\p{N}._:-]{0,79}$/u.test(v),
+      '--dry-run': null,
+      '--self-test': null,
+    },
+  },
 };
 export const SKILL_SCRIPT_NAMES = Object.keys(SKILL_ENTRIES);
 // `flags` take their value as the next argument, `assigns` as `--flag=value` (the only form
@@ -429,6 +463,7 @@ export class CareerTools {
     if (typeof text !== 'string' || Buffer.byteLength(text) > 200000)
       throw new Error('Texte trop volumineux');
     if (trackerAddition.test(path)) checkTrackerAddition(this.career.path(), text);
+    if (path === 'data/pipeline.md') checkPipelineInbox(this.career.path(), text);
     if (path === 'config/profile.yml') this.career.profile(text);
     else writeConfined(this.career.path(), path, text);
     return { path, saved: true };

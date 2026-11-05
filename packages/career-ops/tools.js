@@ -87,8 +87,10 @@ const pathSchema = z
       !p.startsWith('/'),
     'Chemin relatif sans traversée requis',
   );
+// output/ also takes the HTML the Skill's CV chain builds (modes/pdf.md step 18: build-cv-html writes
+// it, step 19: the agent fixes it when verify-cv-facts refuses a claim). PDFs come from generate-pdf.
 const userPath =
-  /^(cv\.md|portals\.yml|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv)|batch\/tracker-additions\/[\p{L}\p{N}_ /.-]+\.tsv)$/u;
+  /^(cv\.md|portals\.yml|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv)|output\/[\p{L}\p{N}_ /.-]+\.html|batch\/tracker-additions\/[\p{L}\p{N}_ /.-]+\.tsv)$/u;
 // The Skill's own write rules (AGENTS.md « Pipeline Integrity », modes/oferta.md « Save report »):
 // the tracker gains rows only through a tracker-addition TSV merged by merge-tracker.mjs, and a
 // report is named reports/{###}-{company-slug}-{YYYY-MM-DD}.md with a number from
@@ -410,6 +412,11 @@ export class CareerTools {
     if (path === 'data/applications.md')
       throw new Error(
         'data/applications.md ne s’écrit pas directement : écrire batch/tracker-additions/{num}-{company-slug}.tsv puis career_script merge-tracker ; un état change par career_script set-status',
+      );
+    // DATA_CONTRACT.md: the PDF↔report manifest is written by generate-pdf.mjs (--report=NNN).
+    if (path === 'data/pdf-index.tsv')
+      throw new Error(
+        'data/pdf-index.tsv ne s’écrit pas directement : career_script generate-pdf avec --report=NNN l’alimente ; la colonne PDF du suivi change par career_script mark-pdf-ready',
       );
     if (path.startsWith('reports/') && !skillReport.test(path))
       throw new Error(

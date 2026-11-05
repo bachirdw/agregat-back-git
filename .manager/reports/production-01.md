@@ -64,3 +64,22 @@ uniquement (`example.test`), aucun secret, aucun fichier du Skill modifié.
   `generate-pdf` exclus ; `--test`/`--self-test` exclus. Les valeurs à drapeau de `generate-pdf` ne sont
   admises qu'en forme `--x=y` (le script traite `--report` seul comme opérande manquant).
 
+## Point 2 — Chemins de `career_write`
+
+- 00:44 Rouge constaté, `tests/career-skill-production.test.js` (nouveau, 2 tests) : `ℹ pass 0 / ℹ fail 2`,
+  lignes : `Fichier hors du périmètre career-ops` (HTML sous `output/` refusé) et `Missing expected exception.`
+  (`data/pdf-index.tsv` écrit directement).
+- `tools.js` : `output/**/*.html` écrivable (HTML construit par `build-cv-html`, corrigé par l'agent quand
+  `verify-cv-facts` refuse un fait, `pdf.md` étape 19), sous-dossiers de bundle admis
+  (`output/applications/042/cv/tailored/v001/cv.html`). `output/*.json` l'était déjà (payload CV, payload de
+  lettre : Relay confine à `output/` ce que `pdf.md`/`cover.md` placent dans `/tmp`). Interdits gardés :
+  `data/applications.md` (message merge-tracker/set-status) ; ajouté : `data/pdf-index.tsv` refusé à
+  l'écriture directe (DATA_CONTRACT.md : écrit par `generate-pdf.mjs --report`), message vers `generate-pdf` et
+  `mark-pdf-ready`. Lecture inchangée.
+- 00:45 Vert : 2/2 ; sous-ensemble career (7 fichiers) 81/83, mêmes 2 échecs « Agent non détecté ».
+  `check` et `format:check` verts.
+- Écart déclaré : **`drafts/` n'est pas ouvert** : le Skill écrit la lettre sous `output/{company-slug}-{role-slug}-cover.pdf`
+  (`cover.md` étape 9) et son payload dans `/tmp` ; `drafts/` est en outre le dossier des brouillons d'e-mail de
+  Relay (`career_drafts`, schéma `emailSchema`), une écriture libre y casserait la liste des brouillons. Le PDF
+  lui-même n'est pas écrivable par `career_write` (binaire produit par `generate-pdf`/`generate-cover-letter`).
+

@@ -34,7 +34,7 @@ workflow:
       title: Scanner les portails du Skill (command scan)
       arguments: { command: scan }
     - tool: jobs_search_live
-      title: Recherche de secours (Arbeitnow, Remotive) si le scan du Skill échoue ou si le prompt la demande
+      title: Recherche publique de secours (Arbeitnow, Remotive), seulement si le prompt la demande ; le scan du Skill couvre déjà ces fournisseurs
     - tool: career_script
       title: Vérifier que l'offre est encore ouverte (command check-liveness), puis réserver le numéro du rapport (reserve-report-num)
     - tool: career_write

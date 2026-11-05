@@ -14,10 +14,37 @@ Les modes amont sont lus par `career_read`, les documents écrits par `career_wr
 exposés par `career_script` sont `scan.mjs`, `find.mjs`, trois contrôles de CV et les scripts du Skill
 listés plus bas (« Parcours évaluer selon le Skill ») ; les parsers exécutables et plugins externes ne
 sont pas acceptés par le scan.
-Le scanner nécessite des portails configurés par l’utilisateur ; la recherche publique existante
-(`jobs_search_live`, Arbeitnow/Remotive, 40 offres par défaut) reste utilisable sans ces portails, mais
-seulement comme recherche de secours : le pack déclare le scan du Skill comme premier choix, et l’agent
-n’emploie `jobs_search_live` que si le scan échoue ou si le prompt le demande, en le disant dans `summary`.
+Le scanner nécessite des portails configurés par l’utilisateur. La recherche publique existante
+(`jobs_search_live`, Arbeitnow/Remotive, 40 offres par défaut) reste un outil disponible que l’agent
+appelle si le prompt le demande ; le pack ne la recommande plus à la place du scan, car le Skill livre
+déjà des fournisseurs `arbeitnow` et `remotive`. En cas de panne d’un portail, le repli suit
+`modes/scan.md` du Skill (son API, puis `scan_query`, puis `skipped_error` et le scan continue), et
+l’agent lit dans le navigateur les offres du portail en échec en le disant au Bilan.
+
+### Contrôle de `portals.yml` avant `scan`
+
+- Fournisseurs : tout `provider:` doit être un fichier `providers/<nom>.mjs` du Skill (les fichiers
+  préfixés `_` sont des aides). La liste est lue dans l’espace revu (`listSkillProviders`, mise en cache par
+  processus), jamais codée en dur ; un nom inconnu est refusé avec son nom, un dossier absent donne
+  « fournisseurs du Skill introuvables ».
+- `local-parser` est refusé : son exécutable local est déclaré dans `portals.yml`, pas dans le clone revu.
+  Toute clé contenant `parser`, `command`, `script` ou `plugin` reste refusée.
+- Le Skill choisit aussi un fournisseur d’après l’hôte de `careers_url` : chaque `careers_url` doit être en
+  https, sur un nom public (refus de `localhost`, des noms sans point, des suffixes `.local`, `.internal`,
+  `.lan`…, des adresses IP privées ou de bouclage). Le contrôle est syntaxique, sans liste d’hôtes
+  métier et sans résolution DNS ; les requêtes réseau elles-mêmes sont faites par le Skill.
+
+### Apify (désactivé)
+
+Apify n’est pas activé et Relay ne transmet pas `APIFY_TOKEN` aux scripts : leur environnement est une liste
+blanche (variables de base, `CAREER_OPS_ROOT`, `CAREER_OPS_DATA_DIR`). Il en va de même de `PRIVACY_*`,
+`CAREER_OPS_PDF_SHARED`, `CAREER_OPS_BROWSER_AUTODETECT`, `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` et
+`CLAUDE_PLUGIN_*` (test `tests/career-providers.test.js`). Le jour où le propriétaire l’activera, il
+faudra : son jeton `APIFY_TOKEN` dans le `.env` du Skill, `enabled: true` pour `apify` dans
+`config/plugins.yml`, une entrée `provider: apify` dans `portals.yml`, puis lever le refus de `.env`, de la clé
+`plugin` et de l’environnement côté Relay (décision explicite, avec nouvelle revue du Skill). Rien de cela
+n’est fait aujourd’hui.
+
 Quand le prompt et le Skill ne tranchent pas entre plusieurs outils équivalents, l’agent pose la question
 dans `summary` au lieu de choisir au hasard. Aucun résultat n’est fabriqué pour remplacer une source
 indisponible.
@@ -69,15 +96,15 @@ demandé (seul l’envoi final attend un clic). `args` : un argument par entrée
 commence jamais par `-` et ne contient aucun caractère de contrôle ; un drapeau inconnu, répété ou
 écrit `--x=y` est refusé. Un code de sortie non nul est rendu avec la sortie, pas masqué.
 
-| Commande | Arguments admis |
-|---|---|
-| `reserve-report-num` | aucun, `--release NNN[-MMM]` ou `--gc` |
-| `merge-tracker` | `--dry-run`, `--verify` |
-| `set-status` | `<n° ou entreprise> <état>` ou `--report N <état>` / `--row N <état>`, `--note`, `--role`, `--on AAAA-MM-JJ`, `--dry-run`, `--json` |
-| `precheck-duplicate` | `--company`, `--title`, `--req`, `--url` (http(s)), `--json` |
-| `tracker` | `query`, `history` ou `sync`, puis `--status`, `--company`, `--role`, `--since`, `--min-score`, `--id`, `--limit`, `--json`, `--csv`, `--check` |
-| `verify-pipeline` | `--no-hints` |
-| `check-liveness` | 1 à 10 URL http(s) |
+| Commande             | Arguments admis                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reserve-report-num` | aucun, `--release NNN[-MMM]` ou `--gc`                                                                                                          |
+| `merge-tracker`      | `--dry-run`, `--verify`                                                                                                                         |
+| `set-status`         | `<n° ou entreprise> <état>` ou `--report N <état>` / `--row N <état>`, `--note`, `--role`, `--on AAAA-MM-JJ`, `--dry-run`, `--json`             |
+| `precheck-duplicate` | `--company`, `--title`, `--req`, `--url` (http(s)), `--json`                                                                                    |
+| `tracker`            | `query`, `history` ou `sync`, puis `--status`, `--company`, `--role`, `--since`, `--min-score`, `--id`, `--limit`, `--json`, `--csv`, `--check` |
+| `verify-pipeline`    | `--no-hints`                                                                                                                                    |
+| `check-liveness`     | 1 à 10 URL http(s)                                                                                                                              |
 
 Exclus volontairement : `--force`, `--undo` et réparations de `set-status`, migrations de
 `merge-tracker`, `--count` de `reserve-report-num`, `--file`/`--tracker`/`--apply` de `check-liveness`,

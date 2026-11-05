@@ -939,6 +939,7 @@ export class CdpBrowser {
       return {
         action: form?.action ?? null,
         method: form?.method ?? null,
+        enctype: form?.enctype ?? null,
         fields: Array.from(form?.elements ?? []).map((f) => ({
           name: f.name || f.id,
           type: f.type,

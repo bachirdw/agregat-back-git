@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
 import { loadSkillManifest } from '../orchestrator/skill-router.js';
 import { inboxEntries, inboxDelta } from './inbox.js';
+import { cvAttachmentLine } from './attachments.js';
 import { capabilities } from '../capability-registry/index.js';
 
 // The outcomes the career Bilan checks. Which tool calls prove them is declared by the pack's
@@ -610,6 +611,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
     documentLines.push(`\n- CV du Skill : ${cvProduced ? 'produit (PDF)' : 'non produit'}.`);
   if (coverProduced || (documentsRequested && /\blettre\b/iu.test(requested)))
     documentLines.push(`\n- Lettre : ${coverProduced ? 'produite' : 'non produite'}.`);
+  documentLines.push(cvAttachmentLine(truth, requested)); // apply-01 (E40) : « CV joint : adapté / brut / aucun »
   const unsourced = truth.factsUnsourced?.();
   if (Number.isInteger(unsourced))
     documentLines.push(

@@ -1,5 +1,7 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
+import { producedBy } from '../career-ops/attachments.js';
+import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -62,6 +64,22 @@ async function meter(dimension, units = 1) {
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'Mesure refusée');
 }
 
+function attachmentNames(name, status, args, result) {
+  if (status !== 'completed') return {};
+  const answer = () => {
+    try {
+      return JSON.parse(result.content?.[0]?.text ?? '{}');
+    } catch {
+      return {};
+    }
+  };
+  const file = (value) => (typeof value === 'string' && value ? basename(value) : undefined);
+  if (name === 'browser_upload') return { uploaded: file(answer().uploaded) ?? file(args?.path) };
+  if (name === 'career_script') return { produced: file(producedBy(args?.command, args?.args)[0]) };
+  if (name === 'career_document') return { rendered: file(answer().path) };
+  return {};
+}
+
 // The workflow executor premeters its own calls. Agent-initiated calls are metered here,
 // including tools registered by a domain pack, before their handlers run.
 const register = server.registerTool.bind(server);
@@ -94,6 +112,8 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
         : {}),
       // Argument prefix, URL of a scored offer, rows merged: never the report or any page text.
       ...gatewayProgress(name, status, args, result),
+      // apply-01 (E40): file names only (never a path), for the Bilan's « CV joint » line.
+      ...attachmentNames(name, status, args, result),
       jdRead: name === 'career_read' && /^jds\//.test(args?.path ?? ''),
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
     }),

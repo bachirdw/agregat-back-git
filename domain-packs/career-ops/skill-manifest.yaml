@@ -404,11 +404,23 @@ intents:
         precondition: Formulaire visible
         done: Champs remplis ; « Suivant » passe sans accord ; un dialogue de page se règle avec browser_dialog
         optional: false
+      # apply-01 (E40) : le CV joint est le CV adapté de la chaîne du Skill (mode apply, étape 4b
+      # TAILORED : build-cv-html → verify-cv-facts → generate-pdf), produit dans la mission ou déjà présent
+      # (intent documents) ; career_documents et la réponse de generate-pdf en donnent le chemin.
+      - id: cv-pdf
+        title: Produire le PDF du CV adapté par la chaîne du Skill
+        tool: career_script
+        argument: generate-pdf
+        precondition: Aucun cvTailored dans career_documents ; payload, build-cv-html et verify-cv-facts selon modes/pdf.md (args [html, output/….pdf, "--format=a4|letter", "--report={###}"])
+        done: generate-pdf code zéro ; la réponse donne produced et cvTailored, chemins à passer tels quels à browser_upload
+        optional: true
+        persists: true
+        proves: CV produit
       - id: upload
-        title: Joindre le CV du dossier de mission
+        title: Joindre le CV adapté de la mission
         tool: browser_upload
-        precondition: Champ fichier visible
-        done: Fichier reçu par la page
+        precondition: Champ fichier visible ; path = cvTailored (réponse de generate-pdf ou career_documents) ; à défaut le CV du dossier (PDF rendu depuis cv.md), en le disant dans summary
+        done: 'Fichier reçu par la page (uploaded) ; le Bilan dit « CV joint : adapté / brut / aucun »'
         optional: true
       - id: verify
         title: Relire les valeurs saisies

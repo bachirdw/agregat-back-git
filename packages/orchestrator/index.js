@@ -1,3 +1,5 @@
+import { submissionTitle } from '../browser-gateway/submission.js';
+import { trackAttachments } from '../career-ops/attachments.js';
 import {
   assertCareerReview,
   CAREER_INSTRUCTIONS,
@@ -240,7 +242,7 @@ export class Orchestrator {
       abort,
       detach: () => signal.removeEventListener('abort', onAbort),
       promptStarted: false,
-      turnTruth: createTurnTruth(),
+      turnTruth: trackAttachments(createTurnTruth()),
       browserEvidence: [],
       token: randomUUID() + randomUUID(),
     };
@@ -347,8 +349,16 @@ export class Orchestrator {
     }
     if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
       throw new Error('Run inactif ou annulé');
-    const title =
-      `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`.trim();
+    // apply-01 (E42, E26): a form submission is titled with its button's label, action (host + path),
+    // method, multipart, filled fields and attachment, so « Suivant » never reads like « Envoyer ».
+    const submission = request.preview?.submission;
+    const title = (
+      submission && typeof submission.text === 'string'
+        ? `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${submissionTitle(request.capability, submission)}`
+        : `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`
+    )
+      .trim()
+      .slice(0, 400);
     const outcome = await this.permission(
       runId,
       {
@@ -808,10 +818,10 @@ export class Orchestrator {
     // description read) still counts. A new mission starts from nothing.
     const inherited = (previous?.id && this.store.get(previous.id)?.missionProof) || null;
     // The pack's Bilan may compare a workspace file before and after the turn (read-only).
-    const turnTruth = createTurnTruth({
-      root: run.cwd,
-      seed: { jdRead: inherited?.sourceRead === true },
-    });
+    const turnTruth = trackAttachments(
+      createTurnTruth({ root: run.cwd, seed: { jdRead: inherited?.sourceRead === true } }),
+      { root: run.cwd },
+    );
     control.turnTruth = turnTruth;
     // Saved with the final state, before anything awaits: a reprise may start right after.
     const missionProof = () => ({

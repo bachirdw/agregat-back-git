@@ -223,7 +223,7 @@ export const capabilities = [
     effect: 'sensitive',
     meter: 'browser_action',
     description:
-      'Joindre un fichier du dossier du run : ref du champ fichier, ou du bouton « Joindre » qui ouvre le sélecteur de fichier (jamais un bouton d’envoi).',
+      'Joindre un fichier du dossier de mission : path relatif à ce dossier tel que renvoyé par career_script generate-pdf ou career_document (ex. output/cv-….pdf), ou absolu dans ce dossier ; ref du champ fichier, ou du bouton « Joindre » qui ouvre le sélecteur de fichier (jamais un bouton d’envoi).',
     schema: z
       .object({
         ref,

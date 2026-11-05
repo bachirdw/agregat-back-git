@@ -1,6 +1,6 @@
 import { readConfined, writeConfined } from '../policy-engine/files.js';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { chromium } from 'playwright-core';
 const escape = (text) =>
   text
@@ -103,10 +103,34 @@ export async function attachDocument(
   const text = new TextDecoder('utf8', { fatal: true }).decode(readConfined(root, path, 200000));
   let bytes = Buffer.from(text),
     type = 'text/markdown';
+  let written = null;
   if (format === 'pdf') {
     bytes = await render(text);
     type = 'application/pdf';
-    writeConfined(root, `output/${randomUUID()}.pdf`, bytes);
+    // apply-01 (E43): the PDF lives under output/ with the name the agent chose, and the answer
+    // says so, so browser_upload gets a path that exists instead of a guess under drafts/ or inputs/.
+    written = renderedPdfPath(root, name);
+    writeConfined(root, written, bytes);
   }
-  return career.upload(bytes, `${name}.${format}`, type, { updateCv: false });
+  const item = await career.upload(bytes, `${name}.${format}`, type, { updateCv: false });
+  if (!written) return item;
+  return {
+    ...item,
+    path: written,
+    tailored: false,
+    note: `Chemin utilisable tel quel par browser_upload (path: « ${written} »). PDF rendu par Relay depuis le Markdown ${path}, pas le CV adapté de la chaîne du Skill (build-cv-html, verify-cv-facts, generate-pdf).`,
+  };
+}
+// output/<name>.pdf, never replacing an earlier rendering of the same name.
+function renderedPdfPath(root, name) {
+  const base =
+    String(name)
+      .replace(/\.pdf$/i, '')
+      .replace(/[^\p{L}\p{N}._-]+/gu, '_')
+      .slice(0, 100) || 'document';
+  for (let n = 1; n < 1000; n++) {
+    const candidate = `output/${base}${n > 1 ? `-${n}` : ''}.pdf`;
+    if (!existsSync(resolve(root, candidate))) return candidate;
+  }
+  throw new Error('Trop de rendus du même nom sous output/');
 }

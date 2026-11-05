@@ -240,3 +240,42 @@ test('Suivi FICTIF : une reprise garde la lecture d’une annonce prouvée plus 
     [],
   );
 });
+
+// Point 5 (E1, 05b34578) : la page demandée redirige vers un autre hôte ; la note porte sur l'URL
+// demandée, la capture lisible sur l'URL finale.
+async function redirectedMission(t, prompt) {
+  const { app, waitFor } = await ownerApp(t);
+  const run = await app.engine.create({
+    prompt,
+    agent: 'fixture',
+    pack: 'career-ops',
+    browser: 'fixture',
+  });
+  await waitFor(() => terminal.has(app.store.get(run.id).state));
+  return app.store.get(run.id);
+}
+
+test('E1 FICTIF : une offre lue après redirection vers un autre hôte est lue pour sa note', async (t) => {
+  const run = await redirectedMission(
+    t,
+    'FICTIF_REDIRECTION Évalue https://www.exemple.test/offre/1',
+  );
+  assert.equal(run.state, 'completed', run.error);
+  assert.doesNotMatch(run.result.summary, /notée\(s\) sans lecture/);
+  const capture = run.missionProof.reads.find((item) => item.capability === 'browser.snapshot');
+  assert.equal(capture.url, 'https://a.exemple.test/offre/1');
+  assert.equal(capture.requestedUrl, 'https://www.exemple.test/offre/1');
+  assert.equal(run.result.evidence.length, 2, 'navigation et capture appariées');
+});
+
+test('E1 FICTIF : après redirection, une note sur un autre chemin reste sans lecture', async (t) => {
+  const run = await redirectedMission(
+    t,
+    'FICTIF_REDIRECTION AUTRE_CHEMIN Évalue https://www.exemple.test/offre/1',
+  );
+  assert.equal(run.state, 'failed');
+  assert.match(
+    run.error,
+    /^Mission incomplète : 1 offre\(s\) notée\(s\) sans lecture de leur page$/,
+  );
+});

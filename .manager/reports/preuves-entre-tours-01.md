@@ -55,3 +55,8 @@ Sous-agent codeur (Opus), dossier `~/Downloads/agregat-back-astra`, branche `sui
 ## 13:06 — Point 4 : état final
 - Commits : f3f32ec (point 1), 3c15233 (point 2), fc54d3d (point 3). Tests ciblés verts (compteurs aux sections 13:05). Check et format verts. Suite complète : au manager.
 - État : tours de question **opérationnels** (déjà, prouvé) ; reprise **opérationnelle** pour les preuves de lecture (testé en FICTIF) ; cause réelle de 05b34578 **non établie**.
+
+## 13:09 — Point 5 (demande du manager) : E1, offre lue après redirection vers un autre hôte — test rouge
+- Cause réelle de 05b34578 donnée par le manager (réponses d'outil en base) : navigation demandée sur `www.seek.com.au/job/<n>`, redirection vers `au.seek.com/job/<n>`, capture lisible (`loading: false`) sur l'URL finale ; note sur l'URL demandée ; `pageKey` (hôte + chemin) ne rapproche pas les deux. Hypothèse 2 de la section « Cause probable » confirmée.
+- Fixture `FICTIF_REDIRECTION` (career-agent) : la **vraie** `BrowserGateway` sur `FixturePageProvider` (redirection déjà prise en charge par le fournisseur : `pages[url].redirect`), page FICTIVE `https://www.exemple.test/offre/1` → `https://a.exemple.test/offre/1` ; sorties postées sur `RELAY_EVIDENCE_URL` comme `mcp-gateway/server.js` ; `browser.navigate` (URL demandée) puis `browser.snapshot` sans URL ; note sur l'URL demandée (ou `https://www.exemple.test/offre/2`, `AUTRE_CHEMIN`).
+- Rouge constaté : `E1 FICTIF : une offre lue après redirection vers un autre hôte est lue pour sa note` — `AssertionError [ERR_ASSERTION]: Mission incomplète : 1 offre(s) notée(s) sans lecture de leur page` (actual `failed`). La variante autre chemin est déjà verte (`failed`, contrôle exercé).

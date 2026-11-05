@@ -120,6 +120,52 @@ const app = agent({ name: 'career-FICTIF' })
           ),
           simulated: true,
         });
+      // preuves-entre-tours-01 point 5 (E1) : la page demandée redirige vers un autre hôte. La vraie
+      // passerelle (BrowserGateway) sur un fournisseur FICTIF ; ses sorties sont postées comme le fait
+      // mcp-gateway/server.js en mode propriétaire.
+      if (request.objective?.includes('FICTIF_REDIRECTION')) {
+        const { BrowserGateway, FixturePageProvider } = await import(
+          '../../packages/browser-gateway/index.js'
+        );
+        const { RunPolicy } = await import('../../packages/policy-engine/run-policy.js');
+        const { capabilityIds } = await import('../../packages/capability-registry/index.js');
+        const page = { title: 'Offre FICTIVE', text: 'Offre FICTIVE lisible : Poste FICTIF.' };
+        const gateway = new BrowserGateway({
+          provider: new FixturePageProvider({
+            'https://www.exemple.test/offre/1': { redirect: 'https://a.exemple.test/offre/1' },
+            'https://a.exemple.test/offre/1': page,
+          }),
+          policy: new RunPolicy({
+            ownerMode: true,
+            allowedDomains: ['exemple.test'],
+            capabilities: capabilityIds,
+            resolveHost: async () => ['93.184.216.34'],
+          }),
+        });
+        const post = async (output) => {
+          const response = await fetch(relayEnv('RELAY_EVIDENCE_URL'), {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-platform-request': '1',
+              'x-relay-token': relayEnv('RELAY_APPROVAL_TOKEN'),
+            },
+            body: JSON.stringify(output),
+          });
+          if (!response.ok) throw new Error('Preuve navigateur FICTIVE refusée');
+        };
+        await post(
+          await gateway.call('browser.navigate', { url: 'https://www.exemple.test/offre/1' }),
+        );
+        await post(await gateway.call('browser.snapshot', {}));
+        await saveScored(
+          request.objective.includes('AUTRE_CHEMIN')
+            ? 'https://www.exemple.test/offre/2'
+            : 'https://www.exemple.test/offre/1',
+        );
+        await send('Offre FICTIVE lue après redirection, notée 3/5.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.platform?.turnKind === 'answer' && pendingNote) {
         const url = pendingNote;
         pendingNote = null;

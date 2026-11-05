@@ -7,7 +7,7 @@ import {
   UPLOAD_NOTE,
 } from './produced-documents.js';
 import { readdirSync, lstatSync, existsSync, realpathSync } from 'node:fs';
-import { resolve, extname, sep, relative, isAbsolute } from 'node:path';
+import { resolve, extname, sep, relative, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -448,11 +448,29 @@ const ownerRootScript = (root, command) => {
   }
 };
 // The home directory (« ~ », « ~/… ») is outside the workspace ; « ~80k » in a note is text.
+// Revue Opus du 06/11 : the check was lexical ; a symbolic link under data/, reports/ or output/
+// (folders the source review does not visit) took a path out of the workspace. The deepest
+// existing ancestor of the target is resolved and compared with the real workspace.
 const outsidePath = (root, value) => {
   if (value === '~' || value.startsWith('~/')) return true;
   if (!value.includes('/') && value !== '..') return false;
   const target = resolve(root, value);
-  return target !== root && !target.startsWith(root + sep);
+  if (target !== root && !target.startsWith(root + sep)) return true;
+  let base;
+  try {
+    base = realpathSync(root);
+  } catch {
+    return true;
+  }
+  for (let probe = target; ; probe = dirname(probe)) {
+    try {
+      const rel = relative(base, realpathSync(probe));
+      return rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
+    } catch (error) {
+      if ((error.code !== 'ENOENT' && error.code !== 'ENOTDIR') || dirname(probe) === probe)
+        return true;
+    }
+  }
 };
 // An http(s) URL is never a file. A file: URL is the path it names, whatever its slashes
 // (« file:/etc/hosts », troisième relecture) ; « File: » not followed by a slash or a drive letter is
@@ -575,6 +593,28 @@ const readable = (path) => {
 // reading : « Lire réellement l'annonce » is credited on a jds/ path), but the refusal names the
 // files career_read reads there (regular files of that folder, one level, no symbolic link).
 const NAMES_SHOWN = 100;
+// Revue Opus du 06/11 : a pattern turned into a regular expression backtracked exponentially (ten
+// stars : 24 s, the whole gateway stuck). Two pointers, back to the last star : linear in practice.
+function globMatch(glob, name) {
+  let g = 0,
+    n = 0,
+    star = -1,
+    mark = 0;
+  while (n < name.length) {
+    if (g < glob.length && (glob[g] === '?' || glob[g] === name[n])) {
+      g++;
+      n++;
+    } else if (g < glob.length && glob[g] === '*') {
+      star = g++;
+      mark = n;
+    } else if (star !== -1) {
+      g = star + 1;
+      n = ++mark;
+    } else return false;
+  }
+  while (g < glob.length && glob[g] === '*') g++;
+  return g === glob.length;
+}
 function folderRefusal(root, path) {
   const pattern = /[*?]/.test(path);
   const trimmed = path.replace(/\/+$/, '');
@@ -591,23 +631,20 @@ function folderRefusal(root, path) {
     const real = realpathSync(resolve(base, dir));
     const rel = relative(base, real);
     if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
+    // Revue Opus du 06/11 : career_read never follows a link ; a folder reached through one (even
+    // inside the workspace) is not listed, its files could not be read.
+    if (real !== resolve(base, dir))
+      return new Error(
+        `Dossier « ${dir} » atteint par un lien symbolique : career_read ne suit pas les liens.`,
+      );
     entries = readdirSync(real, { withFileTypes: true });
   } catch (error) {
     if (error.code === 'ENOENT') return new Error(`Dossier « ${dir} » absent.`);
     if (error.code === 'ENOTDIR') return null;
     throw error;
   }
-  const match =
-    glob &&
-    new RegExp(
-      `^${glob
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.')}$`,
-      'u',
-    );
   const names = entries
-    .filter((entry) => entry.isFile() && (!match || match.test(entry.name)))
+    .filter((entry) => entry.isFile() && (!glob || globMatch(glob, entry.name)))
     .map((entry) => `${dir}/${entry.name}`)
     .filter(readable)
     .sort();

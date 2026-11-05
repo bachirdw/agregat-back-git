@@ -81,3 +81,34 @@ test('E71 FICTIF : hors du périmètre, rien n’est nommé', (t) => {
   ])
     assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
 });
+
+// Revue Opus du 06/11 : le motif devenait une expression à retour arrière exponentiel (10 étoiles :
+// 24 s, la passerelle figée) ; il se compare désormais en temps linéaire.
+test('E71 FICTIF : un motif à étoiles répétées répond aussitôt', (t) => {
+  const tools = workspace(t);
+  const started = Date.now();
+  assert.throws(
+    () => tools.read(`reports/${'*'.repeat(60)}Z.md`),
+    /Aucun fichier lisible ne répond au motif/,
+  );
+  assert.ok(Date.now() - started < 500, `motif trop lent : ${Date.now() - started} ms`);
+  assert.throws(
+    () => tools.read('reports/*-*-*-*.md'),
+    (error) => error.message.includes('(2)'),
+  );
+});
+
+// Revue Opus du 06/11 : un dossier atteint par un lien interne à l'espace était listé, mais
+// career_read refuse ensuite tout chemin qui passe par un lien : l'agent tournait en rond.
+test('E71 FICTIF : un dossier atteint par un lien symbolique n’est pas listé', (t) => {
+  const tools = workspace(t);
+  const root = tools.career.path();
+  mkdirSync(join(root, 'data'));
+  symlinkSync(join(root, 'reports'), join(root, 'data/interne'));
+  for (const path of ['data/interne', 'data/interne/*.md'])
+    assert.throws(
+      () => tools.read(path),
+      (error) => /lien symbolique/.test(error.message) && !/005-entreprise/.test(error.message),
+      path,
+    );
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerTools, sourceSnapshot } from '../packages/career-ops/tools.js';
@@ -36,7 +36,9 @@ function workspace(t, { ownerMode = true } = {}) {
       join(root, `${name}.mjs`),
       `console.log(JSON.stringify({ script: ${JSON.stringify(name)}, args: process.argv.slice(2) }))`,
     );
-  // Un lien symbolique dans le clone fait déjà échouer la revue des sources (sourceSnapshot).
+  // Un lien symbolique dans le clone fait échouer la revue des sources (sourceSnapshot), sauf dans
+  // les dossiers de données (data, reports, output…), qu'elle ne visite pas : le confinement des
+  // arguments compare donc les chemins réels (test ci-dessous).
   writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
   return { root, tools: new CareerTools({ path: () => root }, { ownerMode }) };
 }
@@ -171,4 +173,29 @@ test('E59 FICTIF : hors mode propriétaire, un contrôle n’accepte que son che
     tools.script({ command: 'jd-skill-gap', path: 'jds/offre-FICTIVE.md', args: ['--summary'] }),
     /Arguments supplémentaires non autorisés/,
   );
+});
+
+// Revue Opus du 06/11 : le confinement des arguments était lexical ; un lien symbolique sous data/
+// (dossier que la revue des sources ne visite pas) faisait sortir un chemin de l'espace.
+test('E59 FICTIF : un chemin qui sort de l’espace par un lien symbolique est refusé', async (t) => {
+  const { root, tools } = workspace(t);
+  const outside = realpathSync(mkdtempSync(join(tmpdir(), 'hors-espace-FICTIF-')));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  mkdirSync(join(root, 'data'));
+  mkdirSync(join(root, 'output'));
+  symlinkSync(outside, join(root, 'data/lien'));
+  for (const args of [
+    ['export', '--out', 'data/lien/suivi-fictif.csv'],
+    ['export', '--out=data/lien/sous-dossier/suivi-fictif.csv'],
+    ['export', '--out', 'output/a.csv,data/lien/b.csv'],
+  ])
+    await assert.rejects(
+      tools.script({ command: 'tracker', args }),
+      /hors de l’espace career-ops/,
+      args.join(' '),
+    );
+  // Un lien qui reste dans l'espace, et un fichier encore absent, passent.
+  symlinkSync(join(root, 'output'), join(root, 'data/interne'));
+  const args = ['export', '--out', 'data/interne/suivi-fictif.csv'];
+  assert.deepEqual((await run(tools, 'tracker', args)).args, args);
 });

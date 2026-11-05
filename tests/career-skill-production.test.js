@@ -320,5 +320,9 @@ test('verify-cv-facts.mjs réel (RELAY_SKILL_CLONE) : CV fidèle à zéro, fait 
   assert.ok(factsUnsourced(invented.text) >= 1, invented.text);
   const json = run('output/cv-invente.html', '--json');
   assert.equal(json.code, 1);
-  assert.ok(factsUnsourced(json.text.trim().split('\n').at(-1)) >= 1, json.text);
+  // La sortie JSON est la ligne qui commence par « { » ; les avertissements du script (config
+  // absente, langue) arrivent sur stderr et sont collés après elle.
+  const jsonLine = json.text.split('\n').find((line) => line.trim().startsWith('{'));
+  assert.ok(jsonLine, json.text);
+  assert.ok(factsUnsourced(jsonLine) >= 1, json.text);
 });

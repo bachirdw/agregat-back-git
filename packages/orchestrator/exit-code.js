@@ -3,7 +3,9 @@
 // the text a script printed or a page read : JSON text is unwrapped only where an answer lives (an
 // MCP or ACP content item, or the raw output itself), not inside the answer's own fields.
 // Seconde relecture de nuit : one reader for the router, the Bilan and the attachments.
-const ANSWER_DEPTH = 3;
+// Troisième relecture : the envelopes an adapter wraps the answer in (rawOutput { result:
+// { content } }…) are followed this deep ; the answer's own fields never are.
+const ANSWER_DEPTH = 6;
 
 export function answeredExitCode(output) {
   let found = null;

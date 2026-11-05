@@ -47,3 +47,19 @@ test('Code de sortie FICTIF : une réponse sans code, ou une page qui en cite un
   assert.equal(exitFailedOf(mcp(page)), false);
   assert.equal(exitFailedOf(undefined), false);
 });
+
+// Troisième relecture de nuit : une réponse enveloppée un cran plus bas (rawOutput { result:
+// { content } }) n'était plus lue au-delà de la profondeur 3 : un script en échec passait pour
+// réussi. Le déballage suit les enveloppes plus loin, jamais les champs d'une réponse déjà lue.
+test('Code de sortie FICTIF : une réponse plus enveloppée reste lue', () => {
+  const failed = JSON.stringify({ text: 'x', exitCode: 1 });
+  assert.equal(exitFailedOf({ result: { content: [{ type: 'text', text: failed }] } }), true);
+  assert.equal(exitFailedOf({ output: { content: [{ type: 'text', text: failed }] } }), true);
+  assert.equal(
+    exitFailedOf([{ type: 'content', content: { result: { content: [{ text: failed }] } } }]),
+    true,
+  );
+  // Le texte imprimé par le script n'est jamais déballé, même enveloppé.
+  const quoted = JSON.stringify({ text: '{"exitCode": 1}', exitCode: 0 });
+  assert.equal(exitFailedOf({ result: { content: [{ type: 'text', text: quoted }] } }), false);
+});

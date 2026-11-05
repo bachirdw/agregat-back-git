@@ -394,7 +394,7 @@ export function isTrackerFirstRun(root, text) {
   if (table.length !== 2 || other.some((l) => !l.startsWith('#'))) return false;
   const [header, separator] = table;
   return (
-    /^\|\s*#\s*\|.*\|\s*Date\s*\|/i.test(header) && /^\|(?:\s*:?-{3,}:?\s*\|)+$/.test(separator)
+    /^\|\s*#\s*\|\s*Date\s*\|/i.test(header) && /^\|(?:\s*:?-{3,}:?\s*\|)+$/.test(separator)
   );
 }
 

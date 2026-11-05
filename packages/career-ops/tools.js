@@ -455,11 +455,11 @@ const outsidePath = (root, value) => {
   return target !== root && !target.startsWith(root + sep);
 };
 // An http(s) URL is never a file. A file: URL is the path it names, whatever its slashes
-// (« file:/etc/hosts », troisième relecture) ; « File: » followed by a space is text (quatrième
-// relecture : « File: notes du recruteur »). Any other URL scheme with « // » is refused (a Skill
+// (« file:/etc/hosts », troisième relecture) ; « File: » not followed by a slash or a drive letter is
+// text (quatrième et cinquième relectures : « File: notes du recruteur », « File:notes »). Any other URL scheme with « // » is refused (a Skill
 // script reads the web over http(s) only).
 const outsideItem = (root, item) => {
-  if (/^file:(?:[\\/]|\S+$)/i.test(item)) {
+  if (/^file:(?:[\\/]|[a-z]:)/i.test(item)) {
     try {
       return outsidePath(root, fileURLToPath(new URL(item)));
     } catch {

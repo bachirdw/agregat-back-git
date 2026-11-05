@@ -70,6 +70,8 @@ test('E59 FICTIF : en mode propriétaire, tous les drapeaux du script passent te
     // Quatrième relecture : « File: » suivi d'un espace est du texte, pas une URL de fichier.
     ['set-status', ['--report', '42', 'Applied', '--note', 'File: notes du recruteur FICTIF']],
     ['set-status', ['--report', '42', 'Applied', '--note=file: à relire, FICTIF']],
+    // Cinquième relecture : « File:notes », sans espace, reste du texte aussi.
+    ['set-status', ['--report', '42', 'Applied', '--note', 'File:notes-FICTIVES']],
   ])
     assert.deepEqual((await run(tools, command, args)).args, args, `${command} ${args.join(' ')}`);
 });

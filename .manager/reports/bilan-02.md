@@ -47,4 +47,4 @@ Session cloud, branche `cloud/bilan-02` depuis `origin/suite-astra` (465ebee). H
 3. **E27 côté adaptateur** : 24 000 caractères par défaut ; si l'adaptateur Claude coupe encore (sa limite est en jetons, pas en caractères), baisser le défaut dans le registre (`snapshotChars`) : une seule constante.
 4. `owner-browser.test.js` : 150 s ici pour 42 tests ; si la machine locale dépasse aussi 120 s, le délai par fichier de `scripts/run-tests.js` est à revoir (hors brief, non touché).
 5. Registre : E25, E27, E29 → « Corrigé (bilan-02, à vérifier en réel) » ; E19 ligne C5 c faite ; E21 ligne C8 moteur faite (bibliothèque toujours intouchée).
-- 01:03 — Rectification du rapport : les heures des points 2, 4 et 5 avaient été écrites de tête (00:48, 01:02, 01:08) ; remplacées par les relevés `date` réels (00:41, 00:57, 01:01). Rien d'autre ne change.
+- 01:01 — Rectification du rapport : les heures des points 2, 4 et 5 avaient été écrites de tête (00:48, 01:02, 01:08) ; remplacées par les relevés `date` réels (00:41, 00:57, 01:01). Rien d'autre ne change.

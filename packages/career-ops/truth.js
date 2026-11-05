@@ -612,7 +612,19 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
           : 'fusion réussie, nombre de lignes non lu'
       } (merge-tracker).`
     : '';
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}${inboxLine}${scanLine}`;
+  const failedLine =
+    failures.join(' ; ') || (mixed.length ? 'voir Résultats mixtes' : 'aucune observée');
+  // C8 : the scan's own summary of its portals, only after a completed scan.
+  const scan = truth.scanResult?.();
+  const scanRan = (truth.completedCalls?.() ?? []).some(
+    (call) => call.name === 'career_script' && call.argument === 'scan',
+  );
+  const scanLine = !scanRan
+    ? ''
+    : scan?.networkFailures
+      ? `\n- Scan : ${scan.networkFailures} portail(s) en échec réseau.`
+      : '\n- Scan : aucun échec réseau lu dans sa sortie.';
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}${inboxLine}${scanLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

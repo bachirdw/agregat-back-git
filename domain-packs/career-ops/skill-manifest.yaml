@@ -47,6 +47,10 @@ intents:
         title: Lire réellement l'annonce
         tool: career_read
         alternativeTools: [browser_extract, browser_snapshot]
+        # E56 : la capture d'une page de résultats (portail, recherche) n'est pas la lecture d'une
+        # annonce ; une page dont le chemin porte un identifiant reste une annonce.
+        listPage:
+          words: [jobs, search, results, careers, recherche, emplois, offres]
         argument: jds/
         precondition: Annonce identifiée
         done: Lecture d'une annonce enregistrée terminée
@@ -283,6 +287,9 @@ intents:
         title: Lire réellement l'annonce de chaque entrée
         tool: career_read
         alternativeTools: [browser_extract, browser_snapshot]
+        # E56 : voir l'intent evaluate ; une page de résultats ne prouve pas la lecture d'une entrée.
+        listPage:
+          words: [jobs, search, results, careers, recherche, emplois, offres]
         argument: jds/
         precondition: Entrée vivante ; une page à la fois (navigateur partagé)
         done: 'Lecture terminée ; page inaccessible = « - [!] url — note », illisible = reste « - [ ] » avec « unreadable: code », jamais fermée sans preuve'

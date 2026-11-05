@@ -1,6 +1,7 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
+import { landedUrl } from './outcome.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
@@ -97,18 +98,10 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
       name,
       status,
       toolCallId,
-      // The page a navigation landed on, and the page a form was filled on (E41: the next step
-      // done on the page of a navigation proves it). Host and path are all the platform keeps.
-      ...(['browser_navigate', 'browser_fillForm'].includes(name) && status === 'completed'
-        ? {
-            landedUrl: (() => {
-              try {
-                return JSON.parse(result.content?.[0]?.text ?? '{}').url;
-              } catch {
-                return null;
-              }
-            })(),
-          }
+      // The page a navigation landed on, a form was filled on, a capture or an extraction read
+      // (E41, E56 : see outcome.js). Host and path are all the platform keeps.
+      ...(landedUrl(name, status, result) !== undefined
+        ? { landedUrl: landedUrl(name, status, result) }
         : {}),
       // Argument prefix, URL of a scored offer, rows merged: never the report or any page text.
       ...gatewayProgress(name, status, args, result),

@@ -62,6 +62,18 @@ const stepSchema = z
       })
       .strict()
       .optional(),
+    // E56 : the pack's list pages (a results page is not the item a step reads). A call of an
+    // alternative tool made on such a page does not prove the step. Whole lowercase words compared
+    // to the words of the page path; a path that carries an identifier is an item, never a list.
+    listPage: z
+      .object({
+        words: z
+          .array(z.string().regex(/^[a-z0-9]{2,40}$/))
+          .min(1)
+          .max(20),
+      })
+      .strict()
+      .optional(),
     requiresStep: id.optional(),
     precondition: z.string().trim().min(1).max(200),
     done: z.string().trim().min(1).max(200),
@@ -271,15 +283,36 @@ const pageKey = (value) => {
     return null;
   }
 };
-// The page a completed call acted on: the URL it was given (the gateway passes the page it landed
-// on) or else the `url` its result reports (ACP). Host and path only, as pageKey.
-const callPage = (update) =>
-  pageKey(toolInput(update).url) ??
-  pageKey(
-    JSON.stringify(update.rawOutput ?? update.content ?? '').match(
-      /\\*"url\\*"\s*:\s*\\*"(https?:\/\/[^"\\\s]+)/,
-    )?.[1],
-  );
+// The URL a completed call acted on: the URL it was given (the gateway passes the page it landed
+// on) or else the `url` its result reports (ACP).
+const callUrl = (update) => {
+  const given = toolInput(update).url;
+  if (pageKey(given)) return given;
+  const reported = JSON.stringify(update.rawOutput ?? update.content ?? '').match(
+    /\\*"url\\*"\s*:\s*\\*"(https?:\/\/[^"\\\s]+)/,
+  )?.[1];
+  return pageKey(reported) ? reported : null;
+};
+// The page of that call, host and path only, as pageKey.
+const callPage = (update) => pageKey(callUrl(update));
+// E56 : a page that lists items rather than showing one — one of the pack's words among the words
+// of its path, and no identifier in that path (4 digits or more, or a token of 8 characters or
+// more mixing letters and digits, as an ID or a part of a UUID).
+function listPage(value, words) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  const tokens = url.pathname
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const identifier = (token) =>
+    /^\d{4,}$/.test(token) || (token.length >= 8 && /\d/.test(token) && /[a-z]/.test(token));
+  return !tokens.some(identifier) && tokens.some((token) => words.includes(token));
+}
 
 function toolName(update, expected) {
   const candidate = String(update.rawInput?.name ?? update.rawInput?.tool ?? update.title ?? '');
@@ -304,7 +337,12 @@ function matches(step, update, name) {
       return false;
     }
   }
-  if (step.tool !== name) return true;
+  if (step.tool !== name) {
+    // E56 : an alternative tool proves the step only off the pack's list pages; a page the
+    // platform cannot see is credited as before.
+    const url = step.listPage ? callUrl(update) : null;
+    return !(url && listPage(url, step.listPage.words));
+  }
   const input = toolInput(update);
   if (
     step.args &&

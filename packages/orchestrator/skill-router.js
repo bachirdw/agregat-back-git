@@ -91,15 +91,22 @@ const stepSchema = z
       .strict()
       .optional(),
     // E55, E58 : the effect that proves this step, measured around the call by the platform's
-    // gateway : `output`, a pattern the call's text output matches ; `gain`, a pattern whose
-    // matching lines in the written file (the step's argument) increase. Without it, a completed
-    // call proves the step ; with it, only that effect does. A failure is a failure either way.
+    // gateway : `output`, a pattern the call's text output matches (and `unless`, one it must not
+    // match : a simulation printing the same summary) ; `gain`, a pattern whose matching lines in
+    // the written file (the step's argument) increase. Without it, a completed call proves the
+    // step ; with it, only that effect does. A failure is a failure either way.
     proof: z
-      .object({ output: pattern.optional(), gain: pattern.optional() })
-      .strict()
-      .refine((proof) => Boolean(proof.output) !== Boolean(proof.gain), {
-        message: 'Une preuve : output ou gain',
+      .object({
+        output: pattern.optional(),
+        unless: pattern.optional(),
+        gain: pattern.optional(),
       })
+      .strict()
+      .refine(
+        (proof) =>
+          Boolean(proof.output) !== Boolean(proof.gain) && !(proof.unless && !proof.output),
+        { message: 'Une preuve : output (avec unless facultatif) ou gain' },
+      )
       .optional(),
     requiresStep: id.optional(),
     precondition: z.string().trim().min(1).max(200),
@@ -379,7 +386,12 @@ function proven(step, update) {
   const proof = step.definition.proof;
   if (!proof) return true;
   if (Array.isArray(update.proofs)) return update.proofs.includes(`${step.intent}/${step.id}`);
-  return proof.output ? new RegExp(proof.output, 'mu').test(outputText(update)) : false;
+  if (!proof.output) return false;
+  const text = outputText(update);
+  return (
+    new RegExp(proof.output, 'mu').test(text) &&
+    !(proof.unless && new RegExp(proof.unless, 'mu').test(text))
+  );
 }
 function matches(step, update, name) {
   if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;

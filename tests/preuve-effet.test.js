@@ -172,3 +172,31 @@ test('E55/E58 FICTIF : la passerelle mesure l’effet d’un appel sur les étap
   const outside = proofWatch(career, root, 'career_write', { path: '../data/pipeline.md' });
   assert.equal(outside, null);
 });
+
+// Relecture de nuit : merge-tracker --dry-run imprime le même récapitulatif « Summary: +N added »,
+// suivi de « (dry-run — no changes written) », sans rien écrire. La preuve déclare une exclusion
+// (`unless`) : une simulation ne prouve jamais la fusion.
+const DRY = `${MERGED}(dry-run — no changes written)\n`;
+test('E58 FICTIF : une fusion simulée (--dry-run) ne prouve pas la fusion du suivi', (t) => {
+  for (const intent of ['evaluate', 'pipeline'])
+    assert.match(DRY, new RegExp(stepOf(intent, 'track').proof.unless, 'mu'), intent);
+  assert.equal(progressOf(PIPELINE, [acpScript('m1', DRY)]).step('track').state, 'pending');
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'preuve-simulee-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const merge = proofWatch(career, root, 'career_script', {
+    command: 'merge-tracker',
+    args: ['--dry-run'],
+  });
+  assert.deepEqual(merge.proved({ content: mcp({ text: DRY, exitCode: 0 }) }, 'completed'), []);
+  const element = skillManifestSchema.shape.intents.element.shape.steps.element;
+  const base = {
+    id: 'x',
+    title: 'X',
+    tool: 'career_script',
+    precondition: 'p',
+    done: 'd',
+    optional: false,
+  };
+  assert.throws(() => element.parse({ ...base, proof: { gain: 'a', unless: 'b' } }));
+  assert.ok(element.parse({ ...base, proof: { output: 'a', unless: 'b' } }));
+});

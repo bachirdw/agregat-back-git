@@ -82,7 +82,8 @@ export function proofWatch(manifest, root, name, args) {
       return watched
         .filter(({ key, step }) =>
           step.proof.output
-            ? new RegExp(step.proof.output, 'mu').test(text)
+            ? new RegExp(step.proof.output, 'mu').test(text) &&
+              !(step.proof.unless && new RegExp(step.proof.unless, 'mu').test(text))
             : (linesMatching(root, args?.path, step.proof.gain) ?? -1) > before.get(key),
         )
         .map(({ key }) => key);

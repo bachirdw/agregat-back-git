@@ -411,18 +411,18 @@ export class SkillProgress {
       )
     )
       this.visits.push({ name, toolCallId: update.toolCallId, page });
+    const waits = (step) =>
+      step.definition.requiresStep &&
+      this.steps.find(
+        (prior) =>
+          prior.pack === step.pack &&
+          prior.intent === step.intent &&
+          prior.id === step.definition.requiresStep,
+      )?.state !== 'done';
+    let settled = false;
     for (const step of candidates) {
       if (step.state !== 'pending') continue;
-      if (
-        step.definition.requiresStep &&
-        this.steps.find(
-          (prior) =>
-            prior.pack === step.pack &&
-            prior.intent === step.intent &&
-            prior.id === step.definition.requiresStep,
-        )?.state !== 'done'
-      )
-        continue;
+      if (waits(step)) continue;
       const previous = this.steps.find(
         (prior) =>
           prior.pack === step.pack &&
@@ -436,8 +436,40 @@ export class SkillProgress {
         this.visits.findLast((item) => item.page === page && uses(previous, item.name));
       if (visit) this.settle(previous, visit.toolCallId, 'done');
       this.settle(step, update.toolCallId, next, update.status);
+      settled = true;
       break;
     }
+    // E57 : a step that failed once (a call refused by the platform, a script that exited in
+    // error) is taken up by a later, distinct call that succeeds; a success is never undone by a
+    // later failure, and a second terminal update of the failed call itself changes nothing. A
+    // call that a sibling step declares by its arguments belongs to that sibling (« --release » is
+    // not a reservation), and so does a call whose arguments are unknown.
+    if (!settled && next === 'done') {
+      const retry = candidates.find(
+        (step) =>
+          step.state === 'failed' &&
+          step.toolCallId !== update.toolCallId &&
+          !waits(step) &&
+          !this.claimed(step, completed, name),
+      );
+      if (retry) this.settle(retry, update.toolCallId, 'done', update.status);
+    }
+  }
+  // Whether a call matching `step` rather belongs to a sibling step of the same intent that uses
+  // the same tool and argument and tells itself apart by declared arguments (`args`).
+  claimed(step, update, name) {
+    const siblings = this.steps.filter(
+      (other) =>
+        other !== step &&
+        other.pack === step.pack &&
+        other.intent === step.intent &&
+        other.definition.args &&
+        other.tool === step.tool &&
+        other.definition.argument === step.definition.argument,
+    );
+    if (!siblings.length) return false;
+    if (!Array.isArray(toolInput(update).args)) return true;
+    return siblings.some((other) => matches(other.definition, update, name));
   }
   settle(step, toolCallId, next, status = 'completed') {
     if (

@@ -3,7 +3,7 @@
 // when the Skill's chain produced it: generate-pdf wrote it (this turn) or data/pdf-index.tsv lists
 // it; a PDF rendered by career_document from a Markdown file is « brut » (raw). Read-only.
 import { readdirSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
 
 const MAX_DOCUMENTS = 50;
@@ -105,23 +105,47 @@ export const DOCUMENT_COMMANDS = new Set([
   'generate-cover-letter',
   'mark-pdf-ready',
 ]);
-// `since` : when the script started. Relecture de nuit (E59) : with the free arguments of owner
-// mode, a positional may name a PDF the script did not render ; only a file written since the
-// script started counts as produced (1 s of tolerance for file-system timestamps).
-export function documentsAnswer(root, command, args = [], { since } = {}) {
-  if (!DOCUMENT_COMMANDS.has(command)) return {};
-  let produced;
-  if (command === 'generate-pdf') produced = args.filter((a) => !a.startsWith('-'))[1];
+// The PDF a document step names — generate-pdf's second positional, generate-cover-letter's
+// `--out` — as a path of the mission folder (« ./output/x.pdf » is « output/x.pdf »), or null when
+// it names none or a path outside the folder.
+export function documentTarget(root, command, args = []) {
+  let named;
+  if (command === 'generate-pdf') named = args.filter((a) => !a.startsWith('-'))[1];
   if (command === 'generate-cover-letter') {
     const out = args.indexOf('--out');
-    if (out >= 0) produced = args[out + 1];
+    named = out >= 0 ? args[out + 1] : args.find((a) => a.startsWith('--out='))?.slice(6);
   }
-  if (produced && Number.isFinite(since)) {
+  if (typeof named !== 'string' || !named) return null;
+  const inside = relative(root, resolve(root, named)).split(sep).join('/');
+  return inside && !inside.startsWith('..') && !isAbsolute(inside) ? inside : null;
+}
+// Before the script runs : the named PDF and its modification time (null when it is absent).
+export function documentStamp(root, command, args) {
+  const path = documentTarget(root, command, args);
+  if (!path) return null;
+  try {
+    return { path, mtimeMs: statSync(resolve(root, path)).mtimeMs };
+  } catch {
+    return { path, mtimeMs: null };
+  }
+}
+// `before` : the stamp taken before the script ran. Relecture de nuit (E59) : with the free
+// arguments of owner mode, a positional may name a PDF the script did not render ; it is produced
+// only when it appeared or its modification time changed while the script ran (seconde relecture :
+// no tolerance window, which counted a PDF written just before). Without a stamp (a call outside
+// career_script), the named PDF counts as before.
+export function documentsAnswer(root, command, args = [], { before } = {}) {
+  if (!DOCUMENT_COMMANDS.has(command)) return {};
+  let produced = documentTarget(root, command, args);
+  if (produced && before) {
+    let mtimeMs = null;
     try {
-      if (statSync(resolve(root, produced)).mtimeMs < since - 1000) produced = undefined;
+      mtimeMs = statSync(resolve(root, produced)).mtimeMs;
     } catch {
-      produced = undefined;
+      // Not written.
     }
+    const changed = before.path !== produced || before.mtimeMs !== mtimeMs;
+    if (mtimeMs === null || !changed) produced = null;
   }
   const documents = listProducedDocuments(root, { produced: produced ? [produced] : [] });
   const exists = produced && documents.some((d) => d.path === produced);

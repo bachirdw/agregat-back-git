@@ -1,6 +1,7 @@
 import { attachDocument } from './documents.js';
 import {
   documentsAnswer,
+  documentStamp,
   listProducedDocuments,
   tailoredCv,
   UPLOAD_NOTE,
@@ -945,8 +946,9 @@ export class CareerTools {
             : ['find.mjs', '--json', query];
     if (!controls[command] && !skillEntry && (query.length > 500 || query.startsWith('-')))
       throw new Error('Requête de recherche invalide');
-    // When the script started : only what it wrote since then counts as produced.
-    const started = Date.now();
+    // The PDF a document step names, as it was before the script : only what the script wrote
+    // counts as produced.
+    const before = skillEntry ? documentStamp(root, command, scriptArgs) : null;
     try {
       const result = await exec(process.execPath, execArgs, {
         cwd: root,
@@ -966,7 +968,7 @@ export class CareerTools {
         exitCode: 0,
         untrusted: true,
         // apply-01 (E40, E43): a document step of the chain answers with the paths it produced.
-        ...(skillEntry ? documentsAnswer(root, command, scriptArgs, { since: started }) : {}),
+        ...(skillEntry ? documentsAnswer(root, command, scriptArgs, { before }) : {}),
       };
     } catch (error) {
       if (skillEntry && Number.isInteger(error.code) && !signal?.aborted)

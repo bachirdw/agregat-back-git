@@ -64,6 +64,9 @@ test('E59 FICTIF : en mode propriétaire, tous les drapeaux du script passent te
     // Seconde relecture : « ~80k » dans une note est du texte, une URL avec virgules reste une URL.
     ['set-status', ['--report', '42', 'Applied', '--note', 'Bonne offre, ~80k, ~5 ans']],
     ['check-liveness', ['https://jobs.example.test/o/1?ids=1,2']],
+    // Quatrième relecture : « File: » suivi d'un espace est du texte, pas une URL de fichier.
+    ['set-status', ['--report', '42', 'Applied', '--note', 'File: notes du recruteur FICTIF']],
+    ['set-status', ['--report', '42', 'Applied', '--note=file: à relire, FICTIF']],
   ])
     assert.deepEqual((await run(tools, command, args)).args, args, `${command} ${args.join(' ')}`);
 });

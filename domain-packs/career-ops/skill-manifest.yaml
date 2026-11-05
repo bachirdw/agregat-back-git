@@ -270,7 +270,15 @@ intents:
         pending offers,
         pending urls,
         mode pipeline,
+        traite ma pipeline,
+        traite la pipeline,
+        évalue ma pipeline,
+        evalue ma pipeline,
+        évalue la pipeline,
+        evalue la pipeline,
       ]
+    # E68 : « pipeline » seul nomme aussi la source d'une offre (« postule à cette offre de ma
+    # pipeline ») : mot-clé seulement ; les phrases ci-dessus nomment la boîte d'entrée à traiter.
     keywords: [pipeline, inbox]
     # Ordre de modes/pipeline.md : balayage de vivacité avant toute URL (« Liveness sweep »), puis
     # pour chaque « - [ ] » survivante : extraction, numéro réservé, auto-pipeline (rapport, TSV,
@@ -418,6 +426,10 @@ intents:
         redige une lettre,
         prépare mon cv,
         prepare mon cv,
+        prépare un cv,
+        prepare un cv,
+        prépare les cv,
+        prepare les cv,
         adapte mon cv,
         cv adapté,
         cv + lettre,
@@ -554,7 +566,9 @@ intents:
   - id: linkedin
     title: Préparer un brouillon LinkedIn
     priority: 50
-    phrases: [linkedin, profil linkedin]
+    # Quatrième relecture de nuit (E68) : « linkedin » nu n'est qu'un mot-clé (« cherche des jobs sur
+    # LinkedIn » est une recherche) ; les phrases nomment l'objet de l'intention.
+    phrases: [profil linkedin, message linkedin, brouillon linkedin]
     keywords: [linkedin]
     steps:
       - id: draft

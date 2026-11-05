@@ -41,3 +41,22 @@ test('E68 FICTIF : sans phrase, le mot-clé suffit ; entre phrases, la priorité
   assert.equal(intentOf('Scanne les portails puis traite la boîte d’entrée'), 'pipeline');
   assert.equal(intentOf('Traite la boîte d’entrée puis postule aux meilleures'), 'pipeline');
 });
+
+// Quatrième relecture de nuit : « linkedin » nu était une phrase de l'intention LinkedIn ; nommée,
+// elle passait devant la recherche (« Cherche des jobs sur LinkedIn »). Le manifeste ne garde en
+// phrases que ce qui nomme son objet (profil, message, brouillon LinkedIn), « linkedin » reste un
+// mot-clé. « Évalue ma pipeline » et « traite ma pipeline » nomment la boîte d'entrée.
+test('E68 FICTIF : LinkedIn comme lieu de recherche, pipeline comme objet', () => {
+  assert.equal(intentOf('Cherche des jobs sur LinkedIn'), 'search');
+  assert.equal(intentOf('Trouve des jobs sur LinkedIn'), 'search');
+  assert.equal(intentOf('Cherche sur LinkedIn des offres de développeur'), 'search');
+  assert.equal(intentOf('Ajoute les jobs LinkedIn à ma pipeline'), 'pipeline');
+  assert.equal(intentOf('Rédige un message LinkedIn au recruteur'), 'linkedin');
+  assert.equal(intentOf('Prépare un brouillon LinkedIn'), 'linkedin');
+  assert.equal(intentOf('Mets à jour mon profil LinkedIn'), 'linkedin');
+  assert.equal(intentOf('Évalue ma pipeline puis postule'), 'pipeline');
+  assert.equal(intentOf('Traite ma pipeline et postule aux meilleures'), 'pipeline');
+  assert.equal(intentOf('Postule à cette offre de ma pipeline'), 'apply');
+  // E54, 2e occurrence (f336641e) : « Prépare un CV pour les cinq » était suivi comme une recherche.
+  assert.equal(intentOf('Prépare un CV pour les cinq offres évaluées'), 'documents');
+});

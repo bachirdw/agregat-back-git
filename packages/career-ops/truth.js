@@ -1,6 +1,90 @@
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
+import { loadSkillManifest } from '../orchestrator/skill-router.js';
+
+// The outcomes the career Bilan checks. Which tool calls prove them is declared by the pack's
+// manifest (step field `proves`), never by a tool name written here.
+const EVALUATION_SAVED = 'évaluation enregistrée';
+const TRACKER_WRITTEN = 'suivi écrit';
+let careerManifest;
+const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
+
+// What the progress tracker and the Bilan may learn of a call: a command name or a path prefix,
+// never a file name (report and TSV names carry the company).
+const WRITE_PREFIXES = ['reports/', 'batch/tracker-additions/', 'data/pipeline.md', 'jds/'];
+export function progressArgument(name, args = {}) {
+  const command = String(args?.command ?? args?.script ?? '');
+  const path = String(args?.path ?? '');
+  if (name === 'career_script')
+    return command.includes('scan')
+      ? 'scan'
+      : /^[a-z][a-z0-9-]{1,40}$/.test(command)
+        ? command
+        : null;
+  if (name === 'career_read') return path.startsWith('jds/') ? 'jds/' : null;
+  if (name === 'career_write')
+    return WRITE_PREFIXES.find((prefix) => path.startsWith(prefix)) ?? null;
+  return null;
+}
+// A report written in the Skill's format names its offer and score in the header
+// (modes/oferta.md: **URL:** and **Score:** X.X/5). A sentinel score (N/A) is no score.
+export function reportScore(text) {
+  if (typeof text !== 'string') return null;
+  const head = text.slice(0, 4000);
+  const score = head.match(/^\*\*Score:\*\*\s*(\d(?:[.,]\d{1,2})?)\s*\/\s*5\b/m);
+  const url = head.match(/^\*\*URL:\*\*\s*<?(https?:\/\/[^\s>]{1,2040})/m);
+  if (!score || !url) return null;
+  return { score: Number(score[1].replace(',', '.')), url: url[1] };
+}
+// merge-tracker.mjs ends with « 📊 Summary: +N added, 🔄M updated, ⏭️K skipped ».
+export function trackerSummary(text) {
+  const match = String(text ?? '').match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
+  return match ? { added: Number(match[1]), updated: Number(match[2]) } : null;
+}
+// What the MCP gateway reports to the platform for one call: the progress argument, the URL of
+// a scored offer (Relay record or Skill report header), the rows merge-tracker counted. Never the
+// report, the TSV or any page text.
+export function gatewayProgress(name, status, args, result) {
+  const argument = progressArgument(name, args);
+  const completed = status === 'completed';
+  if (
+    completed &&
+    name === 'career_offer_save' &&
+    args?.score != null &&
+    typeof args?.url === 'string'
+  )
+    return { argument, scoredUrl: args.url };
+  if (completed && name === 'career_write' && argument === 'reports/') {
+    const header = reportScore(args?.text);
+    return header ? { argument, scoredUrl: header.url } : { argument };
+  }
+  if (completed && name === 'career_script' && argument === 'merge-tracker') {
+    const rows = trackerSummary(outputText(result?.content));
+    return rows ? { argument, tracker: rows } : { argument };
+  }
+  return { argument };
+}
+const outputText = (output) => {
+  if (output == null) return '';
+  if (typeof output === 'string') return output;
+  const parts = [];
+  const visit = (value) => {
+    if (typeof value === 'string') {
+      parts.push(value);
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed && typeof parsed === 'object') visit(parsed);
+      } catch {
+        /* plain text */
+      }
+    } else if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+  };
+  visit(output);
+  return parts.join('\n');
+};
+const exitFailed = (output) => /exitCode\\*"?\s*:\s*[1-9]/.test(JSON.stringify(output ?? ''));
 
 export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browserObserved }) {
   return (
@@ -40,6 +124,16 @@ export function createTurnTruth() {
   let jdRead = false;
   const inputs = new Map();
   const scored = new Map();
+  // Completed calls as the Bilan may know them (tool and argument prefix), one per call id.
+  const proofs = new Map();
+  let tracker = null;
+  const addTracker = (rows) => {
+    if (!rows) return;
+    tracker = {
+      added: (tracker?.added ?? 0) + rows.added,
+      updated: (tracker?.updated ?? 0) + rows.updated,
+    };
+  };
   return {
     observe(update) {
       if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate) || !update.toolCallId)
@@ -92,12 +186,27 @@ export function createTurnTruth() {
         }
         if (name === 'career_read' && /^jds\//.test(paths.get(update.toolCallId) ?? ''))
           jdRead = true;
+        const raw = update.rawInput ?? inputs.get(update.toolCallId) ?? {};
+        const input = { ...raw, ...(raw.arguments ?? {}) };
+        const failedExit =
+          name === 'career_script' && exitFailed(update.rawOutput ?? update.content);
+        if (!failedExit) {
+          const argument = progressArgument(name, input);
+          proofs.set(`acp:${update.toolCallId}`, { name, argument });
+          if (name === 'career_write' && argument === 'reports/') {
+            offerSaved = true;
+            const header = reportScore(input.text);
+            if (header) scored.set(update.toolCallId, header.url);
+          }
+          if (name === 'career_script' && argument === 'merge-tracker')
+            addTracker(trackerSummary(outputText(update.rawOutput ?? update.content)));
+        }
       }
     },
     recordGatewayTool(
       name,
       status,
-      { jdRead: sourceRead = false, sent, toolCallId, scoredUrl } = {},
+      { jdRead: sourceRead = false, sent, toolCallId, scoredUrl, argument, tracker: rows } = {},
     ) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
@@ -114,9 +223,26 @@ export function createTurnTruth() {
         ...(status === 'failed' ? { cause: 'échec signalé par l’outil' } : {}),
         ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
       });
-      if (status === 'completed' && name === 'career_offer_save') {
-        offerSaved = true;
-        if (typeof scoredUrl === 'string' && scoredUrl) scored.set(key, scoredUrl);
+      const safeArgument =
+        typeof argument === 'string' && /^[a-z][a-z0-9/._-]{0,59}$/.test(argument)
+          ? argument
+          : null;
+      if (status === 'completed') {
+        proofs.set(`gateway:${key}`, { name, argument: safeArgument });
+        const report = name === 'career_write' && safeArgument === 'reports/';
+        if (name === 'career_offer_save' || report) {
+          offerSaved = true;
+          if (typeof scoredUrl === 'string' && scoredUrl) scored.set(key, scoredUrl);
+        }
+        if (
+          name === 'career_script' &&
+          safeArgument === 'merge-tracker' &&
+          Number.isInteger(rows?.added) &&
+          Number.isInteger(rows?.updated) &&
+          rows.added >= 0 &&
+          rows.updated >= 0
+        )
+          addTracker({ added: rows.added, updated: rows.updated });
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -130,8 +256,15 @@ export function createTurnTruth() {
     failedActions() {
       return [...failed].map(([name, cause]) => ({ name, cause }));
     },
+    // An evaluation kept by the platform's tools: a Relay record or a report in reports/.
     hasOfferSave() {
       return offerSaved;
+    },
+    completedCalls() {
+      return [...proofs.values()];
+    },
+    trackerRows() {
+      return tracker;
     },
     hasJdRead() {
       return jdRead;
@@ -147,7 +280,24 @@ export function createTurnTruth() {
   };
 }
 
-export function formatCareerBilan(prompt, truth) {
+// A labelled outcome is proved by a completed call of a step that declares it: same tool and,
+// when the step names an argument, a call whose argument contains it (as SkillProgress matches).
+function proved(manifest, truth, label) {
+  const steps = (manifest?.intents ?? []).flatMap((intent) =>
+    (intent.steps ?? []).filter((step) => step.proves === label),
+  );
+  const calls = truth.completedCalls?.() ?? [];
+  return steps.some((step) =>
+    calls.some(
+      (call) =>
+        call.name === step.tool &&
+        (!step.argument ||
+          (typeof call.argument === 'string' && call.argument.includes(step.argument))),
+    ),
+  );
+}
+
+export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
   const requested = prompt.replace(
     /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
     ' ',
@@ -190,15 +340,19 @@ export function formatCareerBilan(prompt, truth) {
     )
   )
     missing.push('candidature (aucun appel de formulaire)');
-  if (
+  const evaluationRequested =
     offerContext &&
     /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(requested) &&
     !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(
       prompt,
-    ) &&
-    !done.has('career_offer_save')
-  )
-    missing.push('évaluation enregistrée');
+    );
+  if (evaluationRequested && !proved(manifest, truth, EVALUATION_SAVED))
+    missing.push(EVALUATION_SAVED);
+  const trackerProved = proved(manifest, truth, TRACKER_WRITTEN);
+  if (evaluationRequested && !trackerProved)
+    missing.push(
+      'suivi du Skill non écrit (aucun merge-tracker réussi, data/applications.md inchangé)',
+    );
   if (
     offerContext &&
     /\b(?:recherch(?:e|er|ez)|cherch(?:e|er|ez)|trouv(?:e|er|ez))\b/i.test(prompt) &&
@@ -221,7 +375,15 @@ export function formatCareerBilan(prompt, truth) {
     !done.has('career_write')
   )
     missing.push('rédaction de document');
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.`;
+  const rows = truth.trackerRows?.();
+  const trackerLine = trackerProved
+    ? `\n- Suivi du Skill : ${
+        rows
+          ? `${rows.added} ligne${rows.added > 1 ? 's' : ''} ajoutée${rows.added > 1 ? 's' : ''}, ${rows.updated} mise${rows.updated > 1 ? 's' : ''} à jour`
+          : 'fusion réussie, nombre de lignes non lu'
+      } (merge-tracker).`
+    : '';
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

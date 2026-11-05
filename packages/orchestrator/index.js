@@ -1,3 +1,4 @@
+import { submissionTitle } from '../browser-gateway/submission.js';
 import {
   assertCareerReview,
   CAREER_INSTRUCTIONS,
@@ -347,8 +348,16 @@ export class Orchestrator {
     }
     if (!control || control.abort.signal.aborted || terminal.has(this.store.get(runId)?.state))
       throw new Error('Run inactif ou annulé');
-    const title =
-      `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`.trim();
+    // apply-01 (E42, E26): a form submission is titled with its button's label, action (host + path),
+    // method, multipart, filled fields and attachment, so « Suivant » never reads like « Envoyer ».
+    const submission = request.preview?.submission;
+    const title = (
+      submission && typeof submission.text === 'string'
+        ? `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${submissionTitle(request.capability, submission)}`
+        : `${request.sensitive ? 'ACTION SENSIBLE · ' : ''}${request.capability} ${request.element?.text ? '« ' + String(request.element.text).slice(0, 80) + ' »' : ''}`
+    )
+      .trim()
+      .slice(0, 400);
     const outcome = await this.permission(
       runId,
       {

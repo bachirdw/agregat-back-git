@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
 import { getCapability } from '../capability-registry/index.js';
 import { paginateText } from './paginate.js';
+import { summarizeSubmission } from './submission.js';
 export { CdpBrowser } from './cdp.js';
 
 // Legacy fixture provider (no network, no browser) kept for the reproducible demo.
@@ -183,14 +184,26 @@ export class BrowserGateway {
       !ownerLink &&
       (element.inForm ||
         this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
-    const preview = sending ? await this.provider.submissionPreview?.(target) : null;
+    // apply-01 (E42, E26): a step click that still asks (outside owner mode) carries the same form
+    // summary as a send, so the card can say « Suivant » with its action, multipart and attachment.
+    const preview =
+      sending || (step && !this.policy.ownerMode)
+        ? await this.provider.submissionPreview?.(target)
+        : null;
     if (sending || sensitive || (cap.effect !== 'read' && !this.policy.ownerMode)) {
       const needsHuman = sending || sensitive || !this.autoApprove.has(capabilityId);
       if (needsHuman) {
         const approved = await this.approve({
           capability: capabilityId,
           sensitive,
-          ...(sending ? { actionClass: 'send', preview } : {}),
+          ...(sending ? { actionClass: 'send' } : {}),
+          ...(sending || preview
+            ? {
+                preview: preview
+                  ? { ...preview, submission: summarizeSubmission(preview, element) }
+                  : preview,
+              }
+            : {}),
           element,
           // Typed text of secret fields is never shown or stored.
           args:

@@ -13,24 +13,28 @@ const page = (title, body) =>
   `<!doctype html><html lang="fr"><meta charset="utf-8"><title>${title}</title>` +
   `<body><p><strong>Site FICTIF de test : aucune candidature réelle.</strong></p>${body}</body></html>`;
 
-const STEP1 = page(
-  'Candidature FICTIVE — étape 1/3',
-  `<h1>Candidature FICTIVE (étape 1/3) : identité</h1>
+// nextLabels : libellés des boutons d'étape 1 et 2 (apply-01 : « Suivant → » rejoue un libellé que
+// la passerelle ne reconnaît pas comme passage d'étape, comme sur un vrai site).
+const step1 = (label) =>
+  page(
+    'Candidature FICTIVE — étape 1/3',
+    `<h1>Candidature FICTIVE (étape 1/3) : identité</h1>
   <form method="post" action="/step2">
     <label>Nom <input name="nom" required></label>
     <label>E-mail <input type="email" name="email" required></label>
     <label>Téléphone <input type="tel" name="telephone"></label>
-    <button>Suivant</button>
+    <button>${escape(label)}</button>
   </form>`,
-);
-const STEP2 = page(
-  'Candidature FICTIVE — étape 2/3',
-  `<h1>Candidature FICTIVE (étape 2/3) : CV</h1>
+  );
+const step2 = (label) =>
+  page(
+    'Candidature FICTIVE — étape 2/3',
+    `<h1>Candidature FICTIVE (étape 2/3) : CV</h1>
   <form method="post" action="/step3" enctype="multipart/form-data">
     <label>CV <input type="file" name="cv" accept=".pdf"></label>
-    <button>Suivant</button>
+    <button>${escape(label)}</button>
   </form>`,
-);
+  );
 const step3 = (cv) =>
   page(
     'Candidature FICTIVE — étape 3/3',
@@ -76,7 +80,12 @@ function readBody(req) {
 }
 
 // state.sends : envois finaux reçus ; state.cv : nom du dernier fichier reçu à l'étape 2.
-export async function startApplyPage({ port = 0, host = '127.0.0.1' } = {}) {
+export async function startApplyPage({
+  port = 0,
+  host = '127.0.0.1',
+  nextLabels = ['Suivant', 'Suivant'],
+} = {}) {
+  const [label1 = 'Suivant', label2 = 'Suivant'] = nextLabels;
   if (port && (port < 4320 || [4310, 5173, 19988].includes(port)))
     throw new Error('Port FICTIF : 0 ou ≥ 4320 (jamais 4310, 5173, 19988)');
   const state = { sends: 0, cv: null, steps: [] };
@@ -93,8 +102,8 @@ export async function startApplyPage({ port = 0, host = '127.0.0.1' } = {}) {
         res.writeHead(200, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ sends: state.sends, cv: state.cv, steps: state.steps }));
       }
-      if (path === '/') return html(STEP1);
-      if (path === '/step2') return html(STEP2);
+      if (path === '/') return html(step1(label1));
+      if (path === '/step2') return html(step2(label2));
       if (path === '/step3') {
         if (body) state.cv = body.toString('latin1').match(/filename="([^"]*)"/)?.[1] ?? null;
         return html(step3(state.cv));

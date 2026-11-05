@@ -610,6 +610,20 @@ export function inboxUnprocessed(truth, prompt) {
   return { proves: INBOX_PROCESSED, cause: `boîte d’entrée non traitée (0 sur ${inbox.pending})` };
 }
 
+// E26 : the « e-mail » field of a form and its « Envoyer » button ask for no e-mail. A send verb
+// and an e-mail word must follow each other within one clause, outside a button label.
+const SEND_THEN_MAIL =
+  /\b(?:envoi|envoie[sz]?|envoyer|envoyez|expédie[rz]?|send)\b[^.;:!?\n«»"]{0,40}?\b(?:e-?mails?|mails?|courriels?)\b/giu;
+const MAIL_THEN_SEND =
+  /\b(?:e-?mails?|mails?|courriels?)\b[^.;:!?\n«»"()]{0,40}?(?:\sà\s+(?:envoyer|expédier)|\s(?:et|puis)\s+(?:l['’])?envoie)\b/iu;
+const BUTTON_BEFORE = /(?:\bclique[rz]?\s+(?:sur\s+)?|\bbouton\s+|«\s*)$/iu;
+function emailSendRequested(text) {
+  const plain = String(text ?? '');
+  for (const match of plain.matchAll(SEND_THEN_MAIL))
+    if (!BUTTON_BEFORE.test(plain.slice(Math.max(0, match.index - 20), match.index))) return true;
+  return MAIL_THEN_SEND.test(plain);
+}
+
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,
 // optional, exempt): a step neither optional nor waived that never ran is said as missing.
 export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), skillSteps = []) {
@@ -678,8 +692,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   )
     missing.push('recherche d’offres');
   if (
-    /\b(?:mail|e-?mail|courriel)\b/i.test(prompt) &&
-    /\b(?:envoi|envoie|envoyer|expédi(?:e|er))\b/i.test(prompt) &&
+    emailSendRequested(requested) &&
     !outcomes.some((item) => item.name === 'email_send' && item.sent === true)
   )
     missing.push('envoi de courriel');

@@ -446,27 +446,32 @@ const ownerRootScript = (root, command) => {
     return false;
   }
 };
+// The home directory (« ~ », « ~/… ») is outside the workspace ; « ~80k » in a note is text.
 const outsidePath = (root, value) => {
-  if (value.startsWith('~')) return true;
+  if (value === '~' || value.startsWith('~/')) return true;
   if (!value.includes('/') && value !== '..') return false;
   const target = resolve(root, value);
   return target !== root && !target.startsWith(root + sep);
 };
 // An http(s) URL is never a file. A file:// URL is the path it names; any other URL scheme is
-// refused (a Skill script reads the web over http(s) only). A list is checked item by item.
-const outsideWorkspace = (root, value) => {
-  const scheme = value.match(/^([a-z][a-z0-9+.-]*):\/\//i)?.[1]?.toLowerCase();
+// refused (a Skill script reads the web over http(s) only).
+const outsideItem = (root, item) => {
+  const scheme = item.match(/^([a-z][a-z0-9+.-]*):\/\//i)?.[1]?.toLowerCase();
   if (scheme === 'http' || scheme === 'https') return false;
   if (scheme === 'file') {
     try {
-      return outsidePath(root, fileURLToPath(value));
+      return outsidePath(root, fileURLToPath(item));
     } catch {
       return true;
     }
   }
   if (scheme) return true;
-  return value.split(',').some((part) => outsidePath(root, part.trim()));
+  return outsidePath(root, item);
 };
+// Relecture de nuit : every item of a comma-separated list is checked on its own, so an http(s)
+// URL first never hides a file:// URL or a path after it.
+const outsideWorkspace = (root, value) =>
+  value.split(',').some((item) => outsideItem(root, item.trim()));
 function ownerScriptArgs(command, args, root, unknownKeys = []) {
   const fail = (why) => {
     throw new Error(`Arguments refusés pour ${command} : ${why} ; voir docs/api-career-ops.md`);

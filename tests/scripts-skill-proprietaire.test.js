@@ -61,6 +61,9 @@ test('E59 FICTIF : en mode propriétaire, tous les drapeaux du script passent te
       'set-status',
       ['--report', '42', 'Applied', '--note', 'Relance, puis entretien, voir le rapport'],
     ],
+    // Seconde relecture : « ~80k » dans une note est du texte, une URL avec virgules reste une URL.
+    ['set-status', ['--report', '42', 'Applied', '--note', 'Bonne offre, ~80k, ~5 ans']],
+    ['check-liveness', ['https://jobs.example.test/o/1?ids=1,2']],
   ])
     assert.deepEqual((await run(tools, command, args)).args, args, `${command} ${args.join(' ')}`);
 });
@@ -88,6 +91,9 @@ test('E59 FICTIF : seuls les chemins hors de l’espace et les valeurs malformé
     ['check-liveness', ['--url=file:///Users/fictif/.ssh/id_rsa']],
     ['tracker', ['export', '--out', 'output/a.csv,../../b.csv']],
     ['verify-portals', ['ftp://example.test/portails']],
+    // Seconde relecture : une URL https en tête de liste ne cache pas ce qui la suit.
+    ['check-liveness', ['https://jobs.example.test/o/1,file:///etc/hosts']],
+    ['check-liveness', ['https://jobs.example.test/o/1, /etc/hosts']],
   ])
     await assert.rejects(
       tools.script({ command, args }),

@@ -209,13 +209,13 @@ test('La plateforme génère identifiant et version ; la source reste une donné
     assert.equal(stored.id, id);
     assert.equal(stored.contractVersion, 2);
     assert.equal(stored.sourceOfferId, sourceOfferId);
-    assert.equal(existsSync(join(root, `reports/${id}.md`)), true);
+    assert.equal(existsSync(join(root, `relay/offers/${id}.md`)), true);
   }
   // Nothing written by the model reaches a file name, even though its text was hostile.
-  for (const directory of ['relay/offers', 'reports'])
-    for (const name of readdirSync(join(root, directory)))
-      assert.match(name, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\./);
-  assert.equal(readdirSync(join(root, 'relay/offers')).length, 4);
+  for (const name of readdirSync(join(root, 'relay/offers')))
+    assert.match(name, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\./);
+  assert.equal(readdirSync(join(root, 'relay/offers')).length, 8);
+  assert.equal(existsSync(join(root, 'reports')), false);
   assert.equal(existsSync(join(root, '../hors-perimetre-fictif.json')), false);
   const listed = await client.callTool({ name: 'career_offers', arguments: {} });
   const { opportunities } = JSON.parse(listed.content[0].text);
@@ -293,4 +293,24 @@ test('Lecture des offres : un fichier stocké reste contrôlé', () => {
   assert.throws(() => storedOfferSchema.parse({ ...stored, contractVersion: 1 }));
   assert.throws(() => storedOfferSchema.parse({ ...stored, score: 3 }), /Note et rapport/);
   assert.throws(() => offerInputSchema.parse({ ...discovered(), id: randomUUID() }));
+});
+
+test('career_offer_save n’écrit jamais dans reports/ : la fiche Relay reste sous relay/offers/', async (t) => {
+  const { root, client } = await careerClient(t);
+  mkdirSync(join(root, 'reports'));
+  writeFileSync(join(root, 'reports/007-entreprise-fictive-2026-11-05.md'), '# Rapport du Skill\n');
+  const before = readdirSync(join(root, 'reports'));
+  for (const args of [discovered(), { ...discovered(), score: 4, report: evaluated() }]) {
+    const saved = await client.callTool({ name: 'career_offer_save', arguments: args });
+    assert.equal(saved.isError, undefined);
+    const { id } = JSON.parse(saved.content[0].text);
+    assert.equal(existsSync(join(root, `relay/offers/${id}.json`)), true);
+    assert.equal(existsSync(join(root, `reports/${id}.md`)), false);
+  }
+  assert.deepEqual(readdirSync(join(root, 'reports')), before);
+  const evaluatedFiche = readdirSync(join(root, 'relay/offers')).filter((n) => n.endsWith('.md'));
+  assert.equal(evaluatedFiche.length, 1);
+  assert.match(readFileSync(join(root, 'relay/offers', evaluatedFiche[0]), 'utf8'), /## A\n\nBloc A FICTIF/);
+  const listed = await client.callTool({ name: 'career_offers', arguments: {} });
+  assert.equal(JSON.parse(listed.content[0].text).opportunities.length, 2);
 });

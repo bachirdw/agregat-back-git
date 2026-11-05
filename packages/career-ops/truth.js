@@ -129,6 +129,20 @@ export function scanNetworkFailures(text) {
   return output.split('\n').filter((line) => NETWORK_ERROR.test(line) || NETWORK_STATUS.test(line))
     .length;
 }
+// E61 : the scan's summary also reports the Skill's own health record of its targets, « FIX
+// NEEDED: N target(s) have been unreachable for M+ runs ». That alert is read as printed, nothing
+// else is inferred ; the Bilan says it next to the network failures.
+const UNREACHABLE = /\b(\d{1,4}) target\(s\) have been unreachable for (\d{1,4})\+ runs\b/;
+export function scanUnreachable(text) {
+  const match = (typeof text === 'string' ? text : '').match(UNREACHABLE);
+  return match ? { targets: Number(match[1]), runs: Number(match[2]) } : null;
+}
+const validUnreachable = (value) =>
+  value &&
+  typeof value === 'object' &&
+  [value.targets, value.runs].every((n) => Number.isInteger(n) && n > 0 && n < 10000)
+    ? { targets: value.targets, runs: value.runs }
+    : null;
 // The gateway answers a script as one JSON text { text, exitCode, untrusted }: read that field.
 const scriptOutput = (output) => {
   let value = output;
@@ -209,8 +223,17 @@ function callProgress(name, status, args, result) {
   }
   if (status === 'failed' && name === 'career_script' && argument === FACT_GATE)
     return { argument, facts: { unsourced: factsUnsourced(scriptText(result?.content)) } };
-  if (completed && name === 'career_script' && argument === 'scan')
-    return { argument, scan: { networkFailures: scanNetworkFailures(scriptOutput(result)) } };
+  if (completed && name === 'career_script' && argument === 'scan') {
+    const output = scriptOutput(result);
+    const unreachable = scanUnreachable(output);
+    return {
+      argument,
+      scan: {
+        networkFailures: scanNetworkFailures(output),
+        ...(unreachable ? { unreachable } : {}),
+      },
+    };
+  }
   return { argument };
 }
 // The `text` a career_script result carries (stdout and stderr of the script), as the gateway wraps it.
@@ -305,11 +328,13 @@ export function createTurnTruth({ root, seed } = {}) {
   // C8 : the last completed scan of the turn, as its own output says (one entry per call, in
   // the order calls first completed: a replayed earlier scan does not become the last one).
   const scans = new Map();
-  const setScan = (key, networkFailures) =>
-    scans.set(
-      key,
-      Number.isInteger(networkFailures) && networkFailures >= 0 ? networkFailures : null,
-    );
+  // E61 : with the count, the Skill's « unreachable for N+ runs » alert of that scan, if any.
+  const setScan = (key, { networkFailures, unreachable } = {}) =>
+    scans.set(key, {
+      networkFailures:
+        Number.isInteger(networkFailures) && networkFailures >= 0 ? networkFailures : null,
+      unreachable: validUnreachable(unreachable),
+    });
   const addTracker = (key, rows) => {
     if (rows) trackers.set(key, rows);
   };
@@ -391,11 +416,13 @@ export function createTurnTruth({ root, seed } = {}) {
               `acp:${update.toolCallId}`,
               trackerSummary(outputText(update.rawOutput ?? update.content)),
             );
-          if (name === 'career_script' && argument === 'scan')
-            setScan(
-              `acp:${update.toolCallId}`,
-              scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)),
-            );
+          if (name === 'career_script' && argument === 'scan') {
+            const output = scriptOutput(update.rawOutput ?? update.content);
+            setScan(`acp:${update.toolCallId}`, {
+              networkFailures: scanNetworkFailures(output),
+              unreachable: scanUnreachable(output),
+            });
+          }
         }
       }
     },
@@ -461,7 +488,7 @@ export function createTurnTruth({ root, seed } = {}) {
             ...(TRACKER_REASONS.has(rows.reason) ? { reason: rows.reason } : {}),
           });
         if (name === 'career_script' && safeArgument === 'scan')
-          setScan(`gateway:${key}`, scanRows?.networkFailures);
+          setScan(`gateway:${key}`, scanRows ?? {});
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -503,8 +530,14 @@ export function createTurnTruth({ root, seed } = {}) {
     // The last scan whose output gave a count, else a scan without a readable count, else null.
     scanResult() {
       if (!scans.size) return null;
-      const counted = [...scans.values()].filter((value) => value !== null);
-      return { networkFailures: counted.length ? counted.at(-1) : null };
+      const values = [...scans.values()];
+      const counted = values.filter((value) => value.networkFailures !== null);
+      // E61 : the alert of the last scan that printed one.
+      const alert = values.filter((value) => value.unreachable).at(-1)?.unreachable;
+      return {
+        networkFailures: counted.length ? counted.at(-1).networkFailures : null,
+        ...(alert ? { unreachable: alert } : {}),
+      };
     },
     hasJdRead() {
       return jdRead;
@@ -709,10 +742,19 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const scanRan = (truth.completedCalls?.() ?? []).some(
     (call) => call.name === 'career_script' && call.argument === 'scan',
   );
+  // E61 : the Skill's « unreachable for N+ runs » alert is said too, never « aucun échec » over it.
+  const scanFaults = [
+    ...(scan?.networkFailures ? [`${scan.networkFailures} portail(s) en échec réseau`] : []),
+    ...(scan?.unreachable
+      ? [
+          `${scan.unreachable.targets} cible(s) injoignable(s) depuis ${scan.unreachable.runs} passages ou plus (alerte du Skill)`,
+        ]
+      : []),
+  ];
   const scanLine = !scanRan
     ? ''
-    : scan?.networkFailures
-      ? `\n- Scan : ${scan.networkFailures} portail(s) en échec réseau.`
+    : scanFaults.length
+      ? `\n- Scan : ${scanFaults.join(' ; ')}.`
       : '\n- Scan : aucun échec réseau lu dans sa sortie.';
   // bilan-06 (E51) : « aucune action manquante » never stands above a step that was neither
   // optional nor waived by the prompt and did not run (its line follows, in « Étapes du Skill »).

@@ -81,3 +81,35 @@ test('Casse FICTIVE : browser_fillForm du Bilan retrouve l’appel browser_fillf
   ]);
   assert.deepEqual(out.contradictions, []);
 });
+
+// preuves-entre-tours-01 (E35) : mission à question, appels avant et après la réponse ; le Bilan
+// de la mission entière les cite tous, aucune contradiction « absent du Bilan ».
+test('Mission à question FICTIVE : les appels des deux tours figurent au Bilan, 0 contradiction', () => {
+  const events = [
+    call('t1', 'mcp__platform__career_write', 'completed', {
+      path: 'batch/tracker-additions/990-FICTIF.tsv',
+    }),
+    { type: 'question', data: { id: 'q', kind: 'prose' } },
+    { type: 'answer', data: { id: 'q', action: 'accept' } },
+    call('t2', 'mcp__platform__career_offer_save', 'completed', {
+      score: 3,
+      url: 'https://jobs.example.test/entre-tours/42',
+    }),
+  ];
+  const out = analyseRun(
+    run(
+      'completed',
+      'Note 3/5.\n' +
+        bilan('career_write, career_offer_save') +
+        '\nQuestions : 1 posée(s), 1 répondue(s).',
+    ),
+    events,
+  );
+  assert.deepEqual(out.contradictions, []);
+  // Un Bilan qui n'aurait gardé que le dernier tour est signalé.
+  const lastTurnOnly = analyseRun(
+    run('completed', 'Note 3/5.\n' + bilan('career_offer_save')),
+    events,
+  );
+  assert.ok(lastTurnOnly.contradictions.some((line) => line.includes('career_write absent')));
+});

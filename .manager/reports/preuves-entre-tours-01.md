@@ -39,3 +39,15 @@ Sous-agent codeur (Opus), dossier `~/Downloads/agregat-back-astra`, branche `sui
 - Incident sans effet : un premier lancement groupé filtrait `# pass` alors que le rapporteur par défaut ici est `spec` (`ℹ pass`) : sortie vide, relancé fichier par fichier. `timeout` absent de macOS (sortie vide aussi, relancé sans).
 - **Vérifié** : reprise d'une mission → la lecture d'avant compte, le contrôle reste exercé ; mission neuve → rien d'hérité.
 - **Non vérifié** : suite complète (`npm test`, au manager) ; comportement en réel.
+
+## 13:05 — Point 3 : Bilan d'une mission à question
+- « Questions : n posée(s), n répondue(s) » : présent (boucle JSON). Pour les formulaires, la ligne n'est pas écrite (le compteur ne couvre que la question en JSON) : non changé, signalé en écart.
+- « Actions réussies » couvre déjà tous les tours d'une exécution (un seul `turnTruth`) : vérifié de bout en bout (point 1 : `career_write` du tour 1 et `career_offer_save` du tour 2 au Bilan, 0 contradiction « absent » d'`analyseRun` sur les événements réels du test).
+- Test unitaire ajouté dans `tests/bilan-vs-events.test.js` : mission à question, appels des deux tours au Bilan → 0 contradiction ; Bilan réduit au dernier tour → « career_write absent » signalé. 6/6 ; check et format verts.
+- Aucun code de production changé à ce point.
+
+## Écarts et points ouverts
+1. Le diagnostic du brief (remise à zéro à chaque tour de question) est contredit par le code et par le test : les tours de question tiennent déjà. La cause réelle de 05b34578 reste à établir (section « Cause probable »).
+2. Reprise : seules les **preuves de lecture** (pages lues, annonce lue) passent à l'exécution suivante. Le `turnTruth` complet (appels terminés, suivi, documents, boîte d'entrée) et les étapes du Skill ne passent pas : le Bilan d'une reprise décrit cette exécution, celui d'avant reste dans la mission précédente. À décider par le manager si le Bilan d'une reprise doit cumuler.
+3. Sur une reprise sans navigation, `provenance.data` peut valoir « navigateur réel » et `evidence` contenir les paires héritées (marquées `inherited: true`) : c'est la provenance de la mission ; le texte « … dans ce tour » de `assessBrowserClaims` n'a pas été reformulé.
+4. La ligne « Questions : … » n'existe pas pour les questions par formulaire.

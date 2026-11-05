@@ -4,6 +4,8 @@ import { Readable, Writable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { connectMcp } from '../../packages/mcp-gateway/client.js';
 let session;
+// preuves-entre-tours-01 : la note attendue au tour de réponse (même processus, même session).
+let pendingNote = null;
 const app = agent({ name: 'career-FICTIF' })
   .onRequest(methods.agent.initialize, () => ({
     protocolVersion: PROTOCOL_VERSION,
@@ -69,13 +71,6 @@ const app = agent({ name: 'career-FICTIF' })
         return JSON.parse(r.content[0].text);
       };
       const cv = await call('career_read', { path: 'cv.md' });
-      // A page read before the note: the platform now reports a note saved without one.
-      const readOffer = async () => {
-        await call('career_write', { path: 'jds/offre-fictive.md', text: 'Offre FICTIVE lue' });
-        await call('career_read', { path: 'jds/offre-fictive.md' });
-      };
-      if (request.objective.includes('FICTIF_LENT'))
-        await new Promise((resolve) => setTimeout(resolve, 12000));
       const send = async (summary) =>
         connection.client.notify(methods.client.session.update, {
           sessionId: session.sessionId,
@@ -87,6 +82,122 @@ const app = agent({ name: 'career-FICTIF' })
             },
           },
         });
+      // preuves-entre-tours-01 (E35) : lecture au tour 1, question, note au tour suivant. Les preuves
+      // navigateur sont postées comme le fait la passerelle réelle en mode propriétaire (URL et jeton
+      // reçus dans la configuration MCP de la session) ; la page est FICTIVE.
+      const relayEnv = (name) => session.mcpServers[0].env?.find((e) => e.name === name)?.value;
+      const observe = async (capability, url) => {
+        const response = await fetch(relayEnv('RELAY_EVIDENCE_URL'), {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-platform-request': '1',
+            'x-relay-token': relayEnv('RELAY_APPROVAL_TOKEN'),
+          },
+          body: JSON.stringify({
+            capability,
+            url,
+            provider: 'fixture',
+            ...(capability === 'browser.snapshot'
+              ? { snapshot: 'Offre FICTIVE lisible : Poste FICTIF chez Entreprise FICTIVE.' }
+              : { title: 'Offre FICTIVE' }),
+            loading: false,
+          }),
+        });
+        if (!response.ok) throw new Error('Preuve navigateur FICTIVE refusée');
+      };
+      const readUrl = 'https://jobs.example.test/entre-tours/42';
+      const saveScored = (url) =>
+        call('career_offer_save', {
+          title: 'Poste FICTIF',
+          company: 'Entreprise FICTIVE',
+          url,
+          source: 'Fixture locale FICTIVE, aucun accès réseau',
+          fetchedAt: new Date().toISOString(),
+          score: 3,
+          report: Object.fromEntries(
+            'ABCDEFG'.split('').map((key) => [key, `Analyse ${key} FICTIVE`]),
+          ),
+          simulated: true,
+        });
+      if (request.platform?.turnKind === 'answer' && pendingNote) {
+        const url = pendingNote;
+        pendingNote = null;
+        await saveScored(url);
+        await send(`Tour de réponse FICTIF : offre notée 3/5 (${request.answer?.reponse ?? ''}).`);
+        return { stopReason: 'end_turn' };
+      }
+      if (request.objective?.includes('FICTIF_ENTRE_TOURS_SUITE')) {
+        await saveScored(
+          request.objective.includes('URL_JAMAIS_LUE')
+            ? 'https://jobs.example.test/entre-tours/jamais-lue'
+            : readUrl,
+        );
+        await send('Reprise FICTIVE : offre notée 3/5.');
+        return { stopReason: 'end_turn' };
+      }
+      if (request.objective?.includes('FICTIF_ENTRE_TOURS')) {
+        await observe('browser.navigate', readUrl);
+        await observe('browser.snapshot', readUrl);
+        // Une étape du Skill faite au tour 1 (ligne de suivi), qui doit rester faite au tour 2.
+        await call('career_write', {
+          path: 'batch/tracker-additions/990-entreprise-fictive.tsv',
+          text:
+            'num\tdate\tcompany\trole\tstatus\tscore\tpdf\treport\tnotes\turl\n' +
+            `990\t2026-11-05\tEntreprise FICTIVE\tPoste FICTIF\tEvaluated\t3/5\t❌\t—\tNote FICTIVE\t${readUrl}\n`,
+        });
+        const noteUrl = request.objective.includes('URL_JAMAIS_LUE')
+          ? 'https://jobs.example.test/entre-tours/jamais-lue'
+          : readUrl;
+        if (request.objective.includes('SANS_QUESTION')) {
+          await send('Offre FICTIVE lue ; la note viendra à la reprise.');
+          return { stopReason: 'end_turn' };
+        }
+        if (request.objective.includes('FORMULAIRE')) {
+          const answer = await connection.client.request(methods.client.elicitation.create, {
+            sessionId: session.sessionId,
+            toolCallId: 'FICTIF-ask',
+            mode: 'form',
+            message: 'Offre introuvable chez l’employeur FICTIF : évaluer quand même ?',
+            requestedSchema: {
+              type: 'object',
+              properties: { reponse: { type: 'string', title: 'Réponse' } },
+              required: ['reponse'],
+            },
+          });
+          if (answer.action !== 'accept') throw new Error('Réponse FICTIVE attendue');
+          await saveScored(noteUrl);
+          await send('Formulaire FICTIF : offre notée 3/5.');
+          return { stopReason: 'end_turn' };
+        }
+        pendingNote = noteUrl;
+        await connection.client.notify(methods.client.session.update, {
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: {
+              type: 'text',
+              text: JSON.stringify({
+                simulated: true,
+                summary: 'Offre FICTIVE lue.',
+                evidence: [],
+                question: {
+                  message: 'Offre introuvable chez l’employeur FICTIF : évaluer quand même ?',
+                  options: ['oui', 'non'],
+                },
+              }),
+            },
+          },
+        });
+        return { stopReason: 'end_turn' };
+      }
+      // A page read before the note: the platform now reports a note saved without one.
+      const readOffer = async () => {
+        await call('career_write', { path: 'jds/offre-fictive.md', text: 'Offre FICTIVE lue' });
+        await call('career_read', { path: 'jds/offre-fictive.md' });
+      };
+      if (request.objective.includes('FICTIF_LENT'))
+        await new Promise((resolve) => setTimeout(resolve, 12000));
       if (request.objective.includes('FICTIF_PROFIL')) {
         await send('Questions FICTIVES : 1. Quelle ville visez-vous ? 2. Quel poste visez-vous ?');
         return { stopReason: 'end_turn' };

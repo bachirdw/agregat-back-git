@@ -83,3 +83,30 @@ uniquement (`example.test`), aucun secret, aucun fichier du Skill modifié.
   Relay (`career_drafts`, schéma `emailSchema`), une écriture libre y casserait la liste des brouillons. Le PDF
   lui-même n'est pas écrivable par `career_write` (binaire produit par `generate-pdf`/`generate-cover-letter`).
 
+## Point 3 — Manifeste
+
+- 00:46 Rouge constaté, `tests/skill-router.test.js` (3 tests ajoutés, 2 attentes mises à jour) :
+  `ℹ pass 28 / ℹ fail 5`, première ligne : `✖ Évaluation FICTIVE : ordre du Skill déclaré par le manifeste`.
+- `skill-manifest.yaml`, intention `evaluate` : `read-offer → liveness → reserve → report → cv-build → cv-verify →
+  cv-pdf → tsv → track → save-evaluation` : les trois étapes CV suivent `modes/auto-pipeline.md` (Step 3, PDF
+  entre le rapport et le suivi) et sont **facultatives** (le mode `oferta` n'a pas de PDF automatique) ;
+  `cv-pdf` porte `proves: CV produit` ; `tsv` dit « pdf ✅ si PDF produit sinon ❌ ».
+  Intention `documents` réécrite : `payload` (`career_write output/`, table JSON de `pdf.md`) → `cv-structure`
+  (facultatif, 17b) → `cv-build` (18) → `cv-verify` (19, « code zéro ; non nul = fait absent du CV source,
+  corriger le HTML, jamais cv.md ») → `cv-pdf` (21, `--report={###}`, `proves: CV produit`) → `pdf-ready`
+  (`mark-pdf-ready`, facultatif, fin du mode pdf) → `cover` (`generate-cover-letter`, `cover.md` étape 9,
+  facultatif, `proves: lettre produite`). `career_document` retiré de l'intention (reste un outil MCP, pièce
+  jointe pour `email_send`). Phrases ajoutées : « adapte mon cv », « cv adapté », « lettre de motivation »,
+  « mode pdf », « mode cover », « génère le pdf ». `unlessPhrases` sur les étapes CV (« lettre seule », « sans cv »).
+  Aucune étape `required` : information au Bilan, pas de blocage. Toute la chaîne `persists` : « n'enregistre
+  rien » ne laisse aucune étape (premier essai avec `cv-verify` non persistant : 2 rouges, corrigé).
+  `manifest.yaml` : étape descriptive « Produire le CV adapté par le Skill… » après `merge-tracker`.
+- `skill-router.js` **non touché** : les champs génériques existants (`proves`, `persists`, `unlessPhrases`,
+  `optional`) suffisent.
+- 00:48 Vert : `skill-router` 33/33 ; sous-ensemble (11 fichiers : `career-integration`, `tool-watchdog`,
+  `doubt-tools`, `pack-effects`, `note-sans-lecture`, `bilan-vs-events`, `mcp-contract`, `career-skill-suivi`,
+  `career-truth`, `skill-registry`) 150/152, mêmes 2 « Agent non détecté ». `check`/`format:check` verts.
+- Écarts : rôles d'outils (`toolRoles`) inchangés (figés par `doubt-tools.test.js`, comme au chantier
+  précédent) ; pas de rôle « produire le CV ». Dans `evaluate`, la chaîne CV est facultative : un agent en mode
+  oferta la verra « ignorée », pas « non exécutée ».
+

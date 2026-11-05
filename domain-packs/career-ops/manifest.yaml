@@ -42,6 +42,9 @@ workflow:
     - tool: career_script
       title: Fusionner le suivi du Skill (command merge-tracker) ; un état change par set-status
       arguments: { command: merge-tracker }
+    - tool: career_script
+      title: Produire le CV adapté par le Skill (modes/pdf.md) — payload JSON sous output/, build-cv-html, verify-cv-facts à zéro, generate-pdf --report={###}, mark-pdf-ready si la ligne existait ; lettre par generate-cover-letter (modes/cover.md)
+      arguments: { command: generate-pdf }
     - tool: career_offer_save
       title: Indexer l'offre dans le tableau Relay (facultatif)
     - tool: email_send

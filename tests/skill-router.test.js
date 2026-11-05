@@ -491,12 +491,19 @@ test('Évaluation FICTIVE : ordre du Skill déclaré par le manifeste', () => {
       ['liveness', 'career_script', 'check-liveness'],
       ['reserve', 'career_script', 'reserve-report-num'],
       ['report', 'career_write', 'reports/'],
+      // production-01 : auto-pipeline Step 3, le PDF entre le rapport et le suivi (facultatif : oferta sans PDF).
+      ['cv-build', 'career_script', 'build-cv-html'],
+      ['cv-verify', 'career_script', 'verify-cv-facts'],
+      ['cv-pdf', 'career_script', 'generate-pdf'],
       ['tsv', 'career_write', 'batch/tracker-additions/'],
       ['track', 'career_script', 'merge-tracker'],
       ['save-evaluation', 'career_offer_save', null],
     ],
   );
   assert.equal(selected.intent.steps.at(-1).optional, true);
+  for (const id of ['cv-build', 'cv-verify', 'cv-pdf'])
+    assert.equal(selected.intent.steps.find((step) => step.id === id).optional, true, id);
+  assert.equal(selected.intent.steps.find((step) => step.id === 'cv-pdf').proves, 'CV produit');
   const order = formatSkillOrder([selected]);
   for (const text of ['check-liveness', 'reserve-report-num', 'merge-tracker', 'DATA_CONTRACT.md'])
     assert.match(order, new RegExp(text));
@@ -532,6 +539,9 @@ test('Évaluation FICTIVE : le parcours du Skill complète les étapes sans éca
       ['liveness', 'done'],
       ['reserve', 'done'],
       ['report', 'done'],
+      ['cv-build', 'skipped'],
+      ['cv-verify', 'skipped'],
+      ['cv-pdf', 'skipped'],
       ['tsv', 'done'],
       ['track', 'done'],
       ['save-evaluation', 'skipped'],
@@ -606,4 +616,101 @@ test('Manifeste générique : persists retire une étape quand le prompt interdi
     ['fetch'],
   );
   assert.equal(selectSkillIntents('Surveille FICTIF', [manifest])[0].intent.steps.length, 2);
+});
+
+// production-01, point 3 : intention documents = chaîne du Skill (modes/pdf.md, modes/cover.md).
+const documentsOf = (prompt) => selectSkillIntents(prompt, [career]);
+test('Documents FICTIFS : la chaîne CV/lettre du Skill est déclarée, career_document n’est plus la voie du CV', () => {
+  const [selected] = documentsOf('Prépare mon CV FICTIF et une lettre pour le rapport 042');
+  assert.equal(selected.intent.id, 'documents');
+  assert.deepEqual(
+    selected.intent.steps.map((step) => [step.id, step.tool, step.argument ?? null, step.optional]),
+    [
+      ['payload', 'career_write', 'output/', false],
+      ['cv-structure', 'career_script', 'verify-cv-structure', true],
+      ['cv-build', 'career_script', 'build-cv-html', false],
+      ['cv-verify', 'career_script', 'verify-cv-facts', false],
+      ['cv-pdf', 'career_script', 'generate-pdf', false],
+      ['pdf-ready', 'career_script', 'mark-pdf-ready', true],
+      ['cover', 'career_script', 'generate-cover-letter', true],
+    ],
+  );
+  const byId = Object.fromEntries(selected.intent.steps.map((step) => [step.id, step]));
+  assert.equal(byId['cv-pdf'].proves, 'CV produit');
+  assert.equal(byId.cover.proves, 'lettre produite');
+  assert.match(byId['cv-verify'].done, /code (?:zéro|0)/i);
+  assert.doesNotMatch(JSON.stringify(career), /career_document/);
+  const order = formatSkillOrder([selected]);
+  for (const text of [
+    'pdf.md',
+    'cover.md',
+    'build-cv-html',
+    'verify-cv-facts',
+    'generate-pdf',
+    'mark-pdf-ready',
+  ])
+    assert.match(order, new RegExp(text));
+  assert.ok(order.indexOf('build-cv-html') < order.indexOf('verify-cv-facts'));
+  assert.ok(order.indexOf('verify-cv-facts') < order.indexOf('generate-pdf'));
+  // Aucune étape obligatoire : la plateforme informe, elle ne bloque pas.
+  assert.doesNotMatch(order, /Étapes obligatoires/);
+  for (const prompt of [
+    'Rédige mon CV FICTIF',
+    'Adapte mon CV FICTIF à cette offre',
+    'Mode pdf FICTIF',
+    'Rédige une lettre de motivation FICTIVE',
+  ])
+    assert.equal(documentsOf(prompt)[0]?.intent.id, 'documents', prompt);
+});
+test('Documents FICTIFS : lettre seule dispense des étapes CV ; « n’enregistre rien » retire les écritures', () => {
+  const [letter] = documentsOf('Rédige une lettre FICTIVE seulement, sans CV');
+  for (const id of ['payload', 'cv-build', 'cv-verify', 'cv-pdf'])
+    assert.equal(letter.intent.steps.find((step) => step.id === id).exempt, true, id);
+  assert.equal(letter.intent.steps.find((step) => step.id === 'cover').exempt, undefined);
+  // Toute la chaîne écrit (payload, HTML, PDF, index) : rien ne reste quand le prompt interdit d'enregistrer.
+  const [readOnly] = documentsOf('Prépare mon CV FICTIF, n’enregistre rien');
+  assert.deepEqual(readOnly.intent.steps, []);
+});
+test('Documents FICTIFS : le parcours pdf.md complète les étapes ; verify-cv-facts non nul laisse le PDF non fait', () => {
+  const run = (calls) => {
+    const progress = new SkillProgress(documentsOf('Prépare mon CV FICTIF et une lettre'));
+    progress.start();
+    calls.forEach(([tool, input, extra], index) =>
+      progress.observe(skillCall(`d${index}`, tool, input, extra)),
+    );
+    return progress.finish();
+  };
+  const html = 'output/cv-candidat-fictif-042-entreprise-fictive.html';
+  const json = 'output/cv-candidat-fictif-042-entreprise-fictive.json';
+  const ok = run([
+    ['career_write', { path: json }],
+    ['career_script', { command: 'verify-cv-structure', args: [json] }],
+    ['career_script', { command: 'build-cv-html', args: [json, html] }],
+    ['career_script', { command: 'verify-cv-facts', args: [html] }],
+    ['career_script', { command: 'generate-pdf', args: [html, 'output/cv.pdf', '--report=042'] }],
+    ['career_script', { command: 'mark-pdf-ready', args: ['042'] }],
+    [
+      'career_script',
+      { command: 'generate-cover-letter', args: ['--payload', 'output/cover-payload-fictif.json'] },
+    ],
+  ]);
+  assert.deepEqual(
+    ok.steps.map((step) => step.state),
+    Array(7).fill('done'),
+  );
+  assert.equal(ok.orderDeviation, false);
+  const refused = run([
+    ['career_write', { path: json }],
+    ['career_script', { command: 'build-cv-html', args: [json, html] }],
+    [
+      'career_script',
+      { command: 'verify-cv-facts', args: [html] },
+      { rawOutput: { text: 'CV fact check failed: cv.html', exitCode: 1 } },
+    ],
+  ]);
+  const state = Object.fromEntries(refused.steps.map((step) => [step.id, step.state]));
+  assert.equal(state['cv-verify'], 'failed');
+  assert.equal(state['cv-pdf'], 'pending');
+  assert.equal(state.cover, 'skipped');
+  assert.deepEqual(new SkillProgress(documentsOf('Prépare mon CV FICTIF')).incomplete(), []);
 });

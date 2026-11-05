@@ -1,10 +1,10 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
 import { landedUrl } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { proofWatch } from './proofs.js';
+import { CallRegistry } from './calls.js';
 import { notDone } from '../policy-engine/not-done.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -37,14 +37,9 @@ const failure = (e) => {
   return result;
 };
 
-// E64 : the agent's tool call in progress. An approval asked during that call dies with it : when
-// the agent gives the call up (MCP cancellation, connection closed), the platform takes the card
-// back and no later « Approuver » sends anything.
-const callContext = new AsyncLocalStorage();
-// Seconde relecture de nuit : a browser's network callbacks (Playwright routes) run outside that
-// context ; the call in progress is kept here too (browser calls run one at a time).
-let activeCall = null;
-const currentCall = () => callContext.getStore() ?? activeCall;
+// E64, E66 : the agent's tool call in progress (see calls.js).
+const calls = new CallRegistry();
+const currentCall = () => calls.current();
 async function approve(request) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
@@ -156,15 +151,14 @@ server.registerTool = (name, definition, handler) =>
       }
       let result;
       const call = { signal: extra?.signal, toolCallId };
-      activeCall = call;
       try {
-        if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
-          await meter('tool_call', 1);
-        result = await callContext.run(call, () => handler(args, extra));
+        result = await calls.run(name, call, async () => {
+          if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
+            await meter('tool_call', 1);
+          return handler(args, extra);
+        });
       } catch (e) {
         result = failure(e);
-      } finally {
-        if (activeCall === call) activeCall = null;
       }
       const outcome = gatewayToolOutcome(name, result);
       let proofs;

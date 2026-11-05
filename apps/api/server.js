@@ -522,6 +522,19 @@ export function createApp({
               args: scriptTokens(body.args),
             },
             status: body.status,
+            // E55, E58 : the steps whose declared effect the gateway measured on this call (keys
+            // intent/step) ; a field of the update only the platform sets, never the agent.
+            ...(Array.isArray(body.proofs)
+              ? {
+                  proofs: body.proofs
+                    .filter(
+                      (key) =>
+                        typeof key === 'string' &&
+                        /^[a-z][a-z0-9-]{0,59}\/[a-z][a-z0-9-]{0,59}$/.test(key),
+                    )
+                    .slice(0, 20),
+                }
+              : {}),
           });
         }
         return json(res, 200, { ok: true });

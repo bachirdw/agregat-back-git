@@ -150,6 +150,10 @@ intents:
         title: Fusionner le suivi du Skill
         tool: career_script
         argument: merge-tracker
+        # E58 : la fusion se prouve par le récapitulatif de merge-tracker (au moins une ligne ajoutée
+        # ou mise à jour), jamais par un « Nothing to merge into » au code zéro.
+        proof:
+          output: 'Summary:\s*\+(?:[1-9]\d* added|\d+ added,\s*\S*?\s*[1-9]\d* updated)'
         precondition: TSV d'ajout écrit ; jamais d'écriture directe de data/applications.md
         done: merge-tracker terminé avec code zéro ; un état change ensuite par set-status
         optional: false
@@ -223,6 +227,9 @@ intents:
         title: Ajouter les offres retenues à data/pipeline.md
         tool: career_write
         argument: data/pipeline.md
+        # E55 : l'ajout se prouve par une entrée « - [ ] » de plus dans le fichier écrit.
+        proof:
+          gain: '^- \[ \] '
         precondition: Offres retenues hors scan (navigateur ; jobs_search_live si le prompt le demande)
         done: Éléments « - [ ] url | entreprise | poste » ajoutés à data/pipeline.md, par scan.mjs (scan réussi) ou par career_write (modes/pipeline.md)
         optional: true
@@ -339,6 +346,9 @@ intents:
         title: Fusionner le suivi du Skill
         tool: career_script
         argument: merge-tracker
+        # E58 : voir l'intent evaluate.
+        proof:
+          output: 'Summary:\s*\+(?:[1-9]\d* added|\d+ added,\s*\S*?\s*[1-9]\d* updated)'
         precondition: TSV d'ajout écrit ; jamais d'écriture directe de data/applications.md
         done: merge-tracker terminé avec code zéro ; un état change ensuite par set-status
         optional: false
@@ -349,6 +359,10 @@ intents:
         title: Cocher l'entrée dans data/pipeline.md
         tool: career_write
         argument: data/pipeline.md
+        # E55 : le cochage se prouve par une ligne « - [x] » ou « - [!] » de plus dans le fichier
+        # écrit, jamais par une écriture qui ne fait qu'ajouter des entrées.
+        proof:
+          gain: '^- \[[x!]\] '
         precondition: Évaluation terminée (ou page inaccessible) ; fichier relu autour de la ligne
         done: 'Entrée passée en Processed « - [x] #NNN | url | entreprise | poste | X.X/5 | PDF ✅/❌ », ou « - [!] url — note » si inaccessible ; aucune ligne supprimée, seulement cochée'
         optional: false

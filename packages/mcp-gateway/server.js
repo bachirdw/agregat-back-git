@@ -3,6 +3,7 @@ import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
 import { landedUrl } from './outcome.js';
 import { requestDecision } from './approval.js';
+import { proofWatch } from './proofs.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
@@ -76,7 +77,7 @@ function attachmentNames(name, status, args, result) {
 // The workflow executor premeters its own calls. Agent-initiated calls are metered here,
 // including tools registered by a domain pack, before their handlers run.
 const register = server.registerTool.bind(server);
-async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
+async function reportToolOutcome(name, status, args, sent, toolCallId, result, proofs) {
   const url = process.env.RELAY_TOOL_OUTCOME_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return;
   await fetch(url, {
@@ -101,6 +102,8 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
       ...attachmentNames(name, status, args, result),
       jdRead: name === 'career_read' && /^jds\//.test(args?.path ?? ''),
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
+      // E55, E58 : the manifest steps this call's effect proved (keys only), when measured.
+      ...(proofs ? { proofs } : {}),
     }),
     signal: AbortSignal.timeout(5000),
   });
@@ -116,6 +119,13 @@ server.registerTool = (name, definition, handler) =>
     },
     async (args, extra) => {
       const toolCallId = randomUUID();
+      // E55, E58 : the effect a manifest step declares as its proof, measured around the call.
+      let watch = null;
+      try {
+        watch = proofWatch(pack.skillManifest, process.env.RELAY_CAREER_WORKSPACE, name, args);
+      } catch {
+        watch = null;
+      }
       let result;
       try {
         if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
@@ -125,9 +135,21 @@ server.registerTool = (name, definition, handler) =>
         result = failure(e);
       }
       const outcome = gatewayToolOutcome(name, result);
-      await reportToolOutcome(name, outcome.status, args, outcome.sent, toolCallId, result).catch(
-        () => {},
-      );
+      let proofs;
+      try {
+        proofs = watch?.proved(result, outcome.status);
+      } catch {
+        proofs = watch ? [] : undefined;
+      }
+      await reportToolOutcome(
+        name,
+        outcome.status,
+        args,
+        outcome.sent,
+        toolCallId,
+        result,
+        proofs,
+      ).catch(() => {});
       return result;
     },
   );

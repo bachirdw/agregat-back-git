@@ -475,6 +475,13 @@ test('C7 FICTIF : intent apply avec upload et relecture facultatifs avant review
 // skill-suivi-01 : l'intention « évaluer » suit le Skill (vivacité, lecture, numéro réservé,
 // rapport, TSV d'ajout, merge-tracker) ; career_offer_save n'est plus qu'un index facultatif.
 const evaluateOf = (prompt) => selectSkillIntents(prompt, [career]);
+// E58 : sortie FICTIVE de merge-tracker telle que la passerelle la rend (une ligne fusionnée).
+const MERGED_OUTPUT = [
+  {
+    type: 'text',
+    text: JSON.stringify({ text: '📊 Summary: +1 added, 0 updated', exitCode: 0 }),
+  },
+];
 const skillCall = (id, title, rawInput, extra = {}) => ({
   sessionUpdate: 'tool_call',
   toolCallId: id,
@@ -533,9 +540,12 @@ test('Évaluation FICTIVE : le parcours du Skill complète les étapes sans éca
     ['career_script', { command: 'reserve-report-num' }],
     ['career_write', { path: 'reports/042-entreprise-fictive-2026-11-05.md' }],
     ['career_write', { path: 'batch/tracker-additions/042-entreprise-fictive.tsv' }],
-    ['career_script', { command: 'merge-tracker' }],
+    // E58 : la fusion se prouve par le récapitulatif de merge-tracker.
+    ['career_script', { command: 'merge-tracker' }, { rawOutput: MERGED_OUTPUT }],
   ];
-  calls.forEach(([tool, input], index) => progress.observe(skillCall(`c${index}`, tool, input)));
+  calls.forEach(([tool, input, extra], index) =>
+    progress.observe(skillCall(`c${index}`, tool, input, extra)),
+  );
   const result = progress.finish();
   assert.deepEqual(
     result.steps.map((step) => [step.id, step.state]),
@@ -835,11 +845,14 @@ test('Boîte d’entrée FICTIVE : trois entrées traitées à la suite, étapes
       ['career_write', { path: `reports/${num}-entreprise-fictive-2026-11-05.md` }],
       ['career_script', { command: 'reserve-report-num', args: ['--release', num] }],
       ['career_write', { path: `batch/tracker-additions/${num}-entreprise-fictive.tsv` }],
-      ['career_script', { command: 'merge-tracker' }],
-      ['career_write', { path: 'data/pipeline.md' }],
+      // E58 : récapitulatif de merge-tracker ; E55 : cochage mesuré par la passerelle.
+      ['career_script', { command: 'merge-tracker' }, { rawOutput: MERGED_OUTPUT }],
+      ['career_write', { path: 'data/pipeline.md' }, { proofs: ['pipeline/mark'] }],
     );
   }
-  calls.forEach(([tool, input], index) => progress.observe(skillCall(`p${index}`, tool, input)));
+  calls.forEach(([tool, input, extra], index) =>
+    progress.observe(skillCall(`p${index}`, tool, input, extra)),
+  );
   const result = progress.finish();
   // bilan-06 (E48) : le scan facultatif en tête, non demandé ici, est ignoré sans écart d'ordre.
   assert.deepEqual(

@@ -7,6 +7,22 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
 const toolId = z.string().regex(/^[a-z][a-zA-Z0-9_]*$/);
+// A pattern a pack declares (E55, E58 : proof of a step's effect), compiled once to be checked.
+const pattern = z
+  .string()
+  .min(1)
+  .max(200)
+  .refine(
+    (source) => {
+      try {
+        new RegExp(source, 'mu');
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Motif invalide' },
+  );
 // Which tool serves which task, declared by the pack and sent to the agent with the mission, so
 // that equivalent tools are not picked at random.
 const toolRoleSchema = z
@@ -73,6 +89,17 @@ const stepSchema = z
           .max(20),
       })
       .strict()
+      .optional(),
+    // E55, E58 : the effect that proves this step, measured around the call by the platform's
+    // gateway : `output`, a pattern the call's text output matches ; `gain`, a pattern whose
+    // matching lines in the written file (the step's argument) increase. Without it, a completed
+    // call proves the step ; with it, only that effect does. A failure is a failure either way.
+    proof: z
+      .object({ output: pattern.optional(), gain: pattern.optional() })
+      .strict()
+      .refine((proof) => Boolean(proof.output) !== Boolean(proof.gain), {
+        message: 'Une preuve : output ou gain',
+      })
       .optional(),
     requiresStep: id.optional(),
     precondition: z.string().trim().min(1).max(200),
@@ -322,6 +349,38 @@ function toolName(update, expected) {
     ) ?? ''
   );
 }
+// The text a completed call answered (ACP rawOutput or content), JSON layers unwrapped : a
+// script's answer is one JSON text { text, exitCode } inside the MCP content.
+function outputText(update) {
+  const parts = [];
+  const visit = (value, depth) => {
+    if (depth > 6 || value === null || value === undefined) return;
+    if (typeof value === 'string') {
+      if (/^\s*[[{]/.test(value))
+        try {
+          visit(JSON.parse(value), depth + 1);
+          return;
+        } catch {
+          // Plain text that starts like JSON.
+        }
+      parts.push(value);
+    } else if (Array.isArray(value)) value.forEach((item) => visit(item, depth + 1));
+    else if (typeof value === 'object')
+      Object.values(value).forEach((item) => visit(item, depth + 1));
+  };
+  visit(update.rawOutput ?? update.content, 0);
+  return parts.join('\n');
+}
+// E55, E58 : whether a call's effect proves a step that declares a proof. The gateway measures
+// it around the call and reports the steps it proved (`proofs`, keys intent/step, a field of the
+// update that only the platform sets) ; failing that, an `output` proof reads the call's own text
+// output (ACP). A `gain` proof needs the gateway's measurement of the file before and after.
+function proven(step, update) {
+  const proof = step.definition.proof;
+  if (!proof) return true;
+  if (Array.isArray(update.proofs)) return update.proofs.includes(`${step.intent}/${step.id}`);
+  return proof.output ? new RegExp(proof.output, 'mu').test(outputText(update)) : false;
+}
 function matches(step, update, name) {
   if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;
   if (step.urlPattern) {
@@ -424,17 +483,21 @@ export class SkillProgress {
       ...update,
       rawInput: update.rawInput ?? this.inputs.get(update.toolCallId),
     };
-    const candidates = this.steps.filter((step) => matches(step.definition, completed, name));
-    if (update.status === 'completed' && candidates.some((step) => step.definition.readFirst)) {
-      const input = toolInput(completed);
-      if (input.score !== null && input.score !== undefined && pageKey(input.url))
-        this.scored.add(pageKey(input.url));
-    }
     // A script that ran and failed is a completed tool call: its exit code tells.
     const exitFailed = /exitCode\\*"?\s*:\s*[1-9]/.test(
       JSON.stringify(update.rawOutput ?? update.content ?? ''),
     );
     const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
+    // E55, E58 : a step that declares a proof is done only when the call's effect proves it.
+    const candidates = this.steps.filter(
+      (step) =>
+        matches(step.definition, completed, name) && (next !== 'done' || proven(step, completed)),
+    );
+    if (update.status === 'completed' && candidates.some((step) => step.definition.readFirst)) {
+      const input = toolInput(completed);
+      if (input.score !== null && input.score !== undefined && pageKey(input.url))
+        this.scored.add(pageKey(input.url));
+    }
     const page = next === 'done' ? callPage(completed) : null;
     const uses = (step, tool = name) =>
       step.tool === tool || step.definition.alternativeTools?.includes(tool);

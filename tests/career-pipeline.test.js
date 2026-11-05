@@ -370,3 +370,45 @@ test('E51 FICTIF : une étape non facultative « non exécutée » chasse « auc
     /- Non exécuté : étape du Skill non exécutée : Écrire le rapport du Skill\./,
   );
 });
+
+// bilan-06 (E48, reste) : le prompt réel du scan nomme la boîte d'entrée (« ajoute les nouvelles
+// offres à la boîte d'entrée ») sans demander son traitement : avec l'intent `search` retenu (aucune
+// étape ne prouve « boîte d'entrée traitée »), le Bilan ne réclame rien et dit le compte.
+test('E48 FICTIF : scan qui alimente la boîte, intent search → aucun « Non exécuté », compte dit', (t) => {
+  const { root } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  truth.recordGatewayTool('career_script', 'completed', { argument: 'scan' });
+  const prompt =
+    "Lance le scan des portails du Skill (mode scan) et ajoute les nouvelles offres à la boîte d'entrée";
+  const searchSteps = [
+    {
+      title: 'Scanner les portails du Skill',
+      state: 'done',
+      optional: false,
+      exempt: false,
+      proves: null,
+    },
+  ];
+  const bilan = formatCareerBilan(prompt, truth, undefined, searchSteps);
+  assert.match(bilan, /- Non exécuté : aucune action demandée identifiable comme manquante\./);
+  assert.match(bilan, /- Boîte d’entrée : 3 restantes, traitement non demandé\./);
+  // Avec une étape qui prouve le traitement (pipeline), ou sans intent, la boîte reste due.
+  const pipelineSteps = [
+    {
+      title: 'Cocher l’entrée',
+      state: 'pending',
+      optional: false,
+      exempt: false,
+      proves: 'boîte d’entrée traitée',
+    },
+  ];
+  assert.match(
+    formatCareerBilan(prompt, truth, undefined, pipelineSteps),
+    /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./,
+  );
+  assert.match(
+    formatCareerBilan(prompt, truth),
+    /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./,
+  );
+});

@@ -92,6 +92,17 @@ export const skillManifestSchema = z
             priority: z.number().int().min(0).max(1000),
             phrases: z.array(z.string().trim().min(2).max(120)).min(1).max(30),
             keywords: z.array(z.string().trim().min(2).max(60)).max(30).default([]),
+            // The priority the intent takes when the prompt carries one of these phrases and none of
+            // `unlessPhrases`; the phrases select the intent too. The pack settles which intent leads
+            // when two overlap (E48): the engine only compares numbers.
+            boost: z
+              .object({
+                priority: z.number().int().min(0).max(1000),
+                phrases: z.array(z.string().trim().min(2).max(120)).min(1).max(30),
+                unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
+              })
+              .strict()
+              .optional(),
             steps: z.array(stepSchema).min(1).max(30),
           })
           .strict(),
@@ -163,19 +174,24 @@ export function selectSkillIntents(prompt, manifests) {
     );
   const words = new Set(objective.match(/[\p{L}\p{N}]+/gu) ?? []);
   const hasUrl = /https?:\/\/\S+/iu.test(prompt);
+  const said = (phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `);
+  const boosted = (intent) =>
+    Boolean(intent.boost?.phrases.some(said) && !intent.boost.unlessPhrases?.some(said));
   return manifests
     .flatMap((raw) => {
       const manifest = skillManifestSchema.parse(raw);
       return manifest.intents
         .filter(
           (intent) =>
-            intent.phrases.some((phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `)) ||
-            intent.keywords.some((word) => words.has(normalize(word))),
+            intent.phrases.some(said) ||
+            intent.keywords.some((word) => words.has(normalize(word))) ||
+            boosted(intent),
         )
         .map((intent) => ({
           pack: manifest.pack,
           intent: {
             ...intent,
+            priority: boosted(intent) ? intent.boost.priority : intent.priority,
             steps: (forbidSave ? intent.steps.filter((step) => !step.persists) : intent.steps).map(
               (step) =>
                 (step.unlessUrl && hasUrl) ||
@@ -331,6 +347,8 @@ export class SkillProgress {
         optional: step.optional,
         // Waived by the prompt (`unlessPhrases`, `unlessUrl`): told to the pack's Bilan as well.
         exempt: step.exempt === true,
+        // The outcome the step proves (pack label), so the pack's Bilan knows what was expected.
+        proves: step.proves ?? null,
         definition: step,
         state: 'pending',
         toolCallId: null,

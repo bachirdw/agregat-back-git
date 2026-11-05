@@ -677,9 +677,15 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
     // bilan-06 (E51) : a write that ticks nothing (a line added) leaves the inbox unprocessed.
     if (unprocessed && !dryRun) missing.push(unprocessed.cause);
   } else if (inboxRequested) {
+    // bilan-06 (E48) : with an intent selected, the inbox is due only when one of its steps proves
+    // it (a scan that « adds to the inbox » asks for no processing); without one, the prompt tells.
+    const inboxDue =
+      !skillSteps.length || skillSteps.some((step) => step.proves === INBOX_PROCESSED);
     if (inbox && !inbox.pending) inboxLine = '\n- Boîte d’entrée : aucune entrée en attente.';
     else if (dryRun)
       inboxLine = `\n- Boîte d’entrée : aucune écriture (le prompt l’interdit)${inbox ? `, ${plural(inbox.remaining, 'restante')}` : ''}.`;
+    else if (!inboxDue)
+      inboxLine = `\n- Boîte d’entrée : ${inbox ? plural(inbox.remaining, 'restante') : 'non relue'}, traitement non demandé.`;
     else
       missing.push(
         unprocessed?.cause ??

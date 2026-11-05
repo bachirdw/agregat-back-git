@@ -103,8 +103,13 @@ export function sendsFile(request, file) {
   const variants = [file.base64, urlSafe, encodeURIComponent(file.base64)];
   if (!variants.some((variant) => text.includes(variant))) return false;
   // Outside the file's base64 (and any other long blob), no e-mail address ; a URL-encoded body is
-  // read decoded (« %40 » is « @ »).
-  let rest = text.replace(/[A-Za-z0-9+/=_%-]{1000,}/g, '');
+  // read decoded (« %40 » is « @ »). Huitième relecture : the long runs are set aside by a linear
+  // split that keeps the separators (an address stays whole) ; the former pattern was quadratic on
+  // runs of 900 to 999 characters.
+  let rest = text
+    .split(/([^A-Za-z0-9+/=_%-]+)/)
+    .map((piece, index) => (index % 2 === 0 && piece.length >= 1000 ? ' ' : piece))
+    .join('');
   if (/urlencoded/i.test(type))
     try {
       rest = decodeURIComponent(rest.replace(/\+/g, ' '));
@@ -1929,11 +1934,14 @@ export class CdpBrowser {
     // first : Playwright waits until the tab is really gone. Then the owner connection closes every
     // other tab of the mission, all at once : even with a frozen tab, all are asked to close within
     // 2 s, before the SIGKILL of the end of a mission. Playwright's side is released last (it fails
-    // fast once the transport is closed). An isolated Chrome is closed fully, as before.
+    // fast once the transport is closed). An isolated Chrome is closed fully (its context and
+    // browser closes are not bounded).
     const owner = this.ownerConnection;
     this.ownerConnection = null;
     const step = owner ? settleWithin : (promise) => Promise.resolve(promise).catch(() => {});
-    await step(this.page?.close());
+    // The page is bounded in both modes (huitième relecture) : with an isolated Chrome, closing the
+    // context and the browser below closes it anyway.
+    await settleWithin(this.page?.close());
     await owner?.close().catch(() => {});
     await step(this.pageSession?.detach());
     this.pageSession = null;

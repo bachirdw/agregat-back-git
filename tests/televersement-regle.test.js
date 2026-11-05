@@ -135,3 +135,27 @@ test('E43 FICTIF : base64 URL-safe ou URL-encodé, nom accentué, tranches exact
   assert.equal(sendsFile(request(randomBytes(2000)), cv), false);
   assert.equal(sendsFile(request(Buffer.alloc(0)), cv), false);
 });
+
+// Huitième relecture : le retrait des longues suites (le fichier en base64, d'autres blobs) avant la
+// recherche d'e-mail était quadratique sur des suites de 900 à 999 caractères (2,8 s sur 2 Mo,
+// boucle d'événements figée). Le découpage est désormais linéaire et garde les séparateurs.
+test('E43 FICTIF : retrait des longues suites linéaire, contact toujours repéré', () => {
+  const base64 = CV.toString('base64');
+  const runs = Array.from({ length: 2000 }, () => 'A'.repeat(990)).join(' ');
+  const started = Date.now();
+  assert.equal(
+    sendsFile(request(JSON.stringify({ file: base64, note: runs }), 'application/json'), cv),
+    true,
+  );
+  assert.ok(Date.now() - started < 500, `retrait trop lent : ${Date.now() - started} ms`);
+  assert.equal(
+    sendsFile(
+      request(
+        JSON.stringify({ file: base64, note: runs, contact: 'candidat@example.test' }),
+        'application/json',
+      ),
+      cv,
+    ),
+    false,
+  );
+});

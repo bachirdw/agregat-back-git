@@ -265,3 +265,60 @@ test('Passerelle : préfixe output/, faits sans source comptés dans la sortie d
     { argument: 'generate-pdf' },
   );
 });
+
+// Point 5 : exécution RÉELLE de verify-cv-facts.mjs du Skill sur un espace FICTIF, sans réseau ni Chromium,
+// seulement quand RELAY_SKILL_CLONE désigne un clone du Skill (lecture seule ; le manager le lance en local).
+// Sans la variable, le test est ignoré et le dit : ici, seul le contrat d'appel est testé (faux scripts).
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+test('verify-cv-facts.mjs réel (RELAY_SKILL_CLONE) : CV fidèle à zéro, fait inventé refusé et compté', (t) => {
+  const clone = process.env.RELAY_SKILL_CLONE;
+  if (!clone)
+    return t.skip(
+      'RELAY_SKILL_CLONE absent : vrai script non lancé, contrat testé par les faux scripts',
+    );
+  const { root } = workspace(t);
+  mkdirSync(join(root, 'output'));
+  mkdirSync(join(root, 'config'));
+  writeFileSync(
+    join(root, 'cv.md'),
+    '# Candidat FICTIF\n\n## Experience\n\n### Entreprise FICTIVE — Ville FICTIVE\n**Ingénieur logiciel**\n2021 – 2026\n- Réduit la latence de 40% en Node.js\n- Migration PostgreSQL de 3 bases\n\n## Skills\nNode.js, PostgreSQL\n',
+  );
+  writeFileSync(
+    join(root, 'output/cv-fidele.html'),
+    '<html><body><h1>Candidat FICTIF</h1><ul><li>Réduit la latence de 40% en Node.js</li><li>Migration PostgreSQL de 3 bases</li></ul></body></html>',
+  );
+  writeFileSync(
+    join(root, 'output/cv-invente.html'),
+    '<html><body><h1>Candidat FICTIF</h1><ul><li>Réduit la latence de 90% en Rust</li><li>Dirigé une équipe de 25 personnes</li></ul></body></html>',
+  );
+  const run = (file, ...args) => {
+    try {
+      return {
+        code: 0,
+        text: execFileSync(process.execPath, [join(clone, 'verify-cv-facts.mjs'), file, ...args], {
+          cwd: root,
+          env: {
+            PATH: process.env.PATH,
+            HOME: process.env.HOME,
+            CAREER_OPS_ROOT: root,
+            CAREER_OPS_DATA_DIR: root,
+          },
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 60000,
+        }),
+      };
+    } catch (error) {
+      return { code: error.status, text: `${error.stdout ?? ''}\n${error.stderr ?? ''}` };
+    }
+  };
+  const faithful = run('output/cv-fidele.html');
+  assert.equal(faithful.code, 0, faithful.text);
+  const invented = run('output/cv-invente.html');
+  assert.equal(invented.code, 1, invented.text);
+  assert.ok(factsUnsourced(invented.text) >= 1, invented.text);
+  const json = run('output/cv-invente.html', '--json');
+  assert.equal(json.code, 1);
+  assert.ok(factsUnsourced(json.text.trim().split('\n').at(-1)) >= 1, json.text);
+});

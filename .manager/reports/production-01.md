@@ -137,3 +137,40 @@ uniquement (`example.test`), aucun secret, aucun fichier du Skill modifié.
   exécuté) ; si une version future change ses en-têtes, le Bilan dira « a échoué (code non nul) » (vérité
   dégradée, pas fausse).
 
+## Point 5 — Fixture de bout en bout
+
+- 00:53 Rouge constaté, `tests/career-integration.test.js` (2 tests ajoutés) : `actual: 'failed'` sur l'état
+  de la mission tant que la fixture n'avait pas sa branche (puis, branche écrite, une attente trop large :
+  « non vérifié » apparaît aussi dans « Affirmations de l'agent : non vérifiées » ; resserrée en « CV non vérifié »).
+  Erreur en route : `prepare(root)` inséré d'abord dans un autre test (`prepare is not defined`), déplacé dans
+  `runCareerFixture`.
+- `tests/fixtures/career-agent.js`, branche `FICTIF_SKILL_CV` (intention `documents`) : `career_read
+  config/profile.yml` → `career_write output/cv-candidat-fictif-042-entreprise-fictive.json` (payload de
+  `pdf.md`) → `verify-cv-structure` → `cv-templates resolve cv` (chemin absolu du modèle réutilisé tel quel)
+  → `build-cv-html [json, html, template]` → `verify-cv-facts [html]` (code non nul : l'agent s'arrête
+  **avant le PDF**, `pdf.md` étape 19) → `generate-pdf [html, pdf, "--format=a4", "--report=042"]` →
+  `mark-pdf-ready ["042"]` → si « lettre » dans le prompt : payload `output/cover-payload-….json` puis
+  `generate-cover-letter ["--payload", …]`. `FICTIF_CV_INVENTE` : puces inventées dans le payload.
+- `tests/career-integration.test.js` : sept faux scripts au contrat des vrais (arguments, fichiers écrits,
+  sorties : `🔗 Manifest: data/pdf-index.tsv updated (report 042)`, format d'échec de `verify-cv-facts`,
+  JSON de `mark-pdf-ready`, refus hors `output/` de la lettre, codes 0/1/2) ; espace FICTIF : `cv.md`,
+  `config/profile.yml`, `templates/cv-template.html`, `data/applications.md` avec la ligne 042 à ❌.
+- Vérifié (test 1) : HTML construit depuis le payload, PDF écrit, `data/pdf-index.tsv` lié à 042, colonne PDF
+  passée à ✅, lettre écrite sous `output/`, `cv.md` et profil intacts, Bilan « CV du Skill : produit (PDF) »,
+  « Lettre : produite », 7 étapes « ✓ (faite) », « Écart d'ordre : aucun constaté », aucun `output/<uuid>.pdf`
+  (`career_document` non appelé). Vérifié (test 2) : fait inventé → `verify-cv-facts` à 1, **aucun PDF**,
+  index absent, colonne PDF inchangée, mission **terminée** (pas bloquée), Bilan « CV non vérifié : 2 fait(s)
+  sans source (verify-cv-facts) », « CV du Skill : non produit », étape « ✗ Vérifier les faits… (échec
+  signalé par l'outil) », « · Produire le PDF… (non exécutée) », et le contenu des faits refusés n'apparaît pas
+  dans le Bilan de la plateforme.
+- **Vrais scripts : non lancés ici** (refus de la session, 00:35). `tests/career-skill-production.test.js`
+  contient un test d'exécution **réelle** de `verify-cv-facts.mjs` (sans réseau ni Chromium) sur un espace
+  FICTIF, actif seulement si `RELAY_SKILL_CLONE=<clone du Skill>` ; sans la variable il est `skipped` et le
+  dit. **Je n'ai pas pu le voir passer** : à lancer par le manager
+  (`RELAY_SKILL_CLONE=~/Downloads/agregat-career-ops node --test tests/career-skill-production.test.js`).
+  Les autres scripts (`build-cv-html` : modèle du clone + `js-yaml` ; `generate-pdf`/`generate-cover-letter` :
+  Playwright) ne sont testés que par contrat.
+- 00:58 Vert : `career-skill-production` 8/8 + 1 ignoré, `career-integration` 44/46 (mêmes 2 « Agent non
+  détecté »), `skill-router`, `career-skill-scripts`, `career-skill-suivi`, `tool-watchdog` : total 103/105,
+  1 ignoré. `check`/`format:check` verts.
+

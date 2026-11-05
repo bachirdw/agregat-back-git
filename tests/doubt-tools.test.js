@@ -164,7 +164,8 @@ test('Rôles des outils : le champ est validé par le schéma du manifeste', () 
   const parsed = router.skillManifestSchema.parse(base);
   assert.deepEqual(
     parsed.toolRoles.map((role) => role.id),
-    ['search-offers', 'read-offer', 'save-offer'],
+    // pipeline-01 : rôle process-inbox (boîte d'entrée, modes/pipeline.md).
+    ['search-offers', 'read-offer', 'save-offer', 'process-inbox'],
   );
   const role = roleOf(base, 'search-offers');
   const reject = (toolRoles) =>
@@ -216,6 +217,8 @@ test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () 
       '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; repli du Skill si un portail échoue (modes/scan.md) : son API, puis scan_query, puis skipped_error et on continue ; lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué.',
       '- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante ; si la description manque, recapture avec scroll bottom ou waitForText, puis clique « plus » par sa ref et recapture.',
       '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.',
+      // pipeline-01 : rôle de la boîte d'entrée.
+      '- Traiter la boîte d’entrée : career_read avec path: "data/pipeline.md" (lignes « - [ ] » de la section Pending) puis career_script puis career_write ; suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée.',
     ].join('\n'),
   );
 });

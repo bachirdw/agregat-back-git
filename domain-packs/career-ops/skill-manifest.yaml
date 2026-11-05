@@ -16,6 +16,12 @@ toolRoles:
     task: Enregistrer une offre
     tool: career_offer_save
     note: après lecture de l’offre
+  - id: process-inbox
+    task: Traiter la boîte d’entrée
+    tool: career_read
+    usage: 'path: "data/pipeline.md" (lignes « - [ ] » de la section Pending)'
+    then: [career_script, career_write]
+    note: 'suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée'
 intents:
   - id: evaluate
     title: Évaluer une annonce
@@ -147,6 +153,109 @@ intents:
         done: Éléments « - [ ] url | entreprise | poste » ajoutés à data/pipeline.md, par scan.mjs (scan réussi) ou par career_write (modes/pipeline.md)
         optional: true
         persists: true
+  - id: pipeline
+    title: Traiter la boîte d’entrée du Skill
+    # Au-dessus de search (100) : « offres en attente » contient le mot-clé « offres » de search.
+    priority: 110
+    phrases:
+      [
+        traite la boîte d'entrée,
+        traite la boite d'entree,
+        boîte d'entrée,
+        boite d'entree,
+        offres en attente,
+        travaille les offres en attente,
+        traite les offres en attente,
+        process the inbox,
+        pending offers,
+        pending urls,
+        mode pipeline,
+      ]
+    keywords: [pipeline, inbox]
+    # Ordre de modes/pipeline.md : balayage de vivacité avant toute URL (« Liveness sweep »), puis
+    # pour chaque « - [ ] » survivante : extraction, numéro réservé, auto-pipeline (rapport, TSV,
+    # merge-tracker), puis l'entrée passe de Pending à Processed. precheck-duplicate (brief) est
+    # consultatif : le Skill ne le cite pas dans ce mode, sa déduplication se fait à merge-tracker.
+    steps:
+      - id: inbox
+        title: Lire les entrées en attente de data/pipeline.md
+        tool: career_read
+        argument: data/pipeline.md
+        precondition: Boîte d'entrée présente (sinon le dire au Bilan, rien à créer)
+        done: Lignes « - [ ] url | entreprise | poste » de la section Pending relevées, le reste du fichier non relu (modes/pipeline.md « Find »)
+        optional: false
+      - id: sweep
+        title: Balayer la vivacité des entrées en attente
+        tool: career_script
+        argument: check-liveness
+        precondition: Au moins une URL en attente hors LinkedIn (args [url, …], 10 au plus par appel)
+        done: Verdict par URL ; expirée = « - [x] ~~url | entreprise | poste~~ — posting expired (liveness sweep) » ; incertaine ou illisible reste « - [ ] »
+        optional: false
+        unlessPhrases: [sans vérifier, sans check-liveness, sans balayage, sans vivacité]
+      - id: precheck
+        title: Vérifier qu'une entrée n'est pas déjà suivie
+        tool: career_script
+        argument: precheck-duplicate
+        precondition: Entrée vivante (args --company, --title, --url) ; consultatif, lecture seule
+        done: precheck-duplicate terminé ; une correspondance forte se dit au Bilan et ne bloque pas (le Skill déduplique à merge-tracker)
+        optional: true
+      - id: read-offer
+        title: Lire réellement l'annonce de chaque entrée
+        tool: career_read
+        alternativeTools: [browser_extract, browser_snapshot]
+        argument: jds/
+        precondition: Entrée vivante ; une page à la fois (navigateur partagé)
+        done: 'Lecture terminée ; page inaccessible = « - [!] url — note », illisible = reste « - [ ] » avec « unreadable: code », jamais fermée sans preuve'
+        optional: false
+      - id: reserve
+        title: Réserver le numéro du rapport
+        tool: career_script
+        argument: reserve-report-num
+        precondition: Annonce lue et ouverte
+        done: Numéro {###} rendu par reserve-report-num ; le libérer après écriture (args ["--release","{###}"])
+        optional: false
+        persists: true
+        unlessPhrases: [sans écrire, à sec, sans rien écrire]
+      - id: report
+        title: Écrire le rapport du Skill
+        tool: career_write
+        argument: reports/
+        precondition: Numéro réservé, évaluation A–G faite selon modes/oferta.md
+        done: reports/{###}-{company-slug}-{YYYY-MM-DD}.md avec **Score:** X.X/5, **URL:**, **Legitimacy:**, A–G, Machine Summary et annonce archivée (DATA_CONTRACT.md)
+        optional: false
+        persists: true
+        readFirst: true
+        proves: évaluation enregistrée
+        unlessPhrases: [sans écrire, à sec, sans rien écrire]
+      - id: tsv
+        title: Écrire la ligne d'ajout au suivi
+        tool: career_write
+        argument: batch/tracker-additions/
+        precondition: Rapport écrit
+        done: batch/tracker-additions/{num}-{company-slug}.tsv, en-tête num date company role status score pdf report notes url puis une ligne, statut Evaluated (AGENTS.md)
+        optional: false
+        persists: true
+        unlessPhrases: [sans écrire, à sec, sans rien écrire]
+      - id: track
+        title: Fusionner le suivi du Skill
+        tool: career_script
+        argument: merge-tracker
+        precondition: TSV d'ajout écrit ; jamais d'écriture directe de data/applications.md
+        done: merge-tracker terminé avec code zéro ; un état change ensuite par set-status
+        optional: false
+        persists: true
+        proves: suivi écrit
+        unlessPhrases: [sans écrire, à sec, sans rien écrire]
+      - id: mark
+        title: Cocher l'entrée dans data/pipeline.md
+        tool: career_write
+        argument: data/pipeline.md
+        precondition: Évaluation terminée (ou page inaccessible) ; fichier relu autour de la ligne
+        done: 'Entrée passée en Processed « - [x] #NNN | url | entreprise | poste | X.X/5 | PDF ✅/❌ », ou « - [!] url — note » si inaccessible ; aucune ligne supprimée, seulement cochée'
+        optional: false
+        persists: true
+        proves: boîte d’entrée traitée
+        unlessPhrases: [sans écrire, à sec, sans rien écrire, sans cocher]
   - id: documents
     title: Préparer des documents
     priority: 70

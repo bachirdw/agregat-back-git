@@ -607,3 +607,124 @@ test('Manifeste générique : persists retire une étape quand le prompt interdi
   );
   assert.equal(selectSkillIntents('Surveille FICTIF', [manifest])[0].intent.steps.length, 2);
 });
+
+// pipeline-01 : l'intention « pipeline » suit modes/pipeline.md (balayage de vivacité, puis chaque
+// entrée « - [ ] » évaluée comme une annonce collée, puis cochée dans data/pipeline.md).
+const pipelineOf = (prompt) => selectSkillIntents(prompt, [career]);
+test('Boîte d’entrée FICTIVE : prompts français et anglais routés vers pipeline, pas vers search', () => {
+  const cases = [
+    ['Traite la boîte d’entrée', 'pipeline'],
+    ['traite la boite d’entree FICTIVE', 'pipeline'],
+    ['Pipeline', 'pipeline'],
+    ['Lance le pipeline du Skill', 'pipeline'],
+    ['Travaille les offres en attente', 'pipeline'],
+    ['Traite les offres en attente de data/pipeline.md', 'pipeline'],
+    ['Process the inbox', 'pipeline'],
+    ['Run the pipeline on pending offers', 'pipeline'],
+    ['Trouve des offres FICTIVES', 'search'],
+    ['Évalue cette offre FICTIVE https://jobs.example.test/offre/1', 'evaluate'],
+    ['Lis mon CV FICTIF', null],
+  ];
+  for (const [prompt, expected] of cases)
+    assert.equal(pipelineOf(prompt).at(0)?.intent.id ?? null, expected, prompt);
+});
+test('Boîte d’entrée FICTIVE : ordre de modes/pipeline.md déclaré par le manifeste', () => {
+  const [selected] = pipelineOf('Traite la boîte d’entrée FICTIVE');
+  assert.deepEqual(
+    selected.intent.steps.map((step) => [step.id, step.tool, step.argument ?? null]),
+    [
+      ['inbox', 'career_read', 'data/pipeline.md'],
+      ['sweep', 'career_script', 'check-liveness'],
+      ['precheck', 'career_script', 'precheck-duplicate'],
+      ['read-offer', 'career_read', 'jds/'],
+      ['reserve', 'career_script', 'reserve-report-num'],
+      ['report', 'career_write', 'reports/'],
+      ['tsv', 'career_write', 'batch/tracker-additions/'],
+      ['track', 'career_script', 'merge-tracker'],
+      ['mark', 'career_write', 'data/pipeline.md'],
+    ],
+  );
+  const byId = Object.fromEntries(selected.intent.steps.map((step) => [step.id, step]));
+  // Rien n'est bloquant : aucune étape required ; le Bilan dit la vérité.
+  assert.ok(selected.intent.steps.every((step) => !step.required));
+  assert.equal(byId.inbox.optional, false);
+  assert.equal(byId.precheck.optional, true, 'absent de modes/pipeline.md : consultatif');
+  assert.equal(byId.mark.optional, false);
+  assert.equal(byId.mark.persists, true);
+  assert.equal(byId.mark.proves, 'boîte d’entrée traitée');
+  assert.match(byId.mark.done, /- \[x\]/);
+  assert.match(byId.mark.done, /- \[!\]/);
+  assert.match(byId.mark.done, /supprim/);
+  assert.match(byId.sweep.done, /posting expired/);
+  for (const id of ['reserve', 'report', 'tsv', 'track']) assert.equal(byId[id].persists, true, id);
+  assert.equal(byId.report.proves, 'évaluation enregistrée');
+  assert.equal(byId.track.proves, 'suivi écrit');
+  const order = formatSkillOrder([selected]);
+  for (const text of ['check-liveness', 'reserve-report-num', 'merge-tracker', 'data/pipeline.md'])
+    assert.match(order, new RegExp(text));
+  assert.ok(order.indexOf('check-liveness') < order.indexOf('reserve-report-num'));
+  assert.ok(order.indexOf('merge-tracker') < order.lastIndexOf('data/pipeline.md'));
+  assert.match(order, /Ne note une offre qu’après avoir lu sa page/);
+});
+test('Boîte d’entrée FICTIVE : « sans écrire » et « à sec » dispensent des écritures, « n’enregistre rien » les retire', () => {
+  for (const prompt of [
+    'Traite la boîte d’entrée FICTIVE sans écrire',
+    'Traite la boîte d’entrée FICTIVE à sec',
+  ]) {
+    const [dry] = pipelineOf(prompt);
+    const mark = dry.intent.steps.find((step) => step.id === 'mark');
+    assert.equal(mark.exempt, true, prompt);
+    assert.equal(mark.required, false, prompt);
+    for (const id of ['report', 'tsv', 'track'])
+      assert.equal(dry.intent.steps.find((step) => step.id === id).exempt, true, `${prompt} ${id}`);
+    assert.equal(dry.intent.steps.find((step) => step.id === 'sweep').exempt, undefined, prompt);
+  }
+  const [readOnly] = pipelineOf('Traite la boîte d’entrée FICTIVE, n’enregistre rien');
+  assert.deepEqual(
+    readOnly.intent.steps.map((step) => step.id),
+    ['inbox', 'sweep', 'precheck', 'read-offer'],
+  );
+  const [noSweep] = pipelineOf('Traite la boîte d’entrée FICTIVE sans vérifier la vivacité');
+  assert.equal(noSweep.intent.steps.find((step) => step.id === 'sweep').exempt, true);
+});
+test('Boîte d’entrée FICTIVE : le rôle d’outil cite modes/pipeline.md et les cases du Skill', () => {
+  const role = career.toolRoles.find((item) => item.id === 'process-inbox');
+  assert.ok(role, 'rôle process-inbox déclaré');
+  assert.equal(role.tool, 'career_read');
+  assert.match(role.usage, /data\/pipeline\.md/);
+  assert.match(role.note, /modes\/pipeline\.md/);
+  assert.match(role.note, /\[x\]/);
+  assert.match(role.note, /\[!\]/);
+});
+test('Boîte d’entrée FICTIVE : trois entrées traitées à la suite, étapes faites sans écart d’ordre', () => {
+  const progress = new SkillProgress(pipelineOf('Traite la boîte d’entrée FICTIVE'));
+  progress.start();
+  const urls = [1, 2, 3].map((n) => `https://jobs.example.test/offre/${n}`);
+  const calls = [
+    ['career_read', { path: 'data/pipeline.md' }],
+    ['career_script', { command: 'check-liveness', args: urls }],
+  ];
+  for (const [index, url] of urls.entries()) {
+    const num = String(42 + index).padStart(3, '0');
+    calls.push(
+      [
+        'career_script',
+        { command: 'precheck-duplicate', args: ['--company', 'Entreprise FICTIVE', '--url', url] },
+      ],
+      ['career_read', { path: `jds/offre-fictive-${index}.md` }],
+      ['career_script', { command: 'reserve-report-num' }],
+      ['career_write', { path: `reports/${num}-entreprise-fictive-2026-11-05.md` }],
+      ['career_write', { path: `batch/tracker-additions/${num}-entreprise-fictive.tsv` }],
+      ['career_script', { command: 'merge-tracker' }],
+      ['career_write', { path: 'data/pipeline.md' }],
+    );
+  }
+  calls.forEach(([tool, input], index) => progress.observe(skillCall(`p${index}`, tool, input)));
+  const result = progress.finish();
+  assert.deepEqual(
+    result.steps.map((step) => step.state),
+    Array(9).fill('done'),
+  );
+  assert.equal(result.orderDeviation, false);
+  assert.deepEqual(progress.incomplete([], true), []);
+});

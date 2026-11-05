@@ -472,6 +472,9 @@ intents:
       - id: open
         title: Ouvrir le formulaire
         tool: browser_navigate
+        # E67 : le formulaire s'ouvre aussi par un clic (« Quick apply ») ; la page d'arrivée du clic
+        # doit porter le même motif d'URL.
+        alternativeTools: [browser_click]
         urlPattern:
           words: [apply, application, candidature, postuler]
         precondition: Offre identifiée

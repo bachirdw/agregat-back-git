@@ -61,6 +61,7 @@ import {
 } from './skill-router.js';
 import { withDoubtRule } from './doubt-rule.js';
 import { ToolGuard, TERMINAL_TOOL_STATUS, isPlatformToolCall } from './tool-guard.js';
+import { NativeActions } from './native-actions.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
 import {
@@ -895,6 +896,11 @@ export class Orchestrator {
       }
       if (this.ownerMode) this.store.event(run.id, 'agent_diagnostic', { text: diagnostic });
     };
+    // E63 : the agent's own tools (writes, commands, web fetches), counted for the Bilan.
+    const nativeActions = new NativeActions({
+      folder: run.cwd,
+      isPlatform: (update) => isPlatformToolCall(update, gatewayServers),
+    });
     // stall-01 (E49): a tool call is guarded once handed over to the platform, not when the agent
     // opens it (a long report streams for minutes behind one pending tool_call). See ToolGuard.
     const toolGuard = new ToolGuard({
@@ -1021,6 +1027,7 @@ export class Orchestrator {
           watchTool(update);
           if (promptStarted) turnTruth.observe(update);
           if (promptStarted) skillProgress.observe(update);
+          if (promptStarted) nativeActions.observe(update);
           if (
             promptStarted &&
             update.sessionUpdate === 'tool_call' &&
@@ -1359,6 +1366,8 @@ export class Orchestrator {
         (event) => event.type === 'answer' && event.data?.action === 'accept',
       ).length;
       if (asked) value.summary += `\nQuestions : ${asked} posée(s), ${answered} répondue(s).`;
+      // E63 : what the agent did with its own tools, counted only (no path, command or URL).
+      value.summary += nativeActions.line();
       // bilan-06 (E51) : what the pack says was not reached. Not when the owner was asked and did
       // not answer (declined or expired question): the agent stopped on that, not on the work.
       const unreached =

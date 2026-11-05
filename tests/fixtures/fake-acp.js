@@ -10,6 +10,7 @@
 // composeTool: a call the agent composes for minutes before handing it over (stall-01, E49):
 // {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true, doneFile?}; see the prompt
 // handler. doneFile: written once the hand-over is complete (decision received, MCP call answered).
+// nativeTools: ACP tool_call updates of the agent's own tools (E63), sent as given before the answer.
 import {
   agent,
   methods,
@@ -295,6 +296,12 @@ const app = agent({ name: 'fake-acp' })
           kind: 'fetch',
           status: 'completed',
         },
+      });
+    // nativeTools (E63): the agent's own tool calls (Write, Bash…), sent as given before the answer.
+    for (const update of cfg.nativeTools ?? [])
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update,
       });
     if (cfg.permissionSecret)
       await connection.client.request(methods.client.session.requestPermission, {

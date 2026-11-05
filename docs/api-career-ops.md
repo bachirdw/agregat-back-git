@@ -80,6 +80,16 @@ lecture seule) avant un CV ou une candidature, et la déduplication de `merge-tr
 `url-key.mjs`, numéro de rapport, puis entreprise et poste) au moment de la fusion. `career_offer_save`
 ne déduplique pas ; il crée toujours une nouvelle fiche.
 
+### Chemins lisibles par `career_read`
+
+Les chemins écrivables ci-dessous, les fichiers du clone revu `AGENTS.md`, `DATA_CONTRACT.md`,
+`modes/*.(md|txt|yml)`, `templates/**` et `references/**` (fichiers texte : md, txt, yml, yaml, json,
+html, tex, css), et, en lecture seule, `batch/*.md` (schéma « Machine Summary » de `batch/batch-prompt.md`,
+cité par `modes/oferta.md`), `config/*.(json|yml|yaml)` (`config/cv-facts.json` : faits du CV, donnée du
+propriétaire) et `docs/*.md` (bilan-04, E46). Mêmes pages de 24 000 caractères (48 000 au plus), même
+marquage `untrusted`. Restent hors lecture : `.env` et tout fichier ou dossier à point, `node_modules/`,
+`scripts/`, les sous-dossiers de `batch/`, `config/` et `docs/`, tout chemin avec `..` ou absolu.
+
 ### Chemins écrivables par `career_write`
 
 `cv.md`, `portals.yml`, `config/profile.yml`, `modes/_profile.md|_custom.md|_brief.md`,

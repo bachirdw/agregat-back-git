@@ -217,8 +217,12 @@ function checkPipelineInbox(root, text) {
       `data/pipeline.md : ${removed} entrée(s) supprimée(s) ; le Skill coche (« - [x] », « - [!] ») et ne supprime pas (modes/pipeline.md)`,
     );
 }
+// Read-only files of the reviewed clone. E46: the Skill tells the agent to read batch/batch-prompt.md
+// (Machine Summary schema, modes/oferta.md) and config/cv-facts.json (the owner's CV facts); the
+// read perimeter takes batch/*.md, config/*.(json|yml|yaml), docs/*.md and the whole templates/ and
+// references/ trees (text files only). Never written: career_write keeps userPath alone.
 const systemPath =
-  /^(AGENTS\.md|DATA_CONTRACT\.md|(?:modes|templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml))$/u;
+  /^(AGENTS\.md|DATA_CONTRACT\.md|modes\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml)|(?:templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|yaml|json|html|tex|css)|batch\/[\p{L}\p{N}_ .-]+\.md|config\/[\p{L}\p{N}_ .-]+\.(?:json|yml|yaml)|docs\/[\p{L}\p{N}_ .-]+\.md)$/u;
 const attachmentPath = /^inputs\/[a-f0-9-]{36}\.md$/;
 // Audited entry points of the Skill (scripts at the root of the reviewed clone). Each one has its
 // own closed argument grammar, taken from the script's own flag list: flags it does not name are

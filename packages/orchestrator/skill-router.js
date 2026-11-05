@@ -511,10 +511,14 @@ export class SkillProgress {
       ...update,
       rawInput: update.rawInput ?? this.inputs.get(update.toolCallId),
     };
-    // A script that ran and failed is a completed tool call: its exit code tells.
-    const exitFailed = /exitCode\\*"?\s*:\s*[1-9]/.test(
-      JSON.stringify(update.rawOutput ?? update.content ?? ''),
-    );
+    // A script that ran and failed is a completed tool call: its exit code tells. Any exit code
+    // other than 0 — a number, null for a killed process, a code name — is a failure, as the
+    // gateway reads it (relecture de nuit : one call no longer reads failed on one channel and
+    // done on the other).
+    const exitCode = JSON.stringify(update.rawOutput ?? update.content ?? '').match(
+      /exitCode\\*"?\s*:\s*(-?\d+|null|\\*"[^"\\]*\\*")/,
+    )?.[1];
+    const exitFailed = exitCode !== undefined && exitCode !== '0';
     const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
     // E55, E58 : a step that declares a proof is done only when the call's effect proves it.
     const candidates = this.steps.filter(
@@ -581,7 +585,12 @@ export class SkillProgress {
           !waits(step) &&
           !this.claimed(step, completed, name),
       );
-      if (retry) this.settle(retry, update.toolCallId, 'done', update.status);
+      // Relecture de nuit : the failure that came before stays said (« faite après un échec »).
+      // Not a count : one call reaches the platform on two channels, under two identifiers.
+      if (retry) {
+        retry.recovered = true;
+        this.settle(retry, update.toolCallId, 'done', update.status);
+      }
     }
   }
   // Whether a call matching `step` rather belongs to a sibling step of the same intent that uses
@@ -680,7 +689,7 @@ export function formatSkillBilan(result) {
     result.steps
       .map(
         (step) =>
-          `${step.state === 'done' ? '✓' : step.state === 'failed' ? '✗' : '·'} ${step.title} (${step.state === 'done' ? 'faite' : step.state === 'failed' ? step.cause : step.state === 'skipped' ? 'ignorée' : 'non exécutée'})`,
+          `${step.state === 'done' ? '✓' : step.state === 'failed' ? '✗' : '·'} ${step.title} (${step.state === 'done' ? (step.recovered ? 'faite après un échec' : 'faite') : step.state === 'failed' ? step.cause : step.state === 'skipped' ? 'ignorée' : 'non exécutée'})`,
       )
       .join(' ; ') +
     `.\n- Écart d’ordre : ${result.orderDeviation ? 'constaté' : 'aucun constaté'}.`

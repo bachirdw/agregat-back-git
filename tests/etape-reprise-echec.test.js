@@ -95,9 +95,11 @@ test('E57 FICTIF : réservation refusée puis réussie → étape faite, cause e
     events.filter((event) => event.id === 'reserve').map((event) => event.state),
     ['pending', 'failed', 'done'],
   );
+  // Relecture de nuit : l'échec qui a précédé reste dit au Bilan.
   const bilan = formatSkillBilan(result);
-  assert.match(bilan, /✓ Réserver le numéro du rapport \(faite\)/);
+  assert.match(bilan, /✓ Réserver le numéro du rapport \(faite après un échec\)/);
   assert.doesNotMatch(bilan, /Réserver le numéro du rapport \(échec/);
+  assert.equal(step('release').recovered, undefined);
 });
 
 test('E57 FICTIF : un échec après une réservation faite ne la défait pas', () => {
@@ -141,4 +143,22 @@ test('E57 FICTIF : un script sorti en erreur puis relancé avec succès reprend 
   assert.equal(step('sweep').state, 'done');
   assert.equal(step('sweep').toolCallId, 's2');
   assert.equal(step('sweep').cause, null);
+});
+
+// Relecture de nuit : un script tué (exitCode null) ou sorti sur un code nommé est un échec sur le
+// canal ACP comme sur la passerelle ; un seul appel ne se lit plus « échec puis reprise ».
+test('E57 FICTIF : un code de sortie nul ou nommé est un échec', () => {
+  for (const exitCode of [null, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', -1]) {
+    const { step } = run([
+      acp('p0', 'career_read', { path: 'data/pipeline.md' }),
+      acp(
+        's1',
+        'career_script',
+        { command: 'check-liveness', args: ['https://jobs.example.test/o/1'] },
+        'completed',
+        { exitCode },
+      ),
+    ]);
+    assert.equal(step('sweep').state, 'failed', String(exitCode));
+  }
 });

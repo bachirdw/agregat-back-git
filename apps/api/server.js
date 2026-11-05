@@ -33,6 +33,21 @@ export function allowedSkillPath(
     throw new Error('Chemin d’import hors des racines autorisées (lien symbolique)');
   return target;
 }
+// Query string of GET /api/career/offers → career_offers arguments; null when none is present
+// (other keys are ignored, so an existing front keeps its full list). Validation is the tool's.
+const OFFERS_QUERY_KEYS = ['offset', 'limit', 'maxChars', 'query', 'id', 'ids'];
+export function offersQuery(params) {
+  const args = {};
+  for (const key of OFFERS_QUERY_KEYS) {
+    if (!params.has(key)) continue;
+    const value = params.get(key);
+    if (key === 'ids') args.ids = value.split(',').map((s) => s.trim());
+    else if (['offset', 'limit', 'maxChars'].includes(key))
+      args[key] = /^-?\d+$/.test(value.trim()) ? Number(value) : value;
+    else args[key] = value;
+  }
+  return Object.keys(args).length ? args : null;
+}
 // Validation errors are summarised for people instead of returning raw schema dumps.
 export function publicError(e) {
   if (Array.isArray(e?.issues))
@@ -274,8 +289,18 @@ export function createApp({
             .filter((p) => p.actionClass === 'send')
             .map(({ finish, ...p }) => p),
         });
-      if (req.method === 'GET' && path === '/api/career/offers')
-        return json(res, 200, { opportunities: new CareerTools(career).offers() });
+      if (req.method === 'GET' && path === '/api/career/offers') {
+        // E34: the front keeps the whole list (a browser has no token limit). With one of the
+        // career_offers arguments in the query string, the same bounded page as the tool.
+        const args = offersQuery(url.searchParams);
+        return json(
+          res,
+          200,
+          args
+            ? new CareerTools(career).offersPage(args)
+            : { opportunities: new CareerTools(career).offers() },
+        );
+      }
       if (req.method === 'GET' && path === '/api/career/drafts')
         return json(res, 200, { drafts: new CareerTools(career).drafts() });
       if (req.method === 'GET' && path === '/api/career/linkedin') {

@@ -217,8 +217,15 @@ test('La plateforme génère identifiant et version ; la source reste une donné
   assert.equal(readdirSync(join(root, 'relay/offers')).length, 8);
   assert.equal(existsSync(join(root, 'reports')), false);
   assert.equal(existsSync(join(root, '../hors-perimetre-fictif.json')), false);
+  // E34: the default page is a summary; the full records come by ids.
   const listed = await client.callTool({ name: 'career_offers', arguments: {} });
-  const { opportunities } = JSON.parse(listed.content[0].text);
+  const page = JSON.parse(listed.content[0].text);
+  assert.equal(page.total, 4);
+  const full = await client.callTool({
+    name: 'career_offers',
+    arguments: { ids: page.opportunities.map((item) => item.id) },
+  });
+  const { opportunities } = JSON.parse(full.content[0].text);
   assert.equal(opportunities.filter((item) => item.sourceOfferId === INVENTED).length, 1);
 });
 
@@ -277,7 +284,10 @@ test('Offres déjà écrites : lisibles sans migration, y compris sous un UUID i
   });
   const byId = (list) => [...list].sort((a, b) => a.id.localeCompare(b.id));
   assert.deepEqual(byId(tools.offers()), byId(legacy));
-  const listed = await client.callTool({ name: 'career_offers', arguments: {} });
+  const listed = await client.callTool({
+    name: 'career_offers',
+    arguments: { ids: legacy.map((offer) => offer.id) },
+  });
   assert.deepEqual(byId(JSON.parse(listed.content[0].text).opportunities), byId(legacy));
   // Listing migrates nothing, and a new save lands beside them.
   tools.saveOffer(discovered());
@@ -315,5 +325,5 @@ test('career_offer_save n’écrit jamais dans reports/ : la fiche Relay reste s
     /## A\n\nBloc A FICTIF/,
   );
   const listed = await client.callTool({ name: 'career_offers', arguments: {} });
-  assert.equal(JSON.parse(listed.content[0].text).opportunities.length, 2);
+  assert.equal(JSON.parse(listed.content[0].text).total, 2);
 });

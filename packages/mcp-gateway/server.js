@@ -131,12 +131,14 @@ if (mode === 'fixture') {
     'browser_snapshot',
     {
       description:
-        'Instantané SIMULÉ sans accès réseau ni navigateur réel. waitForText : attend ce texte avant de capturer ; scroll : fait défiler pour charger la suite.',
+        'Instantané SIMULÉ sans accès réseau ni navigateur réel. waitForText : attend ce texte avant de capturer ; scroll : fait défiler pour charger la suite ; maxChars/offset : pagination comme le navigateur réel (24 000 par défaut, 48 000 au plus).',
       inputSchema: z
         .object({
           url: z.string().max(2048),
           waitForText: z.string().trim().min(2).max(200).optional(),
           scroll: z.enum(['bottom', 'page']).optional(),
+          offset: z.number().int().min(0).default(0),
+          maxChars: z.number().int().min(1).max(48000).default(24000),
         })
         .strict(),
     },

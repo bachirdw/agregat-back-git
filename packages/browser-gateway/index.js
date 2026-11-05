@@ -3,6 +3,7 @@ import { resolve, basename, relative, isAbsolute, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
 import { getCapability } from '../capability-registry/index.js';
+import { paginateText } from './paginate.js';
 export { CdpBrowser } from './cdp.js';
 
 // Legacy fixture provider (no network, no browser) kept for the reproducible demo.
@@ -265,14 +266,17 @@ export class FixturePageProvider {
         : {}),
       ...(args.scroll ? { scrolled: args.scroll } : {}),
     };
-    if (id === 'browser.snapshot')
+    if (id === 'browser.snapshot') {
+      const { page: bounded, ...paging } = paginateText(page.text, args);
       return {
         url: this.url,
         title: page.title,
-        snapshot: page.text,
+        snapshot: bounded,
+        ...paging,
         ...reflected,
         simulated: true,
       };
+    }
     if (id === 'browser.extract')
       return {
         url: this.url,

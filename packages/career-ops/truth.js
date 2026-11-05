@@ -610,18 +610,27 @@ export function inboxUnprocessed(truth, prompt) {
   return { proves: INBOX_PROCESSED, cause: `boîte d’entrée non traitée (0 sur ${inbox.pending})` };
 }
 
-// E26 : the « e-mail » field of a form and its « Envoyer » button ask for no e-mail. A send verb
-// and an e-mail word must follow each other within one clause, outside a button label.
-const SEND_THEN_MAIL =
-  /\b(?:envoi|envoie[sz]?|envoyer|envoyez|expédie[rz]?|send)\b[^.;:!?\n«»"]{0,40}?\b(?:e-?mails?|mails?|courriels?)\b/giu;
-const MAIL_THEN_SEND =
-  /\b(?:e-?mails?|mails?|courriels?)\b[^.;:!?\n«»"()]{0,40}?(?:\sà\s+(?:envoyer|expédier)|\s(?:et|puis)\s+(?:l['’])?envoie)\b/iu;
-const BUTTON_BEFORE = /(?:\bclique[rz]?\s+(?:sur\s+)?|\bbouton\s+|«\s*)$/iu;
+// E26 : the « e-mail » field of a form and its « Envoyer » button ask for no e-mail. Revue Opus du
+// 06/11 : requiring the verb and the e-mail word within one clause missed common requests (an
+// address with a dot, a comma, two sentences). Both words anywhere in the request, as on dev,
+// once removed what asks for no e-mail : a button label (« clique sur Envoyer », « « Envoyer » »)
+// and an e-mail field of the candidate (« champ e-mail », « (nom, e-mail, téléphone) »,
+// « e-mail de confirmation »). Denied clauses are already gone (`requested`).
+const SEND_BUTTON =
+  /(?:\b(?:cliquer|cliquez|clique|appuyer|appuyez|appuie)\s+sur\s+(?:le\s+bouton\s+)?|\bbouton\s+)«?\s*(?:envoyer|envoi|send|submit)\b\s*»?|«\s*(?:envoyer|send|submit)\s*»/giu;
+const MAIL = String.raw`(?:e-?mails?|mails?|courriels?)`;
+const FIELD = String.raw`(?:nom|prénom|t[ée]l[ée]phone|tél|adresse|ville)`;
+const FIELD_MAIL = new RegExp(
+  String.raw`\b(?:champ|adresse|case)\s+(?:d['’]|de\s+)?${MAIL}\b|\b${MAIL}\s+de\s+confirmation\b|\b${MAIL}\b(?=\s*[,/)]\s*(?:et\s+)?${FIELD}\b)|(?<=\b${FIELD}\s*[,/]\s*(?:et\s+)?)${MAIL}\b`,
+  'giu',
+);
+const SEND_WORD = /\b(?:envoi|envoie[sz]?|envoyer|envoyez|expédie[rz]?|send)\b/iu;
+const MAIL_WORD = new RegExp(String.raw`\b${MAIL}\b`, 'iu');
 function emailSendRequested(text) {
-  const plain = String(text ?? '');
-  for (const match of plain.matchAll(SEND_THEN_MAIL))
-    if (!BUTTON_BEFORE.test(plain.slice(Math.max(0, match.index - 20), match.index))) return true;
-  return MAIL_THEN_SEND.test(plain);
+  const plain = String(text ?? '')
+    .replace(SEND_BUTTON, ' ')
+    .replace(FIELD_MAIL, ' ');
+  return SEND_WORD.test(plain) && MAIL_WORD.test(plain);
 }
 
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,

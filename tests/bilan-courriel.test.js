@@ -25,9 +25,25 @@ test('E26 : un courriel demandé reste dit « non exécuté » sans envoi', () =
     'Écris un mail FICTIF au recruteur et envoie-le.',
     'Voici un courriel FICTIF à envoyer au recruteur.',
     'Send an email to the FICTIF recruiter.',
+    // Revue Opus du 06/11 : adresse, virgule, deux phrases, deux-points, guillemets, distance.
+    'Écris un courriel à jean@entreprise-fictive.test et envoie-le.',
+    'Rédige un mail FICTIF pour la recruteuse, envoie-le ensuite.',
+    'Prépare un e-mail de relance FICTIF. Envoie-le à Marie.',
+    'Envoie à jean.dupont@entreprise-fictive.test un courriel de relance.',
+    'Envoie : un e-mail de relance FICTIF au recruteur.',
+    'Envoie ma lettre « FICTIVE » par e-mail au recruteur.',
+    'Envoie au recruteur de la société FICTIVE, Mme Martin, un courriel de relance.',
+    'Relance par courriel : envoie le message FICTIF à 9 h.',
   ];
   for (const prompt of prompts)
     assert.match(formatCareerBilan(prompt, createTurnTruth()), MISSING, prompt);
+  // Un brouillon seulement : le courriel demandé reste non envoyé.
+  const draft = createTurnTruth();
+  draft.recordGatewayTool('email_send', 'completed', { sent: false });
+  assert.match(
+    formatCareerBilan('Écris un courriel à jean@entreprise-fictive.test et envoie-le.', draft),
+    MISSING,
+  );
   const sent = createTurnTruth();
   sent.recordGatewayTool('email_send', 'completed', { sent: true });
   assert.doesNotMatch(formatCareerBilan('Envoie un courriel FICTIF au recruteur.', sent), MISSING);

@@ -41,19 +41,17 @@ function noScriptHeaders(headers) {
 const CLICK_SEND_WINDOW_MS = 8000;
 // E43 : the page sends a file the agent attached during the upload and shortly after.
 const UPLOAD_WINDOW_MS = 15000;
-// Field names of a storage upload (S3, GCS or Azure presigned forms, upload bookkeeping), never
-// a person's name, an e-mail, an answer.
-const STORAGE_FIELD =
-  /^(?:key|policy|acl|bucket|signature|token|success_action_(?:status|redirect)|content-type|cache-control|content-disposition|x-amz-[\w-]+|awsaccesskeyid|x-goog-[\w-]+|googleaccessid|x-ms-[\w-]+|file_?name|filename|mime_?type|content_?type|type|size|upload_?id|chunk_?(?:index|number)|total_?chunks|utf8|_?csrf[\w-]*|authenticity_token)$/i;
-// Whether a request of the page sends the file the agent just attached, and only it : a storage
-// upload. Cinquième relecture : a request that carries the file AND anything else a person would
-// fill in (a name, answers, an e-mail) may be an application sent with the CV — a send, never a
-// mere upload. Granted : the file's raw bytes alone (a PUT), a multipart body made of that file
-// and storage fields only (presigned S3/GCS/Azure forms), a JSON body made of the file's base64
-// and storage fields only. Chrome gives these bodies to the route (multipart, a raw PUT of 2 MB,
-// base64 JSON) ; a request without a body (a beacon) carries nothing. A file under 64 bytes is only
-// recognized by its multipart name.
-function sendsOnlyFile(request, file) {
+const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
+// Whether a request of the page sends the file the agent just attached : its body carries the file
+// (its multipart name, its first bytes raw, or its base64), and outside the file no e-mail address —
+// a real application carries the candidate's contact (cinquième relecture). Sixième relecture : a
+// strict list of storage fields refused real uploads (Cloudinary, Uploadcare, Uppy, GraphQL
+// multipart) while a hostile page still got around it ; such a page can anyway post anything to
+// its own site (owner decision of 05/11 : scripted writes are granted and traced), so the rule
+// stays simple : the file, without the candidate's contact around it. Chrome gives these bodies to
+// the route (multipart, a raw PUT of 2 MB, base64 JSON) ; a request without a body (a beacon)
+// carries nothing. A file under 64 bytes is only recognized by its multipart name.
+function sendsFile(request, file) {
   if (!file) return false;
   let body;
   try {
@@ -67,41 +65,15 @@ function sendsOnlyFile(request, file) {
   const type = request.headers()['content-type'] ?? '';
   const boundary = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(type);
   if (boundary) {
-    const parts = text
-      .split(`--${boundary[1] ?? boundary[2]}`)
-      .filter((part) => /content-disposition/i.test(part.slice(0, 600)));
-    const files = parts.filter((part) => /filename="/i.test(part.slice(0, 600)));
-    const fields = parts.filter((part) => !/filename="/i.test(part.slice(0, 600)));
-    return (
-      files.length === 1 &&
-      (files[0].includes(`filename="${file.name}"`) ||
-        (head !== null && files[0].includes(head))) &&
-      fields.every((part) => STORAGE_FIELD.test(/\bname="([^"]*)"/i.exec(part)?.[1] ?? ''))
-    );
+    const parts = text.split(`--${boundary[1] ?? boundary[2]}`);
+    const carries = (part) =>
+      part.includes(`filename="${file.name}"`) || (head !== null && part.includes(head));
+    return parts.some(carries) && !parts.some((part) => !carries(part) && EMAIL.test(part));
   }
-  if (/json/i.test(type) || /^\s*[[{]/.test(text.slice(0, 40))) {
-    if (file.base64.length < 88) return false;
-    let value;
-    try {
-      value = JSON.parse(body.toString('utf8'));
-    } catch {
-      return false;
-    }
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-    const entries = Object.entries(value);
-    const data = entries.filter(([, v]) => typeof v === 'string' && v.includes(file.base64));
-    return (
-      data.length === 1 &&
-      entries.every(
-        ([k, v]) =>
-          data[0][1] === v ||
-          v === file.name ||
-          (STORAGE_FIELD.test(k) && (typeof v !== 'string' || v.length < 2000)),
-      )
-    );
-  }
-  // A raw body : the file itself, nothing else.
-  return head !== null && text.startsWith(head) && body.length <= file.size + 4096;
+  if (head !== null && text.includes(head)) return true;
+  if (file.base64.length < 88 || !text.includes(file.base64)) return false;
+  // Outside the file's base64 (and any other long blob), no e-mail address.
+  return !EMAIL.test(text.replace(/[A-Za-z0-9+/=]{1000,}/g, ''));
 }
 export function isGraphqlRead(body) {
   try {
@@ -763,10 +735,10 @@ export class CdpBrowser {
           return route.continue();
         // E43 : attaching a file is filling the form, not a send. While the agent uploads, and
         // shortly after a successful upload while neither a click nor a navigation has followed,
-        // the page's own sending of THAT file alone — often to a storage host of another site — is
-        // granted and traced (host only). Other requests (statistics, trackers, beacons, an
-        // application sent with the file), a send-worded request and a navigation keep the rules
-        // below.
+        // the page's own sending of THAT file — often to a storage host of another site — is
+        // granted and traced (host only), as a scripted write to the page's own site already is.
+        // Other requests (statistics, trackers, beacons, a body with the candidate's e-mail around
+        // the file), a send-worded request and a navigation keep the rules below.
         const uploadWindow =
           this.uploading === true ||
           (Date.now() - (this.lastUploadEnd ?? 0) <= UPLOAD_WINDOW_MS &&
@@ -776,7 +748,7 @@ export class CdpBrowser {
           uploadWindow &&
           !sensitive &&
           !request.isNavigationRequest() &&
-          sendsOnlyFile(request, this.uploadedFile)
+          sendsFile(request, this.uploadedFile)
         ) {
           this.#traceAutoSend(request.url());
           return route.continue();
@@ -1713,7 +1685,6 @@ export class CdpBrowser {
           typeof files === 'string' ? readFileSync(files).subarray(0, 512) : files.buffer;
         this.uploadedFile = {
           name: expected,
-          size: typeof files === 'string' ? statSync(files).size : files.buffer.length,
           head: Buffer.from(content.subarray(0, 512)),
           base64: Buffer.from(content.subarray(0, 510)).toString('base64'),
         };

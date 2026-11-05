@@ -165,9 +165,11 @@ const pathSchema = z
 // article-digest.md (proof points), voice-dna.md (writing voice), interview-prep/**.md.
 const userPath =
   /^(cv\.md|portals\.yml|article-digest\.md|voice-dna\.md|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv)|output\/[\p{L}\p{N}_ /.-]+\.html|batch\/tracker-additions\/[\p{L}\p{N}_ /.-]+\.tsv|interview-prep\/[\p{L}\p{N}_ /.-]+\.md)$/u;
-// E46 : in owner mode the agent also writes the Skill's personal configuration of that layer
-// (CV facts allowlist, market benchmarks); outside owner mode it stays read-only.
-const ownerUserPath = /^config\/(?:cv-facts\.json|benchmarks\.yml)$/;
+// E46 : in owner mode the agent also writes the Skill's market benchmarks of that layer; outside
+// owner mode it stays read-only. config/cv-facts.json stays read-only in every mode : it is part of
+// the reviewed clone (sourceSnapshot measures .json files), so writing it would block every script
+// of the Skill, and it is the allowlist verify-cv-facts trusts — the owner keeps it.
+const ownerUserPath = /^config\/benchmarks\.yml$/;
 // The Skill's own write rules (AGENTS.md « Pipeline Integrity », modes/oferta.md « Save report »):
 // the tracker gains rows only through a tracker-addition TSV merged by merge-tracker.mjs, and a
 // report is named reports/{###}-{company-slug}-{YYYY-MM-DD}.md with a number from

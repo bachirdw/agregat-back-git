@@ -161,8 +161,13 @@ const pathSchema = z
   );
 // output/ also takes the HTML the Skill's CV chain builds (modes/pdf.md step 18: build-cv-html writes
 // it, step 19: the agent fixes it when verify-cv-facts refuses a claim). PDFs come from generate-pdf.
+// E46 : the personal files of the Skill's user layer (DATA_CONTRACT.md) are user paths too :
+// article-digest.md (proof points), voice-dna.md (writing voice), interview-prep/**.md.
 const userPath =
-  /^(cv\.md|portals\.yml|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv)|output\/[\p{L}\p{N}_ /.-]+\.html|batch\/tracker-additions\/[\p{L}\p{N}_ /.-]+\.tsv)$/u;
+  /^(cv\.md|portals\.yml|article-digest\.md|voice-dna\.md|config\/profile\.yml|modes\/_(profile|custom|brief)\.md|(?:data|reports|output|documents|jds)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|json|tsv)|output\/[\p{L}\p{N}_ /.-]+\.html|batch\/tracker-additions\/[\p{L}\p{N}_ /.-]+\.tsv|interview-prep\/[\p{L}\p{N}_ /.-]+\.md)$/u;
+// E46 : in owner mode the agent also writes the Skill's personal configuration of that layer
+// (CV facts allowlist, market benchmarks); outside owner mode it stays read-only.
+const ownerUserPath = /^config\/(?:cv-facts\.json|benchmarks\.yml)$/;
 // The Skill's own write rules (AGENTS.md « Pipeline Integrity », modes/oferta.md « Save report »):
 // the tracker gains rows only through a tracker-addition TSV merged by merge-tracker.mjs, and a
 // report is named reports/{###}-{company-slug}-{YYYY-MM-DD}.md with a number from
@@ -525,8 +530,9 @@ function validateSkillArgs(command, args, root, unknownKeys = []) {
   if ((spec.requiredFlags ?? []).some((flag) => !seen.has(flag))) fail();
   return args;
 }
-const validatePath = (path, write = false) => {
+const validatePath = (path, write = false, ownerMode = false) => {
   pathSchema.parse(path);
+  if (ownerMode && ownerUserPath.test(path)) return path;
   if (!userPath.test(path) && (write || (!systemPath.test(path) && !attachmentPath.test(path))))
     throw new Error('Fichier hors du périmètre career-ops');
   return path;
@@ -619,7 +625,7 @@ export class CareerTools {
     };
   }
   write(path, text) {
-    validatePath(path, true);
+    validatePath(path, true, this.ownerMode);
     // AGENTS.md « Step 4: Tracker » : the host agent creates data/applications.md when it does not
     // exist, with the header alone; every row then comes through merge-tracker.mjs.
     if (path === 'data/applications.md' && !isTrackerFirstRun(this.career.path(), text))

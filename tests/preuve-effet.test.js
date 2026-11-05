@@ -173,6 +173,28 @@ test('E55/E58 FICTIF : la passerelle mesure l’effet d’un appel sur les étap
   assert.equal(outside, null);
 });
 
+// Revue Opus du 06/11 : la preuve « gain » se mesurait sur tout fichier dont le chemin CONTENAIT
+// celui de l'étape ; cocher dans output/data/pipeline.md prouvait « Cocher l'entrée dans
+// data/pipeline.md », le vrai fichier inchangé. Seul le fichier que nomme l'étape compte.
+test('E55 FICTIF : un autre fichier dont le chemin contient data/pipeline.md ne prouve rien', (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'preuve-chemin-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'data'));
+  writeFileSync(
+    join(root, 'data/pipeline.md'),
+    '## Pending\n- [ ] https://jobs.example.test/o/1\n',
+  );
+  for (const path of ['output/data/pipeline.md', 'documents/data/pipeline.md']) {
+    mkdirSync(join(root, path, '..'), { recursive: true });
+    const watch = proofWatch(career, root, 'career_write', { path });
+    writeFileSync(
+      join(root, path),
+      '- [x] #002 | https://jobs.example.test/o/1 | E | P | 3.0/5\n- [ ] https://jobs.example.test/o/3\n',
+    );
+    assert.deepEqual(watch?.proved({ content: mcp({ saved: true }) }, 'completed') ?? [], [], path);
+  }
+});
+
 // Relecture de nuit : merge-tracker --dry-run imprime le même récapitulatif « Summary: +N added »,
 // suivi de « (dry-run — no changes written) », sans rien écrire. La preuve déclare une exclusion
 // (`unless`) : une simulation ne prouve jamais la fusion.

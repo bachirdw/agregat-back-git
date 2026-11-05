@@ -1,4 +1,4 @@
-import { relative, resolve } from 'node:path';
+import { posix, relative, resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
 import { simulatedBy } from '../orchestrator/proof-args.js';
 
@@ -11,11 +11,17 @@ import { simulatedBy } from '../orchestrator/proof-args.js';
 // written, and the platform keeps the keys of the proved steps (`intent/step`), never the text.
 const MAX_BYTES = 10 * 1024 * 1024;
 
+// Revue Opus du 06/11 : a `gain` proof counts the lines of the written file itself ; any path that
+// CONTAINED the step's (« output/data/pipeline.md ») proved « data/pipeline.md », left untouched.
+// Only the very file the step names counts for a `gain` proof.
 const argumentMatches = (step, args) =>
   !step.argument ||
-  [args?.command, args?.script, args?.path].some(
-    (value) => typeof value === 'string' && value.includes(step.argument),
-  );
+  (step.proof?.gain
+    ? typeof args?.path === 'string' &&
+      posix.normalize(args.path) === posix.normalize(step.argument)
+    : [args?.command, args?.script, args?.path].some(
+        (value) => typeof value === 'string' && value.includes(step.argument),
+      ));
 
 // Lines of a workspace file matching a pattern : 0 for a missing file, null when the path is not
 // a file of the workspace or cannot be read.

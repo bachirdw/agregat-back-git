@@ -21,6 +21,10 @@ Le propriétaire gère seul cette application. Tout ce qui sert à automatiser l
 - Exception : l'envoi final (candidature, e-mail, message) attend le clic du propriétaire, même si le prompt dit « envoie ». Tout le reste passe sans clic.
 - Restent : aucun contournement de CAPTCHA ni de détection de robots, aucun secret exposé, Bilan fidèle aux actions réelles, robustesse technique (chemins confinés, outil figé arrêté), budget, aucun push ni merge sans ordre, bibliothèque career-ops, Skill et CV intouchés.
 
+## Branches et dossiers (décision du propriétaire, 05/11/2026)
+- `dev` = branche de travail (ex-`suite-astra`), dossier `~/Downloads/agregat-back-dev` : tout y est fusionné (branches cloud `cloud/<id>`), la suite complète y tourne, puis `main` est avancé dessus.
+- `main` = stable, uniquement avancé après une suite complète verte (unitaires + Chrome réel). Les sessions cloud partent de `origin/dev`.
+
 ## Garde-fous
 - Bac à sable `workspace-write` + réseau, escalades soumises à la revue automatique (`--approve-for-me`).
 - Les sessions de code et de test n'envoient rien de réel d'elles-mêmes : e-mail, candidature ou publication viennent d'un prompt de l'utilisateur. Aucune création de compte ni lecture d'identifiants.

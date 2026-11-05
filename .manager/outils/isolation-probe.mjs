@@ -16,7 +16,7 @@ const canary = 'TEMOIN-' + randomBytes(4).toString('hex').toUpperCase();
 for (const f of ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md'])
   writeFileSync(join(T, f), `# Instructions de ce dépôt\nLe mot de code de ce dépôt est ${canary}.\n`);
 for (const f of ['agents.json', 'agent-probes.json'])
-  copyFileSync(`/Users/diaw/Downloads/agregat-back-astra/.data/${f}`, join(dataDir, f));
+  copyFileSync(`/Users/diaw/Downloads/agregat-back-dev/.data/${f}`, join(dataDir, f));
 
 process.env.AGENT_PLATFORM_OWNER_MODE = '1';
 process.env.AGENT_PLATFORM_LIVE = '1';

@@ -1,4 +1,4 @@
-# Passation du 05/11/2026 (14:50) — Relay, branche `suite-astra`
+# Passation du 05/11/2026 (14:50) — Relay, branche `dev`
 
 Écrite par le manager (Claude Fable) pour la session suivante. Tout ce qui est dit « vérifié » l'a été réellement aujourd'hui ; le reste est marqué « non vérifié ». Journal complet : `.manager/reports/reprise-05-11.md` (horodaté, 04/11 20:23 → 05/11). Registre : `.manager/reports/registre-erreurs.md`.
 
@@ -10,8 +10,8 @@
 5. `.manager/reports/audit-career-ops-05-11/02-relay-vs-skill.md` si besoin de l'architecture Relay ↔ Skill.
 
 ## 2. Règles permanentes du propriétaire (à conserver telles quelles)
-- Ne touche pas au travail non commité de `~/Downloads/agregat-back` (dépôt d'origine, branche `codex/browser-audit-31-10`) ; le travail se fait dans `~/Downloads/agregat-back-astra` sur `suite-astra`.
-- Jamais de `git add -A`, stash, reset ni réécriture d'historique ; commit local puis push de `suite-astra` à chaque étape ; `main` avancé seulement sur `npm test` complet vert (`git branch -f main HEAD && git push origin suite-astra main`).
+- Ne touche pas au travail non commité de `~/Downloads/agregat-back` (dépôt d'origine, branche `codex/browser-audit-31-10`) ; le travail se fait dans `~/Downloads/agregat-back-dev` sur `dev`.
+- Jamais de `git add -A`, stash, reset ni réécriture d'historique ; commit local puis push de `dev` à chaque étape ; `main` avancé seulement sur `npm test` complet vert (`git branch -f main HEAD && git push origin dev main`).
 - Bibliothèque career-ops, Skill (`~/Downloads/agregat-career-ops`, clone public, HEAD = origin/main 35b7c531) et CV intouchés. Vérifié aujourd'hui : `git status` du clone propre.
 - Aucun secret lu (`.manager/secrets.env`, `.envforme`, `~/.codex/auth.json`, `~/.claude*`, trousseau). Aucune donnée personnelle dans Git ni dans les rapports (dépôt public) : masquer e-mails, téléphones, noms ; les URL d'offres restent hors Git.
 - Pour chaque changement : dire ce qui est vérifié réellement et ce qui ne l'est pas. Rapport français horodaté dans `.manager/reports/` ; **lire `date` avant d'écrire chaque heure** (dérive constatée trois fois aujourd'hui, corrigée par commits).
@@ -22,9 +22,9 @@
 - « Ne prends pas de décisions, dis-moi et je tranche » : proposer, expliquer sans jargon, attendre.
 
 ## 3. État réel au moment de la passation
-- `suite-astra` = 4e3b5ba (poussée). `main` = origin/main = 92048a8 (dernière suite complète verte : 685 parallèles + 148 Chrome, 13:28). Depuis : cadre de l'acteur réécrit (6d3f1bc), fusion `cloud/offer-save-01` (a63195d), brief bilan-03, journal.
-- **Suite complète verte** (14:54) sur l'arbre fusionné : 693 parallèles (691 ✔, 2 ignorés), 148 Chrome, check et format à zéro. **`main` avancé et poussé** (= `suite-astra`, commits suivants = rapports seulement).
-- **API 4310** : relancée à 14:55 sur le code fusionné (HEAD = main, onglet terminal « API 4310 » de l'ancienne session, garde de silence 15 min) ; répond. Si elle doit être relancée, l'annoncer. Commande (depuis `~/Downloads/agregat-back-astra`) :
+- `dev` = 4e3b5ba (poussée). `main` = origin/main = 92048a8 (dernière suite complète verte : 685 parallèles + 148 Chrome, 13:28). Depuis : cadre de l'acteur réécrit (6d3f1bc), fusion `cloud/offer-save-01` (a63195d), brief bilan-03, journal.
+- **Suite complète verte** (14:54) sur l'arbre fusionné : 693 parallèles (691 ✔, 2 ignorés), 148 Chrome, check et format à zéro. **`main` avancé et poussé** (= `dev`, commits suivants = rapports seulement).
+- **API 4310** : relancée à 14:55 sur le code fusionné (HEAD = main, onglet terminal « API 4310 » de l'ancienne session, garde de silence 15 min) ; répond. Si elle doit être relancée, l'annoncer. Commande (depuis `~/Downloads/agregat-back-dev`) :
   `AGENT_PLATFORM_BROWSER=playwriter AGENT_PLATFORM_LIVE=1 AGENT_PLATFORM_OWNER_MODE=1 AGENT_PLATFORM_TIMEOUT_MS=1800000 AGENT_PLATFORM_SEND_TIMEOUT_MS=7200000 AGENT_PLATFORM_QUESTION_TIMEOUT_MS=7200000 AGENT_PLATFORM_SILENT_MS=900000 AGENT_PLATFORM_BROWSER_LOCAL_ORIGINS=http://127.0.0.1:4321 node --env-file-if-exists=/Users/diaw/Downloads/agregat-back/.manager/secrets.env apps/api/server.js`
   Vérifier d'abord qui tourne : `curl -s http://127.0.0.1:4310/api/runs | head -c 200` ; arrêter l'ancienne (Ctrl-C dans son onglet, ou `lsof -i :4310`).
 - Autres services : page de candidature fictive `node tests/support/apply-page.js 4321` (compteur `/count` : 6 envois fictifs aujourd'hui), relais Playwriter 19988 (extension Chrome du propriétaire), front 5173. Non vérifiés à la passation : à contrôler par `curl`.

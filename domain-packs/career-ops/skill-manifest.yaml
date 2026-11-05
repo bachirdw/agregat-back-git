@@ -265,6 +265,18 @@ intents:
         readFirst: true
         proves: évaluation enregistrée
         unlessPhrases: [sans écrire, à sec, sans rien écrire]
+      # modes/oferta.md « Save report » : le numéro réservé est libéré une fois le rapport écrit
+      # (E38). Constaté seulement : facultatif, la plateforme ne libère rien elle-même.
+      - id: release
+        title: Libérer le numéro du rapport
+        tool: career_script
+        argument: reserve-report-num
+        args: ['--release', '{###}']
+        precondition: Rapport reports/{###}-….md écrit
+        done: reserve-report-num --release {###} terminé (args ["--release","{###}"]), reports/{###}-RESERVED.md retiré
+        optional: true
+        persists: true
+        unlessPhrases: [sans écrire, à sec, sans rien écrire]
       - id: tsv
         title: Écrire la ligne d'ajout au suivi
         tool: career_write

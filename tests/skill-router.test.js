@@ -750,6 +750,7 @@ test('Boîte d’entrée FICTIVE : ordre de modes/pipeline.md déclaré par le m
       ['read-offer', 'career_read', 'jds/'],
       ['reserve', 'career_script', 'reserve-report-num'],
       ['report', 'career_write', 'reports/'],
+      ['release', 'career_script', 'reserve-report-num'],
       ['tsv', 'career_write', 'batch/tracker-additions/'],
       ['track', 'career_script', 'merge-tracker'],
       ['mark', 'career_write', 'data/pipeline.md'],
@@ -825,6 +826,7 @@ test('Boîte d’entrée FICTIVE : trois entrées traitées à la suite, étapes
       ['career_read', { path: `jds/offre-fictive-${index}.md` }],
       ['career_script', { command: 'reserve-report-num' }],
       ['career_write', { path: `reports/${num}-entreprise-fictive-2026-11-05.md` }],
+      ['career_script', { command: 'reserve-report-num', args: ['--release', num] }],
       ['career_write', { path: `batch/tracker-additions/${num}-entreprise-fictive.tsv` }],
       ['career_script', { command: 'merge-tracker' }],
       ['career_write', { path: 'data/pipeline.md' }],
@@ -834,7 +836,7 @@ test('Boîte d’entrée FICTIVE : trois entrées traitées à la suite, étapes
   const result = progress.finish();
   assert.deepEqual(
     result.steps.map((step) => step.state),
-    Array(9).fill('done'),
+    Array(10).fill('done'),
   );
   assert.equal(result.orderDeviation, false);
   assert.deepEqual(progress.incomplete([], true), []);

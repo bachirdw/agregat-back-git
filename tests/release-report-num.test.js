@@ -43,15 +43,31 @@ const gateway = (id, name, argument) => ({
   rawInput: { command: argument, path: argument, url: undefined },
   status: 'completed',
 });
-function mission({ release }) {
-  const progress = new SkillProgress(selectSkillIntents(PROMPT, [career]));
+// bilan-05 (point 1) : l'intent `pipeline` réserve aussi un numéro par entrée ; même étape `release`.
+const PIPELINE_PROMPT = 'Traite la boîte d’entrée FICTIVE';
+function mission({ release, prompt = PROMPT }) {
+  const progress = new SkillProgress(selectSkillIntents(prompt, [career]));
   progress.start();
+  const pipeline = prompt === PIPELINE_PROMPT;
   const calls = [
+    ...(pipeline ? [acp('p0', 'career_read', { path: 'data/pipeline.md' })] : []),
+    ...(pipeline
+      ? [
+          acp('p1', 'career_script', {
+            command: 'check-liveness',
+            args: ['https://jobs.example.test/o/1'],
+          }),
+        ]
+      : []),
     acp('c0', 'career_read', { path: 'jds/offre-fictive.md' }),
-    acp('c1', 'career_script', {
-      command: 'check-liveness',
-      args: ['https://jobs.example.test/o/1'],
-    }),
+    ...(pipeline
+      ? []
+      : [
+          acp('c1', 'career_script', {
+            command: 'check-liveness',
+            args: ['https://jobs.example.test/o/1'],
+          }),
+        ]),
     acp('c2', 'career_script', { command: 'reserve-report-num', args: [] }),
     gateway('00000000-0000-4000-8000-000000000002', 'career_script', 'reserve-report-num'),
     acp('c3', 'career_write', { path: 'reports/003-entreprise-fictive-2026-11-05.md' }),
@@ -63,6 +79,7 @@ function mission({ release }) {
       : []),
     acp('c5', 'career_write', { path: 'batch/tracker-additions/003-entreprise-fictive.tsv' }),
     acp('c6', 'career_script', { command: 'merge-tracker', args: [] }),
+    ...(pipeline ? [acp('p2', 'career_write', { path: 'data/pipeline.md' })] : []),
   ];
   for (const call of calls) progress.observe(call);
   return progress.finish();
@@ -118,6 +135,53 @@ test('E38 FICTIF : libération appelée avec --release → étape faite, sans é
   assert.equal(step.toolCallId, 'c4');
   const bilan = formatSkillBilan(result);
   assert.match(bilan, /✓ Libérer le numéro du rapport \(faite\)/);
+  assert.match(bilan, /Écart d’ordre : aucun constaté/);
+});
+
+test('bilan-05 FICTIF : l’intent pipeline déclare la même libération après le rapport', () => {
+  const evaluate = career.intents.find((intent) => intent.id === 'evaluate').steps;
+  const steps = career.intents.find((intent) => intent.id === 'pipeline').steps;
+  const release = steps.find((step) => step.id === 'release');
+  assert.ok(release, 'étape release absente de pipeline');
+  const shape = ({ title, tool, argument, args, optional, persists }) => ({
+    title,
+    tool,
+    argument,
+    args,
+    optional,
+    persists,
+  });
+  assert.deepEqual(shape(release), shape(evaluate.find((step) => step.id === 'release')));
+  const ids = steps.map((step) => step.id);
+  assert.equal(ids.indexOf('release'), ids.indexOf('report') + 1);
+  const order = formatSkillOrder(selectSkillIntents(PIPELINE_PROMPT, [career]));
+  assert.match(order, /Libérer le numéro du rapport avec career_script \(reserve-report-num\)/);
+  // Même sort que la réservation : dispensée « à sec », retirée par « n’enregistre rien ».
+  const [dry] = selectSkillIntents('Traite la boîte d’entrée FICTIVE à sec', [career]);
+  assert.equal(dry.intent.steps.find((step) => step.id === 'release').exempt, true);
+  const [readOnly] = selectSkillIntents('Traite la boîte d’entrée FICTIVE, n’enregistre rien', [
+    career,
+  ]);
+  assert.ok(!readOnly.intent.steps.some((step) => step.id === 'reserve'));
+  assert.ok(!readOnly.intent.steps.some((step) => step.id === 'release'));
+});
+
+test('bilan-05 FICTIF : pipeline, entrée réservée puis rapport sans libération → ignorée', () => {
+  const result = mission({ release: false, prompt: PIPELINE_PROMPT });
+  assert.equal(result.steps.find((item) => item.id === 'reserve').state, 'done');
+  assert.notEqual(result.steps.find((item) => item.id === 'release').state, 'done');
+  const bilan = formatSkillBilan(result);
+  assert.match(bilan, /Étapes du Skill[^\n]*· Libérer le numéro du rapport \(ignorée\)/);
+  assert.match(bilan, /Écart d’ordre : aucun constaté/);
+});
+
+test('bilan-05 FICTIF : pipeline, libération appelée avec --release → faite', () => {
+  const result = mission({ release: true, prompt: PIPELINE_PROMPT });
+  const step = result.steps.find((item) => item.id === 'release');
+  assert.equal(step.state, 'done');
+  assert.equal(step.toolCallId, 'c4');
+  const bilan = formatSkillBilan(result);
+  assert.match(bilan, /Étapes du Skill[^\n]*✓ Libérer le numéro du rapport \(faite\)/);
   assert.match(bilan, /Écart d’ordre : aucun constaté/);
 });
 

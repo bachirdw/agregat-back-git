@@ -475,6 +475,7 @@ export function createApp({
           (typeof body.toolCallId !== 'string' || !/^[a-f0-9-]{36}$/.test(body.toolCallId))
         )
           throw new Error('Identifiant d’appel invalide');
+        control.toolDelivered?.(null, 'gateway');
         if (store.get(id)?.workspace === 'career-ops')
           control.turnTruth.recordGatewayTool(body.name, body.status, {
             jdRead: body.jdRead === true,
@@ -530,6 +531,7 @@ export function createApp({
         const scopedControl = engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? ''));
         if (!ownerMode || !scopedControl || scopedControl.promptStarted === false)
           throw new Error('Journal navigateur non autorisé');
+        scopedControl.toolDelivered?.(null, 'gateway');
         if (store.get(id)?.workspace === 'career-ops') {
           const control = engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? ''));
           control.browserEvidenceCapabilities ??= new Set();

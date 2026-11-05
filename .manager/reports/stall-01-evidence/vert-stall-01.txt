@@ -1,0 +1,13 @@
+✔ (a) appel en composition : 150 s simulées sans mise à jour, puis remise (accord + passerelle) → aucun tool_stalled, la mission continue (1282.036941ms)
+✔ (a bis) remise par la passerelle seule (aucun accord demandé) : 150 s de composition puis entrée dans le handler MCP → armé via gateway, mission terminée (1201.656706ms)
+✔ (b) appel remis (accord) puis sans réponse : tool_stalled à 120 s simulées, mission failed, message inchangé (349.071681ms)
+✔ (b bis) appel remis à la passerelle (aucun accord) puis jamais clos par l’agent : tool_stalled à 120 s (1041.169658ms)
+✔ (c) outil natif hors passerelle (in_progress, aucune remise observable) : règle inchangée, armé dès le tool_call (350.717129ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9909.682955

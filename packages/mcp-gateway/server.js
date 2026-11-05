@@ -5,7 +5,7 @@ import { landedUrl } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { proofWatch } from './proofs.js';
 import { CallRegistry } from './calls.js';
-import { notDone } from '../policy-engine/not-done.js';
+import { chargeUsage } from './meter.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
@@ -57,25 +57,9 @@ async function approve(request) {
   );
 }
 
-// Usage of gateway capabilities is charged by the platform BEFORE the action; a refused charge
-// (budget or monthly cap) refuses the action itself.
-async function meter(dimension, units = 1) {
-  const url = process.env.RELAY_USAGE_URL;
-  if (!url || !process.env.RELAY_APPROVAL_TOKEN)
-    throw notDone('Pont de mesure requis pour les actions réelles');
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-platform-request': '1',
-      'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
-    },
-    body: JSON.stringify({ dimension, units }),
-    signal: AbortSignal.timeout(15000),
-  });
-  // A refused charge refuses the action : nothing was done.
-  if (!r.ok) throw notDone((await r.json().catch(() => ({}))).error ?? 'Mesure refusée');
-}
+// Charged by the platform before the action (see meter.js).
+const meter = (dimension, units = 1) =>
+  chargeUsage(process.env.RELAY_USAGE_URL, process.env.RELAY_APPROVAL_TOKEN, dimension, units);
 
 function attachmentNames(name, status, args, result) {
   if (status !== 'completed') return {};

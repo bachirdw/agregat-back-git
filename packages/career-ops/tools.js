@@ -124,6 +124,56 @@ function checkTrackerAddition(root, text) {
   if (!scoreCell((row[header.indexOf('score')] ?? '').trim()))
     fail('score illisible (X.X/5 ou N/A)');
 }
+// pipeline-01: the Skill's inbox (modes/pipeline.md « Format of pipeline.md »). A pending entry
+// is « - [ ] url | company | title » (1 to 5 cells, then labelled segments), an unreachable one
+// « - [!] url — note », a processed one « - [x] #NNN | url | … », « - [x] #-- | url | skipped (…) »,
+// « - [x] [NNN](reports/…) | url | … » or « - [x] ~~url | company | title~~ — posting expired ».
+// Headings and free text are the file's own (scan.mjs skeleton, sections in any language). An
+// entry is only ever ticked, by the mode, scan.mjs or reconcile-pipeline.mjs: never removed.
+const INBOX_ITEM = /^- \[([ x!])\] (.*)$/;
+const INBOX_LIKE = /^\s*[-*]\s*\[.?\]/;
+const INBOX_URL = /(?:https?:\/\/|local:)[^\s|]+/;
+const inboxKey = (url) => url.replace(/[~/]+$/, '');
+function inboxEntries(text, strict) {
+  const entries = [];
+  const refuse = (index) => {
+    if (strict)
+      throw new Error(
+        `data/pipeline.md : ligne ${index + 1} refusée ; une entrée est « - [ ] url | entreprise | poste », « - [x] #NNN | url | … » ou « - [!] url — note » (modes/pipeline.md)`,
+      );
+  };
+  text.split(/\r?\n/).forEach((line, index) => {
+    const item = line.match(INBOX_ITEM);
+    if (!item) {
+      if (INBOX_LIKE.test(line)) refuse(index);
+      return;
+    }
+    const body = item[2].replace(/^~~([\s\S]*?)~~/, '$1').trim();
+    const url = body.match(INBOX_URL)?.[0];
+    const leadsWithUrl = INBOX_URL.test(body.split(/[\s|]+/)[0] ?? '');
+    if (!url || (item[1] !== 'x' && !leadsWithUrl)) return refuse(index);
+    entries.push({ state: item[1], key: inboxKey(url) });
+  });
+  return entries;
+}
+function checkPipelineInbox(root, text) {
+  const kept = new Set(inboxEntries(text, true).map((entry) => entry.key));
+  let previous = '';
+  try {
+    previous = readConfined(root, 'data/pipeline.md', 10 * 1024 * 1024).toString('utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  const removed = new Set(
+    inboxEntries(previous, false)
+      .filter((entry) => !kept.has(entry.key))
+      .map((entry) => entry.key),
+  ).size;
+  if (removed)
+    throw new Error(
+      `data/pipeline.md : ${removed} entrée(s) supprimée(s) ; le Skill coche (« - [x] », « - [!] ») et ne supprime pas (modes/pipeline.md)`,
+    );
+}
 const systemPath =
   /^(AGENTS\.md|DATA_CONTRACT\.md|(?:modes|templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml))$/u;
 const attachmentPath = /^inputs\/[a-f0-9-]{36}\.md$/;
@@ -188,6 +238,20 @@ const SKILL_ENTRIES = {
   },
   'verify-pipeline': { flags: { '--no-hints': null } },
   'check-liveness': { positional: Array(10).fill(httpUrl), minPositional: 1, flags: {} },
+  // pipeline-01: the inbox scripts of modes/pipeline.md. reconcile-pipeline moves batch-processed
+  // entries to Processed (path flags --pipeline/--state left out, as --file above); rank-pipeline
+  // annotates pending rows with « rank: » through an agent CLI (opt-in, --limit capped at 200 by
+  // the script itself). url-key.mjs is a library without a command line: not an entry.
+  'reconcile-pipeline': { flags: { '--dry-run': null } },
+  'rank-pipeline': {
+    flags: {
+      '--limit': (v) => /^(?:[1-9]\d?|1\d\d|200)$/.test(v),
+      '--cli': (v) => /^[a-z][a-z0-9-]{0,30}$/.test(v),
+      '--model': (v) => /^[\p{L}\p{N}][\p{L}\p{N}._:-]{0,79}$/u.test(v),
+      '--dry-run': null,
+      '--self-test': null,
+    },
+  },
 };
 export const SKILL_SCRIPT_NAMES = Object.keys(SKILL_ENTRIES);
 function validateSkillArgs(command, args) {
@@ -309,6 +373,7 @@ export class CareerTools {
     if (typeof text !== 'string' || Buffer.byteLength(text) > 200000)
       throw new Error('Texte trop volumineux');
     if (trackerAddition.test(path)) checkTrackerAddition(this.career.path(), text);
+    if (path === 'data/pipeline.md') checkPipelineInbox(this.career.path(), text);
     if (path === 'config/profile.yml') this.career.profile(text);
     else writeConfined(this.career.path(), path, text);
     return { path, saved: true };

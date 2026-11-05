@@ -6,6 +6,9 @@ import { ownerTransport } from '../packages/browser-gateway/owner-transport.js';
 
 async function relay(t, options = {}) {
   const commands = [];
+  // origins[i] : the relay connection (1, 2, …) that sent commands[i].
+  const origins = [];
+  let connections = 0;
   let marker;
   const server = http.createServer((req, res) => {
     res.setHeader('content-type', 'application/json');
@@ -17,10 +20,12 @@ async function relay(t, options = {}) {
     );
   });
   const wss = new WebSocketServer({ server });
-  wss.on('connection', (socket) =>
+  wss.on('connection', (socket) => {
+    const origin = ++connections;
     socket.on('message', (raw) => {
       const m = JSON.parse(raw.toString());
       commands.push(m);
+      origins.push(origin);
       const emit = (message) => socket.send(JSON.stringify(message));
       // E70 : a relay (or a frozen tab) that never answers the closing of a tab.
       if (m.method === 'Target.closeTarget' && options.silentClose) return;
@@ -64,15 +69,24 @@ async function relay(t, options = {}) {
       else if (m.method === 'Browser.getVersion')
         result = { product: 'Chrome/FICTIF', userAgent: 'FICTIF' };
       emit({ id: m.id, result });
-    }),
-  );
+    });
+  });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  t.after(async () => {
+  const stop = async () => {
     for (const socket of wss.clients) socket.terminate();
     wss.close();
+    server.closeAllConnections();
     await new Promise((r) => server.close(r));
-  });
-  return { endpoint: `http://127.0.0.1:${server.address().port}`, commands };
+  };
+  t.after(stop);
+  return {
+    endpoint: `http://127.0.0.1:${server.address().port}`,
+    commands,
+    origins,
+    // The relay drops our connection (idle, extension restarted) but keeps running.
+    drop: () => wss.clients.forEach((socket) => socket.terminate()),
+    stop,
+  };
 }
 
 test('transport propriétaire : inventaire filtré, pas d’auto-attachement global, aucune commande sur onglet utilisateur', async (t) => {
@@ -184,6 +198,50 @@ test('transport propriétaire : fermeture de tous ses onglets ensemble, bornée 
       .sort(),
     ['owned', 'popup'],
   );
+});
+
+// E70 (essai V3, 06/11) : pendant une longue mission, le relais a coupé la connexion de la
+// passerelle ; à la fin, les deux onglets de la mission restaient ouverts, la fermeture n'étant
+// tentée que sur une connexion ouverte. Leurs identifiants ne changent pas : une connexion neuve et
+// brève les ferme, dans le même délai borné.
+const closedBy = (fake) =>
+  fake.commands
+    .map((m, i) => [m, fake.origins[i]])
+    .filter(([m]) => m.method === 'Target.closeTarget')
+    .map(([m, origin]) => `${m.params.targetId}@${origin}`)
+    .sort();
+const dropped = () => new Promise((r) => setTimeout(r, 100));
+
+test('transport propriétaire : connexion coupée par le relais, onglets fermés par une connexion neuve', async (t) => {
+  const fake = await relay(t, { popup: true });
+  const transport = await ownerTransport(fake.endpoint, 10000);
+  fake.drop();
+  await dropped();
+  await transport.close();
+  assert.deepEqual(closedBy(fake), ['owned@2', 'popup@2']);
+});
+
+test('transport propriétaire : connexion coupée et relais muet, fermeture bornée', async (t) => {
+  const fake = await relay(t, { popup: true, silentClose: true });
+  const transport = await ownerTransport(fake.endpoint, 10000);
+  fake.drop();
+  await dropped();
+  const started = Date.now();
+  await transport.close();
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 1500, `fermeture trop longue : ${elapsed} ms`);
+  assert.deepEqual(closedBy(fake), ['owned@2', 'popup@2']);
+});
+
+test('transport propriétaire : relais disparu, fermeture sans erreur', async (t) => {
+  const fake = await relay(t, { popup: true });
+  const transport = await ownerTransport(fake.endpoint, 10000);
+  await fake.stop();
+  await dropped();
+  const started = Date.now();
+  await transport.close();
+  assert.ok(Date.now() - started < 1500);
+  assert.deepEqual(closedBy(fake), []);
 });
 
 // E70, septième relecture : la connexion propriétaire, qui ferme tous les onglets de la mission,

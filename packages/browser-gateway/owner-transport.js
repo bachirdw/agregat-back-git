@@ -5,6 +5,40 @@ import { WebSocket, WebSocketServer } from 'ws';
 // E70 : the longest wait for the closing of one of our tabs at the end of a mission.
 const CLOSE_MS = 1000;
 
+// E70 (essai V3, 06/11) : the relay dropped the gateway's connection during a long mission, and the
+// mission's tabs stayed open in the owner's Chrome. Target identifiers do not change : a short new
+// connection closes them by id, all at once, settled within `ms`; a relay that is gone is ignored.
+async function closeThrough(url, ids, ms) {
+  const socket = new WebSocket(url, { maxPayload: 1024 * 1024 });
+  socket.on('error', () => {});
+  let timer;
+  await Promise.race([
+    new Promise((resolve) => {
+      let left = ids.length;
+      socket.once('close', resolve);
+      socket.on('message', (raw) => {
+        try {
+          if (JSON.parse(raw.toString()).id && --left === 0) resolve();
+        } catch {
+          resolve();
+        }
+      });
+      socket.once('open', () =>
+        ids.forEach((targetId, index) =>
+          socket.send(
+            JSON.stringify({ id: index + 1, method: 'Target.closeTarget', params: { targetId } }),
+          ),
+        ),
+      );
+    }),
+    new Promise((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]);
+  clearTimeout(timer);
+  socket.terminate();
+}
+
 // A local CDP view containing ONLY targets created by this connection. In particular never
 // forward root auto-attach or browser-wide settings to the user's existing tabs.
 export async function ownerTransport(endpoint, timeoutMs = 10000) {
@@ -124,6 +158,7 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
           rpc('Target.closeTarget', { targetId }, undefined, CLOSE_MS).catch(() => {}),
         ),
       );
+    else if (targets.size) await closeThrough(url, [...targets], CLOSE_MS);
     downstream?.terminate();
     upstream.terminate();
     rejectPending();

@@ -186,6 +186,19 @@ code non nul (compte lu dans sa sortie, texte ou `--json` ; jamais les faits eux
 `batch/tracker-additions/`…), le nom de la commande, l’URL notée lue dans l’en-tête `**URL:**` et le
 nombre de lignes fusionnées : jamais le nom du fichier, le rapport ni le TSV.
 
+## Parcours « candidature » : le CV adapté est celui de la chaîne du Skill (apply-01, E40)
+
+L’intent `apply` déclare, facultatives, une étape `cv-pdf` (`career_script generate-pdf`, chaîne de
+`modes/pdf.md`, `proves: CV produit`) puis `upload` : « Joindre le CV adapté de la mission », `path` =
+`cvTailored` renvoyé par `generate-pdf`, `mark-pdf-ready` ou l’outil `career_documents` (liste des PDF de
+`output/` avec `path` utilisable tel quel par `browser_upload`, `kind` cv/cover/other, `tailored`,
+`report`). À défaut de CV adapté, l’agent peut joindre le CV du dossier (par exemple le rendu
+`career_document` de `cv.md`) en le disant ; rien n’est imposé ni interdit. Le Bilan ajoute « CV joint :
+adapté (PDF de la chaîne du Skill) / brut (… pas le CV adapté …) / aucun » (module
+`packages/career-ops/attachments.js`, classement par `data/pdf-index.tsv`, la trace Relay
+`relay/produced-documents.json` et les appels du tour ; le Bilan ne nomme jamais le fichier). La passerelle
+ne transmet que des noms de fichiers (`uploaded`, `produced`, `rendered`), jamais un chemin.
+
 ## Parcours « pipeline » : la boîte d’entrée `data/pipeline.md`
 
 Un prompt « traite la boîte d’entrée », « pipeline », « travaille les offres en attente », « process the

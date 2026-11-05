@@ -460,6 +460,14 @@ export function createApp({
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,
+            // apply-01 (E40): file names only, never a path or a folder.
+            ...Object.fromEntries(
+              ['uploaded', 'produced', 'rendered']
+                .filter(
+                  (key) => typeof body[key] === 'string' && /^[^/\\\0]{1,200}$/.test(body[key]),
+                )
+                .map((key) => [key, body[key]]),
+            ),
           });
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

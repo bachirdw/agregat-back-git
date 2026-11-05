@@ -1,5 +1,10 @@
 import { attachDocument } from './documents.js';
-import { documentsAnswer } from './produced-documents.js';
+import {
+  documentsAnswer,
+  listProducedDocuments,
+  tailoredCv,
+  UPLOAD_NOTE,
+} from './produced-documents.js';
 import { readdirSync, lstatSync, existsSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -541,6 +546,17 @@ export class CareerTools {
     writeConfined(this.career.path(), 'relay/linkedin.json', JSON.stringify(draft));
     return draft;
   }
+  // apply-01 (E40): the documents this mission produced under output/, with paths browser_upload
+  // takes as they are; cvTailored is the CV the Skill's chain produced, never a career_document rendering.
+  documents() {
+    const root = this.career.path();
+    return {
+      documents: listProducedDocuments(root),
+      cvTailored: tailoredCv(root),
+      note: UPLOAD_NOTE,
+      untrusted: true,
+    };
+  }
   // Only audited entry points, never shell text from a model. The three CV checks are local,
   // read-only and isolated from network/filesystem writes. User .env is refused here.
   async script({ command, query = '', path = '', args: scriptArgs = [] }, signal) {
@@ -854,6 +870,12 @@ export function registerCareerTools(
       })
       .strict(),
     (args) => attachDocument(career, args),
+  );
+  register(
+    'career_documents',
+    'Lister les documents produits dans la mission (PDF de output/) : path utilisable tel quel par browser_upload, kind (cv, cover, other), tailored (true = produit par la chaîne du Skill : generate-pdf, data/pdf-index.tsv), report. cvTailored = le CV adapté à joindre à une candidature ; null = aucun CV adapté produit, seul le CV du dossier reste (le dire dans summary).',
+    z.object({}).strict(),
+    () => tools.documents(),
   );
   register(
     'career_offers',

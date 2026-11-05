@@ -440,6 +440,7 @@ test('C7 FICTIF : intent apply avec upload et relecture facultatifs avant review
     [
       ['open', 'browser_navigate', false],
       ['fill', 'browser_fillForm', false],
+      ['cv-pdf', 'career_script', true],
       ['upload', 'browser_upload', true],
       ['verify', 'browser_verify', true],
       ['review', 'browser_snapshot', false],
@@ -467,7 +468,7 @@ test('C7 FICTIF : intent apply avec upload et relecture facultatifs avant review
   assert.equal(result.orderDeviation, false);
   assert.deepEqual(
     result.steps.map((s) => s.state),
-    ['done', 'done', 'skipped', 'skipped', 'done'],
+    ['done', 'done', 'skipped', 'skipped', 'skipped', 'done'],
   );
 });
 
@@ -639,7 +640,8 @@ test('Documents FICTIFS : la chaîne CV/lettre du Skill est déclarée, career_d
   assert.equal(byId['cv-pdf'].proves, 'CV produit');
   assert.equal(byId.cover.proves, 'lettre produite');
   assert.match(byId['cv-verify'].done, /code (?:zéro|0)/i);
-  assert.doesNotMatch(JSON.stringify(career), /career_document/);
+  // apply-01 : career_documents (liste des documents produits) n'est pas career_document (rendu).
+  assert.doesNotMatch(JSON.stringify(career), /career_document(?!s)/);
   const order = formatSkillOrder([selected]);
   for (const text of [
     'pdf.md',

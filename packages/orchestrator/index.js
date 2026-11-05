@@ -1,4 +1,5 @@
 import { submissionTitle } from '../browser-gateway/submission.js';
+import { trackAttachments } from '../career-ops/attachments.js';
 import {
   assertCareerReview,
   CAREER_INSTRUCTIONS,
@@ -241,7 +242,7 @@ export class Orchestrator {
       abort,
       detach: () => signal.removeEventListener('abort', onAbort),
       promptStarted: false,
-      turnTruth: createTurnTruth(),
+      turnTruth: trackAttachments(createTurnTruth()),
       browserEvidence: [],
       token: randomUUID() + randomUUID(),
     };
@@ -817,10 +818,10 @@ export class Orchestrator {
     // description read) still counts. A new mission starts from nothing.
     const inherited = (previous?.id && this.store.get(previous.id)?.missionProof) || null;
     // The pack's Bilan may compare a workspace file before and after the turn (read-only).
-    const turnTruth = createTurnTruth({
-      root: run.cwd,
-      seed: { jdRead: inherited?.sourceRead === true },
-    });
+    const turnTruth = trackAttachments(
+      createTurnTruth({ root: run.cwd, seed: { jdRead: inherited?.sourceRead === true } }),
+      { root: run.cwd },
+    );
     control.turnTruth = turnTruth;
     // Saved with the final state, before anything awaits: a reprise may start right after.
     const missionProof = () => ({

@@ -83,11 +83,15 @@ ne déduplique pas ; il crée toujours une nouvelle fiche.
 ### Chemins écrivables par `career_write`
 
 `cv.md`, `portals.yml`, `config/profile.yml`, `modes/_profile.md|_custom.md|_brief.md`,
-`data|output|documents|jds/*.(md|txt|yml|json|tsv)`, `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`
+`data|output|documents|jds/*.(md|txt|yml|json|tsv)`, `output/**/*.html` (HTML du CV construit par
+`build-cv-html`, corrigé par l’agent quand `verify-cv-facts` refuse un fait), `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`
 (motif du Skill, refusé sinon) et `batch/tracker-additions/{num}-{company-slug}.tsv` (contenu contrôlé :
 en-tête, étiquettes requises du Skill, une seule ligne, score `X.X/5` ou `N/A` ; alias lus dans
 `tracker-aliases.json` de l’espace). **`data/applications.md` n’est plus écrivable** (règle 1 de
-« Pipeline Integrity » du Skill) : il reste lisible, et ne change que par `merge-tracker` et `set-status`.
+« Pipeline Integrity » du Skill) : il reste lisible, et ne change que par `merge-tracker`, `set-status` et
+`mark-pdf-ready`. **`data/pdf-index.tsv`** n’est pas écrivable non plus : `generate-pdf --report=NNN`
+l’alimente (DATA_CONTRACT.md). Les PDF ne s’écrivent pas par `career_write` (binaires produits par
+`generate-pdf` et `generate-cover-letter`) ; `drafts/` reste le dossier des brouillons d’e-mail de Relay.
 
 ### Scripts du Skill admis par `career_script`
 
@@ -110,6 +114,57 @@ Exclus volontairement : `--force`, `--undo` et réparations de `set-status`, mig
 `merge-tracker`, `--count` de `reserve-report-num`, `--file`/`--tracker`/`--apply` de `check-liveness`,
 `delete`/`export` de `tracker`.
 
+## Parcours « CV adapté et lettre » selon le Skill (`modes/pdf.md`, `modes/cover.md`)
+
+Le CV adapté (PDF) et la lettre viennent des **scripts du Skill**, pas du rendu Markdown de Relay.
+`career_document` reste disponible comme pièce jointe générique pour `email_send` (un Markdown de `output/`
+rendu en PDF local), mais le manifeste ne l’indique plus comme voie de production du CV. L’intention
+`documents` (« rédige/prépare/adapte mon cv », « cv + lettre », « lettre de motivation », « mode pdf »,
+« mode cover ») déclare, dans l’ordre de `pdf.md` :
+
+1. `payload` : `career_write output/cv-{candidate}-{###}-{company}.json`, table « JSON payload » de
+   `pdf.md` (faits tirés de `cv.md` seulement ; Relay confine à `output/` ce que le Skill place dans `/tmp`) ;
+2. `cv-structure` (facultatif, 17b) : `career_script verify-cv-structure` `args: [payload.json]` ;
+3. `cv-build` (18) : `career_script cv-templates` `args: ["resolve","cv"]` donne le modèle, puis
+   `career_script build-cv-html` `args: [payload.json, output/….html, template]` ;
+4. `cv-verify` (19) : `career_script verify-cv-facts` `args: [output/….html]` ; **code non nul = fait absent
+   du CV source** : corriger le HTML (jamais `cv.md`), relancer avant tout PDF ;
+5. `cv-pdf` (21) : `career_script generate-pdf` `args: [html, output/cv-…-{date}.pdf, "--format=a4",
+"--report={###}"]` ; `data/pdf-index.tsv` lié au rapport ; `proves: CV produit` ;
+6. `pdf-ready` (facultatif, fin du mode) : `career_script mark-pdf-ready` `args: ["{###}"]` passe la colonne
+   PDF du suivi à ✅ quand la ligne existait (code 2 = aucune ligne pour ce rapport) ;
+7. `cover` (facultatif, `cover.md` étape 9) : `career_write output/cover-payload-{company-slug}.json` puis
+   `career_script generate-cover-letter` `args: ["--payload", …]` → `output/{company-slug}-{role-slug}-cover.pdf` ;
+   `proves: lettre produite`.
+
+Dans l’intention `evaluate` (« coller une URL »), les étapes `cv-build` → `cv-verify` → `cv-pdf` suivent
+le rapport et précèdent le TSV, comme `modes/auto-pipeline.md` (Step 3) ; elles sont facultatives (le mode
+`oferta` n’a pas de PDF automatique) et le TSV porte `pdf ✅` si le PDF a été produit. Aucune étape n’est
+obligatoire : le Bilan dit ce qui a été produit.
+
+### Scripts de la chaîne admis par `career_script`
+
+Mêmes règles que ci-dessus (reçu de revue, `.env` refusé, un argument par entrée). Les fichiers sont
+confinés à `output/` (sous-dossiers de bundle admis, aucun segment `..`) ; un modèle est sous `templates/`
+ou `data/templates/`, relatif ou absolu dans l’espace, tel que `cv-templates resolve` l’imprime.
+`verify-cv-facts`, `verify-cv-structure` et `cv-templates` tournent isolés (lecture seule, sans réseau)
+comme les contrôles existants ; les autres écrivent dans l’espace et tournent comme `scan`.
+
+| Commande                | Arguments admis                                                                                                                                                                               |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cv-templates`          | `list\|resolve\|lint` `cv\|cover` `[nom]`, `--format=html\|tex`, `--fallback`                                                                                                                 |
+| `build-cv-html`         | `<output/….json> <output/….html> [template]`, `--preview <output/….json> [template]`, `<output/….json> --markdown <output/….md> [template]`                                                   |
+| `verify-cv-structure`   | `<output/….json>`                                                                                                                                                                             |
+| `verify-cv-facts`       | `<output/….html\|md>`, `--json` (forme Skill, `args`) ; la forme contrôle (`path`) reste admise                                                                                               |
+| `generate-pdf`          | `<output/….html> <output/….pdf>`, `--format=letter\|a4`, `--country=XX`, `--report=NNN`, `--kind=cv\|cover`, `--max-pages=N`, `--allow-reorder`, `--allow-nonchronological`, `--strict-pages` |
+| `generate-cover-letter` | `--payload <output/….json>` (obligatoire), `--out <output/….pdf>`, `--format letter\|a4`, `--country XX`, `--report NNN`                                                                      |
+| `mark-pdf-ready`        | `<NNN>`, `--dry-run`, `--json`                                                                                                                                                                |
+
+Exclus volontairement : `--source`/`--config` de `verify-cv-facts` et `--source` de `verify-cv-structure`
+(une source choisie par l’agent pourrait être le document contrôlé ; `cover.md` : « The rendered letter is
+not a source »), `--skip-fact-check` et `--batch=` de `generate-pdf`, `--test`/`--self-test`. Les valeurs à
+drapeau de `generate-pdf` et `cv-templates` ne s’écrivent qu’en `--x=y` (forme que ces scripts lisent).
+
 ### Bilan
 
 Les critères « évaluation enregistrée » et « suivi écrit » viennent du manifeste (champ d’étape
@@ -117,7 +172,11 @@ Les critères « évaluation enregistrée » et « suivi écrit » viennent du m
 l’étape `track` (`merge-tracker` réussi) prouve le suivi. Le Bilan affiche « Suivi du Skill : N ligne(s)
 ajoutée(s), M mise(s) à jour (merge-tracker) » (lu dans la sortie du script) et, si une évaluation
 demandée n’a pas été fusionnée, « suivi du Skill non écrit » : c’est une information, la mission n’est
-pas bloquée. La passerelle ne transmet à la plateforme que le préfixe du chemin (`reports/`,
+pas bloquée. Pour les documents, les critères `CV produit` (`generate-pdf` à zéro) et `lettre produite`
+(`generate-cover-letter` à zéro) viennent aussi du manifeste : le Bilan dit « CV du Skill : produit (PDF) /
+non produit » et « Lettre : produite / non produite » (quand c’est demandé, ou produit sans l’être), et
+« CV non vérifié : n fait(s) sans source (verify-cv-facts) » quand le dernier `verify-cv-facts` a rendu un
+code non nul (compte lu dans sa sortie, texte ou `--json` ; jamais les faits eux-mêmes). Rien n’est bloqué. La passerelle ne transmet à la plateforme que le préfixe du chemin (`reports/`,
 `batch/tracker-additions/`…), le nom de la commande, l’URL notée lue dans l’en-tête `**URL:**` et le
 nombre de lignes fusionnées : jamais le nom du fichier, le rapport ni le TSV.
 

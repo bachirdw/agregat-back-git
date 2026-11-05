@@ -174,3 +174,60 @@ uniquement (`example.test`), aucun secret, aucun fichier du Skill modifié.
   détecté »), `skill-router`, `career-skill-scripts`, `career-skill-suivi`, `tool-watchdog` : total 103/105,
   1 ignoré. `check`/`format:check` verts.
 
+## Point 6 — Documentation, fusion, vérifications
+
+- 00:59 `docs/api-career-ops.md` : chemins écrivables mis à jour (HTML sous `output/`, `data/pdf-index.tsv`
+  réservé à `generate-pdf`, `drafts/` = brouillons d'e-mail Relay), nouvelle section « Parcours CV adapté et
+  lettre selon le Skill » (ordre de `pdf.md`/`cover.md`, étapes du manifeste, place dans `evaluate`), table des
+  sept scripts admis et exclusions, lignes du Bilan ; `career_document` présenté comme pièce jointe pour
+  `email_send`, plus comme voie du CV.
+- 01:00 **Fusion demandée par le manager** (message inter-sessions) : `git fetch origin && git merge
+  origin/suite-astra` → commit de fusion `5fa36c5`, **sans conflit** (`integration.js`, `index.js`,
+  `setup-career-ops.js`, deux tests et des rapports ajoutés côté `suite-astra` ; aucun de mes fichiers touché).
+  Sous-ensemble career après fusion (24 fichiers, dont `career-review-router`, `silent-ms-env`) :
+  **237 tests, 234 réussis, 2 échecs « Agent non détecté sur cette machine » (CLI Codex absent du conteneur
+  cloud, préexistants, hors chantier), 1 ignoré (`RELAY_SKILL_CLONE` absent)**. `npm run check` et
+  `npm run format:check` verts. **Suite complète `npm test` non lancée** (consigne : tests Chrome, manager en local).
+
+## État final (01:01)
+
+| Point | Commit | État |
+|---|---|---|
+| 1 Liste blanche `career_script` (7 scripts) | `a62dbc9` | opérationnel, testé avec faux scripts ; vrais scripts non lancés |
+| 2 `career_write` (`output/*.html`, `pdf-index.tsv` réservé) | `f37dabd` | opérationnel, testé |
+| 3 Manifeste (`documents` par le Skill, chaîne CV dans `evaluate`) | `7c3066a` | opérationnel, testé ; `toolRoles` inchangés |
+| 4 Bilan (`truth.js`, + 1 ligne `apps/api/server.js`) | `b1d8471` | opérationnel, testé par les deux canaux |
+| 5 Fixture de bout en bout | `89501fa` | opérationnel avec faux scripts ; test réel conditionné, non vu passer |
+| 6 Docs, fusion `suite-astra`, vérifications | `5fa36c5` (fusion) + commit docs/rapport | fait ; suite complète au manager |
+
+## Vérifié / non vérifié / écarts (résumé)
+
+**Vérifié** : grammaires d'admission/refus des sept scripts ; isolation (réseau, écriture) des trois contrôles ;
+chemins `career_write` ; sélection/ordre/dispenses du manifeste ; progression des étapes (dont `verify-cv-facts`
+à code non nul → PDF non fait) ; Bilan par la passerelle et par ACP (texte réel de `runCli` et `--json`) ;
+parcours de bout en bout API → ACP FICTIF → MCP → faux scripts → fichiers → Bilan, avec et sans fait inventé ;
+`cv.md` et profil intacts ; aucune donnée réelle ; `check`/`format:check`.
+
+**Non vérifié** : exécution des vrais scripts du Skill (refus de la session « Code from External ») : format
+réel des sorties (`🔗 Manifest…`, `CV fact check failed…`, JSON de `mark-pdf-ready`), comportement de
+`verify-cv-facts.mjs`/`cv-templates.mjs` sous `--permission`, chemins absolus imprimés par `cv-templates
+resolve`, acceptation par `build-cv-html` d'un payload écrit sous `output/` (il résout les chemins depuis
+`cwd` = espace : devrait passer), dépendances (`js-yaml`, Playwright) dans le clone du propriétaire ; suite
+complète `npm test` ; test `RELAY_SKILL_CLONE`.
+
+**Écarts** : (1) `drafts/` non ouvert (le Skill écrit la lettre sous `output/`) ; (2) `data/pdf-index.tsv`
+refusé à l'écriture directe (ajout, contrat du Skill) ; (3) `--source`/`--config`, `--skip-fact-check`,
+`--batch=`, `--test`/`--self-test` exclus ; (4) chaîne CV **facultative** dans `evaluate` (oferta sans PDF) ;
+(5) `toolRoles` sans rôle CV (`doubt-tools.test.js` fige la liste) ; (6) `apps/api/server.js` touché (1 ligne,
+canal passerelle) ; (7) les phrases interdites de `verify-cv-facts` ne sont pas comptées comme « sans source » ;
+(8) `npm ci` lancé dans le conteneur (dépendances absentes), rien de versionné.
+
+## Pour le manager
+
+1. Lancer en local : `npm test`, puis `RELAY_SKILL_CLONE=~/Downloads/agregat-career-ops node --test
+   tests/career-skill-production.test.js` (exécution réelle de `verify-cv-facts.mjs` sur un espace FICTIF).
+2. Mission réelle de contrôle : vérifier que le vrai `cv-templates resolve cv` imprime un chemin dans l'espace
+   (sinon la grammaire du modèle refusera ; repli : omettre le modèle = `cv-template.html` de base), que
+   `generate-pdf` imprime bien `data/pdf-index.tsv updated (report NNN)`, et la durée (Playwright) face au
+   délai de 60 s de `career_script` (`scriptTimeoutMs`).
+3. Le reçu de revue (`relay/source-review.json`) couvre les nouveaux scripts comme les autres : rien à ajouter.

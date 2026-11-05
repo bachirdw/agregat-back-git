@@ -166,7 +166,6 @@ test('E56 FICTIF : annonces sous /jobs/<slug>, Workday et identifiant en requêt
     'https://jungle.example.test/fr/companies/acme/jobs/data-engineer_paris',
     'https://acme.wd5.example.test/en-US/Careers/job/Paris/Engineer_R12345',
     'https://acme.example.test/careers?gh_jid=4012345',
-    'https://reseau.example.test/jobs/collections/recommended/?currentJobId=4123456',
   ])
     assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'done', url);
   for (const url of [
@@ -175,6 +174,31 @@ test('E56 FICTIF : annonces sous /jobs/<slug>, Workday et identifiant en requêt
     'https://emplois.example.test/q-ai-engineer-jobs.html',
     'https://acme.example.test/careers',
     'https://emplois.example.test/recherche/emplois',
+  ])
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
+});
+
+// Seconde relecture de nuit : le dernier segment de liste du chemin décide ; il fait une liste s'il
+// n'est suivi que de filtres (« in-sydney », numéro de page) ; un segment composé n'est de liste que
+// s'il se termine par un mot de liste ; une sélection dans des résultats (currentJobId, vjk) ne fait
+// pas une annonce, seuls les identifiants qui en nomment une (gh_jid, jk…) décident.
+test('E56 FICTIF : sites carrières, titres contenant un mot de liste, listes filtrées', () => {
+  for (const url of [
+    'https://acme.example.test/careers/jobs/senior-data-engineer',
+    'https://acme.example.test/en/careers/search/data-engineer',
+    'https://acme.example.test/careers/jobs/ai-engineer/apply',
+    'https://acme.example.test/careers/search-engineer-sydney',
+    'https://acme.example.test/careers/jobs-to-be-done-analyst',
+  ])
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'done', url);
+  for (const url of [
+    'https://emplois.example.test/jobs/in-sydney',
+    'https://reseau.example.test/jobs/collections/recommended/',
+    'https://reseau.example.test/jobs/collections/recommended/?currentJobId=4123456',
+    'https://reseau.example.test/jobs/search/?currentJobId=3912345678',
+    'https://indeed.example.test/jobs?q=ai&l=sydney&vjk=abcdef12345',
+    'https://indeed.example.test/q-ai-engineer-l-sydney-nsw-jobs.html',
+    'https://emplois.example.test/AI-Engineer-jobs/in-Sydney-NSW/page-2',
   ])
     assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
 });

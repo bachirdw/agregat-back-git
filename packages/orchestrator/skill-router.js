@@ -332,13 +332,14 @@ const callUrl = (update) => {
 const callPage = (update) => pageKey(callUrl(update));
 // E56 : a page that lists items rather than showing one. An identifier marks an item : in the path
 // (4 digits or more, or a token of 8 characters or more mixing letters and digits, as an ID or a
-// part of a UUID) or in the query (`gh_jid`, `jk`, `currentJobId`, `id`… of 3 characters or more).
-// Otherwise a word of the pack's list makes a list when it ends the path (« /jobs »), when another
-// list word follows it (« /jobs/search ») or when it is part of a compound segment
-// (« /ai-engineer-jobs/in-sydney », « /q-ai-engineer-jobs.html ») ; a word followed by a slug
-// (« /jobs/data-engineer_paris ») names one item.
-const QUERY_ID =
-  /^(?:gh_jid|jid|jobid|job_id|jk|vjk|currentjobid|postingid|posting_id|reqid|req_id|id)$/;
+// part of a UUID) or a query field that names one item (`gh_jid`, `jk`, `jobId`… of 3 characters
+// or more). A selection inside a results page (`currentJobId`, `vjk`) decides nothing. Otherwise
+// the last list segment of the path decides (seconde relecture de nuit) : a segment whose last word
+// (file extension aside) is one of the pack's list words — « jobs », « ai-engineer-jobs »,
+// « q-ai-engineer-l-sydney-jobs.html » — makes a list when only filters follow it (« in-sydney »,
+// « page-2 », a page number) ; followed by anything else (a slug), it names one item.
+const QUERY_ITEM = /^(?:gh_jid|jid|jobid|job_id|jk|postingid|posting_id|reqid|req_id)$/;
+const EXTENSIONS = new Set(['html', 'htm', 'php', 'asp', 'aspx', 'jsp']);
 function listPage(value, words) {
   let url;
   try {
@@ -354,15 +355,16 @@ function listPage(value, words) {
   const identifier = (token) =>
     /^\d{4,}$/.test(token) || (token.length >= 8 && /\d/.test(token) && /[a-z]/.test(token));
   if (tokensOf(url.pathname).some(identifier)) return false;
-  for (const [key, value] of url.searchParams)
-    if (QUERY_ID.test(key.toLowerCase()) && /^[a-z0-9_-]{3,}$/i.test(value)) return false;
+  for (const [key, field] of url.searchParams)
+    if (QUERY_ITEM.test(key.toLowerCase()) && /^[a-z0-9_-]{3,}$/i.test(field)) return false;
   const segments = url.pathname.toLowerCase().split('/').filter(Boolean);
-  const listWord = (segment) => words.includes(segment);
-  return segments.some(
-    (segment, index) =>
-      (listWord(segment) && (index === segments.length - 1 || listWord(segments[index + 1]))) ||
-      (!listWord(segment) && tokensOf(segment).length > 1 && tokensOf(segment).some(listWord)),
-  );
+  const listSegment = (segment) => {
+    const tokens = tokensOf(segment).filter((token) => !EXTENSIONS.has(token));
+    return tokens.length > 0 && words.includes(tokens.at(-1));
+  };
+  const filter = (segment) => /^(?:in|near|page|p)-/.test(segment) || /^\d{1,3}$/.test(segment);
+  const last = segments.findLastIndex(listSegment);
+  return last >= 0 && segments.slice(last + 1).every(filter);
 }
 
 function toolName(update, expected) {

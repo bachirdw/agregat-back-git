@@ -1887,6 +1887,9 @@ export class CdpBrowser {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);
           } finally {
             this.writeInProgress = false;
+            // Revue Opus du 06/11 : a click of the agent, like browser.click : it closes the upload
+            // window (E43) and opens the click's own window for the page's requests.
+            this.lastClickEnd = Date.now();
           }
           await policy.assertUrl(download.url()).catch((e) => {
             throw new Error(`Téléchargement refusé : ${e.message}`);

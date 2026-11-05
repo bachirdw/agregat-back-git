@@ -105,13 +105,23 @@ export const DOCUMENT_COMMANDS = new Set([
   'generate-cover-letter',
   'mark-pdf-ready',
 ]);
-export function documentsAnswer(root, command, args = []) {
+// `since` : when the script started. Relecture de nuit (E59) : with the free arguments of owner
+// mode, a positional may name a PDF the script did not render ; only a file written since the
+// script started counts as produced (1 s of tolerance for file-system timestamps).
+export function documentsAnswer(root, command, args = [], { since } = {}) {
   if (!DOCUMENT_COMMANDS.has(command)) return {};
   let produced;
   if (command === 'generate-pdf') produced = args.filter((a) => !a.startsWith('-'))[1];
   if (command === 'generate-cover-letter') {
     const out = args.indexOf('--out');
     if (out >= 0) produced = args[out + 1];
+  }
+  if (produced && Number.isFinite(since)) {
+    try {
+      if (statSync(resolve(root, produced)).mtimeMs < since - 1000) produced = undefined;
+    } catch {
+      produced = undefined;
+    }
   }
   const documents = listProducedDocuments(root, { produced: produced ? [produced] : [] });
   const exists = produced && documents.some((d) => d.path === produced);

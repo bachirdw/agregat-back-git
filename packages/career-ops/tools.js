@@ -940,6 +940,8 @@ export class CareerTools {
             : ['find.mjs', '--json', query];
     if (!controls[command] && !skillEntry && (query.length > 500 || query.startsWith('-')))
       throw new Error('Requête de recherche invalide');
+    // When the script started : only what it wrote since then counts as produced.
+    const started = Date.now();
     try {
       const result = await exec(process.execPath, execArgs, {
         cwd: root,
@@ -959,7 +961,7 @@ export class CareerTools {
         exitCode: 0,
         untrusted: true,
         // apply-01 (E40, E43): a document step of the chain answers with the paths it produced.
-        ...(skillEntry ? documentsAnswer(root, command, scriptArgs) : {}),
+        ...(skillEntry ? documentsAnswer(root, command, scriptArgs, { since: started }) : {}),
       };
     } catch (error) {
       if (skillEntry && Number.isInteger(error.code) && !signal?.aborted)

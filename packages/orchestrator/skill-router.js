@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
-import { exitFailedOf } from './exit-code.js';
+import { answeredExitCode, exitFailedOf } from './exit-code.js';
 import { simulatedBy } from './proof-args.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -637,7 +637,15 @@ export class SkillProgress {
     // later failure, and a second terminal update of the failed call itself changes nothing. A
     // call that a sibling step declares by its arguments belongs to that sibling (« --release » is
     // not a reservation), and so does a call whose arguments are unknown.
-    if (!settled && next === 'done') {
+    // Revue Opus du 06/11 : one call reaches the platform on two channels, the gateway's first ;
+    // the ACP update of a failed call may come back « completed » without its exit code (an output
+    // cut short) and pass for a later success. A failed step is taken up only on a sure outcome :
+    // the gateway's own (`channel`, a field only the platform sets) or an answer whose exit code
+    // was read.
+    const sure =
+      update.channel === 'gateway' ||
+      answeredExitCode(update.rawOutput ?? update.content) !== undefined;
+    if (!settled && next === 'done' && sure) {
       const retry = candidates.find(
         (step) =>
           step.state === 'failed' &&

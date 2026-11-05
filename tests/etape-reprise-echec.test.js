@@ -41,6 +41,7 @@ const gateway = (id, name, argument, args, status = 'completed') => ({
   title: name,
   rawInput: { command: argument, path: argument, url: undefined, args: scriptTokens(args) },
   status,
+  channel: 'gateway',
 });
 const both = (n, args, status = 'completed') => [
   acp(`a${n}`, 'career_script', { command: 'reserve-report-num', args }, status),
@@ -86,7 +87,9 @@ test('E57 FICTIF : réservation refusée puis réussie → étape faite, cause e
       toolCallId: step('reserve').toolCallId,
       cause: step('reserve').cause,
     },
-    { state: 'done', toolCallId: 'a2', cause: null },
+    // Repris sur l'issue sûre de la passerelle (revue Opus du 06/11) ; la mise à jour ACP sans
+    // code de sortie du même appel n'y suffit pas.
+    { state: 'done', toolCallId: '00000000-0000-4000-8000-000000000002', cause: null },
   );
   assert.equal(step('release').state, 'done');
   assert.equal(step('release').toolCallId, 'a3');
@@ -160,5 +163,42 @@ test('E57 FICTIF : un code de sortie nul ou nommé est un échec', () => {
       ),
     ]);
     assert.equal(step('sweep').state, 'failed', String(exitCode));
+  }
+});
+
+// Revue Opus du 06/11 (constat 12) : un même appel arrive par deux canaux. La passerelle publie
+// son échec d'abord (code 1) ; la mise à jour ACP du même appel peut arriver ensuite « completed »
+// sans code de sortie lisible (sortie tronquée) et passait pour un succès ultérieur : « faite après
+// un échec » pour un script qui avait échoué. Une étape échouée n'est reprise que sur une issue
+// sûre : celle de la passerelle, ou une réponse dont le code de sortie a été lu.
+test('E57 FICTIF : la mise à jour ACP sans code du même appel ne reprend pas l’échec', () => {
+  const args = ['https://jobs.example.test/o/1'];
+  const { step } = run([
+    acp('p0', 'career_read', { path: 'data/pipeline.md' }),
+    {
+      ...gateway('00000000-0000-4000-8000-000000000101', 'career_script', 'check-liveness', args),
+      status: 'failed',
+    },
+    acp('s1', 'career_script', { command: 'check-liveness', args }, 'completed', [
+      { type: 'text', text: '{"text":"Checking 1 URL…' },
+    ]),
+  ]);
+  assert.equal(step('sweep').state, 'failed');
+  assert.equal(step('sweep').recovered, undefined);
+  // Un appel ultérieur distinct, réussi selon la passerelle ou selon un code lu, la reprend.
+  for (const later of [
+    gateway('00000000-0000-4000-8000-000000000102', 'career_script', 'check-liveness', args),
+    acp('s2', 'career_script', { command: 'check-liveness', args }, 'completed', { exitCode: 0 }),
+  ]) {
+    const again = run([
+      acp('p0', 'career_read', { path: 'data/pipeline.md' }),
+      {
+        ...gateway('00000000-0000-4000-8000-000000000101', 'career_script', 'check-liveness', args),
+        status: 'failed',
+      },
+      later,
+    ]);
+    assert.equal(again.step('sweep').state, 'done', later.toolCallId);
+    assert.equal(again.step('sweep').recovered, true);
   }
 });

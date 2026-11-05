@@ -524,6 +524,8 @@ export function createApp({
             sessionUpdate: 'tool_call',
             toolCallId: body.toolCallId,
             title: body.name,
+            // Revue Opus du 06/11 (E57) : the gateway's own outcome, set only here.
+            channel: 'gateway',
             rawInput: {
               command: body.argument,
               path: body.argument,

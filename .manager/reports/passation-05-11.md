@@ -88,3 +88,40 @@ Méthode : étape 3 = symptôme en une phrase, une seule couche (constitution / 
 - **Remise à zéro demandée par le propriétaire (17:16)** : `.data`, `relay/{runs,uploads,offers,agent-home,agent-homes}`, `data/`, `reports/`, `output/`, `batch/`, `jds/` déplacés dans `~/Downloads/relay-archive-2026-11-05-1716` (130 Mo, rien supprimé). Gardés : `cv.md`, `config/`, `portals.yml`, `inputs/`, `documents/`, `drafts/`. API relancée propre à 17:23 (onglet « API 4310 dev »).
 - Front : `envoi-question` = 47cba5c (formulaire de question, liste à jour, compteur), poussé, non fusionné dans `main` du front.
 - Suite : le propriétaire lance lui-même la candidature complète depuis le front ; le manager observe (`.manager/outils/suivre.py <id>`), consigne, et envoie chaque défaut en cloud. Puis E48/E49, et la fusion front `envoi-question` → `main`.
+
+## 13. Mise à jour 20:04 (manager Fable) — passation demandée par le propriétaire
+
+### Cadre de travail nouveau (19:3x, décision du propriétaire)
+- Éprouver le système sur **un seul compartiment : `apply`** (le plus cher quand il rate), par cycles courts, en cinq étapes : cadrage (3 questions, une par une), 5 épreuves (ambigu, hors-périmètre, contradictoire, volume, fin) avec hypothèse écrite avant, lecture du symptôme (une phrase factuelle, **une seule** couche en cause parmi constitution / règle scopée / skill / prompt système de l'acteur / registre de décisions), spécification d'une ligne vérifiée par 3 tests et posée au niveau le plus bas, re-test à l'identique ; **jamais corriger une sortie** ; après 3 cycles sans progrès sur un symptôme, le compartiment est trop gros.
+- Documentation officielle lue avant de commencer (Skill career-ops : README « everyday commands », `SKILL.md`, `modes/README.md`, `pipeline.md`, `auto-pipeline.md`, `scan.md`, `_shared.md`, `apply.md` (titres), `AGENTS.md`, `ARCHITECTURE.md`, `_custom.template.md` ; Relay : `skill-manifest.yaml`, `CAREER_INSTRUCTIONS`, `CAREER_OWNER_FRAME`, `formatToolRoles`, `formatSkillOrder`, `selectSkillIntents`). Faits utiles : le Skill prévoit `modes/_custom.md` (règles de maison, prioritaires, jamais écrasées) et il **n'existe pas** chez le propriétaire ; le mode `pipeline` traite toute la boîte d'entrée sans demander de périmètre ; le Skill sépare `pipeline` (évaluer) et `apply` (postuler).
+- Cadrage : Q1 répondue (« apply ») ; Q2 (« quelle tâche d'apply ne relisez-vous plus ? ») **ouverte**, réponse factuelle proposée : aucune, aucune mission réelle n'a jamais atteint apply ; Q3 non posée. Le propriétaire a préféré lancer des missions pour observer.
+
+### Missions du soir (toutes de l'agent Claude, intention suivie `pipeline`)
+- **5e67e25a** (18:49-19:15, reprise de 3ea48d51) : lecture boîte (46), question **formulaire** 18:50 « Quelles offres évaluer ? » (4 choix) → `awaiting_owner` tenu (voie formulaire OK) ; réponse 18:54 « Les 6 pistes Sydney/agence » ; vivacité 6/6 actives ; relecture Skill, CV, profil ; `find` échoue (pas de tracker, E47 lisible) ; `article-digest.md` refusé hors périmètre (E46, nouveau chemin) ; 1 annonce lue ; puis **silence 17 min** → `failed` « Agent inactif depuis 15 min » (**E53**, cause inconnue : transcription ACP 60e9ea8a sans entrée entre 07:58:13Z et 08:15:46Z, aucun journal debug). Rien d'écrit.
+- **ac743610** (19:43-19:56, mission neuve, même prompt) : scan 0 neuf (SEEK API « fetch failed », E21) ; 5 recherches web ; 3 pages SEEK lues ; vivacité 6/6 ; `portals.yml` réécrit (contenu conservé : 29 entreprises, 3 boards, 4 requêtes) ; +5 offres d'agences (RGP, Preacta, Rapid Global, Springtek, Citadel) → 53 en attente ; étape `mark` créditée à tort sur cet ajout (**E55**) ; question **formulaire** 19:50 « comment poursuivre ? » (écart d'ancienneté) → réponse 19:50:23 « Évaluer tout » ; `reserve-report-num` → 001 ; `career_write reports/001-rgp-2026-11-05.md` ouvert 19:54:11 → **`tool_stalled` 120 s → `failed`** (**E49 reproduit et expliqué** : la garde `toolIdleMs` est armée sur l'annonce ACP de l'appel, pendant la composition du texte, pas à la remise MCP ; `orchestrator/index.js:885-903`). `reports/001-RESERVED.md` laissé (sentinelle purgée par le Skill après 4 h ou `reserve-report-num --release 001`).
+- Symptôme récurrent : **question de périmètre posée 3 fois en 3 missions** (17:51 prose, 18:50 et 19:50 formulaire), toujours après constitution de la boîte et avant toute écriture d'évaluation. Couche la plus plausible : prompt système de l'acteur (`CAREER_INSTRUCTIONS` « si une information manque, pose toutes les questions nécessaires » + règle du doute) ; seconde plausible : règle scopée (`modes/_custom.md` absent). Le texte exact des prompts du propriétaire est **masqué par l'API** (mission privée) : à lui de le coller pour trancher.
+- **E54** (lu dans le code) : une mission ne suit qu'une intention, la plus prioritaire (`selectSkillIntents` … `.slice(0, 1)`) ; « évalue puis postule » = `pipeline` seul, aucune étape apply suivie ni exigible. À trancher par le propriétaire.
+- 19:58 : le propriétaire annonce une mission lancée **sans le Skill career-ops coché** ; à 20:03 elle n'est pas encore dans l'API ; veille armée (`scratchpad/veille.py`, tâche de fond).
+
+### Fichiers modifiés ce soir
+- `.manager/reports/registre-erreurs.md` : E53, E54, E55 ajoutés ; E49 expliqué ; occurrences E38, E46, E47, E51, E52 (commits ef9e91e, 7e89a9b).
+- `.manager/briefs/stall-01.md` (36af8f7) : armer la garde « outil figé » à la remise de l'appel, tests par fixture ACP, pas de variable d'environnement.
+- Espace career-ops (par l'agent, couche utilisateur, hors Git) : `portals.yml` (19:48), `data/pipeline.md` (53 en attente), `reports/001-RESERVED.md`.
+- Mémoire manager : `token-economy-no-free-cloud.md` (+ index).
+- Scratchpad : `veille.py` (usage : `veille.py <ids connus,> <budget s> <curseur|latest|0> [run id]` ; s'arrête sur question, état d'attente ou terminal, incident ; `agent_silent` non bloquant ignoré).
+
+### Sessions cloud
+- `cloud/bilan-06` poussée (1878ea0 : E48, E51, E52) ; relue par un sous-agent Sonnet : conforme, aucune règle métier dans le moteur, 233 tests ciblés verts, check et format OK ; limites signalées (question suivie d'une conclusion non reconnue ; formules FR/EN de question dans le moteur pour tous les packs). **Non fusionnée** : décision d'attendre l'accord du propriétaire (changement du système sous épreuve).
+- `cloud/stall-01` (E49) lancée par le propriétaire vers 20:00 depuis la carte ; brief complet dans l'énoncé ; rapport attendu dans `.manager/reports/stall-01.md`.
+
+### Décisions prises
+- Compartiment éprouvé : `apply` ; méthode en cinq étapes ci-dessus ; aucune correction de sortie.
+- **Économie de tokens (20:00)** : session locale à 70 %, plus de crédit cloud gratuit → plus de session cloud ni de sous-agent sans demande explicite, Sonnet/Haiku sinon, lectures courtes, veilles par script.
+- Fusion de bilan-06 (et de stall-01) seulement sur accord explicite, en une seule relance de l'API, suite complète avant (navigateur libre).
+- Pushes à la charge du propriétaire (garde automatique) : `dev` local 36af8f7, `origin/dev` 547b5b7 à 20:03 ; `main` à avancer après suite verte.
+
+### Suite à donner, dans l'ordre
+1. Suivre la mission sans Skill (épreuve « hors-périmètre » de fait) ; consigner.
+2. À la fin de stall-01 : fetch, relecture du diff par le manager (pas de sous-agent), tests ciblés, puis, sur accord, fusion bilan-06 + stall-01 dans `dev`, suite complète, relance de l'API (onglet « API 4310 dev », même commande qu'en section 12), push `dev` et `main` par le propriétaire.
+3. Reprendre le cadrage (Q2, Q3), puis les 5 épreuves sur `apply` ; première épreuve probable : la « fin » (une mission qui doit se terminer sur le clic du propriétaire).
+4. Ouverts : E53 (cause du silence), E54 (une intention par mission), E55 (crédit de `mark`), E21 (SEEK API), E46 (`article-digest.md`), E52 voie prose (bilan-06), CV fictif pour missions simulées, processus orphelin PID 90557, fusion front `envoi-question` → `main`.

@@ -446,12 +446,26 @@ const ownerRootScript = (root, command) => {
     return false;
   }
 };
-const outsideWorkspace = (root, value) => {
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return false;
+const outsidePath = (root, value) => {
   if (value.startsWith('~')) return true;
   if (!value.includes('/') && value !== '..') return false;
   const target = resolve(root, value);
   return target !== root && !target.startsWith(root + sep);
+};
+// An http(s) URL is never a file. A file:// URL is the path it names; any other URL scheme is
+// refused (a Skill script reads the web over http(s) only). A list is checked item by item.
+const outsideWorkspace = (root, value) => {
+  const scheme = value.match(/^([a-z][a-z0-9+.-]*):\/\//i)?.[1]?.toLowerCase();
+  if (scheme === 'http' || scheme === 'https') return false;
+  if (scheme === 'file') {
+    try {
+      return outsidePath(root, fileURLToPath(value));
+    } catch {
+      return true;
+    }
+  }
+  if (scheme) return true;
+  return value.split(',').some((part) => outsidePath(root, part.trim()));
 };
 function ownerScriptArgs(command, args, root, unknownKeys = []) {
   const fail = (why) => {

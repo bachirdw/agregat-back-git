@@ -56,6 +56,11 @@ test('E59 FICTIF : en mode propriétaire, tous les drapeaux du script passent te
     ['check-liveness', ['--file', 'data/urls-fictives.txt']],
     ['reconcile-pipeline', ['--state', 'data/etat-fictif.json']],
     ['verify-cv-structure', ['output/cv-fictif.json', '--source', 'cv.md']],
+    ['check-liveness', [`file://${root}/data/urls-fictives.txt`]],
+    [
+      'set-status',
+      ['--report', '42', 'Applied', '--note', 'Relance, puis entretien, voir le rapport'],
+    ],
   ])
     assert.deepEqual((await run(tools, command, args)).args, args, `${command} ${args.join(' ')}`);
 });
@@ -78,6 +83,11 @@ test('E59 FICTIF : seuls les chemins hors de l’espace et les valeurs malformé
     ['check-liveness', ['--file', '../urls-fictives.txt']],
     ['reconcile-pipeline', ['--state', 'data/../../etat-fictif.json']],
     ['verify-portals', ['~/.ssh/config']],
+    // Relecture de nuit : une URL file:// est un chemin, une liste se contrôle élément par élément.
+    ['check-liveness', ['file:///etc/hosts']],
+    ['check-liveness', ['--url=file:///Users/fictif/.ssh/id_rsa']],
+    ['tracker', ['export', '--out', 'output/a.csv,../../b.csv']],
+    ['verify-portals', ['ftp://example.test/portails']],
   ])
     await assert.rejects(
       tools.script({ command, args }),

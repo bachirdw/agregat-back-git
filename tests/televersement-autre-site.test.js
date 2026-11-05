@@ -30,7 +30,16 @@ async function setup(t) {
   const root = mkdtempSync(join(tmpdir(), 'televersement-FICTIF-'));
   writeFileSync(join(root, 'cv-FICTIF.pdf'), `%PDF-1.4\n% CV FICTIF\n${'0'.repeat(2000)}\n%%EOF\n`);
   // Le stockage FICTIF, sur un autre site que la page.
-  const stored = { uploads: 0, json: 0, s3: 0, widget: 0, telemetry: 0, beacons: 0, candidates: 0 };
+  const stored = {
+    uploads: 0,
+    json: 0,
+    s3: 0,
+    widget: 0,
+    chunks: 0,
+    telemetry: 0,
+    beacons: 0,
+    candidates: 0,
+  };
   const storage = http.createServer((req, res) => {
     let size = 0;
     req.on('data', (chunk) => (size += chunk.length));
@@ -41,6 +50,7 @@ async function setup(t) {
       if (req.method === 'POST' && req.url === '/candidates') stored.candidates++;
       if (req.method === 'POST' && req.url === '/s3' && size > 0) stored.s3++;
       if (req.method === 'POST' && req.url === '/widget' && size > 0) stored.widget++;
+      if (req.method === 'POST' && req.url === '/chunk' && size > 0) stored.chunks++;
       if (req.method === 'POST' && req.url === '/telemetry') stored.telemetry++;
       res.writeHead(200, { 'access-control-allow-origin': '*' });
       res.end('ok');
@@ -89,6 +99,10 @@ async function setup(t) {
           widget.append('name', 'cv-FICTIF.pdf');
           widget.append('file', event.target.files[0]);
           fetch('${remote}/widget', { method: 'POST', mode: 'no-cors', body: widget });
+          // Un téléversement en deux morceaux bruts : le second ne contient pas le début du fichier.
+          const cv = event.target.files[0];
+          fetch('${remote}/chunk', { method: 'POST', mode: 'no-cors', body: cv.slice(0, 1000) });
+          fetch('${remote}/chunk', { method: 'POST', mode: 'no-cors', body: cv.slice(1000) });
         });
         document.getElementById('mesure').addEventListener('click', () =>
           fetch('${remote}/telemetry', { method: 'POST', mode: 'no-cors', body: 'clic FICTIF' }));
@@ -146,6 +160,9 @@ test(
     for (let i = 0; i < 30 && !stored.widget; i++)
       await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(stored.widget, 1, 'le dépôt façon Cloudinary ou Uppy n’est pas arrivé');
+    for (let i = 0; i < 30 && stored.chunks < 2; i++)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(stored.chunks, 2, 'un morceau du téléversement n’est pas arrivé');
     assert.equal(stored.beacons, 0, 'une balise sans corps vers un autre site reste bloquée');
     assert.equal(stored.telemetry, 0, 'une mesure à corps vers un autre site reste bloquée');
     // Cinquième relecture : une candidature envoyée avec le fichier et le contact du candidat

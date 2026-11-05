@@ -71,6 +71,9 @@ function sendsFile(request, file) {
     return parts.some(carries) && !parts.some((part) => !carries(part) && EMAIL.test(part));
   }
   if (head !== null && text.includes(head)) return true;
+  // A later part of a chunked upload : a raw body that is an exact slice of the file carries
+  // nothing else (sixième relecture).
+  if (body.length >= 64 && file.bytes?.includes(body)) return true;
   if (file.base64.length < 88 || !text.includes(file.base64)) return false;
   // Outside the file's base64 (and any other long blob), no e-mail address.
   return !EMAIL.test(text.replace(/[A-Za-z0-9+/=]{1000,}/g, ''));
@@ -1681,10 +1684,11 @@ export class CdpBrowser {
         let field = target;
         let recorder;
         // E43 : the window in which the page may send the attached file (see the owner guard).
-        const content =
-          typeof files === 'string' ? readFileSync(files).subarray(0, 512) : files.buffer;
+        const content = typeof files === 'string' ? readFileSync(files) : files.buffer;
         this.uploadedFile = {
           name: expected,
+          // Kept for the slices of a chunked upload, up to 10 MB.
+          bytes: content.length <= 10 * 1024 * 1024 ? Buffer.from(content) : null,
           head: Buffer.from(content.subarray(0, 512)),
           base64: Buffer.from(content.subarray(0, 510)).toString('base64'),
         };

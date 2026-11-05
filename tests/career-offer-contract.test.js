@@ -310,7 +310,10 @@ test('career_offer_save n’écrit jamais dans reports/ : la fiche Relay reste s
   assert.deepEqual(readdirSync(join(root, 'reports')), before);
   const evaluatedFiche = readdirSync(join(root, 'relay/offers')).filter((n) => n.endsWith('.md'));
   assert.equal(evaluatedFiche.length, 1);
-  assert.match(readFileSync(join(root, 'relay/offers', evaluatedFiche[0]), 'utf8'), /## A\n\nBloc A FICTIF/);
+  assert.match(
+    readFileSync(join(root, 'relay/offers', evaluatedFiche[0]), 'utf8'),
+    /## A\n\nBloc A FICTIF/,
+  );
   const listed = await client.callTool({ name: 'career_offers', arguments: {} });
   assert.equal(JSON.parse(listed.content[0].text).opportunities.length, 2);
 });

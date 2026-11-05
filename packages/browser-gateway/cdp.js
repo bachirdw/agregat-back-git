@@ -41,12 +41,19 @@ function noScriptHeaders(headers) {
 const CLICK_SEND_WINDOW_MS = 8000;
 // E43 : the page sends a file the agent attached during the upload and shortly after.
 const UPLOAD_WINDOW_MS = 15000;
-// Whether a request of the page carries the file the agent just attached : its first bytes, raw or
-// base64 (a JSON upload), or its name in a multipart body. Chrome gives these bodies to the route
-// (multipart, a raw PUT of 2 MB, base64 JSON) ; a request without a body (a beacon) carries nothing.
-// Once one request carried it, the next parts with a body sent to that same host (a chunked upload)
-// belong to the file too.
-function carriesFile(request, file, hosts) {
+// Field names of a storage upload (S3, GCS or Azure presigned forms, upload bookkeeping), never
+// a person's name, an e-mail, an answer.
+const STORAGE_FIELD =
+  /^(?:key|policy|acl|bucket|signature|token|success_action_(?:status|redirect)|content-type|cache-control|content-disposition|x-amz-[\w-]+|awsaccesskeyid|x-goog-[\w-]+|googleaccessid|x-ms-[\w-]+|file_?name|filename|mime_?type|content_?type|type|size|upload_?id|chunk_?(?:index|number)|total_?chunks|utf8|_?csrf[\w-]*|authenticity_token)$/i;
+// Whether a request of the page sends the file the agent just attached, and only it : a storage
+// upload. Cinquième relecture : a request that carries the file AND anything else a person would
+// fill in (a name, answers, an e-mail) may be an application sent with the CV — a send, never a
+// mere upload. Granted : the file's raw bytes alone (a PUT), a multipart body made of that file
+// and storage fields only (presigned S3/GCS/Azure forms), a JSON body made of the file's base64
+// and storage fields only. Chrome gives these bodies to the route (multipart, a raw PUT of 2 MB,
+// base64 JSON) ; a request without a body (a beacon) carries nothing. A file under 64 bytes is only
+// recognized by its multipart name.
+function sendsOnlyFile(request, file) {
   if (!file) return false;
   let body;
   try {
@@ -55,12 +62,46 @@ function carriesFile(request, file, hosts) {
     body = null;
   }
   if (!body || body.length === 0) return false;
-  if (hosts?.has(new URL(request.url()).host)) return true;
-  return (
-    (file.head.length > 0 && body.includes(file.head)) ||
-    (file.base64.length > 0 && body.includes(file.base64)) ||
-    body.includes(`filename="${file.name}"`)
-  );
+  const text = body.toString('latin1');
+  const head = file.head.length >= 64 ? file.head.toString('latin1') : null;
+  const type = request.headers()['content-type'] ?? '';
+  const boundary = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(type);
+  if (boundary) {
+    const parts = text
+      .split(`--${boundary[1] ?? boundary[2]}`)
+      .filter((part) => /content-disposition/i.test(part.slice(0, 600)));
+    const files = parts.filter((part) => /filename="/i.test(part.slice(0, 600)));
+    const fields = parts.filter((part) => !/filename="/i.test(part.slice(0, 600)));
+    return (
+      files.length === 1 &&
+      (files[0].includes(`filename="${file.name}"`) ||
+        (head !== null && files[0].includes(head))) &&
+      fields.every((part) => STORAGE_FIELD.test(/\bname="([^"]*)"/i.exec(part)?.[1] ?? ''))
+    );
+  }
+  if (/json/i.test(type) || /^\s*[[{]/.test(text.slice(0, 40))) {
+    if (file.base64.length < 88) return false;
+    let value;
+    try {
+      value = JSON.parse(body.toString('utf8'));
+    } catch {
+      return false;
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const entries = Object.entries(value);
+    const data = entries.filter(([, v]) => typeof v === 'string' && v.includes(file.base64));
+    return (
+      data.length === 1 &&
+      entries.every(
+        ([k, v]) =>
+          data[0][1] === v ||
+          v === file.name ||
+          (STORAGE_FIELD.test(k) && (typeof v !== 'string' || v.length < 2000)),
+      )
+    );
+  }
+  // A raw body : the file itself, nothing else.
+  return head !== null && text.startsWith(head) && body.length <= file.size + 4096;
 }
 export function isGraphqlRead(body) {
   try {
@@ -721,22 +762,24 @@ export class CdpBrowser {
         if (firstParty && !sensitive && (isGraphqlRead(body) || isAuthRefresh(request.url())))
           return route.continue();
         // E43 : attaching a file is filling the form, not a send. While the agent uploads, and
-        // shortly after while no click has followed, the page's own sending of THAT file — often to
-        // a storage host of another site — is granted and traced (host only) : a request whose body
-        // carries the file (its first bytes, raw or base64, or its multipart name), then the next
-        // parts sent to that same host. Other requests (statistics, trackers, beacons), a
-        // send-worded request and a navigation keep the rules below.
+        // shortly after a successful upload while neither a click nor a navigation has followed,
+        // the page's own sending of THAT file alone — often to a storage host of another site — is
+        // granted and traced (host only). Other requests (statistics, trackers, beacons, an
+        // application sent with the file), a send-worded request and a navigation keep the rules
+        // below.
         const uploadWindow =
           this.uploading === true ||
           (Date.now() - (this.lastUploadEnd ?? 0) <= UPLOAD_WINDOW_MS &&
             (this.lastUploadEnd ?? 0) >= (this.lastClickEnd ?? 0) &&
             !this.writeInProgress);
-        if (uploadWindow && !sensitive && !request.isNavigationRequest()) {
-          if (carriesFile(request, this.uploadedFile, this.uploadHosts)) {
-            (this.uploadHosts ??= new Set()).add(new URL(request.url()).host);
-            this.#traceAutoSend(request.url());
-            return route.continue();
-          }
+        if (
+          uploadWindow &&
+          !sensitive &&
+          !request.isNavigationRequest() &&
+          sendsOnlyFile(request, this.uploadedFile)
+        ) {
+          this.#traceAutoSend(request.url());
+          return route.continue();
         }
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
@@ -1338,6 +1381,8 @@ export class CdpBrowser {
     this.redirectLanding = null;
     const goto = async (url, landing = false) => {
       this.snapshotRefs = null;
+      // E43 : a navigation of the agent ends the moment of an upload.
+      this.lastUploadEnd = 0;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])
@@ -1668,12 +1713,13 @@ export class CdpBrowser {
           typeof files === 'string' ? readFileSync(files).subarray(0, 512) : files.buffer;
         this.uploadedFile = {
           name: expected,
+          size: typeof files === 'string' ? statSync(files).size : files.buffer.length,
           head: Buffer.from(content.subarray(0, 512)),
           base64: Buffer.from(content.subarray(0, 510)).toString('base64'),
         };
-        this.uploadHosts = new Set();
         this.uploading = true;
         this.blockedThirdParty = new Set();
+        let attached = false;
         try {
           if (!kind.fileInput) {
             // Upload buttons open a file chooser; a submit button or a link would act instead.
@@ -1706,14 +1752,17 @@ export class CdpBrowser {
             recorder = await received(field);
             await target.setInputFiles(files, { timeout: 10000 });
           }
+          const names = await recorder
+            .evaluate((value) => value.names())
+            .finally(() => recorder.dispose().catch(() => {}));
+          if (!names.includes(expected))
+            throw new Error('Fichier non reçu par la page après upload');
+          attached = true;
         } finally {
+          // The window stays open after the call only for a file the page really received.
+          if (attached) this.lastUploadEnd = Date.now();
           this.uploading = false;
-          this.lastUploadEnd = Date.now();
         }
-        const names = await recorder
-          .evaluate((value) => value.names())
-          .finally(() => recorder.dispose().catch(() => {}));
-        if (!names.includes(expected)) throw new Error('Fichier non reçu par la page après upload');
         await this.assertLanded(policy);
         return {
           url: page.url(),
@@ -1876,5 +1925,7 @@ export class CdpBrowser {
     this.ownerConnection = null;
     this.redirectLanding = null;
     this.page = null;
+    this.lastUploadEnd = 0;
+    this.uploadedFile = null;
   }
 }

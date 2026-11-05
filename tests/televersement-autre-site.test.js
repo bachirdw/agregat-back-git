@@ -5,8 +5,10 @@
 // hôte d'un autre site (stockage, autre domaine du recruteur). Le filtre réseau du mode propriétaire
 // annulait en silence tout POST vers un autre site hors d'un clic de l'agent : le téléversement
 // lui-même. Désormais, pendant le téléversement de l'agent et peu après, l'envoi du fichier par la
-// page passe, tracé (hôte seul) ; un POST vers un autre site hors de ce moment reste bloqué. Chrome
-// réel, deux serveurs FICTIFS locaux (127.0.0.1 et localhost : deux sites), aucun site réel.
+// page passe, tracé (hôte seul) ; un POST vers un autre site hors de ce moment reste bloqué, et
+// pendant ce moment aussi s'il ne porte pas le fichier seul (mesure, balise, candidature complète
+// avec le fichier). Chrome réel, deux serveurs FICTIFS locaux (127.0.0.1 et localhost : deux
+// sites), aucun site réel.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -26,9 +28,9 @@ const listen = (server) =>
 
 async function setup(t) {
   const root = mkdtempSync(join(tmpdir(), 'televersement-FICTIF-'));
-  writeFileSync(join(root, 'cv-FICTIF.pdf'), '%PDF-1.4\n% CV FICTIF\n%%EOF\n');
+  writeFileSync(join(root, 'cv-FICTIF.pdf'), `%PDF-1.4\n% CV FICTIF\n${'0'.repeat(2000)}\n%%EOF\n`);
   // Le stockage FICTIF, sur un autre site que la page.
-  const stored = { uploads: 0, json: 0, telemetry: 0, beacons: 0 };
+  const stored = { uploads: 0, json: 0, s3: 0, telemetry: 0, beacons: 0, candidates: 0 };
   const storage = http.createServer((req, res) => {
     let size = 0;
     req.on('data', (chunk) => (size += chunk.length));
@@ -36,6 +38,8 @@ async function setup(t) {
       if (req.method === 'POST' && req.url === '/upload' && size > 0) stored.uploads++;
       if (req.method === 'POST' && req.url === '/upload-json' && size > 0) stored.json++;
       if (req.method === 'POST' && req.url === '/beacon') stored.beacons++;
+      if (req.method === 'POST' && req.url === '/candidates') stored.candidates++;
+      if (req.method === 'POST' && req.url === '/s3' && size > 0) stored.s3++;
       if (req.method === 'POST' && req.url === '/telemetry') stored.telemetry++;
       res.writeHead(200, { 'access-control-allow-origin': '*' });
       res.end('ok');
@@ -62,6 +66,28 @@ async function setup(t) {
             fetch('${remote}/upload-json', { method: 'POST', mode: 'no-cors', body: JSON.stringify({ file }) });
           });
           navigator.sendBeacon('${remote}/beacon');
+          // Pendant la fenêtre : une mesure à corps, et une candidature complète envoyée avec le
+          // fichier vers l'autre site, sans clic. Ni l'une ni l'autre ne doit partir.
+          fetch('${remote}/telemetry', { method: 'POST', mode: 'no-cors', body: 'mesure FICTIVE' });
+          const application = new FormData();
+          application.append('nom', 'Candidat FICTIF');
+          application.append('email', 'candidat@example.test');
+          application.append('cv', event.target.files[0]);
+          fetch('${remote}/candidates', { method: 'POST', mode: 'no-cors', body: application });
+          // La même sans e-mail (nom et réponses, scénario de la cinquième relecture).
+          const answers = new FormData();
+          answers.append('name', 'Candidat FICTIF');
+          answers.append('answers', 'je candidate');
+          answers.append('cv', event.target.files[0]);
+          fetch('${remote}/candidates', { method: 'POST', mode: 'no-cors', body: answers });
+          // Un dépôt présigné façon S3 : champs techniques et le fichier, rien d'autre.
+          const presigned = new FormData();
+          presigned.append('key', 'depots/FICTIF/cv.pdf');
+          presigned.append('policy', 'eyJGSUNUSUYiOnRydWV9');
+          presigned.append('x-amz-signature', 'FICTIVE');
+          presigned.append('Content-Type', 'application/pdf');
+          presigned.append('file', event.target.files[0]);
+          fetch('${remote}/s3', { method: 'POST', mode: 'no-cors', body: presigned });
         });
         document.getElementById('mesure').addEventListener('click', () =>
           fetch('${remote}/telemetry', { method: 'POST', mode: 'no-cors', body: 'clic FICTIF' }));
@@ -113,7 +139,14 @@ test(
     for (let i = 0; i < 30 && !stored.json; i++)
       await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(stored.json, 1, 'le fichier en base64 n’est pas arrivé');
+    for (let i = 0; i < 30 && !stored.s3; i++)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(stored.s3, 1, 'le dépôt présigné n’est pas arrivé');
     assert.equal(stored.beacons, 0, 'une balise sans corps vers un autre site reste bloquée');
+    assert.equal(stored.telemetry, 0, 'une mesure à corps vers un autre site reste bloquée');
+    // Cinquième relecture : une candidature envoyée avec le fichier (avec ou sans e-mail) n'est pas
+    // un téléversement.
+    assert.equal(stored.candidates, 0, 'une candidature envoyée sans clic vers un autre site');
     // Un clic de l'agent après le téléversement referme la fenêtre : ses règles reprennent, et un
     // POST vers un autre site qui le suit reste bloqué (et dit).
     const click = await gateway.call('browser.click', { ref: await refFor(gateway, '#mesure') });

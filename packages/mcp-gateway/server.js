@@ -1,5 +1,5 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
-import { gatewayToolOutcome } from '../career-ops/truth.js';
+import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -90,19 +90,8 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result) {
             })(),
           }
         : {}),
-      argument:
-        name === 'career_script' && String(args?.command ?? args?.script ?? '').includes('scan')
-          ? 'scan'
-          : name === 'career_read' && String(args?.path ?? '').startsWith('jds/')
-            ? 'jds/'
-            : null,
-      // Only the URL of a saved, scored offer: never the report or any page text.
-      ...(name === 'career_offer_save' &&
-      status === 'completed' &&
-      args?.score != null &&
-      typeof args?.url === 'string'
-        ? { scoredUrl: args.url }
-        : {}),
+      // Argument prefix, URL of a scored offer, rows merged: never the report or any page text.
+      ...gatewayProgress(name, status, args, result),
       jdRead: name === 'career_read' && /^jds\//.test(args?.path ?? ''),
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
     }),
@@ -169,7 +158,15 @@ if (mode === 'fixture') {
           extensionWaitMs: process.env.RELAY_CDP_ENDPOINT ? 0 : 15000,
         })
       : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
-  const gateway = new BrowserGateway({ provider, policy, approve, meter });
+  // Owner mode: network writes that follow no send click are granted; the platform only records them.
+  const onAutoSend = ({ host }) =>
+    approve({
+      capability: 'browser.send',
+      sensitive: false,
+      actionClass: 'network',
+      args: { host },
+    });
+  const gateway = new BrowserGateway({ provider, policy, approve, meter, onAutoSend });
   browserGateway = gateway;
   let fallbackReported = false;
   const reportFallback = async () => {

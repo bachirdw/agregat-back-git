@@ -91,6 +91,14 @@ export const inputSchema = z
   })
   .strict();
 export { parseAgentResult } from './result.js';
+// Owner mode: network writes granted without a question are counted from the traces (permission_auto
+// with capability browser.send), next to the owner's own approvals.
+export function formatAutoSendLine(events) {
+  const n = events.filter(
+    (event) => event.type === 'permission_auto' && event.data?.capability === 'browser.send',
+  ).length;
+  return n ? `Requêtes réseau d'envoi : ${n} accordées automatiquement (mode propriétaire).` : '';
+}
 export function verificationScope(packId, simulated, observedBrowser = false) {
   if (observedBrowser && !simulated)
     return 'Page naviguée et observée ; autres affirmations non vérifiées';
@@ -1254,6 +1262,10 @@ export class Orchestrator {
         value.summary += control.sendsApproved
           ? `\nEnvoi par la plateforme : ${control.sendsApproved} approuvé(s) par le propriétaire.`
           : '\nEnvoi par la plateforme : aucun approuvé.';
+      if (this.ownerMode) {
+        const autoSendLine = formatAutoSendLine(this.store.events(run.id));
+        if (autoSendLine) value.summary += '\n' + autoSendLine;
+      }
       // An unanswered request stays blocked; it never discards the work the agent finished.
       const expiredPermission = this.expiredPermissionError(run.id);
       if (expiredPermission)
@@ -1378,9 +1390,14 @@ export class Orchestrator {
     const allowed = p.options?.find((option) => option.kind === 'allow_once');
     // Owner mode: only a final send waits for the owner's click.
     if (this.ownerMode && p.actionClass !== 'send' && allowed) {
+      const host = p.toolCall?.rawInput?.args?.host;
       this.store.event(runId, 'permission_auto', {
         toolCallId: p.toolCall?.toolCallId,
         capability: toolName,
+        // Network writes granted without a question: the host only, never URL, body or query.
+        ...(toolName === 'browser.send' && typeof host === 'string'
+          ? { host: redact(host).slice(0, 100) }
+          : {}),
       });
       return { outcome: { outcome: 'selected', optionId: allowed.optionId } };
     }

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../apps/api/server.js';
+import { formatAutoSendLine } from '../packages/orchestrator/index.js';
 import { careerFailureMessage, SERVER_STOPPED } from '../packages/orchestrator/failure.js';
 
 const options = [
@@ -328,4 +329,74 @@ test('C6 point 4 : les missions en attente du propriétaire n’occupent pas de 
   ids.forEach((id) => app.engine.active.delete(id));
   app.engine.clearPermissions(ids[0]);
   await p1;
+});
+
+test('propriétaire : écriture réseau hors clic d’envoi accordée sans clic, tracée avec l’hôte seulement', async (t) => {
+  const { app, run } = setup(t);
+  const control = { abort: new AbortController(), suspendTimers: () => {}, resumeTimers: () => {} };
+  app.engine.active.set(run.id, control);
+  app.engine.approvalTokens.set(run.id, 'jeton-FICTIF-0123456789abcdef0123456789abcdef');
+  const decision = await app.engine.gatewayApproval(
+    run.id,
+    'jeton-FICTIF-0123456789abcdef0123456789abcdef',
+    {
+      capability: 'browser.send',
+      sensitive: false,
+      actionClass: 'network',
+      args: { host: 'api.example.test' },
+    },
+  );
+  app.engine.active.delete(run.id); // app.close() waits for active runs
+  assert.equal(decision.approved, true);
+  assert.equal(app.engine.permissions.size, 0);
+  assert.equal(
+    control.sendsApproved,
+    undefined,
+    'ce n’est pas un envoi approuvé par le propriétaire',
+  );
+  const traces = app.store.events(run.id).filter((e) => e.type === 'permission_auto');
+  assert.equal(traces.length, 1);
+  assert.deepEqual(
+    { capability: traces[0].data.capability, host: traces[0].data.host },
+    { capability: 'browser.send', host: 'api.example.test' },
+  );
+});
+
+test('propriétaire : un envoi réel (classe send) reste suspendu et n’est pas compté comme automatique', async (t) => {
+  const { app, run } = setup(t);
+  const control = { abort: new AbortController(), suspendTimers: () => {}, resumeTimers: () => {} };
+  app.engine.active.set(run.id, control);
+  app.engine.approvalTokens.set(run.id, 'jeton-FICTIF-0123456789abcdef0123456789abcdef');
+  try {
+    const pending = app.engine.gatewayApproval(
+      run.id,
+      'jeton-FICTIF-0123456789abcdef0123456789abcdef',
+      {
+        capability: 'browser.click',
+        sensitive: true,
+        actionClass: 'send',
+        args: { host: 'api.example.test' },
+      },
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(app.engine.permissions.size, 1);
+    assert.equal(formatAutoSendLine(app.store.events(run.id)), '');
+    const [waiting] = app.engine.permissions.values();
+    app.engine.decide(waiting.id, 'deny');
+    assert.equal((await pending).approved, false);
+  } finally {
+    control.abort.abort();
+    app.engine.clearPermissions(run.id);
+    app.engine.active.delete(run.id); // app.close() waits for active runs
+  }
+});
+
+test('Bilan : ligne générique des requêtes réseau d’envoi accordées automatiquement', () => {
+  const auto = (capability) => ({ type: 'permission_auto', data: { capability } });
+  assert.equal(formatAutoSendLine([]), '');
+  assert.equal(formatAutoSendLine([auto('browser.navigate'), { type: 'permission' }]), '');
+  assert.equal(
+    formatAutoSendLine([auto('browser.send'), auto('browser.navigate'), auto('browser.send')]),
+    "Requêtes réseau d'envoi : 2 accordées automatiquement (mode propriétaire).",
+  );
 });

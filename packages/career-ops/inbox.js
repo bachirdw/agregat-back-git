@@ -36,16 +36,24 @@ export function inboxEntries(text, strict = false) {
 }
 // What a turn did to the entries that were pending when it started: ticked « [x] », marked
 // « [!] », still « [ ] », or gone (career_write refuses that; another writer may not).
-// `remaining` counts every « [ ] » after the turn, entries added meanwhile included.
+// `remaining` counts every « [ ] » after the turn, entries added meanwhile included. E62 : an
+// entry added during the turn and ticked or marked before its end counts apart
+// (`addedProcessed`, `addedUnconfirmed`, present only when one of them is not zero).
 export function inboxDelta(before, after) {
   const now = new Map(after.map((entry) => [entry.key, entry.state]));
   const pending = before.filter((entry) => entry.state === ' ');
   const count = (state) => pending.filter((entry) => now.get(entry.key) === state).length;
+  const known = new Set(before.map((entry) => entry.key));
+  const added = (state) =>
+    after.filter((entry) => !known.has(entry.key) && entry.state === state).length;
+  const addedProcessed = added('x');
+  const addedUnconfirmed = added('!');
   return {
     pending: pending.length,
     processed: count('x'),
     unconfirmed: count('!'),
     remaining: after.filter((entry) => entry.state === ' ').length,
     missing: pending.filter((entry) => !now.has(entry.key)).length,
+    ...(addedProcessed || addedUnconfirmed ? { addedProcessed, addedUnconfirmed } : {}),
   };
 }

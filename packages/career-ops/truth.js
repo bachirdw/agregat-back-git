@@ -590,7 +590,16 @@ const COUNT_LIMIT = new RegExp(
 );
 export function inboxUnprocessed(truth, prompt) {
   const inbox = truth.inboxDelta?.() ?? null;
-  if (!inbox || !inbox.pending || inbox.processed || inbox.unconfirmed) return null;
+  // E62 : an entry added and processed during the mission is inbox work too.
+  if (
+    !inbox ||
+    !inbox.pending ||
+    inbox.processed ||
+    inbox.unconfirmed ||
+    inbox.addedProcessed ||
+    inbox.addedUnconfirmed
+  )
+    return null;
   if (COUNT_LIMIT.test(String(prompt ?? ''))) return null;
   return { proves: INBOX_PROCESSED, cause: `boîte d’entrée non traitée (0 sur ${inbox.pending})` };
 }
@@ -702,10 +711,13 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const inbox = truth.inboxDelta?.() ?? null;
   const unprocessed = inboxUnprocessed(truth, prompt);
   const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+  // E62 : entries added then processed during the mission count, and the line says how many.
+  const withAdded = (base, added, word) =>
+    `${plural(base + (added ?? 0), word)}${added ? ` (dont ${plural(added, 'ajoutée')} pendant la mission)` : ''}`;
   let inboxLine = '';
   if (proved(manifest, truth, INBOX_PROCESSED)) {
     inboxLine = inbox
-      ? `\n- Boîte d’entrée : ${plural(inbox.processed, 'traitée')}, ${plural(inbox.unconfirmed, 'non confirmée')} [!], ${plural(inbox.remaining, 'restante')}${inbox.missing ? `, ${plural(inbox.missing, 'disparue')}` : ''}.`
+      ? `\n- Boîte d’entrée : ${withAdded(inbox.processed, inbox.addedProcessed, 'traitée')}, ${withAdded(inbox.unconfirmed, inbox.addedUnconfirmed, 'non confirmée')} [!], ${plural(inbox.remaining, 'restante')}${inbox.missing ? `, ${plural(inbox.missing, 'disparue')}` : ''}.`
       : '\n- Boîte d’entrée : écriture observée, fichier non relu.';
     // bilan-06 (E51) : a write that ticks nothing (a line added) leaves the inbox unprocessed.
     if (unprocessed && !dryRun) missing.push(unprocessed.cause);

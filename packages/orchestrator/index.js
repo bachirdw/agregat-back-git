@@ -1372,8 +1372,9 @@ export class Orchestrator {
       value.summary += nativeActions.line();
       // bilan-06 (E51) : what the pack says was not reached. Not when the owner was asked and did
       // not answer (declined or expired question): the agent stopped on that, not on the work.
+      // Relecture de nuit : every question of the mission counts, a form as well (E60).
       const unreached =
-        plan.pack.id === 'career-ops' && questionCount.asked === questionCount.answered
+        plan.pack.id === 'career-ops' && asked === answered
           ? [inboxUnprocessed(turnTruth, run.prompt)].filter(Boolean)
           : [];
       const incomplete = skillProgress.incomplete(

@@ -101,3 +101,28 @@ test('E61 FICTIF : une alerte invalide venue du pont est ignorée, un scan propr
   });
   assert.deepEqual(clean.scanResult(), { networkFailures: 0 });
 });
+
+// Relecture de nuit : l'alerte est celle du dernier scan (comme le compte d'échecs réseau), et seule
+// la ligne « FIX NEEDED: » du Skill la déclenche.
+test('E61 FICTIF : une alerte d’un scan antérieur ne reste pas, une citation ne déclenche rien', () => {
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('career_script', 'completed', {
+    toolCallId: 'gw-1',
+    argument: 'scan',
+    scan: { networkFailures: 0, unreachable: { targets: 3, runs: 3 } },
+  });
+  truth.recordGatewayTool('career_script', 'completed', {
+    toolCallId: 'gw-2',
+    argument: 'scan',
+    scan: { networkFailures: 0 },
+  });
+  assert.deepEqual(truth.scanResult(), { networkFailures: 0 });
+  assert.match(
+    formatCareerBilan(PROMPT, truth),
+    /\n- Scan : aucun échec réseau lu dans sa sortie\./,
+  );
+  assert.equal(
+    scanUnreachable('Offre FICTIVE : « 3 target(s) have been unreachable for 3+ runs »'),
+    null,
+  );
+});

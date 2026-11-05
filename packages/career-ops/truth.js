@@ -131,8 +131,10 @@ export function scanNetworkFailures(text) {
 }
 // E61 : the scan's summary also reports the Skill's own health record of its targets, « FIX
 // NEEDED: N target(s) have been unreachable for M+ runs ». That alert is read as printed, nothing
-// else is inferred ; the Bilan says it next to the network failures.
-const UNREACHABLE = /\b(\d{1,4}) target\(s\) have been unreachable for (\d{1,4})\+ runs\b/;
+// else is inferred ; the Bilan says it next to the network failures. Anchored on the Skill's own
+// « FIX NEEDED: » (relecture de nuit : a line quoting outside text never raises it).
+const UNREACHABLE =
+  /FIX NEEDED: (\d{1,4}) target\(s\) have been unreachable for (\d{1,4})\+ runs\b/;
 export function scanUnreachable(text) {
   const match = (typeof text === 'string' ? text : '').match(UNREACHABLE);
   return match ? { targets: Number(match[1]), runs: Number(match[2]) } : null;
@@ -532,8 +534,9 @@ export function createTurnTruth({ root, seed } = {}) {
       if (!scans.size) return null;
       const values = [...scans.values()];
       const counted = values.filter((value) => value.networkFailures !== null);
-      // E61 : the alert of the last scan that printed one.
-      const alert = values.filter((value) => value.unreachable).at(-1)?.unreachable;
+      // E61 : the alert of that same last scan (relecture de nuit : an earlier scan's alert never
+      // stands next to a later scan's count).
+      const alert = counted.at(-1)?.unreachable;
       return {
         networkFailures: counted.length ? counted.at(-1).networkFailures : null,
         ...(alert ? { unreachable: alert } : {}),
@@ -590,14 +593,15 @@ const COUNT_LIMIT = new RegExp(
 );
 export function inboxUnprocessed(truth, prompt) {
   const inbox = truth.inboxDelta?.() ?? null;
-  // E62 : an entry added and processed during the mission is inbox work too.
+  // E62 : an entry added and processed during the mission is inbox work too — unless entries of
+  // the start are gone meanwhile (relecture de nuit : an entry ticked under another form of its
+  // URL reads as « gone » plus « added and ticked », and must not hide an untouched inbox).
   if (
     !inbox ||
     !inbox.pending ||
     inbox.processed ||
     inbox.unconfirmed ||
-    inbox.addedProcessed ||
-    inbox.addedUnconfirmed
+    ((inbox.addedProcessed || inbox.addedUnconfirmed) && !inbox.missing)
   )
     return null;
   if (COUNT_LIMIT.test(String(prompt ?? ''))) return null;

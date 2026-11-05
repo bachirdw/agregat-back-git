@@ -96,3 +96,26 @@ test('E62 FICTIF : sans ajout traité, la ligne et le compte restent inchangés'
     /- Boîte d’entrée : 1 traitée, 0 non confirmée \[!\]/,
   );
 });
+
+// Relecture de nuit : une entrée cochée sous une autre forme de son URL se lit « disparue » plus
+// « ajoutée puis traitée » ; cela ne doit pas cacher une boîte dont aucune entrée de départ n'a été
+// traitée.
+test('E62 FICTIF : une URL réécrite ne lève pas « boîte d’entrée non traitée »', (t) => {
+  const { root, tools } = workspace(t);
+  writeFileSync(
+    join(root, 'data/pipeline.md'),
+    SKELETON +
+      `- [ ] ${URLS[0]}?utm=FICTIF | Entreprise FICTIVE A | Poste FICTIF\n\n## Processed\n`,
+  );
+  const truth = createTurnTruth({ root });
+  writeFileSync(
+    join(root, 'data/pipeline.md'),
+    SKELETON +
+      `\n## Processed\n- [x] #002 | ${URLS[0]} | Entreprise FICTIVE A | Poste FICTIF | 3.0/5 | PDF ❌\n`,
+  );
+  truth.recordGatewayTool('career_write', 'completed', { argument: 'data/pipeline.md' });
+  const delta = truth.inboxDelta();
+  assert.equal(delta.missing, 1);
+  assert.equal(delta.addedProcessed, 1);
+  assert.equal(inboxUnprocessed(truth, PROMPT)?.cause, 'boîte d’entrée non traitée (0 sur 1)');
+});

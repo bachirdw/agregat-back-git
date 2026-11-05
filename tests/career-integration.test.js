@@ -1227,8 +1227,102 @@ mkdirSync(join(root, 'data'), { recursive: true });
 writeFileSync(tracker, lines.join('\\n') + '\\n');
 console.log('\\n📊 Summary: +' + added + ' added, 🔄0 updated, ⏭️0 skipped');
 `,
+  // production-01 : chaîne CV/lettre (modes/pdf.md, modes/cover.md), au contrat des vrais scripts
+  // (arguments, fichiers écrits, sortie, codes de sortie). Ni Chromium ni réseau.
+  'cv-templates.mjs': `// FICTIF : tient la place de cv-templates.mjs du Skill (resolve <cv|cover> → chemin absolu du modèle)
+import { join } from 'node:path';
+const [cmd, kind] = process.argv.slice(2);
+if (cmd !== 'resolve' || !['cv', 'cover'].includes(kind)) { console.error('Usage FICTIF'); process.exit(2); }
+console.log(join(process.env.CAREER_OPS_ROOT, 'templates', kind === 'cv' ? 'cv-template.html' : 'cover-letter-template.html'));
+`,
+  'verify-cv-structure.mjs': `// FICTIF : tient la place de verify-cv-structure.mjs (avertissement seulement, code 0)
+import { readFileSync } from 'node:fs';
+JSON.parse(readFileSync(process.argv[2], 'utf8'));
+console.log('CV structure check passed: ' + process.argv[2].split('/').pop());
+`,
+  'build-cv-html.mjs': `// FICTIF : tient la place de build-cv-html.mjs (payload JSON + modèle → HTML sous output/)
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+const [input, output, template] = process.argv.slice(2);
+if (!existsSync(input) || (template && !existsSync(template))) { console.error('Input or template not found'); process.exit(1); }
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const p = JSON.parse(readFileSync(input, 'utf8'));
+const items = p.experience.flatMap((e) => e.bullets.map((b) => '<li>' + esc(b) + '</li>')).join('');
+const base = template ? readFileSync(template, 'utf8') : '<html><body>{{NAME}}{{EXPERIENCE}}</body></html>';
+writeFileSync(output, base.replace('{{NAME}}', '<h1>' + esc(p.candidate.name) + '</h1>').replace('{{EXPERIENCE}}', '<ul>' + items + '</ul>'));
+console.log('HTML written: ' + output);
+`,
+  'verify-cv-facts.mjs': `// FICTIF : tient la place de verify-cv-facts.mjs (chaque puce doit se trouver dans cv.md ; sortie au format du script)
+import { readFileSync } from 'node:fs';
+import { join, basename } from 'node:path';
+const html = readFileSync(process.argv[2], 'utf8');
+const source = readFileSync(join(process.env.CAREER_OPS_ROOT, 'cv.md'), 'utf8');
+const claims = [...html.matchAll(/<li>(.*?)<\\/li>/g)].map((m) => m[1]).filter((c) => !source.includes(c));
+if (!claims.length) { console.log('CV fact check passed: ' + basename(process.argv[2])); process.exit(0); }
+console.error('CV fact check failed: ' + basename(process.argv[2]) + '\\n\\nMetric-like claims absent from sources:\\n' + claims.map((c) => '  - ' + c).join('\\n') + '\\n\\nAdd career evidence to cv.md or article-digest.md.');
+process.exit(1);
+`,
+  'generate-pdf.mjs': `// FICTIF : tient la place de generate-pdf.mjs (HTML → PDF, --report=NNN → data/pdf-index.tsv)
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const args = process.argv.slice(2);
+const [input, output] = args.filter((a) => !a.startsWith('--'));
+const report = (args.find((a) => a.startsWith('--report=')) ?? '').slice('--report='.length);
+if (!existsSync(input)) { console.error('Input not found: ' + input); process.exit(1); }
+writeFileSync(output, '%PDF-1.4 FICTIF ' + readFileSync(input, 'utf8').length + ' octets de HTML');
+const index = join(process.env.CAREER_OPS_ROOT, 'data/pdf-index.tsv');
+mkdirSync(join(process.env.CAREER_OPS_ROOT, 'data'), { recursive: true });
+if (!existsSync(index)) writeFileSync(index, 'report\\thtml\\tpdf\\n');
+appendFileSync(index, report + '\\t' + input + '\\t' + output + '\\n');
+console.log('✅ PDF generated: ' + output + '\\n🔗 Manifest: data/pdf-index.tsv updated' + (report ? ' (report ' + report + ')' : ' (no --report given)'));
+`,
+  'mark-pdf-ready.mjs': `// FICTIF : tient la place de mark-pdf-ready.mjs (cellule PDF ❌→✅ de la ligne liée au rapport NNN)
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const num = process.argv[2];
+const tracker = join(process.env.CAREER_OPS_ROOT, 'data/applications.md');
+const lines = readFileSync(tracker, 'utf8').split('\\n');
+const i = lines.findIndex((l) => l.includes('](') && l.includes('/' + num + '-'));
+if (i < 0) { console.error(JSON.stringify({ ok: false, code: 'not-found', report: num })); process.exit(2); }
+const changed = lines[i].includes('❌');
+lines[i] = lines[i].replace('❌', '✅');
+writeFileSync(tracker, lines.join('\\n'));
+console.log(JSON.stringify({ ok: true, report: Number(num), changed }));
+`,
+  'generate-cover-letter.mjs': `// FICTIF : tient la place de generate-cover-letter.mjs (--payload JSON → output_path PDF)
+import { readFileSync, writeFileSync } from 'node:fs';
+const i = process.argv.indexOf('--payload');
+const p = JSON.parse(readFileSync(process.argv[i + 1], 'utf8'));
+const out = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : p.output_path;
+if (!out.startsWith('output/')) { console.error('Refusing to write the cover letter outside output/: ' + out); process.exit(1); }
+writeFileSync(out, '%PDF-1.4 FICTIF lettre ' + p.letter.company);
+console.log('✅ Cover letter: ' + out);
+`,
 };
-async function runCareerFixture(t, prompt) {
+// Espace FICTIF de la chaîne CV : CV source, profil, modèles du Skill, ligne de suivi déjà présente (PDF ❌).
+const CV_SOURCE_FICTIF =
+  '# Candidat FICTIF\n\n## Experience\n\n### Entreprise FICTIVE — Ville FICTIVE\n**Ingénieur logiciel FICTIF**\n2021 – 2026\n- Réduit la latence de 40% en Node.js FICTIF\n';
+function prepareCvWorkspace(root) {
+  writeFileSync(join(root, 'cv.md'), CV_SOURCE_FICTIF);
+  mkdirSync(join(root, 'config'), { recursive: true });
+  writeFileSync(
+    join(root, 'config/profile.yml'),
+    'candidate:\n  name: Candidat FICTIF\npage_format: a4\n',
+  );
+  writeFileSync(
+    join(root, 'templates/cv-template.html'),
+    '<!doctype html><html><body>{{NAME}}{{EXPERIENCE}}</body></html>',
+  );
+  writeFileSync(
+    join(root, 'templates/cover-letter-template.html'),
+    '<html>{{NAME}}{{OPENING}}</html>',
+  );
+  mkdirSync(join(root, 'data'), { recursive: true });
+  writeFileSync(
+    join(root, 'data/applications.md'),
+    '| # | Date | Company | Role | Score | Status | PDF | Report | Notes |\n|---|---|---|---|---|---|---|---|---|\n| 1 | 2026-11-05 | Entreprise FICTIVE | Poste FICTIF | 4.5/5 | Evaluated | ❌ | [042](../reports/042-entreprise-fictive-2026-11-05.md) | Note FICTIVE |\n',
+  );
+}
+async function runCareerFixture(t, prompt, prepare = () => {}) {
   const { root, career, app } = fixture(t, true);
   mkdirSync(join(root, 'templates'));
   writeFileSync(
@@ -1238,6 +1332,7 @@ async function runCareerFixture(t, prompt) {
   for (const [name, text] of Object.entries(SKILL_STUBS)) writeFileSync(join(root, name), text);
   reviewCareer(career, app.skills);
   const attachment = await career.upload(Buffer.from('CV FICTIF'), 'CV.md', 'text/markdown');
+  prepare(root);
   const originalPlan = app.engine.plan.bind(app.engine);
   app.engine.plan = async (...args) => {
     const plan = await originalPlan(...args);
@@ -1315,4 +1410,97 @@ test('Coller une URL FICTIVE : career_offer_save seul, le Bilan dit que le suivi
   assert.match(done.result.summary, /Non exécuté :[^\n]*suivi du Skill non écrit/);
   assert.doesNotMatch(done.result.summary, /Non exécuté :[^\n]*évaluation enregistrée/);
   assert.equal(existsSync(join(root, 'data/applications.md')), false);
+});
+
+// production-01, point 5 : CV adapté et lettre par la chaîne du Skill, de bout en bout (API → plan → ACP
+// FICTIF → passerelle MCP → faux scripts au contrat du Skill → Bilan). Les vrais scripts ne sont pas lancés.
+test('CV adapté FICTIF : chaîne pdf.md + cover.md du Skill, colonne PDF marquée, Bilan « CV du Skill : produit (PDF) », « Lettre : produite »', async (t) => {
+  const { root, done, app, run } = await runCareerFixture(
+    t,
+    'Prépare mon CV FICTIF et une lettre pour le rapport 042 FICTIF_SKILL_CV',
+    prepareCvWorkspace,
+  );
+  assert.equal(
+    done.state,
+    'completed',
+    done.error ?? JSON.stringify(app.store.events(run.id).slice(-4)),
+  );
+  const date = new Date().toISOString().slice(0, 10);
+  const html = readFileSync(
+    join(root, 'output/cv-candidat-fictif-042-entreprise-fictive.html'),
+    'utf8',
+  );
+  assert.match(html, /<h1>Candidat FICTIF<\/h1>/);
+  assert.match(html, /Réduit la latence de 40% en Node.js FICTIF/);
+  assert.match(
+    readFileSync(
+      join(root, `output/cv-candidat-fictif-042-entreprise-fictive-${date}.pdf`),
+      'utf8',
+    ),
+    /^%PDF-1\.4 FICTIF/,
+  );
+  assert.match(
+    readFileSync(join(root, 'data/pdf-index.tsv'), 'utf8'),
+    /^042\toutput\/cv-candidat-fictif-042/m,
+  );
+  assert.match(
+    readFileSync(join(root, 'data/applications.md'), 'utf8'),
+    /\| Evaluated \| ✅ \| \[042\]/,
+    'colonne PDF passée à ✅ par mark-pdf-ready',
+  );
+  assert.match(
+    readFileSync(join(root, 'output/entreprise-fictive-poste-fictif-cover.pdf'), 'utf8'),
+    /^%PDF-1\.4 FICTIF lettre Entreprise FICTIVE/,
+  );
+  // Le CV source et le profil n'ont pas bougé.
+  assert.equal(readFileSync(join(root, 'cv.md'), 'utf8'), CV_SOURCE_FICTIF);
+  const summary = done.result.summary;
+  assert.match(summary, /^- CV du Skill : produit \(PDF\)\.$/m);
+  assert.match(summary, /^- Lettre : produite\.$/m);
+  assert.doesNotMatch(summary, /CV non vérifié|Non exécuté :[^\n]*rédaction de document/);
+  for (const step of [
+    'Écrire le payload JSON du CV adapté',
+    'Contrôler la structure du payload',
+    'Construire le HTML du CV adapté',
+    'Vérifier les faits du CV adapté',
+    'Produire le PDF du CV adapté',
+    'Marquer la colonne PDF du suivi',
+    'Produire la lettre par le Skill',
+  ])
+    assert.match(summary, new RegExp(`✓ ${step} \\(faite\\)`), step);
+  assert.match(summary, /Écart d’ordre : aucun constaté/);
+  // career_document n'est pas appelé : aucune pièce jointe Relay, aucun output/<uuid>.pdf.
+  assert.equal(
+    readdirSync(join(root, 'output')).some((name) => /^[a-f0-9-]{36}\.pdf$/.test(name)),
+    false,
+  );
+});
+
+test('CV adapté FICTIF : verify-cv-facts refuse un fait inventé, aucun PDF, Bilan « CV non vérifié : 2 fait(s) sans source », mission terminée', async (t) => {
+  const { root, done } = await runCareerFixture(
+    t,
+    'Prépare mon CV FICTIF FICTIF_SKILL_CV FICTIF_CV_INVENTE',
+    prepareCvWorkspace,
+  );
+  assert.equal(done.state, 'completed', done.error);
+  assert.ok(existsSync(join(root, 'output/cv-candidat-fictif-042-entreprise-fictive.html')));
+  assert.equal(
+    readdirSync(join(root, 'output')).some((name) => name.endsWith('.pdf')),
+    false,
+    'aucun PDF',
+  );
+  assert.equal(existsSync(join(root, 'data/pdf-index.tsv')), false);
+  assert.match(
+    readFileSync(join(root, 'data/applications.md'), 'utf8'),
+    /\| ❌ \|/,
+    'colonne PDF inchangée',
+  );
+  const summary = done.result.summary;
+  assert.match(summary, /^- CV non vérifié : 2 fait\(s\) sans source \(verify-cv-facts\)\.$/m);
+  assert.match(summary, /^- CV du Skill : non produit\.$/m);
+  assert.doesNotMatch(summary, /Lettre/);
+  assert.match(summary, /✗ Vérifier les faits du CV adapté \(échec signalé par l’outil\)/);
+  assert.match(summary, /· Produire le PDF du CV adapté \(non exécutée\)/);
+  // Le contenu des faits refusés ne remonte pas dans le Bilan de la plateforme (vérité, pas contenu privé).
+  assert.doesNotMatch(summary.slice(summary.indexOf('Bilan')), /Rust|25 personnes/);
 });

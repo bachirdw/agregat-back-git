@@ -80,12 +80,39 @@ intents:
         persists: true
         readFirst: true
         proves: évaluation enregistrée
+      # auto-pipeline Step 3 : le CV adapté vient des scripts du Skill (modes/pdf.md), entre le rapport et le
+      # suivi ; facultatif car le mode oferta n'a pas de PDF automatique. Payload JSON écrit sous output/.
+      - id: cv-build
+        title: Construire le HTML du CV adapté
+        tool: career_script
+        argument: build-cv-html
+        precondition: Rapport écrit ; payload JSON de modes/pdf.md écrit par career_write output/cv-{candidate}-{###}-{company}.json ; modèle par cv-templates resolve cv
+        done: build-cv-html terminé, code zéro, output/cv-{candidate}-{###}-{company}.html écrit (modes/pdf.md étape 18)
+        optional: true
+        persists: true
+      - id: cv-verify
+        title: Vérifier les faits du CV adapté
+        tool: career_script
+        argument: verify-cv-facts
+        precondition: HTML construit (args [output/….html])
+        done: verify-cv-facts code zéro ; non nul = fait absent du CV source, corriger le HTML (jamais cv.md) et relancer avant tout PDF (modes/pdf.md étape 19)
+        optional: true
+        persists: true
+      - id: cv-pdf
+        title: Produire le PDF du CV adapté
+        tool: career_script
+        argument: generate-pdf
+        precondition: verify-cv-facts à zéro (args [html, output/cv-{candidate}-{###}-{company}-{date}.pdf, "--format=a4|letter", "--report={###}"])
+        done: generate-pdf code zéro, data/pdf-index.tsv lié au rapport (modes/pdf.md étape 21) ; la ligne TSV porte alors pdf ✅
+        optional: true
+        persists: true
+        proves: CV produit
       - id: tsv
         title: Écrire la ligne d'ajout au suivi
         tool: career_write
         argument: batch/tracker-additions/
         precondition: Rapport écrit
-        done: batch/tracker-additions/{num}-{company-slug}.tsv, en-tête num date company role status score pdf report notes url puis une ligne, statut Evaluated (AGENTS.md)
+        done: batch/tracker-additions/{num}-{company-slug}.tsv, en-tête num date company role status score pdf report notes url puis une ligne, statut Evaluated, pdf ✅ si PDF produit sinon ❌ (AGENTS.md)
         optional: false
         persists: true
       - id: track
@@ -150,21 +177,93 @@ intents:
   - id: documents
     title: Préparer des documents
     priority: 70
-    phrases: [rédige mon cv, rédige une lettre, prépare mon cv, cv + lettre]
+    phrases:
+      [
+        rédige mon cv,
+        redige mon cv,
+        rédige une lettre,
+        redige une lettre,
+        prépare mon cv,
+        prepare mon cv,
+        adapte mon cv,
+        cv adapté,
+        cv + lettre,
+        lettre de motivation,
+        mode pdf,
+        mode cover,
+        génère le pdf,
+      ]
     keywords: []
+    # Chaîne du Skill (modes/pdf.md étapes 17b–21 et fin de mode, modes/cover.md étape 9) : le CV adapté et la
+    # lettre viennent de ses scripts ; career_document reste une pièce jointe générique pour email_send, pas
+    # la voie du CV. Aucune étape obligatoire : le Bilan dit ce qui a été produit.
     steps:
-      - id: write
-        title: Rédiger le document
+      - id: payload
+        title: Écrire le payload JSON du CV adapté
         tool: career_write
-        precondition: Profil et demande disponibles
-        done: Écriture terminée
+        argument: output/
+        precondition: cv.md, config/profile.yml et annonce lus (jds/{slug}.md écrite, jd-skill-gap) ; modes/pdf.md lu
+        done: output/cv-{candidate}-{###}-{company}.json selon la table « JSON payload » de modes/pdf.md, faits tirés de cv.md seulement
         optional: false
-      - id: document
-        title: Produire le document final
-        tool: career_document
-        precondition: Brouillon rédigé
-        done: Document produit
+        persists: true
+        unlessPhrases:
+          [lettre seule, seulement la lettre, uniquement la lettre, lettre uniquement, sans cv]
+      - id: cv-structure
+        title: Contrôler la structure du payload
+        tool: career_script
+        argument: verify-cv-structure
+        precondition: Payload écrit (args [output/….json])
+        done: verify-cv-structure terminé ; avertissement seulement, code 1 = payload illisible à corriger (modes/pdf.md étape 17b)
+        optional: true
+        persists: true
+      - id: cv-build
+        title: Construire le HTML du CV adapté
+        tool: career_script
+        argument: build-cv-html
+        precondition: Payload écrit ; modèle donné par cv-templates resolve cv (args [payload.json, output/….html, template])
+        done: build-cv-html code zéro, output/cv-{candidate}-{###}-{company}.html écrit (modes/pdf.md étape 18)
         optional: false
+        persists: true
+        unlessPhrases:
+          [lettre seule, seulement la lettre, uniquement la lettre, lettre uniquement, sans cv]
+      - id: cv-verify
+        title: Vérifier les faits du CV adapté
+        tool: career_script
+        argument: verify-cv-facts
+        precondition: HTML construit (args [output/….html])
+        done: verify-cv-facts code zéro ; non nul = fait absent du CV source, corriger le HTML (jamais cv.md) et relancer avant tout PDF (modes/pdf.md étape 19)
+        optional: false
+        persists: true
+        unlessPhrases:
+          [lettre seule, seulement la lettre, uniquement la lettre, lettre uniquement, sans cv]
+      - id: cv-pdf
+        title: Produire le PDF du CV adapté
+        tool: career_script
+        argument: generate-pdf
+        precondition: verify-cv-facts à zéro (args [html, output/cv-{candidate}-{###}-{company}-{date}.pdf, "--format=a4|letter", "--report={###}"])
+        done: generate-pdf code zéro, PDF écrit et data/pdf-index.tsv lié au rapport (modes/pdf.md étape 21)
+        optional: false
+        persists: true
+        proves: CV produit
+        unlessPhrases:
+          [lettre seule, seulement la lettre, uniquement la lettre, lettre uniquement, sans cv]
+      - id: pdf-ready
+        title: Marquer la colonne PDF du suivi
+        tool: career_script
+        argument: mark-pdf-ready
+        precondition: PDF produit et ligne déjà dans data/applications.md (args ["{###}"], numéro du rapport)
+        done: mark-pdf-ready code zéro, cellule PDF ✅ ; code 2 = aucune ligne pour ce rapport, le dire (modes/pdf.md, fin de mode)
+        optional: true
+        persists: true
+      - id: cover
+        title: Produire la lettre par le Skill
+        tool: career_script
+        argument: generate-cover-letter
+        precondition: Payload de lettre écrit par career_write output/cover-payload-{company-slug}.json (modes/cover.md étape 9) ; modèle par cv-templates resolve cover
+        done: generate-cover-letter code zéro (args ["--payload", "output/cover-payload-….json"]), output/{company-slug}-{role-slug}-cover.pdf écrit
+        optional: true
+        persists: true
+        proves: lettre produite
   - id: apply
     title: Préparer une candidature
     priority: 60

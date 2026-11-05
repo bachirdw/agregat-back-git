@@ -199,6 +199,81 @@ const app = agent({ name: 'career-FICTIF' })
         await send('Recherche FICTIVE : offre enregistrée, note 4/5 et rapport A–G.');
         return { stopReason: 'end_turn' };
       }
+      // production-01 : CV adapté et lettre par la chaîne du Skill (modes/pdf.md 17b–21 + mark-pdf-ready,
+      // modes/cover.md étape 9). FICTIF_CV_INVENTE : le payload invente des faits, verify-cv-facts refuse,
+      // l'agent s'arrête avant le PDF (pdf.md étape 19 : « hard gate before PDF rendering »).
+      if (request.objective.includes('FICTIF_SKILL_CV')) {
+        const num = '042';
+        const date = new Date().toISOString().slice(0, 10);
+        const json = `output/cv-candidat-fictif-${num}-entreprise-fictive.json`;
+        const html = `output/cv-candidat-fictif-${num}-entreprise-fictive.html`;
+        const pdf = `output/cv-candidat-fictif-${num}-entreprise-fictive-${date}.pdf`;
+        const invented = request.objective.includes('FICTIF_CV_INVENTE');
+        await call('career_read', { path: 'config/profile.yml' });
+        await call('career_write', {
+          path: json,
+          text: JSON.stringify({
+            candidate: { name: 'Candidat FICTIF', email: 'candidat@example.test' },
+            summary: 'Ingénieur FICTIF.',
+            experience: [
+              {
+                company: 'Entreprise FICTIVE',
+                role: 'Ingénieur logiciel FICTIF',
+                dates: '2021 – 2026',
+                bullets: invented
+                  ? ['Réduit la latence de 90% en Rust FICTIF', 'Dirigé 25 personnes FICTIVES']
+                  : ['Réduit la latence de 40% en Node.js FICTIF'],
+              },
+            ],
+          }),
+        });
+        await call('career_script', { command: 'verify-cv-structure', args: [json] });
+        const template = (
+          await call('career_script', { command: 'cv-templates', args: ['resolve', 'cv'] })
+        ).text.trim();
+        const built = await call('career_script', {
+          command: 'build-cv-html',
+          args: [json, html, template],
+        });
+        if (built.exitCode !== 0) throw new Error('build-cv-html FICTIF : ' + built.text);
+        const facts = await call('career_script', { command: 'verify-cv-facts', args: [html] });
+        if (facts.exitCode !== 0) {
+          await send(`CV FICTIF non vérifié, aucun PDF produit (pdf.md étape 19) : ${facts.text}`);
+          return { stopReason: 'end_turn' };
+        }
+        const rendered = await call('career_script', {
+          command: 'generate-pdf',
+          args: [html, pdf, '--format=a4', `--report=${num}`],
+        });
+        if (rendered.exitCode !== 0) throw new Error('generate-pdf FICTIF : ' + rendered.text);
+        const marked = await call('career_script', { command: 'mark-pdf-ready', args: [num] });
+        let letter = '';
+        if (/\blettre\b/i.test(request.objective)) {
+          const payload = 'output/cover-payload-entreprise-fictive.json';
+          await call('career_write', {
+            path: payload,
+            text: JSON.stringify({
+              candidate: { name: 'Candidat FICTIF' },
+              letter: {
+                role_title: 'Poste FICTIF',
+                company: 'Entreprise FICTIVE',
+                opening: 'Lettre FICTIVE.',
+              },
+              output_path: 'output/entreprise-fictive-poste-fictif-cover.pdf',
+            }),
+          });
+          const cover = await call('career_script', {
+            command: 'generate-cover-letter',
+            args: ['--payload', payload],
+          });
+          if (cover.exitCode !== 0) throw new Error('generate-cover-letter FICTIF : ' + cover.text);
+          letter = ` Lettre FICTIVE : ${cover.text.trim()}.`;
+        }
+        await send(
+          `CV FICTIF produit par le Skill : ${pdf} (rapport ${num}, colonne PDF : ${marked.text.trim()}).${letter}`,
+        );
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_CV_LETTRE')) {
         await call('career_write', {
           path: 'output/cv-fictif.md',

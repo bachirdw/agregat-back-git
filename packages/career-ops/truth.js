@@ -7,12 +7,23 @@ import { loadSkillManifest } from '../orchestrator/skill-router.js';
 // manifest (step field `proves`), never by a tool name written here.
 const EVALUATION_SAVED = 'évaluation enregistrée';
 const TRACKER_WRITTEN = 'suivi écrit';
+const CV_PRODUCED = 'CV produit';
+const COVER_PRODUCED = 'lettre produite';
+// The Skill's fact gate (verify-cv-facts.mjs, modes/pdf.md step 19): a non-zero exit is a claim absent
+// from the CV source, reported as a count, never as the claims themselves.
+const FACT_GATE = 'verify-cv-facts';
 let careerManifest;
 const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
 
 // What the progress tracker and the Bilan may learn of a call: a command name or a path prefix,
 // never a file name (report and TSV names carry the company).
-const WRITE_PREFIXES = ['reports/', 'batch/tracker-additions/', 'data/pipeline.md', 'jds/'];
+const WRITE_PREFIXES = [
+  'reports/',
+  'batch/tracker-additions/',
+  'data/pipeline.md',
+  'jds/',
+  'output/',
+];
 export function progressArgument(name, args = {}) {
   const command = String(args?.command ?? args?.script ?? '');
   const path = String(args?.path ?? '');
@@ -36,6 +47,30 @@ export function reportScore(text) {
   const url = head.match(/^\*\*URL:\*\*\s*<?(https?:\/\/[^\s>]{1,2040})/m);
   if (!score || !url) return null;
   return { score: Number(score[1].replace(',', '.')), url: url[1] };
+}
+// verify-cv-facts.mjs lists what the sources do not back: with --json, `invented` (metrics) and
+// `unsupportedFacts` (employers, titles, tools…); as text, « - » items under « … absent from
+// sources: » (sub-lines are indented further). Forbidden phrases are a style rule, not a missing source.
+export function factsUnsourced(text) {
+  const output = String(text ?? '');
+  try {
+    const parsed = JSON.parse(output);
+    if (parsed && typeof parsed === 'object')
+      return ['invented', 'unsupportedFacts'].reduce(
+        (sum, key) => sum + (Array.isArray(parsed[key]) ? parsed[key].length : 0),
+        0,
+      );
+  } catch {
+    /* plain text */
+  }
+  let count = 0;
+  let listing = false;
+  for (const line of output.split(/\r?\n/)) {
+    if (/absent from sources:\s*$/.test(line)) listing = true;
+    else if (!line.trim()) listing = false;
+    else if (listing && /^ {2}- /.test(line)) count++;
+  }
+  return count;
 }
 // merge-tracker.mjs ends with « 📊 Summary: +N added, 🔄M updated, ⏭️K skipped ».
 export function trackerSummary(text) {
@@ -63,8 +98,20 @@ export function gatewayProgress(name, status, args, result) {
     const rows = trackerSummary(outputText(result?.content));
     return rows ? { argument, tracker: rows } : { argument };
   }
+  if (status === 'failed' && name === 'career_script' && argument === FACT_GATE)
+    return { argument, facts: { unsourced: factsUnsourced(scriptText(result?.content)) } };
   return { argument };
 }
+// The `text` a career_script result carries (stdout and stderr of the script), as the gateway wraps it.
+const scriptText = (content) => {
+  try {
+    const value = JSON.parse(content?.[0]?.text ?? '');
+    if (typeof value?.text === 'string') return value.text;
+  } catch {
+    /* not the gateway shape */
+  }
+  return outputText(content);
+};
 const outputText = (output) => {
   if (output == null) return '';
   if (typeof output === 'string') return output;
@@ -127,6 +174,8 @@ export function createTurnTruth() {
   // Completed calls as the Bilan may know them (tool and argument prefix), one per call id.
   const proofs = new Map();
   let tracker = null;
+  // Last verdict of the Skill's fact gate: null when the last run passed, else the count it listed.
+  let factsUnsourcedCount = null;
   const addTracker = (rows) => {
     if (!rows) return;
     tracker = {
@@ -190,6 +239,13 @@ export function createTurnTruth() {
         const input = { ...raw, ...(raw.arguments ?? {}) };
         const failedExit =
           name === 'career_script' && exitFailed(update.rawOutput ?? update.content);
+        if (name === 'career_script' && progressArgument(name, input) === FACT_GATE)
+          factsUnsourcedCount = failedExit
+            ? factsUnsourced(
+                scriptText(update.rawOutput?.content) ||
+                  outputText(update.rawOutput ?? update.content),
+              )
+            : null;
         if (!failedExit) {
           const argument = progressArgument(name, input);
           proofs.set(`acp:${update.toolCallId}`, { name, argument });
@@ -206,7 +262,15 @@ export function createTurnTruth() {
     recordGatewayTool(
       name,
       status,
-      { jdRead: sourceRead = false, sent, toolCallId, scoredUrl, argument, tracker: rows } = {},
+      {
+        jdRead: sourceRead = false,
+        sent,
+        toolCallId,
+        scoredUrl,
+        argument,
+        tracker: rows,
+        facts,
+      } = {},
     ) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
@@ -227,6 +291,13 @@ export function createTurnTruth() {
         typeof argument === 'string' && /^[a-z][a-z0-9/._-]{0,59}$/.test(argument)
           ? argument
           : null;
+      if (name === 'career_script' && safeArgument === FACT_GATE)
+        factsUnsourcedCount =
+          status === 'failed'
+            ? Number.isInteger(facts?.unsourced) && facts.unsourced >= 0
+              ? facts.unsourced
+              : 0
+            : null;
       if (status === 'completed') {
         proofs.set(`gateway:${key}`, { name, argument: safeArgument });
         const report = name === 'career_write' && safeArgument === 'reports/';
@@ -265,6 +336,10 @@ export function createTurnTruth() {
     },
     trackerRows() {
       return tracker;
+    },
+    // null: the fact gate passed last (or never ran); a number: claims it listed on its last refusal.
+    factsUnsourced() {
+      return factsUnsourcedCount;
     },
     hasJdRead() {
       return jdRead;
@@ -367,14 +442,26 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
     !outcomes.some((item) => item.name === 'email_send' && item.sent === true)
   )
     missing.push('envoi de courriel');
-  if (
-    (/(?:^|[^\p{L}])(?:prépar(?:e|er|ez)|rédig(?:e|er|ez)|cré(?:e|er|ez)|adapt(?:e|er|ez)|génér(?:e|er|ez)|produi(?:s|re)).{0,80}\b(?:CV|lettre)\b/iu.test(
-      prompt,
-    ) ||
-      /\bCV\s*\+\s*lettre\b/iu.test(prompt)) &&
-    !done.has('career_write')
-  )
-    missing.push('rédaction de document');
+  const documentsRequested =
+    /(?:^|[^\p{L}])(?:prépar(?:e|er|ez)|rédig(?:e|er|ez)|cré(?:e|er|ez)|adapt(?:e|er|ez)|génér(?:e|er|ez)|produi(?:s|re)).{0,80}\b(?:CV|lettre)\b/iu.test(
+      requested,
+    ) || /\bCV\s*\+\s*lettre\b/iu.test(requested);
+  if (documentsRequested && !done.has('career_write')) missing.push('rédaction de document');
+  // The Skill's documents (modes/pdf.md, modes/cover.md): said when asked for, or when produced anyway.
+  const cvProduced = proved(manifest, truth, CV_PRODUCED);
+  const coverProduced = proved(manifest, truth, COVER_PRODUCED);
+  const documentLines = [];
+  if (cvProduced || (documentsRequested && /\bCV\b/iu.test(requested)))
+    documentLines.push(`\n- CV du Skill : ${cvProduced ? 'produit (PDF)' : 'non produit'}.`);
+  if (coverProduced || (documentsRequested && /\blettre\b/iu.test(requested)))
+    documentLines.push(`\n- Lettre : ${coverProduced ? 'produite' : 'non produite'}.`);
+  const unsourced = truth.factsUnsourced?.();
+  if (Number.isInteger(unsourced))
+    documentLines.push(
+      unsourced > 0
+        ? `\n- CV non vérifié : ${unsourced} fait(s) sans source (${FACT_GATE}).`
+        : `\n- CV non vérifié : ${FACT_GATE} a échoué (code non nul).`,
+    );
   const rows = truth.trackerRows?.();
   const trackerLine = trackerProved
     ? `\n- Suivi du Skill : ${
@@ -383,7 +470,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
           : 'fusion réussie, nombre de lignes non lu'
       } (merge-tracker).`
     : '';
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}`;
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failures.join(' ; ') || 'aucune observée'}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missing.join(' ; ') || 'aucune action demandée identifiable comme manquante'}.${trackerLine}${documentLines.join('')}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

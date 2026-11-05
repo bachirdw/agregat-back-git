@@ -188,8 +188,10 @@ test('transport propriétaire : fermeture de tous ses onglets ensemble, bornée 
 
 // E70, septième relecture : la connexion propriétaire, qui ferme tous les onglets de la mission,
 // passait en dernier, derrière des attentes non bornées (fermeture de page, session, routes) ; le
-// SIGKILL tombait avant. Elle passe désormais en premier, et chaque étape suivante est bornée à 1 s.
-test('pilote propriétaire FICTIF : les onglets se ferment d’abord, le reste est borné', async () => {
+// SIGKILL tombait avant. Elle passe juste après la page (bornée à 1 s : Playwright y attend la
+// disparition réelle de l'onglet, ce que vérifie « transport CDP réel préserve un autre onglet »),
+// et chaque étape est bornée à 1 s.
+test('pilote propriétaire FICTIF : les onglets se ferment tôt, chaque étape est bornée', async () => {
   const { CdpBrowser } = await import('../packages/browser-gateway/cdp.js');
   const provider = new CdpBrowser({ endpoint: 'http://127.0.0.1:9' });
   const order = [];
@@ -210,7 +212,7 @@ test('pilote propriétaire FICTIF : les onglets se ferment d’abord, le reste e
   const started = Date.now();
   await provider.dropConnection();
   const elapsed = Date.now() - started;
-  assert.deepEqual(order, ['onglets', 'page', 'session', 'routes', 'navigateur']);
+  assert.deepEqual(order, ['page', 'onglets', 'session', 'routes', 'navigateur']);
   assert.ok(elapsed < 6000, `fermeture trop longue : ${elapsed} ms`);
   assert.equal(provider.ownerConnection, null);
 });

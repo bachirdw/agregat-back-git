@@ -1925,16 +1925,16 @@ export class CdpBrowser {
   // Transport only: the human consent and policy binding survive a reconnection.
   async dropConnection() {
     this.networkAbort?.abort(new Error('Navigateur fermé'));
-    // E70 (septième relecture) : with the owner's Chrome, the owner connection closes every tab of
-    // the mission first, all at once and bounded ; Playwright's side is then released step by step,
-    // each step bounded to 1 s (it fails fast once the transport is closed) : a slow relay or a
-    // frozen tab no longer keeps the tabs open until the process is killed. An isolated Chrome is
-    // closed fully, as before.
+    // E70 (septième relecture) : with the owner's Chrome, every step is bounded to 1 s. The page
+    // first : Playwright waits until the tab is really gone. Then the owner connection closes every
+    // other tab of the mission, all at once : even with a frozen tab, all are asked to close within
+    // 2 s, before the SIGKILL of the end of a mission. Playwright's side is released last (it fails
+    // fast once the transport is closed). An isolated Chrome is closed fully, as before.
     const owner = this.ownerConnection;
     this.ownerConnection = null;
-    await owner?.close().catch(() => {});
     const step = owner ? settleWithin : (promise) => Promise.resolve(promise).catch(() => {});
     await step(this.page?.close());
+    await owner?.close().catch(() => {});
     await step(this.pageSession?.detach());
     this.pageSession = null;
     if (this.context) {

@@ -41,17 +41,36 @@ function noScriptHeaders(headers) {
 const CLICK_SEND_WINDOW_MS = 8000;
 // E43 : the page sends a file the agent attached during the upload and shortly after.
 const UPLOAD_WINDOW_MS = 15000;
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
+// E70 : waits for a cleanup step at most `ms`, its error ignored, the timer cleared.
+async function settleWithin(step, ms = 1000) {
+  if (!step) return;
+  let timer;
+  await Promise.race([
+    Promise.resolve(step).catch(() => {}),
+    new Promise((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]);
+  clearTimeout(timer);
+}
+// Septième relecture : bounded quantifiers keep the search linear on a long part without spaces
+// (an unbounded pattern took seconds on 80 kB, the gateway's event loop frozen).
+const EMAIL = /[\w.+-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63})+/;
+// Technical fields of signed storage forms may carry a service account's address
+// (x-goog-credential, GoogleAccessId) : never the candidate's contact (septième relecture).
+const SIGNATURE_FIELD =
+  /^(?:x-goog-[\w-]+|x-amz-[\w-]+|x-ms-[\w-]+|googleaccessid|policy|signature)$/i;
 // Whether a request of the page sends the file the agent just attached : its body carries the file
-// (its multipart name, its first bytes raw, or its base64), and outside the file no e-mail address —
-// a real application carries the candidate's contact (cinquième relecture). Sixième relecture : a
-// strict list of storage fields refused real uploads (Cloudinary, Uploadcare, Uppy, GraphQL
-// multipart) while a hostile page still got around it ; such a page can anyway post anything to
-// its own site (owner decision of 05/11 : scripted writes are granted and traced), so the rule
-// stays simple : the file, without the candidate's contact around it. Chrome gives these bodies to
-// the route (multipart, a raw PUT of 2 MB, base64 JSON) ; a request without a body (a beacon)
-// carries nothing. A file under 64 bytes is only recognized by its multipart name.
-function sendsFile(request, file) {
+// (its multipart name, its first bytes raw, an exact slice of it, or its base64 — standard,
+// URL-safe or URL-encoded), and outside the file no e-mail address — a real application carries the
+// candidate's contact (cinquième relecture). Sixième relecture : a strict list of storage fields
+// refused real uploads (Cloudinary, Uploadcare, Uppy, GraphQL multipart) while a hostile page still
+// got around it ; such a page can anyway post anything to its own site (owner decision of 05/11 :
+// scripted writes are granted and traced), so the rule stays simple : the file, without the
+// candidate's contact around it. Chrome gives these bodies to the route (multipart, a raw PUT of
+// 2 MB, base64 JSON) ; a request without a body (a beacon) carries nothing. A file under 64 bytes
+// is only recognized by its multipart name.
+export function sendsFile(request, file) {
   if (!file) return false;
   let body;
   try {
@@ -65,18 +84,34 @@ function sendsFile(request, file) {
   const type = request.headers()['content-type'] ?? '';
   const boundary = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(type);
   if (boundary) {
+    // Chrome writes the name in UTF-8 and a quote as %22 ; the body is read byte for byte.
+    const name = Buffer.from(file.name.replace(/"/g, '%22'), 'utf8').toString('latin1');
     const parts = text.split(`--${boundary[1] ?? boundary[2]}`);
     const carries = (part) =>
-      part.includes(`filename="${file.name}"`) || (head !== null && part.includes(head));
-    return parts.some(carries) && !parts.some((part) => !carries(part) && EMAIL.test(part));
+      part.includes(`filename="${name}"`) || (head !== null && part.includes(head));
+    const contact = (part) =>
+      !SIGNATURE_FIELD.test(/\bname="([^"]*)"/i.exec(part.slice(0, 600))?.[1] ?? '') &&
+      EMAIL.test(part);
+    return parts.some(carries) && !parts.some((part) => !carries(part) && contact(part));
   }
   if (head !== null && text.includes(head)) return true;
   // A later part of a chunked upload : a raw body that is an exact slice of the file carries
   // nothing else (sixième relecture).
   if (body.length >= 64 && file.bytes?.includes(body)) return true;
-  if (file.base64.length < 88 || !text.includes(file.base64)) return false;
-  // Outside the file's base64 (and any other long blob), no e-mail address.
-  return !EMAIL.test(text.replace(/[A-Za-z0-9+/=]{1000,}/g, ''));
+  if (file.base64.length < 88) return false;
+  const urlSafe = file.base64.replace(/\+/g, '-').replace(/\//g, '_');
+  const variants = [file.base64, urlSafe, encodeURIComponent(file.base64)];
+  if (!variants.some((variant) => text.includes(variant))) return false;
+  // Outside the file's base64 (and any other long blob), no e-mail address ; a URL-encoded body is
+  // read decoded (« %40 » is « @ »).
+  let rest = text.replace(/[A-Za-z0-9+/=_%-]{1000,}/g, '');
+  if (/urlencoded/i.test(type))
+    try {
+      rest = decodeURIComponent(rest.replace(/\+/g, ' '));
+    } catch {
+      // Malformed escapes : read as it is.
+    }
+  return !EMAIL.test(rest);
 }
 export function isGraphqlRead(body) {
   try {
@@ -1361,8 +1396,9 @@ export class CdpBrowser {
     this.redirectLanding = null;
     const goto = async (url, landing = false) => {
       this.snapshotRefs = null;
-      // E43 : a navigation of the agent ends the moment of an upload.
+      // E43 : a navigation of the agent ends the moment of an upload, and frees the file.
       this.lastUploadEnd = 0;
+      this.uploadedFile = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])
@@ -1739,8 +1775,13 @@ export class CdpBrowser {
             throw new Error('Fichier non reçu par la page après upload');
           attached = true;
         } finally {
-          // The window stays open after the call only for a file the page really received.
+          // The window stays open after the call only for a file the page really received ; a
+          // failed upload closes it and forgets the file (septième relecture).
           if (attached) this.lastUploadEnd = Date.now();
+          else {
+            this.lastUploadEnd = 0;
+            this.uploadedFile = null;
+          }
           this.uploading = false;
         }
         await this.assertLanded(policy);
@@ -1884,27 +1925,28 @@ export class CdpBrowser {
   // Transport only: the human consent and policy binding survive a reconnection.
   async dropConnection() {
     this.networkAbort?.abort(new Error('Navigateur fermé'));
-    try {
-      // E70 : bounded, a frozen tab must not hold the closing of the others (the owner connection
-      // closes every tab of the mission below).
-      await Promise.race([this.page?.close(), new Promise((resolve) => setTimeout(resolve, 1000))]);
-    } catch {
-      /* already closed */
-    }
-    await this.pageSession?.detach().catch(() => {});
+    // E70 (septième relecture) : with the owner's Chrome, the owner connection closes every tab of
+    // the mission first, all at once and bounded ; Playwright's side is then released step by step,
+    // each step bounded to 1 s (it fails fast once the transport is closed) : a slow relay or a
+    // frozen tab no longer keeps the tabs open until the process is killed. An isolated Chrome is
+    // closed fully, as before.
+    const owner = this.ownerConnection;
+    this.ownerConnection = null;
+    await owner?.close().catch(() => {});
+    const step = owner ? settleWithin : (promise) => Promise.resolve(promise).catch(() => {});
+    await step(this.page?.close());
+    await step(this.pageSession?.detach());
     this.pageSession = null;
     if (this.context) {
       if (this.onPage) this.context.off('page', this.onPage);
-      if (this.routeHandler) await this.context.unroute('**/*', this.routeHandler).catch(() => {});
-      if (this.ownsContext) await this.context.close().catch(() => {});
+      if (this.routeHandler) await step(this.context.unroute('**/*', this.routeHandler));
+      if (this.ownsContext) await step(this.context.close());
     }
     this.context = null;
     // Playwright's connectOverCDP browserProcess.close only closes the CDP transport.
     // It sends no Browser.close command to the remote Chrome (coreBundle.js, _connectOverCDPImpl).
-    await this.browser?.close().catch(() => {});
+    await step(this.browser?.close());
     this.browser = null;
-    await this.ownerConnection?.close().catch(() => {});
-    this.ownerConnection = null;
     this.redirectLanding = null;
     this.page = null;
     this.lastUploadEnd = 0;

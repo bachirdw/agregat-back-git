@@ -456,11 +456,24 @@ export function createApp({
       }
       const internal = path.match(/^\/api\/internal\/approvals\/([a-f0-9-]{36})$/);
       if (internal) {
+        // E64 : the gateway holds this request until the decision. If it gives up (ceiling,
+        // process ended), the card goes away and a late answer counts for nothing.
+        const abandoned = new AbortController();
+        res.on('close', () => {
+          if (!res.writableFinished)
+            abandoned.abort(
+              Object.assign(new Error('Demande d’accord abandonnée par la passerelle'), {
+                code: 'approval_abandoned',
+              }),
+            );
+        });
         const decision = await engine.gatewayApproval(
           internal[1],
           String(req.headers['x-relay-token'] ?? ''),
           body,
+          abandoned.signal,
         );
+        if (res.destroyed) return;
         return json(res, 200, decision);
       }
       const evidence = path.match(/^\/api\/internal\/evidence\/([a-f0-9-]{36})$/);

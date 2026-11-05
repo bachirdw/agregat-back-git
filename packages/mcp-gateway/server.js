@@ -2,6 +2,7 @@ import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
 import { landedUrl } from './outcome.js';
+import { requestDecision } from './approval.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
@@ -31,19 +32,10 @@ const failure = (e) => ({
 async function approve(request) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-platform-request': '1',
-      'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
-    },
-    body: JSON.stringify(request),
-    signal: AbortSignal.timeout(130000),
+  // E64 : no deadline of the gateway's own beyond the platform's (see approval.js).
+  return requestDecision(url, process.env.RELAY_APPROVAL_TOKEN, request, {
+    timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
   });
-  if (!r.ok) return false;
-  const decision = await r.json();
-  return decision.expired ? 'expired' : decision.approved === true;
 }
 
 // Usage of gateway capabilities is charged by the platform BEFORE the action; a refused charge

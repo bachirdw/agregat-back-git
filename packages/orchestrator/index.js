@@ -345,12 +345,17 @@ export class Orchestrator {
       env.RELAY_EVIDENCE_URL = `${this.approvalBase}/api/internal/evidence/${run.id}`;
       env.RELAY_USAGE_URL = `${this.approvalBase}/api/internal/usage/${run.id}`;
       env.RELAY_TOOL_OUTCOME_URL = `${this.approvalBase}/api/internal/tool-outcome/${run.id}`;
+      // E64 : the gateway waits for a decision as long as the platform does, plus a minute; a
+      // final send in owner mode without a configured ceiling waits as long as the owner needs.
+      const decisionMs = this.ownerMode ? this.sendTimeoutMs : this.permissionTimeoutMs;
+      if (decisionMs) env.RELAY_APPROVAL_TIMEOUT_MS = String(decisionMs + 60000);
     }
     return platformMcp(pack.id, env);
   }
   // Called by the MCP gateway process: turns a write/sensitive capability request into a human
-  // permission prompt (same UI as ACP permissions) and waits for the decision.
-  async gatewayApproval(runId, token, request) {
+  // permission prompt (same UI as ACP permissions) and waits for the decision. `abandoned` aborts
+  // when the gateway gives up on its request (E64) : the card goes away, nothing is counted.
+  async gatewayApproval(runId, token, request, abandoned) {
     const control = this.bridgeControl(runId, token);
     if (!control) {
       if (
@@ -398,7 +403,7 @@ export class Orchestrator {
         ],
       },
       false,
-      control.abort.signal,
+      abandoned ? AbortSignal.any([control.abort.signal, abandoned]) : control.abort.signal,
     );
     if (this.bridgeControl(runId, token) !== control) return { approved: false };
     if (request.actionClass === 'send' && outcome.outcome?.optionId === 'allow')
@@ -1492,7 +1497,9 @@ export class Orchestrator {
     this.store.update(runId, { state: 'waiting_permission' });
     return new Promise((resolve) => {
       let finished = false;
-      const onAbort = () => finish();
+      // E64 : a request the gateway gave up on is « abandoned », told apart from a cancelled run.
+      const onAbort = () =>
+        finish(undefined, signal.reason?.code === 'approval_abandoned' ? 'abandoned' : undefined);
       const finish = (optionId, reason) => {
         if (finished) return;
         finished = true;
@@ -1500,6 +1507,7 @@ export class Orchestrator {
         clearTimeout(timer);
         this.permissions.delete(id);
         if (suspended) this.active.get(runId)?.resumeTimers?.();
+        pausedRuntime?.resumeDeadlines?.();
         delivered();
         if (!terminal.has(this.store.get(runId).state))
           this.store.update(runId, {
@@ -1529,6 +1537,9 @@ export class Orchestrator {
       const timer = delay ? setTimeout(() => finish(undefined, 'expired'), delay) : null;
       const suspended = waitsForOwner;
       if (suspended) this.active.get(runId)?.suspendTimers?.();
+      // E64 : the agent's turn deadline (ACP prompt) waits for the owner's click as well.
+      const pausedRuntime = suspended ? this.active.get(runId)?.runtime : null;
+      pausedRuntime?.pauseDeadlines?.();
       const options = p.options.filter((o) =>
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
       );

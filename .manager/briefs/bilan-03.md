@@ -1,0 +1,18 @@
+# bilan-03 — Trois défauts de Relay constatés en réel le 05/11 : E37, E38, E41
+
+Dossier `~/Downloads/agregat-back-astra`, branche `suite-astra` (seul écrivain de l'arbre pendant le chantier). Modèle : Sonnet. Test rouge d'abord, puis vert ; un commit `[bilan-03]` par point, par chemins explicites (jamais `git add -A`, jamais de stash/reset). Aucune règle métier dans le moteur, aucune restriction ajoutée à l'agent, Skill career-ops intouché, aucune donnée personnelle. Rapport horodaté en français dans `.manager/reports/bilan-03.md` (lire `date` avant chaque heure), section finale « Pour le manager » (vérifié / non vérifié / écarts).
+
+## À lire d'abord
+`packages/career-ops/truth.js` (`observe()` vers les lignes 400-430, `addTracker` 283-289, `trackerLine` ~610), `packages/orchestrator/skill-router.js` (`urlPattern`, crédit des étapes, `requiredOrder`), `domain-packs/career-ops/skill-manifest.yaml` (intents `evaluate` étape `reserve`, `apply` étape `open`), tests `tests/bilan-vs-events.test.js`, `tests/truth-tool-names.test.js`, `tests/skill-router.test.js`, `tests/note-sans-lecture.test.js`, registre `.manager/reports/registre-erreurs.md` lignes E37, E38, E41 (faits constatés, missions 96033cb0, e0daaee5, bf7a2269, 983597f9).
+
+## Point 1 — E37 : le Bilan double les comptes de merge-tracker
+Constaté : l'ACP émet deux fois la même mise à jour terminale d'un appel `career_script merge-tracker` (deux événements à 2 ms d'écart, même `toolCallId`, même sortie « Summary: +1 added, 🔄2 updated ») ; `addTracker` cumule à chaque observation → « 2 lignes ajoutées, 4 mises à jour ». Attendu : chaque appel d'outil compte une fois, par `toolCallId` (la dernière sortie terminale fait foi). Même garde pour le compteur de scan (`setScan`) et, s'il cumule, pour les documents. Test : deux mises à jour identiques du même appel → Bilan « 1 ligne ajoutée, 2 mises à jour ».
+
+## Point 2 — E38 : numéro de rapport réservé jamais libéré
+Constaté : 5 réservations consécutives sans `--release` (fichiers `NNN-RESERVED.md` restants), alors que le Skill (`modes/oferta.md:695`) et le manifeste (étape `reserve`, `done`) le demandent en prose. Attendu, au niveau le plus bas (règle scopée, pas le moteur) : une étape explicite `release` dans l'intent `evaluate` du manifeste, après l'écriture du rapport (`tool: career_script`, `argument: reserve-report-num`, args `["--release","{###}"]`, `optional: true`), pour qu'elle figure dans l'ordre des étapes envoyé à l'agent et dans la ligne « Étapes du Skill » du Bilan (« · Libérer le numéro (non exécutée) » quand elle manque). Vérifier que la grammaire de `career_script` (`packages/career-ops/tools.js`) accepte déjà `["--release","003"]`. Test : fixture d'une mission qui réserve et écrit sans libérer → l'étape apparaît « non exécutée » ; avec libération → « faite ». Ne rien automatiser côté moteur.
+
+## Point 3 — E41 : « Ouvrir le formulaire (non exécutée) » sur une URL sans mot-clé
+Constaté : l'étape `open` de l'intent `apply` porte `urlPattern.words: [apply, application, candidature, postuler]` ; sur `http://127.0.0.1:4321/` (et tout ATS à chemin opaque) la navigation réelle n'est pas créditée, et « Écart d'ordre : constaté » suit en cascade alors que les champs ont été remplis sur cette page. Attendu : une navigation suivie d'un `browser_fillForm` sur la même page (hôte + chemin) crédite `open` ; ou, plus simple si le routeur le permet proprement, `urlPattern` retiré de `open` pour l'intent `apply`. Choisir la solution la plus petite, la documenter dans le rapport. Test : navigate vers une URL sans mot-clé puis fillForm → `open` « faite », aucun écart d'ordre.
+
+## Point 4
+`npm run check`, `npm run format:check`, tests ciblés verts ; suite complète par le manager.

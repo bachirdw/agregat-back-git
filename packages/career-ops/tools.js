@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { parse } from 'yaml';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { buildChildEnv } from '../agent-runtime/env.js';
+import { validatePortalsConfig } from './providers.js';
 import { emailSchema, EmailGateway, linkedInDraft } from './sends.js';
 const exec = promisify(execFile);
 const noNetworkPreload = fileURLToPath(new URL('./no-network.cjs', import.meta.url));
@@ -458,21 +459,7 @@ export class CareerTools {
       const config = parse(readConfined(root, 'portals.yml', 100000).toString(), {
         maxAliasCount: 0,
       });
-      const validate = (v) => {
-        if (!v || typeof v !== 'object') return;
-        for (const [k, item] of Object.entries(v)) {
-          if (
-            /parser|command|script|plugin/i.test(k) ||
-            (k === 'provider' &&
-              !['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters', 'jobstreet'].includes(
-                item,
-              ))
-          )
-            throw new Error('Scanner : provider ou exécutable non autorisé');
-          validate(item);
-        }
-      };
-      validate(config);
+      validatePortalsConfig(config, root);
     }
     const execArgs = controls[command]
       ? [

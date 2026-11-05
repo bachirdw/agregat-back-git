@@ -1,0 +1,14 @@
+# bilan-02 — Bilan fidèle : E25, E27, E29, C5 c, C8 moteur (petites corrections, un commit chacune)
+
+Session **cloud** : partir de `origin/suite-astra` (≥ 789da39), branche `cloud/bilan-02`. Pas besoin du Skill. Registre : `.manager/reports/registre-erreurs.md` (lignes E25, E27, E29, E19/C5 c, E21/C8) ; plan `.manager/PLAN-04-11.md` (C5 c, C8) ; journal `reprise-05-11.md` pour le contexte.
+
+## Points (un commit `[bilan-02]` par point ; test rouge constaté puis vert ; rapport `.manager/reports/bilan-02.md` horodaté)
+1. **E25** — Le Bilan compte deux fois le même outil sous deux casses (`browser_fillform` / `browser_fillForm`) : normaliser la comparaison des noms d'outils (casse) dans `packages/career-ops/truth.js` `observe()` (et là où `bilan-vs-events.mjs` compare) sans élargir la règle « titre = nom exact » d'E22 ; test dans `tests/truth-tool-names.test.js`.
+2. **E29** — Un `browser_extract` réussi compte comme lecture prouvée au même titre qu'un `browser_snapshot` lisible (preuve compacte : hôte, longueur, `untrusted`), pour « liens cités sans lecture prouvée » et pour le contrôle « note sans lecture » ; test. Même point : les lignes « Action(s) échouée(s) : … » dupliquées et la contradiction « Actions échouées : aucune observée » à côté de « Résultats mixtes : n échoués » : une seule source de vérité (les résultats mixtes), test sur la fixture de la mission 380ef9ff (reconstituée FICTIVEMENT).
+3. **E27** — `browser_snapshot` sans borne : ajouter `maxChars` au schéma de `browser.snapshot` (`packages/capability-registry/index.js`, défaut 24 000, max 48 000, comme `career_read` depuis E7) avec `nextOffset`/notice de troncature dans `cdp.js` ; test Chrome FICTIF (page longue) dans `tests/owner-browser.test.js` ou `browser-snapshot*.test.js`, test de contrat MCP.
+4. **C5 c** — Ligne de Bilan générique « Capture : texte attendu non apparu (n) ; défilement : observé/non observé » à partir des seuls champs de preuve (`waitedFor.found`, `scrolled`, `hidden`, `textLength`) dans `assessBrowserClaims` (`packages/orchestrator/index.js`) ; test.
+5. **C8 moteur** — Ligne « Scan : n portail(s) en échec réseau » à partir de la sortie de `career_script scan` (résumé du Skill, sans lire `portal-health.tsv`), dans `truth.js` ; test `tests/career-script-help.test.js` ou voisin.
+6. `npm run check`, `npm run format:check`, tests ciblés (les tests Chrome FICTIFS tournent si Chromium est disponible dans l'environnement cloud ; sinon `skip` et le dire) ; suite complète par le manager en local.
+
+## Contraintes
+Aucune règle métier dans l'orchestrateur (lignes génériques à partir des preuves) ; aucune restriction de l'agent ; tout FICTIF, aucune donnée personnelle ; commits par chemins explicites ; `git push -u origin cloud/bilan-02` à chaque point. `production-01` et `pipeline-01` touchent aussi `truth.js` sur d'autres branches : garde tes modifications localisées. Message final = rapport.

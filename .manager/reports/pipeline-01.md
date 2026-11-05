@@ -60,4 +60,40 @@ Données FICTIVES uniquement, domaines `example.test`. Heures lues par `date` (h
 - 00:47 Correction localisée dans `truth.js` : `progressArgument('career_read', {path: 'data/pipeline.md'})` rend `data/pipeline.md` (les autres lectures restent muettes : `cv.md`, une voie `data/pipeline.bridge.md`). Test unitaire ajouté dans `career-pipeline.test.js`.
 - 00:48 Vert : `career-pipeline-flow` 2/2 + `career-pipeline` 11/11. Vérifié dans le premier test : `data/pipeline.md` sans `- [ ]`, 2 lignes `- [x] #042/#043` en Processed, 1 ligne `- [!]`, les 3 URL toujours présentes ; `reports/042-…` et `043-…` (pas de 044) ; `data/applications.md` = en-tête + séparateur + 2 lignes ; 2 TSV archivés ; Bilan « Suivi du Skill : 2 lignes ajoutées », 9 étapes « ✓ … (faite) », « Écart d’ordre : aucun constaté », aucune fiche `relay/offers`. Second test (« n’enregistre rien ») : `data/pipeline.md` identique à l'octet près, ni `reports/`, ni `batch/`, ni `data/applications.md` ; Bilan « Boîte d’entrée : aucune écriture (le prompt l’interdit), 3 restantes », étapes `inbox` et `sweep` faites, étape « Cocher » absente de la liste (retirée par `persists`). `npm run check` et `npm run format:check` verts ; suite career/routeur relancée en arrière-plan, résultat ci-dessous.
 - Non vérifié : vrais scripts du Skill jamais lancés (interdit, dépendants de l'installation : Playwright, verrous `pipeline-lock.mjs`) ; le vrai `check-liveness` avec plusieurs URL peut dépasser le délai de 60 s par script (Playwright en repli) ; le vrai `merge-tracker` relit `reports/` et les alias (non simulé).
-- 00:50 Suite career + routeur (`career-*`, `skill-router`, `doubt-tools`, `tool-watchdog`, `pack-effects`, `mcp-contract`, `bilan-vs-events`, `note-sans-lecture`, `truth-tool-names`, `owner-mode`, `apply-flow`) : 235/237, les 2 échecs sont les tests Codex déjà identifiés (binaire absent, reproduits sur la base intacte).
+- 00:49 Suite career + routeur (`career-*`, `skill-router`, `doubt-tools`, `tool-watchdog`, `pack-effects`, `mcp-contract`, `bilan-vs-events`, `note-sans-lecture`, `truth-tool-names`, `owner-mode`, `apply-flow`) : 235/237, les 2 échecs sont les tests Codex déjà identifiés (binaire absent, reproduits sur la base intacte).
+
+## Point 5 — Documentation, vérifications, rapport
+
+- 00:49 `docs/api-career-ops.md` : section « Parcours “pipeline” : la boîte d’entrée data/pipeline.md » (prompts, 5 étapes, dispenses), « Contrôle de career_write data/pipeline.md », « Bilan de la boîte d’entrée » ; table des scripts complétée (`reconcile-pipeline`, `rank-pipeline`), exclusions (`--pipeline`/`--state`), note « `url-key.mjs` n’est pas un script ». `docs/` n'est pas dans le périmètre de `format:check` et le fichier n'était déjà pas au format Prettier avant ce chantier : non reformaté (diff lisible, +62/−1).
+- 00:49 Dernier passage : `npm run check` et `npm run format:check` verts ; `career-pipeline` 11/11, `career-pipeline-flow` 2/2, `skill-router` 35/35, `career-skill-suivi` 11/11, `career-skill-scripts` 5/5, `doubt-tools` 16/16 (80/80 ensemble). **Suite complète `npm test` non lancée** (consigne) : à lancer par le manager en local, avec Codex installé et hors conteneur (3 tests d'environnement connus ici : 2 Codex, 1 signaux de processus).
+
+## État final (00:49)
+
+| Point | Commit | État |
+|---|---|---|
+| 1 Manifeste : intent `pipeline`, rôle `process-inbox` | `ae34806` | opérationnel, testé (routeur, rôles) |
+| 2 `career_script` `reconcile-pipeline`/`rank-pipeline` ; `career_write data/pipeline.md` (forme, anti-suppression) | `3b0332f` | opérationnel, testé (faux scripts) ; `url-key` non ajouté (pas un script) |
+| 3 Bilan « Boîte d’entrée : n traitée(s), m non confirmée(s) [!], k restante(s) » | `53ecacd` | opérationnel, testé par les deux canaux ; `index.js` : une ligne (dossier) |
+| 4 Fixture de bout en bout (3 entrées → 2 `[x]`, 1 `[!]` ; « n’enregistre rien ») | `841a2ce` | opérationnel avec faux scripts ; vrais scripts non lancés |
+| 5 Docs, vérifications, rapport | (ce commit) | fait ; suite complète à lancer par le manager |
+
+Fichiers touchés : `domain-packs/career-ops/skill-manifest.yaml` (intent + rôle, ajouts seulement), `packages/career-ops/tools.js` (2 entrées de `SKILL_ENTRIES`, import `inbox.js`, `checkPipelineInbox` + 1 ligne dans `write`), `packages/career-ops/inbox.js` (nouveau), `packages/career-ops/truth.js` (constante, `readInbox`, option `{ root }`, `inboxDelta`, bloc Bilan, `progressArgument` lecture de la boîte), `packages/orchestrator/index.js` (1 ligne), `tests/career-pipeline.test.js` et `tests/career-pipeline-flow.test.js` (nouveaux), `tests/skill-router.test.js` (ajouts en fin), `tests/doubt-tools.test.js` (2 lignes : rôle ajouté), `tests/fixtures/career-agent.js` (bloc `FICTIF_PIPELINE`), `docs/api-career-ops.md`. Tout est localisé (nouvelles entrées, nouvelles fonctions, nouveaux fichiers) pour une fusion simple avec `production-01`.
+
+## Décisions et alternatives rejetées
+
+1. **Ordre balayage → precheck** (Skill) plutôt que precheck → check-liveness (brief) : `modes/pipeline.md` impose le balayage de vivacité en lot avant la boucle, et ne cite pas `precheck-duplicate` ; `precheck` est facultatif pour ne pas pénaliser un agent qui suit le mode à la lettre. Alternative rejetée : le rendre obligatoire (tout agent conforme au Skill aurait « non exécutée » + « écart d'ordre »).
+2. **Priorité 110** pour `pipeline` : « offres en attente » contient `offres`, mot-clé de `search` (100). Alternative rejetée : retirer `offres` de `search` (hors périmètre, casserait des prompts existants).
+3. **Pas de dédoublonnage inventé** : la clé d'URL de la plateforme ne retire qu'une barre finale, pour reconnaître une entrée réécrite ; tout le reste est laissé au Skill (`url-key` via `precheck-duplicate`/`merge-tracker`).
+4. **Lecteur partagé `inbox.js`** plutôt que deux copies (tools/truth) ou un import de `tools.js` dans `truth.js` (qui tirerait `sends.js`, `documents.js`… dans l'orchestrateur).
+5. **`createTurnTruth({ root })`** : une option générique (chemin), pas une règle ; alternative rejetée : lire la boîte depuis `rawInput.text` de l'appel ACP (absent sur le canal passerelle, seul canal fiable pour Gemini).
+6. **Fichiers de test séparés** (`career-pipeline`, `career-pipeline-flow`) au lieu d'ajouts dans `career-skill-scripts`/`career-integration` : fusion avec `production-01` plus simple, au prix d'une fixture dupliquée.
+7. Un `- [x]` qui redeviendrait `- [ ]` n'est pas refusé : le Skill ne l'interdit pas explicitement, et le brief demande seulement la forme et l'absence de suppression.
+
+## Pour le manager
+
+1. **Reçu de revue** : comme pour `skill-suivi-01`, `reconcile-pipeline` et `rank-pipeline` passent par `assertSourceReview` ; tant que `relay/source-review.json` n'est pas renouvelé pour `35b7c53`, tout `career_script` du Skill est refusé.
+2. **Vrais scripts jamais lancés ici** : à observer en mission réelle : format exact de la sortie de `check-liveness` sur plusieurs URL et sa durée (délai 60 s par script), comportement du vrai `merge-tracker` sur deux TSV successifs, et ce que le vrai `rank-pipeline` fait sans CLI d'agent configuré.
+3. **Mot-clé `pipeline`** : un prompt « ajoute cette offre à data/pipeline.md » tombe dans l'intention `pipeline` (le chemin n'est pas retiré du prompt, seules les URL le sont). À surveiller ; si gênant, retirer le mot-clé et garder les phrases.
+4. **Priorité 110** : « cherche des offres puis traite la boîte d'entrée » ne retient que `pipeline` (une seule intention par mission, comme avant) ; le scan n'est alors pas suivi par la plateforme.
+5. **Suite complète** à relancer en local ; ici 3 échecs d'environnement reproduits sur `origin/suite-astra` intact (2 × « Agent non détecté », 1 × `runtime` SIGTERM petit-enfant).
+6. Erreur de méthode de ma part, corrigée : aux points 1 à 3, j'avais d'abord écrit des heures projetées dans le journal au lieu de l'heure lue par `date` ; elles ont été remises à l'heure réelle avant chaque commit suivant (écart de quelques minutes, jamais plus de six).

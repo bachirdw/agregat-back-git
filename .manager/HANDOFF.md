@@ -6,7 +6,7 @@ fusionnées ; tout reste lisible dans l'historique Git avec `git show <commit>:<
 
 ## État courant (à lire en premier)
 - **Passation du jour** : [`reports/passation-05-11.md`](reports/passation-05-11.md), sections 13
-  (20:04) et 14 (22:10, fusions bilan-06 et stall-01, API relancée) pour l'état du soir ; section 2 pour les règles permanentes du propriétaire ; section 5
+  (20:04), 14 (22:10, fusions bilan-06 et stall-01, API relancée) et 15 (22:45, essai réel f336641e) pour l'état du soir ; section 2 pour les règles permanentes du propriétaire ; section 5
   pour le protocole « éprouver le système » (compartiment `apply`, cycles courts, cinq étapes).
 - **Prompt de reprise** à coller dans une nouvelle session :
   [`briefs/reprise-05-11-soir.md`](briefs/reprise-05-11-soir.md).

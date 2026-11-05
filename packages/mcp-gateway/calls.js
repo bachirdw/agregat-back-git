@@ -13,9 +13,11 @@ export class CallRegistry {
   current() {
     return (
       this.#context.getStore() ??
-      // Quatrième relecture : a browser call the agent gave up, still stuck in its handler, is no
-      // longer the call in progress for the browser's callbacks.
+      // Quatrième relecture : a browser call the agent gave up, still stuck in its handler, gives
+      // way to a newer call still alive ; alone, it stays the call of its own late callbacks
+      // (cinquième relecture), whose approvals then end at once with its cancelled signal.
       this.#browserCalls.findLast((call) => !call.signal?.aborted) ??
+      this.#browserCalls.at(-1) ??
       null
     );
   }

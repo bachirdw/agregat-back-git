@@ -62,23 +62,25 @@ test('Appels FICTIFS : deux appels navigateur, le plus récent d’abord, puis l
 });
 
 // Quatrième relecture de nuit : un clic abandonné par l'agent mais resté bloqué (onglet gelé)
-// restait « en cours » ; un accord réseau tardif s'y rattachait et était refusé d'office avec son
-// signal déjà annulé. Un appel annulé n'est plus l'appel en cours des rappels du navigateur.
-test('Appels FICTIFS : un appel navigateur annulé et bloqué n’est plus l’appel en cours', async () => {
+// restait le plus récent des appels en cours ; un accord réseau d'un appel plus récent s'y
+// rattachait et était refusé d'office avec son signal déjà annulé. Il s'efface devant un appel plus
+// récent encore actif. Cinquième relecture : seul, il reste l'appel de ses propres rappels tardifs
+// (leurs accords échouent aussitôt avec son signal annulé), plutôt qu'aucun appel.
+test('Appels FICTIFS : un appel navigateur annulé et bloqué s’efface devant un appel actif', async () => {
   const calls = new CallRegistry();
   const abandoned = new AbortController();
   const stuck = { toolCallId: 'clic-bloqué-FICTIF', signal: abandoned.signal };
   const stuckWait = pending();
   const stuckDone = calls.run('browser_click', stuck, () => stuckWait.promise);
   abandoned.abort();
-  assert.equal(calls.current(), null);
+  assert.equal(calls.current(), stuck);
   const next = { toolCallId: 'clic-suivant-FICTIF', signal: new AbortController().signal };
   const nextWait = pending();
   const nextDone = calls.run('browser_click', next, () => nextWait.promise);
   assert.equal(calls.current(), next);
   nextWait.release();
   await nextDone;
-  assert.equal(calls.current(), null);
+  assert.equal(calls.current(), stuck);
   // Dans son propre contexte, l'appel annulé se voit toujours : ses accords échouent d'eux-mêmes.
   await calls.run('browser_click', stuck, async () => assert.equal(calls.current(), stuck));
   stuckWait.release();

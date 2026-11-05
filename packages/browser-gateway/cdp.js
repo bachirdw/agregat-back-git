@@ -39,6 +39,29 @@ function noScriptHeaders(headers) {
 
 // Owner mode: ordinary writes near a click may need approval; named sensitive sends always do.
 const CLICK_SEND_WINDOW_MS = 8000;
+// E43 : the page sends a file the agent attached during the upload and shortly after.
+const UPLOAD_WINDOW_MS = 15000;
+// Whether a request of the page carries the file the agent just attached : its first bytes, raw or
+// base64 (a JSON upload), or its name in a multipart body. Chrome gives these bodies to the route
+// (multipart, a raw PUT of 2 MB, base64 JSON) ; a request without a body (a beacon) carries nothing.
+// Once one request carried it, the next parts with a body sent to that same host (a chunked upload)
+// belong to the file too.
+function carriesFile(request, file, hosts) {
+  if (!file) return false;
+  let body;
+  try {
+    body = request.postDataBuffer();
+  } catch {
+    body = null;
+  }
+  if (!body || body.length === 0) return false;
+  if (hosts?.has(new URL(request.url()).host)) return true;
+  return (
+    (file.head.length > 0 && body.includes(file.head)) ||
+    (file.base64.length > 0 && body.includes(file.base64)) ||
+    body.includes(`filename="${file.name}"`)
+  );
+}
 export function isGraphqlRead(body) {
   try {
     const value = JSON.parse(body);
@@ -697,6 +720,24 @@ export class CdpBrowser {
           request.resourceType() !== 'ping' && isSensitiveRequest(request.url(), body);
         if (firstParty && !sensitive && (isGraphqlRead(body) || isAuthRefresh(request.url())))
           return route.continue();
+        // E43 : attaching a file is filling the form, not a send. While the agent uploads, and
+        // shortly after while no click has followed, the page's own sending of THAT file — often to
+        // a storage host of another site — is granted and traced (host only) : a request whose body
+        // carries the file (its first bytes, raw or base64, or its multipart name), then the next
+        // parts sent to that same host. Other requests (statistics, trackers, beacons), a
+        // send-worded request and a navigation keep the rules below.
+        const uploadWindow =
+          this.uploading === true ||
+          (Date.now() - (this.lastUploadEnd ?? 0) <= UPLOAD_WINDOW_MS &&
+            (this.lastUploadEnd ?? 0) >= (this.lastClickEnd ?? 0) &&
+            !this.writeInProgress);
+        if (uploadWindow && !sensitive && !request.isNavigationRequest()) {
+          if (carriesFile(request, this.uploadedFile, this.uploadHosts)) {
+            (this.uploadHosts ??= new Set()).add(new URL(request.url()).host);
+            this.#traceAutoSend(request.url());
+            return route.continue();
+          }
+        }
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
         if (
@@ -1622,34 +1663,52 @@ export class CdpBrowser {
           });
         let field = target;
         let recorder;
-        if (!kind.fileInput) {
-          // Upload buttons open a file chooser; a submit button or a link would act instead.
-          if (kind.submits)
-            throw new Error(
-              'Upload refusé : ce bouton soumet le formulaire ; choisis le champ ou le bouton « Joindre »',
-            );
-          if (kind.navigates)
-            throw new Error(
-              'Upload refusé : ce lien navigue ; choisis le champ ou le bouton « Joindre »',
-            );
-          const chooser = page.waitForEvent('filechooser', {
-            timeout: Math.min(5000, this.navigationTimeoutMs),
-          });
-          chooser.catch(() => {});
-          await this.#domClick(target, page, null);
-          let opened;
-          try {
-            opened = await chooser;
-          } catch (error) {
-            if (error.name !== 'TimeoutError') throw error;
-            throw new Error('Aucun sélecteur de fichier ouvert par cet élément', { cause: error });
+        // E43 : the window in which the page may send the attached file (see the owner guard).
+        const content =
+          typeof files === 'string' ? readFileSync(files).subarray(0, 512) : files.buffer;
+        this.uploadedFile = {
+          name: expected,
+          head: Buffer.from(content.subarray(0, 512)),
+          base64: Buffer.from(content.subarray(0, 510)).toString('base64'),
+        };
+        this.uploadHosts = new Set();
+        this.uploading = true;
+        this.blockedThirdParty = new Set();
+        try {
+          if (!kind.fileInput) {
+            // Upload buttons open a file chooser; a submit button or a link would act instead.
+            if (kind.submits)
+              throw new Error(
+                'Upload refusé : ce bouton soumet le formulaire ; choisis le champ ou le bouton « Joindre »',
+              );
+            if (kind.navigates)
+              throw new Error(
+                'Upload refusé : ce lien navigue ; choisis le champ ou le bouton « Joindre »',
+              );
+            const chooser = page.waitForEvent('filechooser', {
+              timeout: Math.min(5000, this.navigationTimeoutMs),
+            });
+            chooser.catch(() => {});
+            await this.#domClick(target, page, null);
+            let opened;
+            try {
+              opened = await chooser;
+            } catch (error) {
+              if (error.name !== 'TimeoutError') throw error;
+              throw new Error('Aucun sélecteur de fichier ouvert par cet élément', {
+                cause: error,
+              });
+            }
+            field = opened.element();
+            recorder = await received(field);
+            await opened.setFiles(files, { timeout: 10000 });
+          } else {
+            recorder = await received(field);
+            await target.setInputFiles(files, { timeout: 10000 });
           }
-          field = opened.element();
-          recorder = await received(field);
-          await opened.setFiles(files, { timeout: 10000 });
-        } else {
-          recorder = await received(field);
-          await target.setInputFiles(files, { timeout: 10000 });
+        } finally {
+          this.uploading = false;
+          this.lastUploadEnd = Date.now();
         }
         const names = await recorder
           .evaluate((value) => value.names())
@@ -1660,6 +1719,10 @@ export class CdpBrowser {
           url: page.url(),
           uploaded: basename(args.path),
           via: kind.fileInput ? 'input' : 'chooser',
+          // A send-worded request of the page to another site, blocked during the upload.
+          ...(this.blockedThirdParty.size
+            ? { blockedThirdPartyPosts: [...this.blockedThirdParty] }
+            : {}),
         };
       }
       case 'browser.download': {

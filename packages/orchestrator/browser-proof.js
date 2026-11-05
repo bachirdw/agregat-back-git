@@ -62,6 +62,32 @@ export const readablePages = (evidence = []) =>
     )
     .map((item) => item.url);
 
+// What a mission keeps of its browser proofs for its next execution (reprise from its checkpoint):
+// navigations and readable captures only, as compact entries (origin + path, hash, no page text),
+// once per capability and source, in the order observed, bounded.
+export function missionReads(evidence = [], limit = 400) {
+  const seen = new Set();
+  const kept = [];
+  for (const item of evidence) {
+    const capture = ['browser.snapshot', 'browser.extract'].includes(item?.capability);
+    if (!(item?.capability === 'browser.navigate' || (capture && item.readable === true))) continue;
+    if (typeof item.url !== 'string' || typeof item.sourceId !== 'string') continue;
+    const key = `${item.capability} ${item.sourceId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    kept.push({
+      capability: item.capability,
+      url: item.url,
+      sourceId: item.sourceId,
+      provider: item.provider,
+      loading: item.loading === true,
+      readable: item.readable === true,
+      ...(item.observedAt ? { observedAt: item.observedAt } : {}),
+    });
+  }
+  return kept.slice(-limit);
+}
+
 export function verifiedBrowserVisit(evidence = []) {
   let navigation = null;
   let verified = [];

@@ -11,6 +11,9 @@ import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { reviewCareer } from '../packages/career-ops/integration.js';
 import { terminal } from '../packages/storage/index.js';
 import { analyseRun } from '../.manager/outils/bilan-vs-events.mjs';
+import { missionReads } from '../packages/orchestrator/browser-proof.js';
+import { createTurnTruth } from '../packages/career-ops/truth.js';
+import { SkillProgress } from '../packages/orchestrator/skill-router.js';
 
 async function ownerApp(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'preuves-entre-tours-FICTIF-')));
@@ -166,4 +169,74 @@ test('E35 FICTIF, mission neuve : aucune preuve d’une autre mission n’est re
   await waitFor(() => terminal.has(app.store.get(fresh.id).state));
   assert.equal(app.store.get(fresh.id).state, 'failed');
   assert.match(app.store.get(fresh.id).error, /1 offre\(s\) notée\(s\) sans lecture/);
+});
+
+test('E35 FICTIF, reprises en chaîne : la lecture du premier tour couvre la note du troisième', async (t) => {
+  // Tour 2 sans navigateur ni note (FICTIF_PROFIL) : la preuve du tour 1 passe au tour 3.
+  const { app, first, run: second } = await missionThenResume(t, 'FICTIF_PROFIL Rien à noter');
+  assert.equal(second.state, 'completed', second.error);
+  assert.deepEqual(second.missionProof, first.missionProof);
+  const third = await app.engine.create(
+    {
+      prompt: 'FICTIF_ENTRE_TOURS_SUITE Note-la maintenant',
+      agent: 'fixture',
+      pack: 'career-ops',
+      browser: 'fixture',
+    },
+    second,
+  );
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(third.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  const run = app.store.get(third.id);
+  assert.equal(run.state, 'completed', run.error);
+  assert.ok(
+    run.missionProof.reads.some(
+      (item) => item.readable && item.url === 'https://jobs.example.test/entre-tours/42',
+    ),
+  );
+});
+
+test('Preuves de mission FICTIVES : navigations et captures lisibles seulement, une fois, sans texte de page, bornées', () => {
+  const page = (capability, url, extra = {}) => ({
+    capability,
+    url,
+    sourceId: `id-${url}`,
+    provider: 'fixture',
+    loading: false,
+    readable: capability !== 'browser.navigate',
+    turnId: 'TOUR_FICTIF',
+    snapshot: 'TEXTE_PRIVÉ_FICTIF',
+    ...extra,
+  });
+  const kept = missionReads([
+    page('browser.navigate', 'https://a.example.test/1'),
+    page('browser.snapshot', 'https://a.example.test/1'),
+    page('browser.snapshot', 'https://a.example.test/1'),
+    page('browser.snapshot', 'https://a.example.test/2', { readable: false, loading: true }),
+    page('browser.click', 'https://a.example.test/1'),
+    { capability: 'browser.snapshot', readable: true },
+  ]);
+  assert.deepEqual(
+    kept.map((item) => `${item.capability} ${item.url}`),
+    ['browser.navigate https://a.example.test/1', 'browser.snapshot https://a.example.test/1'],
+  );
+  assert.doesNotMatch(JSON.stringify(kept), /TEXTE_PRIVÉ|TOUR_FICTIF/);
+  const many = Array.from({ length: 10 }, (_, i) =>
+    page('browser.snapshot', `https://a.example.test/${i}`),
+  );
+  assert.equal(missionReads(many, 3).length, 3);
+  assert.equal(missionReads(many, 3)[2].url, 'https://a.example.test/9');
+  assert.deepEqual(missionReads(undefined), []);
+});
+
+test('Suivi FICTIF : une reprise garde la lecture d’une annonce prouvée plus tôt dans la mission', () => {
+  assert.equal(createTurnTruth().hasJdRead(), false);
+  assert.equal(createTurnTruth({ seed: { jdRead: true } }).hasJdRead(), true);
+  assert.equal(createTurnTruth({ seed: { jdRead: 'oui' } }).hasJdRead(), false);
+  const offers = [{ url: 'https://jobs.example.test/entre-tours/42', toolCallId: 'a' }];
+  const progress = new SkillProgress([]);
+  assert.deepEqual(
+    progress.incomplete([], createTurnTruth({ seed: { jdRead: true } }).hasJdRead(), offers),
+    [],
+  );
 });

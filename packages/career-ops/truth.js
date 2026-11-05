@@ -254,8 +254,10 @@ function readInbox(root) {
     return e.code === 'ENOENT' ? [] : null;
   }
 }
-// ACP can replay old tool updates on session/load. Create one tracker for each new prompt.
-export function createTurnTruth({ root } = {}) {
+// ACP can replay old tool updates on session/load. One tracker per execution of a mission: it
+// spans every answer turn of that execution. `seed` carries what an earlier execution of the same
+// mission proved (reprise from its checkpoint): today, that a job description was read.
+export function createTurnTruth({ root, seed } = {}) {
   const inboxBefore = readInbox(root);
   const names = new Map();
   const paths = new Map();
@@ -264,7 +266,7 @@ export function createTurnTruth({ root } = {}) {
   const gatewayOutcomes = new Map();
   let anonymousCall = 0;
   let offerSaved = false;
-  let jdRead = false;
+  let jdRead = seed?.jdRead === true;
   const inputs = new Map();
   const scored = new Map();
   // Completed calls as the Bilan may know them (tool and argument prefix), one per call id.

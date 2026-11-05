@@ -30,6 +30,7 @@ import {
   verifiedBrowserVisit,
   assessBrowserClaims,
   readablePages,
+  missionReads,
 } from './browser-proof.js';
 import {
   authFailureMessage,
@@ -784,9 +785,26 @@ export class Orchestrator {
     const recentToolCalls = new Map();
     const observedToolIds = new Set();
     let promptStarted = false;
+    // A reprise continues the same mission: what its earlier executions proved (pages read, a job
+    // description read) still counts. A new mission starts from nothing.
+    const inherited = (previous?.id && this.store.get(previous.id)?.missionProof) || null;
     // The pack's Bilan may compare a workspace file before and after the turn (read-only).
-    const turnTruth = createTurnTruth({ root: run.cwd });
+    const turnTruth = createTurnTruth({
+      root: run.cwd,
+      seed: { jdRead: inherited?.sourceRead === true },
+    });
     control.turnTruth = turnTruth;
+    // Saved with the final state, before anything awaits: a reprise may start right after.
+    const missionProof = () => ({
+      reads: missionReads(
+        promptStarted
+          ? (control.browserEvidence ?? [])
+          : Array.isArray(inherited?.reads)
+            ? inherited.reads
+            : [],
+      ),
+      sourceRead: turnTruth.hasJdRead(),
+    });
     const skillProgress = new SkillProgress(plan.skillSelection ?? [], (step) => {
       this.store.event(run.id, 'skill_progress', step);
       this.store.update(run.id, { skillProgress: skillProgress.current() });
@@ -1056,8 +1074,11 @@ export class Orchestrator {
       });
       let response;
       try {
+        // Capabilities say what this execution observed; the evidence spans the whole mission.
         control.browserEvidenceCapabilities?.clear();
-        control.browserEvidence = [];
+        control.browserEvidence = Array.isArray(inherited?.reads)
+          ? inherited.reads.map((item) => ({ ...item, inherited: true }))
+          : [];
         promptStarted = true;
         control.promptStarted = true;
         skillProgress.start();
@@ -1303,6 +1324,7 @@ export class Orchestrator {
         state: incompleteMessage ? 'failed' : 'completed',
         ...(incompleteMessage ? { error: incompleteMessage } : {}),
         result: value,
+        missionProof: missionProof(),
         finishedAt: new Date().toISOString(),
       });
     } catch (e) {
@@ -1358,6 +1380,7 @@ export class Orchestrator {
       this.store.update(run.id, {
         state: control.cancelled ? 'cancelled' : 'failed',
         error: failureMessage,
+        missionProof: missionProof(),
         finishedAt: new Date().toISOString(),
       });
     } finally {

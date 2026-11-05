@@ -15,3 +15,27 @@ Sous-agent codeur (Opus), dossier `~/Downloads/agregat-back-astra`, branche `sui
 - `npm run check` vert ; `npm run format:check` vert.
 - **Vérifié** : le défaut de preuves entre tours existe pour la reprise d'une mission (nouvelle exécution), pas pour les tours de réponse à une question.
 - **Écart avec le brief** : le brief attribue l'échec de 05b34578 à la remise à zéro par tour de question ; ce chemin est déjà tenu (test vert). Voir la section « Cause probable de 05b34578 » plus bas.
+
+## 12:43-12:50 — Point 2 : les preuves d'une mission passent à sa reprise
+- Mécanisme générique (aucune règle métier, aucun nom de pack) :
+  - `browser-proof.js` : `missionReads(evidence, limit = 400)` garde, des preuves d'une exécution, les navigations et les captures lisibles seulement, une fois par capacité et source, dans l'ordre, au format compact déjà public (origine + chemin, empreinte `sourceId`, fournisseur, `loading`, `readable`, heure) ; jamais de texte de page ni d'identifiant de tour.
+  - `truth.js` : `createTurnTruth({ root, seed })` ; `seed.jdRead === true` reprend « annonce lue » d'une exécution précédente de la mission.
+  - `index.js` (`execute`) : `inherited = store.get(previous.id).missionProof` (seulement quand l'exécution poursuit une mission : `create(input, previous)`) ; `turnTruth` amorcé avec `jdRead` ; `control.browserEvidence` amorcé avec les lectures héritées (marquées `inherited: true`) au lieu d'un tableau vide ; `browserEvidenceCapabilities` reste vidé (il dit ce que **cette** exécution a observé : la ligne « Notes non vérifiées » n'est pas changée). La mission enregistre `missionProof` `{ reads, sourceRead }` dans le même `store.update` que l'état final (succès et échec), avant toute attente, pour qu'une reprise immédiate la trouve ; un échec avant le prompt recopie l'héritage. Une mission neuve (`previous` nul) part de zéro.
+  - Les tours de réponse à une question n'avaient besoin d'aucun changement (déjà dans la même exécution, voir 12:33).
+  - Garde : `previous?.id` (les tests de `fix-resume` passent un `previous` sans identifiant).
+- Tests ajoutés (`tests/preuves-entre-tours.test.js`, 10 cas au total) : reprise même URL → `completed` ; reprise URL jamais lue → « 1 offre(s) notée(s) sans lecture » ; mission neuve sans `previous` → contrôle exercé (aucun héritage) ; reprises en chaîne (tour 2 sans navigateur ni note, `missionProof` identique, tour 3 noté → `completed`) ; `missionReads` (filtre, doublons, aucun texte privé ni `turnId`, borne, entrée vide) ; `createTurnTruth` amorcé (`true` seulement, pas une chaîne).
+- `SkillProgress` entre tours de question : un seul objet par exécution, `start()` appelé une fois avant le premier prompt ; vérifié par le test de bout en bout (étape `tsv` faite au tour 1 toujours `done`, `save-evaluation` faite au tour 2 `done`). Pas de changement de code. Entre exécutions (reprise), les étapes repartent « en attente » : non changé (voir écarts).
+
+## Cause probable de 05b34578 (non vérifiée, à trancher par le manager)
+- Les trois questions de 05b34578 étaient des **formulaires** (élicitation), donc toutes dans une seule exécution : le chemin couvert par les tests verts du point 1. La remise à zéro par tour ne peut pas expliquer l'échec.
+- Seul fait lu dans l'espace du propriétaire (extraction ciblée de `relay/runs/05b34578…-result.json`, champs `provenance` et `verification` seulement, aucun contenu privé recopié) : `provenance.data = "navigateur réel"`. Ce champ n'est posé que si `verifiedBrowserVisit(control.browserEvidence)` est non vide (`index.js`, bloc career-ops) : au moins une navigation suivie d'une capture **lisible de la même URL** était bien dans les preuves à la fin. L'en-tête du rapport donne `**URL:** https://www.seek.com.au/job/95692808`.
+- Hypothèses compatibles avec ce fait (dans l'ordre de probabilité) :
+  1. la capture SEEK est arrivée avec `loading: true` (`cdp.js` `waitForReadablePage` : un élément visible `aria-busy="true"` ou un indicateur « Loading… » pendant les 8 s) → `readable: false` pour l'offre, tandis qu'une autre page (site carrières de l'employeur, recherche) a donné la paire lisible qui explique « navigateur réel » ;
+  2. l'URL capturée (`page.url()` après chargement) diffère de l'URL notée par l'hôte ou le chemin (redirection SEEK, sous-domaine) : `pageKey` compare `hôte + chemin`.
+- **À vérifier par le manager** dans les événements de 05b34578 (`.data`, interdit pour moi) : le `rawOutput` du ou des `browser_snapshot` / `browser_extract` sur seek.com.au — champs `url` et `loading`. `loading: true` → hypothèse 1 (le défaut est alors dans la lisibilité, pas dans les tours) ; `url` différente → hypothèse 2.
+
+## 13:05 — Point 2 : tests et vérifications
+- Ciblés, fichier par fichier (`node --test tests/<f>.test.js`) : elicitation 24/24, note-sans-lecture 8/8, fix-resume 22/22, owner-permissions 27/27, skill-router 38/38, bilan-vs-events 5/5, bilan-mixtes 3/3, career-failure 11/11, career-integration 44/44, preuves-entre-tours 10/10. `npm run check` vert, `npm run format:check` vert.
+- Incident sans effet : un premier lancement groupé filtrait `# pass` alors que le rapporteur par défaut ici est `spec` (`ℹ pass`) : sortie vide, relancé fichier par fichier. `timeout` absent de macOS (sortie vide aussi, relancé sans).
+- **Vérifié** : reprise d'une mission → la lecture d'avant compte, le contrôle reste exercé ; mission neuve → rien d'hérité.
+- **Non vérifié** : suite complète (`npm test`, au manager) ; comportement en réel.

@@ -5,9 +5,9 @@ import {
   selectAnnouncedCareerModel,
 } from '../career-ops/integration.js';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
-import { CareerWorkspace } from '../career-ops/workspace.js';
+import { CareerWorkspace, defaultCareerWorkspace } from '../career-ops/workspace.js';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { agentHomeFor, removeRunHomes, workspacesRoot } from './isolation.js';
 import { z } from 'zod';
@@ -151,7 +151,7 @@ export class Orchestrator {
       questionTimeoutMs = Number(process.env.AGENT_PLATFORM_QUESTION_TIMEOUT_MS) > 0
         ? Number(process.env.AGENT_PLATFORM_QUESTION_TIMEOUT_MS)
         : null,
-      career = new CareerWorkspace(),
+      career = defaultCareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
     } = {},
   ) {
@@ -260,6 +260,13 @@ export class Orchestrator {
     scope.abort.abort(new Error('Tentative terminée'));
     scope.detach();
   }
+  // The career-ops workspace of a mission: the owner's space, except for a simulated mission that
+  // got its own temporary folder (see create), whose files all live under run.cwd.
+  careerOf(run) {
+    if (run?.workspace !== 'career-ops' || !run.cwd || run.cwd === this.career.root)
+      return this.career;
+    return new CareerWorkspace({ root: run.cwd, roots: [run.cwd] });
+  }
   mcpServerFor(run, pack, { preMeteredTools = false, scope } = {}) {
     if (!this.approvalBase && priceOf('tool_call', 1, this.pricing) > 0)
       throw new Error('Pont de mesure requis pour les outils facturables');
@@ -270,7 +277,7 @@ export class Orchestrator {
         : (process.env.AGENT_PLATFORM_BROWSER ?? (this.live ? 'isolated' : 'fixture')));
     const env = { RELAY_BROWSER: browser, RELAY_TOOL_CALL_PREMETERED: preMeteredTools ? '1' : '0' };
     if (pack.id === 'career-ops') {
-      env.RELAY_CAREER_WORKSPACE = this.career.path();
+      env.RELAY_CAREER_WORKSPACE = this.careerOf(run).path();
       for (const key of [
         'CAREER_SMTP_HOST',
         'CAREER_SMTP_PORT',
@@ -618,8 +625,9 @@ export class Orchestrator {
     if (run.workspace !== 'career-ops') return run.prompt ?? null;
     try {
       return (
-        JSON.parse(readConfined(this.career.path(), `relay/runs/${run.id}-input.json`, 50000))
-          .prompt ?? null
+        JSON.parse(
+          readConfined(this.careerOf(run).path(), `relay/runs/${run.id}-input.json`, 50000),
+        ).prompt ?? null
       );
     } catch {
       return null;
@@ -646,7 +654,11 @@ export class Orchestrator {
       input = {
         ...input,
         prompt: JSON.parse(
-          readConfined(this.career.path(), `relay/runs/${previous.id}-input.json`, 50000),
+          readConfined(
+            this.careerOf(previous).path(),
+            `relay/runs/${previous.id}-input.json`,
+            50000,
+          ),
         ).prompt,
         workspace: 'career-ops',
         attachments: previous.attachments ?? [],
@@ -670,13 +682,20 @@ export class Orchestrator {
         !terminal.has(previous.state))
     )
       throw new Error('Session non reprenable');
-    const id = randomUUID(),
-      cwd =
-        previous?.cwd ??
-        (plan.input.workspace === 'career-ops'
-          ? this.career.path()
-          : resolve(workspacesRoot(this.dataDir), id));
+    const id = randomUUID();
+    // A simulated mission (demo agent) or one on fictitious data never works in the owner's own
+    // career-ops space: its folder is a temporary workspace like any other mission's.
+    const ownerSpace =
+      plan.input.workspace === 'career-ops' &&
+      !(this.career.real && (plan.simulated || plan.dataMode === 'fixture'));
+    let cwd =
+      previous?.cwd ??
+      (ownerSpace ? this.career.path() : resolve(workspacesRoot(this.dataDir), id));
     mkdirSync(cwd, { recursive: true, mode: 0o700 });
+    if (!previous && plan.input.workspace === 'career-ops' && !ownerSpace) {
+      cwd = realpathSync(cwd);
+      this.career.copyInputs(plan.input.attachments ?? [], cwd);
+    }
     const run = {
       id,
       createdAt: new Date().toISOString(),

@@ -2,7 +2,7 @@ import { readConfined } from '../../packages/policy-engine/files.js';
 import { linkedInDraft } from '../../packages/career-ops/sends.js';
 import http from 'node:http';
 import { CareerTools } from '../../packages/career-ops/tools.js';
-import { CareerWorkspace, MAX_FILE_BYTES } from '../../packages/career-ops/workspace.js';
+import { defaultCareerWorkspace, MAX_FILE_BYTES } from '../../packages/career-ops/workspace.js';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,7 +81,7 @@ export function createApp({
     ? Number(process.env.AGENT_PLATFORM_AGENT_SILENCE_MS)
     : undefined,
   ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
-  career = new CareerWorkspace(),
+  career = defaultCareerWorkspace(),
   webDir = process.env.AGENT_PLATFORM_WEB_DIR || null,
 } = {}) {
   const store = new Store(resolve(dataDir, 'platform.sqlite'));
@@ -248,7 +248,9 @@ export function createApp({
         return json(
           res,
           200,
-          JSON.parse(readConfined(career.path(), `relay/runs/${run.id}-result.json`, 2000000)),
+          JSON.parse(
+            readConfined(engine.careerOf(run).path(), `relay/runs/${run.id}-result.json`, 2000000),
+          ),
         );
       }
       // The user's own private prompt for a career-ops turn, to rebuild the conversation thread.
@@ -259,7 +261,7 @@ export function createApp({
           return json(res, 404, { error: 'Message privé indisponible' });
         try {
           const input = JSON.parse(
-            readConfined(career.path(), `relay/runs/${run.id}-input.json`, 50000),
+            readConfined(engine.careerOf(run).path(), `relay/runs/${run.id}-input.json`, 50000),
           );
           return json(res, 200, { prompt: String(input.prompt ?? '') });
         } catch {

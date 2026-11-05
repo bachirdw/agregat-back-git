@@ -493,10 +493,12 @@ export class CareerTools {
       contractVersion: 2,
     };
     writeConfined(this.career.path(), `relay/offers/${offer.id}.json`, JSON.stringify(offer));
+    // The Relay card never goes to reports/: that folder belongs to the Skill (NNN-slug-date.md
+    // from career_write) and reserve-report-num reads the leading digits of every name in it.
     if (offer.report)
       writeConfined(
         this.career.path(),
-        `reports/${offer.id}.md`,
+        `relay/offers/${offer.id}.md`,
         `# ${offer.company} — ${offer.title}\n\nNote : ${offer.score}/5\nSource : ${offer.url}\n\n` +
           Object.entries(offer.report)
             .map(([key, text]) => `## ${key}\n\n${text}`)

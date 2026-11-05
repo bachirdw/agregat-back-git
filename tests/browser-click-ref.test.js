@@ -177,6 +177,17 @@ test(
     await provider.page.locator('#cover').evaluate((el) => {
       el.style.display = 'none';
     });
+    // Essai D de la nuit : un élément dont le centre est hors de la page visible n'est « masqué par »
+    // rien ; le message le dit.
+    await provider.page.locator('#covered').evaluate((el) => {
+      el.style.position = 'fixed';
+      el.style.top = '-500px';
+    });
+    await assert.rejects(click('Couvert'), /hors de la zone visible de la page/);
+    await provider.page.locator('#covered').evaluate((el) => {
+      el.style.position = '';
+      el.style.top = '';
+    });
     const canceledStart = Date.now();
     const canceled = await click('Lien annulé');
     assert.equal(canceled.clickMode, 'dom');

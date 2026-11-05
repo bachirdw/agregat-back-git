@@ -1057,7 +1057,9 @@ export class CdpBrowser {
           (point === el ||
             el.contains(point) ||
             Array.from(el.labels ?? []).some((label) => label.contains(point))),
-        covering: point?.tagName.toLowerCase() ?? 'aucun élément',
+        // Essai D de la nuit : no element at all under the centre means the element lies outside
+        // the visible page, not that something covers it.
+        covering: point?.tagName.toLowerCase() ?? null,
         // Only the main document's load is awaited; a frame navigation is not.
         mayNavigate:
           window === window.top &&
@@ -1073,9 +1075,12 @@ export class CdpBrowser {
       };
     });
     if (!hit.reachable)
-      throw new Error(`Clic impossible : élément masqué par ${hit.covering}`, {
-        cause: clickError,
-      });
+      throw new Error(
+        hit.covering
+          ? `Clic impossible : élément masqué par ${hit.covering}`
+          : 'Clic impossible : le centre de l’élément est hors de la zone visible de la page',
+        { cause: clickError },
+      );
     // Completion wait only for native link/form activation; never used as click proof.
     // An event listener can be removed immediately when the page cancels navigation.
     let onNavigation;

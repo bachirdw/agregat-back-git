@@ -136,3 +136,7 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 
 ## 11:39 — Patch de revue du routeur préparé, à appliquer par le propriétaire
 - Décision du propriétaire : il applique lui-même l'acceptation épinglée. Patch écrit sans toucher au code : `.manager/patches/revue-routeur-02.patch` (`packages/career-ops/integration.js` : `routerReviewVerdict()`, acceptation du seul constat « chemins d'identifiants » pour le hash de routeur `4380dfe0…`, revue « career-ops-02 » ; nouveau `tests/career-review-router.test.js`, 3 tests). `git apply --check` : applicable. Sessions cloud production-01, pipeline-01, bilan-02 démarrées par le propriétaire (11:4x).
+
+## 11:43 — Revue du routeur appliquée par le propriétaire ; préparation du Skill réussie ; API relancée
+- Patch `revue-routeur-02` appliqué par le propriétaire (11:40) ; tests ciblés 45/45, check et format verts ; commit 26907f7 (`routerReviewVerdict`, revue « career-ops-02 » épinglée au hash `4380dfe0…`), poussé.
+- Préparation (`scripts/setup-career-ops.js`, API arrêtée à 11:41, 0 mission active) : `sourceCommit` 35b7c531, routeur importé 1 fichier, 456 fichiers sources attestés, aucun appel payant. API relancée à 11:43 dans l'onglet c2 (mêmes variables). Mission de contrôle « coller une URL » (offre RGP) à suivre.

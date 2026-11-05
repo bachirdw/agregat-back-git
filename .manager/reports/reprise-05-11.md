@@ -106,3 +106,8 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 - Diffs relus par le manager : 20 fichiers, +1 566/−88 hors rapports ; grammaire des arguments bornée (regex fermées, pas de shell libre) ; manifeste commenté avec les sources du Skill.
 - Suite complète lancée en arrière-plan sur HEAD (journal `full-05-11-a.log` du scratchpad) ; aucune mission en cours.
 - Décision du propriétaire (11:07) : **renouveler maintenant le reçu de revue** (« c'est votre propre outil et Relay garde ses contrôles sur les hôtes et les écritures »). Briefs écrits : `recu-skill-02` (Sonnet : opération `renew` à sec puis application par le manager) et `sources-01` (Sonnet : fournisseurs du Skill, hôtes de `careers_url`, repli du Skill, Apify désactivé et documenté). Lancement après le verdict de la suite.
+
+## 11:11 — Suite complète verte sur 950f07f ; main avancé ; deux chantiers lancés
+- `npm test && npm run check && npm run format:check` sur l'arbre des trois livraisons (clic-final-seul-01 + skill-suivi-01 + sonde isolement) : `TEST_EXIT 0`, `CHECK_EXIT 0`, `FORMAT_EXIT 0` (journal `full-05-11-a.log` du scratchpad ; compteurs ci-dessous si le journal les donne). L'écart de commit croisé (5d2a2f1) est sans effet sur HEAD.
+- `main` avancé à 950f07f et poussé.
+- Lancés en parallèle (fichiers disjoints) : `recu-skill-02` (Sonnet : `REVIEWED_COMMIT` → 35b7c531, opération `renew`, essai à sec réel ; application par le manager) et `sources-01` (Sonnet : fournisseurs du Skill, hôtes de `careers_url`, repli du Skill, variables non transmises, Apify documenté mais désactivé).

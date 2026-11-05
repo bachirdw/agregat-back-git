@@ -1,4 +1,4 @@
-import { realpathSync, statSync, mkdirSync, readFileSync } from 'node:fs';
+import { realpathSync, statSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, basename, relative, isAbsolute, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
@@ -40,6 +40,34 @@ export function redactPageText(text, max = MAX_TEXT) {
   let out = String(text ?? '');
   for (const p of SECRET_PATTERNS) out = out.replace(p, '[masqué]');
   return out.length > max ? out.slice(0, max) + '\n[tronqué]' : out;
+}
+
+// Documents an upload could mean (PDF, DOCX, images) at the root of the mission folder and one
+// level below, as relative paths the agent can pass back. relay/ (platform files), hidden folders
+// and node_modules are never listed; the list is a hint, not a page of the folder.
+export function missionDocumentHint(workspace, max = 12) {
+  const found = [];
+  const visit = (dir, depth) => {
+    let entries;
+    try {
+      entries = readdirSync(resolve(workspace, dir), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || ['relay', 'node_modules'].includes(entry.name)) continue;
+      const path = dir ? `${dir}/${entry.name}` : entry.name;
+      if (entry.isDirectory() && depth < 1) visit(path, depth + 1);
+      else if (entry.isFile() && /\.(?:pdf|docx?|odt|rtf|png|jpe?g)$/i.test(entry.name))
+        found.push(path);
+    }
+  };
+  if (workspace) visit('', 0);
+  found.sort();
+  const shown = found.slice(0, max).join(', ') + (found.length > max ? ', …' : '');
+  return found.length
+    ? `Documents présents (chemins relatifs acceptés tels quels) : ${shown}.`
+    : 'Aucun document (PDF, DOCX, image) trouvé à la racine du dossier de mission ni dans ses sous-dossiers directs.';
 }
 
 // The gateway is the only path from agents to the browser. It validates arguments against the
@@ -117,7 +145,17 @@ export class BrowserGateway {
     }
     if (capabilityId === 'browser.upload') {
       const file = this.policy.workspacePath(args.path);
-      const real = realpathSync(file); // resolves symlinks: the real file must stay in the run folder
+      let real;
+      try {
+        real = realpathSync(file); // resolves symlinks: the real file must stay in the run folder
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        // apply-01 (E43): the agent guessed a path; tell it what the mission folder holds instead.
+        throw new Error(
+          `Fichier introuvable dans le dossier de mission : ${args.path}. ${missionDocumentHint(this.policy.workspace)}`,
+          { cause: error },
+        );
+      }
       const root = realpathSync(this.policy.workspace);
       const rel = relative(root, real);
       if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))

@@ -46,7 +46,13 @@ file globale des envois encore en mémoire, mêmes décisions ponctuelles via `/
 `sent` ou `uncertain`. N’afficher l’ouverture Gmail que pour `draft` ; ne jamais relancer un état
 incertain automatiquement. Deux processus MCP concurrents ne peuvent réserver le même ID (création atomique).
 L’outil `career_document` transforme un document de `output/` en pièce jointe MD ou PDF locale,
-renvoie `{id,name,size,type}` utilisable dans `email_send` ; il préserve le `cv.md` source.
+renvoie `{id,name,size,type}` utilisable dans `email_send` ; il préserve le `cv.md` source. En PDF, il
+écrit `output/<name>.pdf` (suffixe `-2`, `-3`… si le nom existe) et renvoie aussi `path` (relatif au
+dossier de mission, utilisable tel quel par `browser_upload`), `tailored: false` et une `note` : ce rendu
+n’est pas le CV adapté de la chaîne du Skill. `career_script generate-pdf`, `generate-cover-letter` et
+`mark-pdf-ready` renvoient de même `documents` (PDF de `output/` avec `path`, `kind`, `tailored`,
+`report`), `produced` (le PDF que l’appel a écrit) et `cvTailored` (CV adapté à joindre). `browser_upload`
+accepte un `path` relatif au dossier de mission et, si le fichier manque, nomme les documents présents.
 
 L’outil `linkedin_draft` ouvre automatiquement le profil/conversation via la passerelle navigateur
 si elle est disponible ; sinon le lien reste utilisable manuellement. Le texte n’est jamais saisi

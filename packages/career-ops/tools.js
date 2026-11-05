@@ -1,4 +1,5 @@
 import { attachDocument } from './documents.js';
+import { documentsAnswer } from './produced-documents.js';
 import { readdirSync, lstatSync, existsSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -678,6 +679,8 @@ export class CareerTools {
           : result.stdout,
         exitCode: 0,
         untrusted: true,
+        // apply-01 (E40, E43): a document step of the chain answers with the paths it produced.
+        ...(skillEntry ? documentsAnswer(root, command, scriptArgs) : {}),
       };
     } catch (error) {
       if (skillEntry && Number.isInteger(error.code) && !signal?.aborted)
@@ -842,7 +845,7 @@ export function registerCareerTools(
   );
   register(
     'career_document',
-    'Rendre un CV ou une lettre Markdown en PDF local, puis obtenir un ID joignable à email_send. Le CV source reste intact.',
+    'Rendre un CV ou une lettre Markdown de output/ en PDF local (output/<name>.pdf) : la réponse donne path, utilisable tel quel par browser_upload, et un ID joignable à email_send. Ce rendu n’est pas le CV adapté de la chaîne du Skill (build-cv-html → verify-cv-facts → generate-pdf). Le CV source reste intact.',
     z
       .object({
         path: z.string().max(200),

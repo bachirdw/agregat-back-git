@@ -156,10 +156,18 @@ const scriptOutput = (output) => {
   }
   return '';
 };
-// merge-tracker.mjs ends with « 📊 Summary: +N added, 🔄M updated, ⏭️K skipped ».
+// merge-tracker.mjs ends with « 📊 Summary: +N added, 🔄M updated, ⏭️K skipped ». Without a
+// tracker file it says « No applications.md found. Nothing to merge into. » and exits 0
+// (bilan-05, E36): nothing merged, with the reason. The reasons the Bilan may print.
+const TRACKER_ABSENT = 'tableau de suivi absent';
+const TRACKER_REASONS = new Set([TRACKER_ABSENT]);
 export function trackerSummary(text) {
-  const match = String(text ?? '').match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
-  return match ? { added: Number(match[1]), updated: Number(match[2]) } : null;
+  const output = String(text ?? '');
+  const match = output.match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
+  if (match) return { added: Number(match[1]), updated: Number(match[2]) };
+  if (/Nothing to merge into/u.test(output))
+    return { added: 0, updated: 0, reason: TRACKER_ABSENT };
+  return null;
 }
 // bilan-03 (E38) : the leading flags and numbers of a script call (e.g. ["--release","042"]),
 // enough for a manifest step to tell two uses of one script apart. Stops at the first other
@@ -447,7 +455,11 @@ export function createTurnTruth({ root, seed } = {}) {
           rows.added >= 0 &&
           rows.updated >= 0
         )
-          addTracker(`gateway:${key}`, { added: rows.added, updated: rows.updated });
+          addTracker(`gateway:${key}`, {
+            added: rows.added,
+            updated: rows.updated,
+            ...(TRACKER_REASONS.has(rows.reason) ? { reason: rows.reason } : {}),
+          });
         if (name === 'career_script' && safeArgument === 'scan')
           setScan(`gateway:${key}`, scanRows?.networkFailures);
       }
@@ -476,10 +488,13 @@ export function createTurnTruth({ root, seed } = {}) {
       if (!trackers.size) return null;
       const gateway = [...trackers].filter(([key]) => key.startsWith('gateway:'));
       const rows = (gateway.length ? gateway : [...trackers]).map(([, row]) => row);
-      return {
+      const total = {
         added: rows.reduce((sum, row) => sum + row.added, 0),
         updated: rows.reduce((sum, row) => sum + row.updated, 0),
       };
+      // The script's own reason for merging nothing, only while nothing was merged at all.
+      const reason = rows.find((row) => row.reason)?.reason;
+      return reason && !total.added && !total.updated ? { ...total, reason } : total;
     },
     // null: the fact gate passed last (or never ran); a number: claims it listed on its last refusal.
     factsUnsourced() {
@@ -646,9 +661,11 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest()) {
   const rows = truth.trackerRows?.();
   const trackerLine = trackerProved
     ? `\n- Suivi du Skill : ${
-        rows
-          ? `${rows.added} ligne${rows.added > 1 ? 's' : ''} ajoutée${rows.added > 1 ? 's' : ''}, ${rows.updated} mise${rows.updated > 1 ? 's' : ''} à jour`
-          : 'fusion réussie, nombre de lignes non lu'
+        rows?.reason
+          ? `rien fusionné (${rows.reason})`
+          : rows
+            ? `${rows.added} ligne${rows.added > 1 ? 's' : ''} ajoutée${rows.added > 1 ? 's' : ''}, ${rows.updated} mise${rows.updated > 1 ? 's' : ''} à jour`
+            : 'fusion réussie, nombre de lignes non lu'
       } (merge-tracker).`
     : '';
   const failedLine =

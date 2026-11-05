@@ -82,8 +82,10 @@ export class BrowserGateway {
     meter = () => {},
     autoApprove = [],
     onAutoSend,
+    // The agent's call in progress (its abort signal), checked again once the owner has decided.
+    callSignal = () => undefined,
   }) {
-    Object.assign(this, { provider, policy, approve, meter });
+    Object.assign(this, { provider, policy, approve, meter, callSignal });
     // Owner mode only: network writes that are not an agent's send click are granted and traced
     // through this callback ({ capability, host }); it never receives a URL, a body or a query.
     if (onAutoSend && policy.ownerMode) provider.onAutoSend = onAutoSend;
@@ -229,10 +231,24 @@ export class BrowserGateway {
           throw new Error(`Action refusée par l’utilisateur : ${capabilityId}`);
       }
     }
-    // E65 : after a wait for the owner's decision the page may sit frozen in a background tab or
-    // have been reloaded (idle machine) : bring it back to the front, then check it again. A page
-    // that changed or no longer answers means nothing was done, and the agent is told so plainly.
-    if (asked) await this.provider.wake?.().catch(() => {});
+    // Seconde relecture de nuit : an agent that gave its call up while the owner decided gets
+    // nothing done behind its back.
+    const cancelled = () => {
+      if (asked && this.callSignal?.()?.aborted)
+        throw new Error(
+          'Appel annulé par l’agent pendant l’attente de l’accord : action non effectuée, rien n’a été envoyé.',
+        );
+    };
+    cancelled();
+    // E65 : after a wait for the owner's decision on a send, the page may sit frozen in a
+    // background tab or have been reloaded (idle machine) : bring it back to the front (5 s at
+    // most : a frozen tab must not hang the call), then check it again. A page that changed or no
+    // longer answers means nothing was done, and the agent is told so plainly.
+    if (asked && sending)
+      await Promise.race([
+        Promise.resolve(this.provider.wake?.()).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 5000).unref?.()),
+      ]);
     const changed = (cause) =>
       new Error(
         asked
@@ -260,6 +276,7 @@ export class BrowserGateway {
       throw changed('Élément ou page modifié pendant l’approbation');
     if (sending && !isDeepStrictEqual(preview, previewNow))
       throw changed('Formulaire modifié pendant l’approbation');
+    cancelled();
     if (capabilityId === 'browser.upload') {
       // Freeze the approved bytes; Playwright must not reopen a path that may have changed.
       const real = realpathSync(this.policy.workspacePath(rawArgs.path));

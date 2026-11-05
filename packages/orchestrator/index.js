@@ -111,14 +111,23 @@ export function formatAutoSendLine(events) {
   ).length;
   return n ? `Requêtes réseau d'envoi : ${n} accordées automatiquement (mode propriétaire).` : '';
 }
-// E66 : the owner's approvals of a send, and how many of the approved actions failed afterwards
-// (nothing sent by them) : an approval is not a send.
-export function formatSendLine(approved, failed) {
+// E66 : the owner's approvals of a send, and what became of the approved actions : an approval is
+// not a send. `failed` : the gateway stopped before acting (nothing sent) ; `uncertain` : the
+// action failed after it started (something may have left : to check on the site).
+export function formatSendLine(approved, failed = 0, uncertain = 0) {
   if (!approved) return '\nEnvoi par la plateforme : aucun approuvé.';
+  const notes = [
+    ...(failed
+      ? [`${failed} sans effet (arrêtée avant d’agir après l’accord : rien n’a été envoyé)`]
+      : []),
+    ...(uncertain
+      ? [
+          `${uncertain} à l’issue incertaine (échec après le début de l’action : vérifier sur le site)`,
+        ]
+      : []),
+  ];
   return `\nEnvoi par la plateforme : ${approved} approuvé(s) par le propriétaire${
-    failed
-      ? `, dont ${failed} sans effet (l’action a échoué après l’accord : rien n’a été envoyé par elle)`
-      : ''
+    notes.length ? `, dont ${notes.join(', dont ')}` : ''
   }.`;
 }
 export function verificationScope(packId, simulated, observedBrowser = false) {
@@ -421,9 +430,10 @@ export class Orchestrator {
     const approved = outcome.outcome?.optionId === 'allow' && !abandoned?.aborted;
     if (request.actionClass === 'send' && approved) {
       control.sendsApproved = (control.sendsApproved ?? 0) + 1;
-      // E66 : the outcome of the approved action comes with the next browser action reported by
-      // the gateway (tool-outcome route).
-      control.sendsAwaiting = (control.sendsAwaiting ?? 0) + 1;
+      // E66 : the approval names the gateway call that asked it ; that very call's outcome (the
+      // tool-outcome route, same identifier) tells whether the approved action took place.
+      if (typeof request.callId === 'string' && /^[a-f0-9-]{36}$/.test(request.callId))
+        (control.sendCalls ??= new Set()).add(request.callId);
     }
     return {
       approved,
@@ -1355,7 +1365,11 @@ export class Orchestrator {
             .join(' ; ');
       // Fact from the platform, next to the agent's own claims: a model can announce a send it never made.
       if (plan.pack.id === 'career-ops')
-        value.summary += formatSendLine(control.sendsApproved ?? 0, control.sendsFailed ?? 0);
+        value.summary += formatSendLine(
+          control.sendsApproved ?? 0,
+          control.sendsFailed ?? 0,
+          control.sendsUncertain ?? 0,
+        );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));
         if (autoSendLine) value.summary += '\n' + autoSendLine;

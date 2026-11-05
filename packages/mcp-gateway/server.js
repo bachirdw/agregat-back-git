@@ -35,14 +35,25 @@ const failure = (e) => ({
 // the agent gives the call up (MCP cancellation, connection closed), the platform takes the card
 // back and no later « Approuver » sends anything.
 const callContext = new AsyncLocalStorage();
+// Seconde relecture de nuit : a browser's network callbacks (Playwright routes) run outside that
+// context ; the call in progress is kept here too (browser calls run one at a time).
+let activeCall = null;
+const currentCall = () => callContext.getStore() ?? activeCall;
 async function approve(request) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
-  // E64 : no deadline of the gateway's own beyond the platform's (see approval.js).
-  return requestDecision(url, process.env.RELAY_APPROVAL_TOKEN, request, {
-    timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
-    signal: callContext.getStore()?.signal,
-  });
+  const call = currentCall();
+  // E64 : no deadline of the gateway's own beyond the platform's (see approval.js). E66 : the
+  // approval names its call, so the platform reads that very call's outcome.
+  return requestDecision(
+    url,
+    process.env.RELAY_APPROVAL_TOKEN,
+    { ...request, ...(call?.toolCallId ? { callId: call.toolCallId } : {}) },
+    {
+      timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
+      signal: call?.signal,
+    },
+  );
 }
 
 // Usage of gateway capabilities is charged by the platform BEFORE the action; a refused charge
@@ -110,6 +121,12 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
       // E55, E58 : the manifest steps this call's effect proved (keys only), when measured.
       ...(proofs ? { proofs } : {}),
+      // E66 : a failure the gateway raised before acting (page changed while the owner decided,
+      // call cancelled, approval expired) says so ; any other failure leaves the outcome open.
+      ...(status === 'failed' &&
+      /action non effectuée|rien n’a été envoyé/.test(String(result?.content?.[0]?.text ?? ''))
+        ? { actionDone: false }
+        : {}),
     }),
     signal: AbortSignal.timeout(5000),
   });
@@ -133,12 +150,16 @@ server.registerTool = (name, definition, handler) =>
         watch = null;
       }
       let result;
+      const call = { signal: extra?.signal, toolCallId };
+      activeCall = call;
       try {
         if (process.env.RELAY_USAGE_URL && process.env.RELAY_TOOL_CALL_PREMETERED !== '1')
           await meter('tool_call', 1);
-        result = await callContext.run({ signal: extra?.signal }, () => handler(args, extra));
+        result = await callContext.run(call, () => handler(args, extra));
       } catch (e) {
         result = failure(e);
+      } finally {
+        if (activeCall === call) activeCall = null;
       }
       const outcome = gatewayToolOutcome(name, result);
       let proofs;
@@ -203,7 +224,15 @@ if (mode === 'fixture') {
       actionClass: 'network',
       args: { host },
     });
-  const gateway = new BrowserGateway({ provider, policy, approve, meter, onAutoSend });
+  const gateway = new BrowserGateway({
+    provider,
+    policy,
+    approve,
+    meter,
+    onAutoSend,
+    // Seconde relecture de nuit : the agent's call, checked again once the owner has decided.
+    callSignal: () => currentCall()?.signal,
+  });
   browserGateway = gateway;
   let fallbackReported = false;
   const reportFallback = async () => {

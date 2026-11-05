@@ -509,14 +509,15 @@ export function createApp({
                 .map((key) => [key, body[key]]),
             ),
           });
-        // E66 : the outcome of an action the owner approved as a send is the next browser action
-        // the gateway reports ; a failure there means nothing was sent by that approval.
-        if (
-          control.sendsAwaiting > 0 &&
-          /^browser_(?:click|press|fillForm|type|select|upload|download)$/.test(String(body.name))
-        ) {
-          control.sendsAwaiting--;
-          if (body.status === 'failed') control.sendsFailed = (control.sendsFailed ?? 0) + 1;
+        // E66 : the outcome of the very call an approval of a send was asked for (same gateway
+        // identifier). A failure the gateway raised before acting (`actionDone: false`) sent
+        // nothing ; any other failure after the approval leaves the outcome open.
+        if (control.sendCalls?.has(body.toolCallId)) {
+          control.sendCalls.delete(body.toolCallId);
+          if (body.status === 'failed') {
+            if (body.actionDone === false) control.sendsFailed = (control.sendsFailed ?? 0) + 1;
+            else control.sendsUncertain = (control.sendsUncertain ?? 0) + 1;
+          }
         }
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

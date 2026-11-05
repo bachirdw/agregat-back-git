@@ -51,3 +51,7 @@ Sous-agent codeur (Opus), dossier `~/Downloads/agregat-back-astra`, branche `sui
 2. Reprise : seules les **preuves de lecture** (pages lues, annonce lue) passent à l'exécution suivante. Le `turnTruth` complet (appels terminés, suivi, documents, boîte d'entrée) et les étapes du Skill ne passent pas : le Bilan d'une reprise décrit cette exécution, celui d'avant reste dans la mission précédente. À décider par le manager si le Bilan d'une reprise doit cumuler.
 3. Sur une reprise sans navigation, `provenance.data` peut valoir « navigateur réel » et `evidence` contenir les paires héritées (marquées `inherited: true`) : c'est la provenance de la mission ; le texte « … dans ce tour » de `assessBrowserClaims` n'a pas été reformulé.
 4. La ligne « Questions : … » n'existe pas pour les questions par formulaire.
+
+## 13:06 — Point 4 : état final
+- Commits : f3f32ec (point 1), 3c15233 (point 2), fc54d3d (point 3). Tests ciblés verts (compteurs aux sections 13:05). Check et format verts. Suite complète : au manager.
+- État : tours de question **opérationnels** (déjà, prouvé) ; reprise **opérationnelle** pour les preuves de lecture (testé en FICTIF) ; cause réelle de 05b34578 **non établie**.

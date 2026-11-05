@@ -44,6 +44,13 @@ const stepSchema = z
     tool: toolId,
     alternativeTools: z.array(toolId).max(5).optional(),
     argument: z.string().trim().min(1).max(100).optional(),
+    // Leading arguments a call must carry to prove this step, for two uses of the same command
+    // (e.g. a flag). `{name}` stands for any non-empty value. A call without them does not count.
+    args: z
+      .array(z.string().regex(/^\S{1,60}$/))
+      .min(1)
+      .max(10)
+      .optional(),
     // The pack names the URL path segments that prove this step (e.g. a form page). No regex:
     // whole lowercase words, compared to each path segment, case-insensitively.
     urlPattern: z
@@ -243,6 +250,15 @@ const pageKey = (value) => {
     return null;
   }
 };
+// The page a completed call acted on: the URL it was given (the gateway passes the page it landed
+// on) or else the `url` its result reports (ACP). Host and path only, as pageKey.
+const callPage = (update) =>
+  pageKey(toolInput(update).url) ??
+  pageKey(
+    JSON.stringify(update.rawOutput ?? update.content ?? '').match(
+      /\\*"url\\*"\s*:\s*\\*"(https?:\/\/[^"\\\s]+)/,
+    )?.[1],
+  );
 
 function toolName(update, expected) {
   const candidate = String(update.rawInput?.name ?? update.rawInput?.tool ?? update.title ?? '');
@@ -267,8 +283,20 @@ function matches(step, update, name) {
       return false;
     }
   }
-  if (!step.argument || step.tool !== name) return true;
+  if (step.tool !== name) return true;
   const input = toolInput(update);
+  if (
+    step.args &&
+    !step.args.every((expected, index) => {
+      const actual = Array.isArray(input.args) ? input.args[index] : undefined;
+      return (
+        typeof actual === 'string' &&
+        (/^\{[^{}]+\}$/.test(expected) ? actual.length > 0 : actual === expected)
+      );
+    })
+  )
+    return false;
+  if (!step.argument) return true;
   return [input.command, input.script, input.path, input.args, update.title].some(
     (x) => typeof x === 'string' && x.includes(step.argument),
   );
@@ -303,6 +331,9 @@ export class SkillProgress {
       })),
     );
     this.completions = [];
+    // E41 : completed calls of a URL-bound step's tool that its pattern did not accept, with
+    // their page. The next step of the intent done on that same page proves the step after all.
+    this.visits = [];
     this.orderDeviation = false;
     this.scored = new Set();
   }
@@ -336,6 +367,25 @@ export class SkillProgress {
       if (input.score !== null && input.score !== undefined && pageKey(input.url))
         this.scored.add(pageKey(input.url));
     }
+    // A script that ran and failed is a completed tool call: its exit code tells.
+    const exitFailed = /exitCode\\*"?\s*:\s*[1-9]/.test(
+      JSON.stringify(update.rawOutput ?? update.content ?? ''),
+    );
+    const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
+    const page = next === 'done' ? callPage(completed) : null;
+    const uses = (step, tool = name) =>
+      step.tool === tool || step.definition.alternativeTools?.includes(tool);
+    if (
+      page &&
+      this.steps.some(
+        (step) =>
+          step.definition.urlPattern &&
+          step.state === 'pending' &&
+          uses(step) &&
+          !candidates.includes(step),
+      )
+    )
+      this.visits.push({ name, toolCallId: update.toolCallId, page });
     for (const step of candidates) {
       if (step.state !== 'pending') continue;
       if (
@@ -348,37 +398,47 @@ export class SkillProgress {
         )?.state !== 'done'
       )
         continue;
-      // A script that ran and failed is a completed tool call: its exit code tells.
-      const exitFailed = /exitCode\\*"?\s*:\s*[1-9]/.test(
-        JSON.stringify(update.rawOutput ?? update.content ?? ''),
+      const previous = this.steps.find(
+        (prior) =>
+          prior.pack === step.pack &&
+          prior.intent === step.intent &&
+          prior.index === step.index - 1,
       );
-      const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
-      if (
-        next === 'done' &&
-        this.steps.some(
-          (earlier) =>
-            earlier.pack === step.pack &&
-            earlier.intent === step.intent &&
-            earlier.index < step.index &&
-            earlier.state !== 'done' &&
-            !earlier.optional &&
-            // A step the prompt waived ("sans scan") is not a deviation when skipped.
-            !earlier.definition.exempt,
-        )
-      )
-        this.orderDeviation = true;
-      step.state = next;
-      step.toolCallId = update.toolCallId;
-      step.cause =
-        next === 'failed'
-          ? update.status === 'cancelled'
-            ? 'appel annulé'
-            : 'échec signalé par l’outil'
-          : null;
-      if (next === 'done') this.completions.push(`${step.pack}:${step.intent}:${step.id}`);
-      this.publish(step);
+      const visit =
+        page &&
+        previous?.definition.urlPattern &&
+        previous.state === 'pending' &&
+        this.visits.findLast((item) => item.page === page && uses(previous, item.name));
+      if (visit) this.settle(previous, visit.toolCallId, 'done');
+      this.settle(step, update.toolCallId, next, update.status);
       break;
     }
+  }
+  settle(step, toolCallId, next, status = 'completed') {
+    if (
+      next === 'done' &&
+      this.steps.some(
+        (earlier) =>
+          earlier.pack === step.pack &&
+          earlier.intent === step.intent &&
+          earlier.index < step.index &&
+          earlier.state !== 'done' &&
+          !earlier.optional &&
+          // A step the prompt waived ("sans scan") is not a deviation when skipped.
+          !earlier.definition.exempt,
+      )
+    )
+      this.orderDeviation = true;
+    step.state = next;
+    step.toolCallId = toolCallId;
+    step.cause =
+      next === 'failed'
+        ? status === 'cancelled'
+          ? 'appel annulé'
+          : 'échec signalé par l’outil'
+        : null;
+    if (next === 'done') this.completions.push(`${step.pack}:${step.intent}:${step.id}`);
+    this.publish(step);
   }
   finish() {
     for (const step of this.steps)

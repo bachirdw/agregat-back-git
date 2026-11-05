@@ -160,10 +160,27 @@ export function trackerSummary(text) {
   const match = String(text ?? '').match(/Summary:\s*\+(\d{1,6}) added,\s*\S*?(\d{1,6}) updated/u);
   return match ? { added: Number(match[1]), updated: Number(match[2]) } : null;
 }
+// bilan-03 (E38) : the leading flags and numbers of a script call (e.g. ["--release","042"]),
+// enough for a manifest step to tell two uses of one script apart. Stops at the first other
+// value: a URL, a name or a path never leaves the gateway this way.
+const SCRIPT_TOKEN = /^(?:--?[a-z][a-z0-9-]{0,30}|\d{1,6}(?:-\d{1,6})?)$/;
+export function scriptTokens(args) {
+  const tokens = [];
+  for (const arg of Array.isArray(args) ? args.slice(0, 10) : []) {
+    if (typeof arg !== 'string' || !SCRIPT_TOKEN.test(arg)) break;
+    tokens.push(arg);
+  }
+  return tokens;
+}
 // What the MCP gateway reports to the platform for one call: the progress argument, the URL of
-// a scored offer (Relay record or Skill report header), the rows merge-tracker counted. Never the
-// report, the TSV or any page text.
+// a scored offer (Relay record or Skill report header), the rows merge-tracker counted, the
+// leading flags of a script. Never the report, the TSV or any page text.
 export function gatewayProgress(name, status, args, result) {
+  const progress = callProgress(name, status, args, result);
+  const tokens = name === 'career_script' ? scriptTokens(args?.args) : [];
+  return tokens.length ? { ...progress, args: tokens } : progress;
+}
+function callProgress(name, status, args, result) {
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
   if (
@@ -271,21 +288,21 @@ export function createTurnTruth({ root, seed } = {}) {
   const scored = new Map();
   // Completed calls as the Bilan may know them (tool and argument prefix), one per call id.
   const proofs = new Map();
-  let tracker = null;
+  // E37 : ACP may deliver the same terminal update of a call twice. Counts are kept per call
+  // (key of `proofs`): a repeated update replaces that call's value, the last one is authoritative.
+  const trackers = new Map();
   // Last verdict of the Skill's fact gate: null when the last run passed, else the count it listed.
   let factsUnsourcedCount = null;
-  // C8 : the last completed scan of the turn, as its own output says.
-  let scan = null;
-  const setScan = (networkFailures) => {
-    if (Number.isInteger(networkFailures) && networkFailures >= 0) scan = { networkFailures };
-    else scan ??= { networkFailures: null };
-  };
-  const addTracker = (rows) => {
-    if (!rows) return;
-    tracker = {
-      added: (tracker?.added ?? 0) + rows.added,
-      updated: (tracker?.updated ?? 0) + rows.updated,
-    };
+  // C8 : the last completed scan of the turn, as its own output says (one entry per call, in
+  // the order calls first completed: a replayed earlier scan does not become the last one).
+  const scans = new Map();
+  const setScan = (key, networkFailures) =>
+    scans.set(
+      key,
+      Number.isInteger(networkFailures) && networkFailures >= 0 ? networkFailures : null,
+    );
+  const addTracker = (key, rows) => {
+    if (rows) trackers.set(key, rows);
   };
   return {
     observe(update) {
@@ -361,9 +378,15 @@ export function createTurnTruth({ root, seed } = {}) {
             if (header) scored.set(update.toolCallId, header.url);
           }
           if (name === 'career_script' && argument === 'merge-tracker')
-            addTracker(trackerSummary(outputText(update.rawOutput ?? update.content)));
+            addTracker(
+              `acp:${update.toolCallId}`,
+              trackerSummary(outputText(update.rawOutput ?? update.content)),
+            );
           if (name === 'career_script' && argument === 'scan')
-            setScan(scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)));
+            setScan(
+              `acp:${update.toolCallId}`,
+              scanNetworkFailures(scriptOutput(update.rawOutput ?? update.content)),
+            );
         }
       }
     },
@@ -423,8 +446,9 @@ export function createTurnTruth({ root, seed } = {}) {
           rows.added >= 0 &&
           rows.updated >= 0
         )
-          addTracker({ added: rows.added, updated: rows.updated });
-        if (name === 'career_script' && safeArgument === 'scan') setScan(scanRows?.networkFailures);
+          addTracker(`gateway:${key}`, { added: rows.added, updated: rows.updated });
+        if (name === 'career_script' && safeArgument === 'scan')
+          setScan(`gateway:${key}`, scanRows?.networkFailures);
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -445,15 +469,26 @@ export function createTurnTruth({ root, seed } = {}) {
     completedCalls() {
       return [...proofs.values()];
     },
+    // One call seen by both channels has two keys: as in toolOutcomes(), the gateway's counts
+    // stand when it gave any, the ACP ones otherwise.
     trackerRows() {
-      return tracker;
+      if (!trackers.size) return null;
+      const gateway = [...trackers].filter(([key]) => key.startsWith('gateway:'));
+      const rows = (gateway.length ? gateway : [...trackers]).map(([, row]) => row);
+      return {
+        added: rows.reduce((sum, row) => sum + row.added, 0),
+        updated: rows.reduce((sum, row) => sum + row.updated, 0),
+      };
     },
     // null: the fact gate passed last (or never ran); a number: claims it listed on its last refusal.
     factsUnsourced() {
       return factsUnsourcedCount;
     },
+    // The last scan whose output gave a count, else a scan without a readable count, else null.
     scanResult() {
-      return scan;
+      if (!scans.size) return null;
+      const counted = [...scans.values()].filter((value) => value !== null);
+      return { networkFailures: counted.length ? counted.at(-1) : null };
     },
     hasJdRead() {
       return jdRead;

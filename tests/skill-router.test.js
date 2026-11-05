@@ -491,6 +491,8 @@ test('Évaluation FICTIVE : ordre du Skill déclaré par le manifeste', () => {
       ['liveness', 'career_script', 'check-liveness'],
       ['reserve', 'career_script', 'reserve-report-num'],
       ['report', 'career_write', 'reports/'],
+      // bilan-03 (E38) : libération du numéro réservé, facultative, après le rapport.
+      ['release', 'career_script', 'reserve-report-num'],
       // production-01 : auto-pipeline Step 3, le PDF entre le rapport et le suivi (facultatif : oferta sans PDF).
       ['cv-build', 'career_script', 'build-cv-html'],
       ['cv-verify', 'career_script', 'verify-cv-facts'],
@@ -539,6 +541,7 @@ test('Évaluation FICTIVE : le parcours du Skill complète les étapes sans éca
       ['liveness', 'done'],
       ['reserve', 'done'],
       ['report', 'done'],
+      ['release', 'skipped'],
       ['cv-build', 'skipped'],
       ['cv-verify', 'skipped'],
       ['cv-pdf', 'skipped'],

@@ -263,9 +263,9 @@ Exemple fictif de contrat. Note 1–5, décimale admise (deux décimales au plus
 évaluation. A–H obligatoire pour un rapport évalué ; la qualité factuelle de l’analyse reste celle
 du modèle et des sources citées. G expose les inconnus/preuves et H la prochaine action.
 
-L’outil `career_offer_save` (index facultatif) écrit les offres normalisées dans `relay/offers/` et un
-rapport Markdown au format Relay dans `reports/<uuid>.md` ; le rapport du Skill s’écrit par `career_write`
-(voir plus haut). Les tableaux historiques amont restent lisibles par `career_read` et `career_script find` ;
+L’outil `career_offer_save` (index facultatif) écrit les offres normalisées dans `relay/offers/` et, pour
+une offre évaluée, un rapport Markdown au format Relay dans `relay/offers/<uuid>.md` — jamais dans
+`reports/` (voir la section suivante) ; le rapport du Skill s’écrit par `career_write` (voir plus haut). Les tableaux historiques amont restent lisibles par `career_read` et `career_script find` ;
 ils ne sont pas convertis arbitrairement en notes ou rapports A–H.
 
 Le schéma publié aux agents ne contient ni `id` ni `contractVersion` : la plateforme génère l’`id`
@@ -289,6 +289,45 @@ La base de runs garde un objectif et résultat génériques ; le prompt, la rép
 profils et conversations Gemini résident dans l’espace externe (`relay/runs/`, `relay/agent-home/`).
 Les chunks privés du modèle et les aperçus d’envoi ne sont pas persistés dans SQLite. Les IDs et
 métadonnées de contrôle y restent pour la reprise et l’audit. Rien n’est auto-envoyé après reprise.
+
+### Fiches Relay et rapports du Skill : deux dossiers
+
+| Dossier         | Contenu                                      | Écrit par                | Nom des fichiers                                                                            |
+| --------------- | -------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| `reports/`      | rapports du Skill career-ops                 | `career_write reports/…` | `{###}-{company-slug}-{YYYY-MM-DD}.md`, numéro donné par `career_script reserve-report-num` |
+| `relay/offers/` | fiches de l’index Relay (tableau des offres) | `career_offer_save`      | `<uuid>.json`, et `<uuid>.md` pour une offre évaluée                                        |
+
+Les deux ne se mélangent pas : `reserve-report-num` lit les chiffres de tête de chaque nom de fichier de
+`reports/`, et un fichier `reports/<uuid>.md` en fausse la numérotation (E31, E33). `career_offer_save`
+n’y écrit donc plus rien, et `career_write` n’accepte dans `reports/` que le format du Skill.
+`career_offers` et `GET /api/career/offers` ne lisent que `relay/offers/*.json`.
+
+Aucune mission simulée et aucun test n’écrit dans l’espace career-ops du propriétaire :
+
+- une mission avec un agent de démonstration (`simulated`) ou des données fictives (`dataMode: fixture`)
+  travaille dans un dossier temporaire, `<dossier des espaces>/<id de la mission>` (`.data/workspaces/<id>`
+  en usage local) ; seuls `cv.md` et les pièces jointes de la mission y sont copiés, l’espace du
+  propriétaire n’est que lu. Son résultat privé reste servi par `/api/career/runs/:id/result` ;
+- en contexte de test (`NODE_TEST_CONTEXT` ou `NODE_ENV=test`), `new CareerWorkspace()` sans racine
+  explicite échoue, `AGENT_PLATFORM_CAREER_WORKSPACE` est refusé et l’espace par défaut
+  (`~/Downloads/agregat-career-ops`) ne peut pas être passé en `root` : un test donne son propre dossier
+  temporaire.
+
+#### Restes d’avant : script à sec
+
+Les espaces écrits avant ce changement peuvent contenir des `reports/<uuid>.md` et des fiches
+`relay/offers/*.json` à identifiant synthétique (groupes répétés ou en suite, comme `12345678` ou
+`22222222`, inventés par un agent de démonstration). Le script suivant les liste ; ce sont les données du
+propriétaire, c’est lui qui décide.
+
+```sh
+node .manager/outils/offers-reports-legacy.mjs [--root <espace>]          # liste seulement
+node .manager/outils/offers-reports-legacy.mjs [--root <espace>] --apply  # déplace, ne supprime jamais
+```
+
+Sans `--apply`, rien n’est modifié et aucun contenu de fiche n’est affiché. Avec `--apply`, un
+`reports/<uuid>.md` ordinaire rejoint `relay/offers/<uuid>.md` ; ce qui est synthétique va sous
+`relay/legacy/` (que Relay ne relit pas). Une destination déjà occupée annule tout le déplacement.
 
 ## Validation frontend
 

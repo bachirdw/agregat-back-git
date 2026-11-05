@@ -92,6 +92,17 @@ export const skillManifestSchema = z
             priority: z.number().int().min(0).max(1000),
             phrases: z.array(z.string().trim().min(2).max(120)).min(1).max(30),
             keywords: z.array(z.string().trim().min(2).max(60)).max(30).default([]),
+            // The priority the intent takes when the prompt carries one of these phrases and none of
+            // `unlessPhrases`; the phrases select the intent too. The pack settles which intent leads
+            // when two overlap (E48): the engine only compares numbers.
+            boost: z
+              .object({
+                priority: z.number().int().min(0).max(1000),
+                phrases: z.array(z.string().trim().min(2).max(120)).min(1).max(30),
+                unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
+              })
+              .strict()
+              .optional(),
             steps: z.array(stepSchema).min(1).max(30),
           })
           .strict(),
@@ -163,19 +174,24 @@ export function selectSkillIntents(prompt, manifests) {
     );
   const words = new Set(objective.match(/[\p{L}\p{N}]+/gu) ?? []);
   const hasUrl = /https?:\/\/\S+/iu.test(prompt);
+  const said = (phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `);
+  const boosted = (intent) =>
+    Boolean(intent.boost?.phrases.some(said) && !intent.boost.unlessPhrases?.some(said));
   return manifests
     .flatMap((raw) => {
       const manifest = skillManifestSchema.parse(raw);
       return manifest.intents
         .filter(
           (intent) =>
-            intent.phrases.some((phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `)) ||
-            intent.keywords.some((word) => words.has(normalize(word))),
+            intent.phrases.some(said) ||
+            intent.keywords.some((word) => words.has(normalize(word))) ||
+            boosted(intent),
         )
         .map((intent) => ({
           pack: manifest.pack,
           intent: {
             ...intent,
+            priority: boosted(intent) ? intent.boost.priority : intent.priority,
             steps: (forbidSave ? intent.steps.filter((step) => !step.persists) : intent.steps).map(
               (step) =>
                 (step.unlessUrl && hasUrl) ||
@@ -329,6 +345,10 @@ export class SkillProgress {
         title: step.title,
         tool: step.tool,
         optional: step.optional,
+        // Waived by the prompt (`unlessPhrases`, `unlessUrl`): told to the pack's Bilan as well.
+        exempt: step.exempt === true,
+        // The outcome the step proves (pack label), so the pack's Bilan knows what was expected.
+        proves: step.proves ?? null,
         definition: step,
         state: 'pending',
         toolCallId: null,
@@ -463,10 +483,20 @@ export class SkillProgress {
   // What the owner asked for and the platform did not observe. `readPages` holds platform evidence.
   // `scoredOffers` comes from the platform's own turn record: it covers prompts that no intent
   // recognised, and an offer already counted through an intent is not counted twice.
-  incomplete(readPages = [], sourceRead = false, scoredOffers = []) {
+  // `unreached` (bilan-06, E51): outcomes the pack reports as not reached, by their own `proves`
+  // label ({ proves, cause }); one is missing when a selected step that is neither optional nor
+  // waived by the prompt was to prove it. The engine knows the label, never the rule behind it.
+  incomplete(readPages = [], sourceRead = false, scoredOffers = [], unreached = []) {
     const causes = this.steps
       .filter((step) => step.definition.required && step.state !== 'done')
       .map((step) => `${step.title} (${step.state === 'failed' ? 'échouée' : 'non exécutée'})`);
+    for (const { proves, cause } of unreached)
+      if (
+        this.steps.some(
+          (step) => step.definition.proves === proves && !step.optional && !step.exempt,
+        )
+      )
+        causes.push(cause);
     const read = new Set(readPages.map(pageKey));
     const scored = new Set(this.scored);
     for (const offer of scoredOffers) if (pageKey(offer.url)) scored.add(pageKey(offer.url));

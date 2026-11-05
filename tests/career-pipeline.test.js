@@ -7,6 +7,7 @@ import { CareerTools, SKILL_SCRIPT_NAMES, sourceSnapshot } from '../packages/car
 import {
   createTurnTruth,
   formatCareerBilan,
+  inboxUnprocessed,
   progressArgument,
 } from '../packages/career-ops/truth.js';
 
@@ -198,12 +199,13 @@ test('Bilan : boîte d’entrée demandée mais rien de coché → non exécuté
   truth.recordGatewayTool('career_read', 'completed', { argument: 'data/pipeline.md' });
   truth.recordGatewayTool('career_script', 'completed', { argument: 'check-liveness' });
   const bilan = formatCareerBilan(PROMPT, truth);
-  assert.match(bilan, /Non exécuté :[^\n]*boîte d’entrée traitée \(3 restantes\)/);
+  // bilan-06 (E51) : même phrase que lorsqu'une écriture n'a rien coché, avec le compte lu.
+  assert.match(bilan, /Non exécuté :[^\n]*boîte d’entrée non traitée \(0 sur 3\)/);
   assert.doesNotMatch(bilan, /- Boîte d’entrée :/);
   // L'étape « pipeline » de search (sans proves) n'est pas une preuve.
   assert.match(
     formatCareerBilan('Pipeline FICTIF', truth),
-    /Non exécuté :[^\n]*boîte d’entrée traitée/,
+    /Non exécuté :[^\n]*boîte d’entrée non traitée \(0 sur 3\)/,
   );
 });
 
@@ -281,5 +283,132 @@ test('Bilan : canal ACP, une entrée disparue est dite, une entrée ajoutée pen
   assert.match(
     bilan,
     /- Boîte d’entrée : 1 traitée, 1 non confirmée \[!\], 1 restante, 1 disparue\./,
+  );
+});
+
+// bilan-06 (E51) : une mission `pipeline` qui écrit dans data/pipeline.md sans cocher une seule
+// entrée (ajout d'une ligne, par exemple) ne traite pas la boîte : le Bilan le dit en toutes lettres,
+// jamais « aucune action demandée identifiable comme manquante ».
+test('E51 FICTIF : écriture qui ajoute une entrée, aucune cochée → « boîte d’entrée non traitée (0 sur 3) »', (t) => {
+  const { root, tools } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  truth.recordGatewayTool('career_read', 'completed', { argument: 'data/pipeline.md' });
+  tools.write(
+    'data/pipeline.md',
+    INBOX.replace(
+      '\n## Processed',
+      '- [ ] https://jobs.example.test/offre/9 | Ajout FICTIF | Poste FICTIF\n\n## Processed',
+    ),
+  );
+  truth.recordGatewayTool('career_write', 'completed', { argument: 'data/pipeline.md' });
+  const bilan = formatCareerBilan(PROMPT, truth);
+  assert.match(bilan, /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./);
+  assert.doesNotMatch(bilan, /aucune action demandée identifiable/);
+  assert.match(bilan, /- Boîte d’entrée : 0 traitée, 0 non confirmée \[!\], 4 restantes\./);
+  assert.deepEqual(inboxUnprocessed(truth, PROMPT), {
+    proves: 'boîte d’entrée traitée',
+    cause: 'boîte d’entrée non traitée (0 sur 3)',
+  });
+  // Le prompt qui limite explicitement le nombre d'entrées n'exige rien de la plateforme.
+  for (const prompt of [
+    `${PROMPT}, seulement les 2 premières entrées`,
+    `${PROMPT} : 1 entrée`,
+    `${PROMPT}, une seule offre`,
+    'Process the inbox FICTIF, first 3 entries only',
+  ])
+    assert.equal(inboxUnprocessed(truth, prompt), null, prompt);
+  // Sans écriture du tout, même phrase : la boîte lue n'est pas une boîte traitée.
+  const readOnly = createTurnTruth({ root });
+  readOnly.recordGatewayTool('career_read', 'completed', { argument: 'data/pipeline.md' });
+  assert.match(
+    formatCareerBilan(PROMPT, readOnly),
+    /- Non exécuté : boîte d’entrée non traitée \(0 sur 4\)\./,
+  );
+});
+
+test('E51 FICTIF : une entrée cochée ou marquée [!] touche la boîte ; sans dossier, rien n’est affirmé', (t) => {
+  const { root, tools } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  tools.write(
+    'data/pipeline.md',
+    INBOX.replace(`- [ ] ${URLS[2]}\n`, `- [!] ${URLS[2]} — Error: FICTIF\n`),
+  );
+  truth.recordGatewayTool('career_write', 'completed', { argument: 'data/pipeline.md' });
+  assert.equal(inboxUnprocessed(truth, PROMPT), null);
+  assert.doesNotMatch(formatCareerBilan(PROMPT, truth), /non traitée/);
+  assert.equal(inboxUnprocessed(createTurnTruth(), PROMPT), null);
+});
+
+test('E51 FICTIF : une étape non facultative « non exécutée » chasse « aucune action demandée »', (t) => {
+  const { root } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), SKELETON + '\n## Processed\n');
+  const truth = createTurnTruth({ root });
+  truth.recordGatewayTool('career_read', 'completed', { argument: 'jds/' });
+  const steps = [
+    { title: 'Lire réellement l’annonce', state: 'done', optional: false, exempt: false },
+    { title: 'Écrire le rapport du Skill', state: 'pending', optional: false, exempt: false },
+    { title: 'Vérifier la vivacité', state: 'pending', optional: false, exempt: true },
+    { title: 'Libérer le numéro', state: 'skipped', optional: true, exempt: false },
+    { title: 'Fusionner le suivi du Skill', state: 'pending', optional: false, exempt: false },
+  ];
+  // Prompt sans demande reconnue : seule la phrase de repli change.
+  const bilan = formatCareerBilan('Bonjour FICTIF', truth, undefined, steps);
+  assert.match(
+    bilan,
+    /- Non exécuté : étapes du Skill non exécutées : Écrire le rapport du Skill ; Fusionner le suivi du Skill\./,
+  );
+  assert.doesNotMatch(bilan, /aucune action demandée identifiable/);
+  // Toutes faites, dispensées ou facultatives : la phrase habituelle reste.
+  assert.match(
+    formatCareerBilan('Bonjour FICTIF', truth, undefined, steps.slice(0, 1)),
+    /- Non exécuté : aucune action demandée identifiable comme manquante\./,
+  );
+  assert.match(
+    formatCareerBilan('Bonjour FICTIF', truth, undefined, steps.slice(1, 2)),
+    /- Non exécuté : étape du Skill non exécutée : Écrire le rapport du Skill\./,
+  );
+});
+
+// bilan-06 (E48, reste) : le prompt réel du scan nomme la boîte d'entrée (« ajoute les nouvelles
+// offres à la boîte d'entrée ») sans demander son traitement : avec l'intent `search` retenu (aucune
+// étape ne prouve « boîte d'entrée traitée »), le Bilan ne réclame rien et dit le compte.
+test('E48 FICTIF : scan qui alimente la boîte, intent search → aucun « Non exécuté », compte dit', (t) => {
+  const { root } = workspace(t);
+  writeFileSync(join(root, 'data/pipeline.md'), INBOX);
+  const truth = createTurnTruth({ root });
+  truth.recordGatewayTool('career_script', 'completed', { argument: 'scan' });
+  const prompt =
+    "Lance le scan des portails du Skill (mode scan) et ajoute les nouvelles offres à la boîte d'entrée";
+  const searchSteps = [
+    {
+      title: 'Scanner les portails du Skill',
+      state: 'done',
+      optional: false,
+      exempt: false,
+      proves: null,
+    },
+  ];
+  const bilan = formatCareerBilan(prompt, truth, undefined, searchSteps);
+  assert.match(bilan, /- Non exécuté : aucune action demandée identifiable comme manquante\./);
+  assert.match(bilan, /- Boîte d’entrée : 3 restantes, traitement non demandé\./);
+  // Avec une étape qui prouve le traitement (pipeline), ou sans intent, la boîte reste due.
+  const pipelineSteps = [
+    {
+      title: 'Cocher l’entrée',
+      state: 'pending',
+      optional: false,
+      exempt: false,
+      proves: 'boîte d’entrée traitée',
+    },
+  ];
+  assert.match(
+    formatCareerBilan(prompt, truth, undefined, pipelineSteps),
+    /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./,
+  );
+  assert.match(
+    formatCareerBilan(prompt, truth),
+    /- Non exécuté : boîte d’entrée non traitée \(0 sur 3\)\./,
   );
 });

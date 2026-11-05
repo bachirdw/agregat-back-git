@@ -747,6 +747,8 @@ test('Boîte d’entrée FICTIVE : ordre de modes/pipeline.md déclaré par le m
   assert.deepEqual(
     selected.intent.steps.map((step) => [step.id, step.tool, step.argument ?? null]),
     [
+      // bilan-06 (E48) : scan facultatif en tête, crédité quand le prompt demande aussi le scan.
+      ['scan', 'career_script', 'scan'],
       ['inbox', 'career_read', 'data/pipeline.md'],
       ['sweep', 'career_script', 'check-liveness'],
       ['precheck', 'career_script', 'precheck-duplicate'],
@@ -763,6 +765,8 @@ test('Boîte d’entrée FICTIVE : ordre de modes/pipeline.md déclaré par le m
   // Rien n'est bloquant : aucune étape required ; le Bilan dit la vérité.
   assert.ok(selected.intent.steps.every((step) => !step.required));
   assert.equal(byId.inbox.optional, false);
+  assert.equal(byId.scan.optional, true, 'le scan n’est jamais exigé par la boîte d’entrée');
+  assert.equal(byId.scan.persists, true);
   assert.equal(byId.precheck.optional, true, 'absent de modes/pipeline.md : consultatif');
   assert.equal(byId.mark.optional, false);
   assert.equal(byId.mark.persists, true);
@@ -837,10 +841,173 @@ test('Boîte d’entrée FICTIVE : trois entrées traitées à la suite, étapes
   }
   calls.forEach(([tool, input], index) => progress.observe(skillCall(`p${index}`, tool, input)));
   const result = progress.finish();
+  // bilan-06 (E48) : le scan facultatif en tête, non demandé ici, est ignoré sans écart d'ordre.
   assert.deepEqual(
     result.steps.map((step) => step.state),
-    Array(10).fill('done'),
+    ['skipped', ...Array(10).fill('done')],
   );
   assert.equal(result.orderDeviation, false);
   assert.deepEqual(progress.incomplete([], true), []);
+});
+
+// bilan-06 (E51) : un résultat que le pack déclare non atteint (ici la boîte d'entrée, étiquette
+// `proves` du manifeste) rend la mission incomplète quand une étape sélectionnée, ni facultative ni
+// dispensée par le prompt, devait le prouver. Le moteur ne connaît que l'étiquette.
+test('bilan-06 FICTIF (E51) : résultat non atteint déclaré par le pack → mission incomplète', () => {
+  const unreached = [
+    { proves: 'boîte d’entrée traitée', cause: 'boîte d’entrée non traitée (0 sur 3)' },
+  ];
+  const pipeline = new SkillProgress(
+    selectSkillIntents('Traite la boîte d’entrée FICTIVE', [career]),
+  );
+  pipeline.start();
+  pipeline.observe(skillCall('r', 'career_read', { path: 'data/pipeline.md' }));
+  pipeline.observe(skillCall('w', 'career_write', { path: 'data/pipeline.md' }));
+  assert.deepEqual(pipeline.incomplete([], false, [], unreached), [
+    'boîte d’entrée non traitée (0 sur 3)',
+  ]);
+  // Étape dispensée (« à sec ») ou retirée (« n’enregistre rien ») : rien n'est exigé.
+  for (const prompt of [
+    'Traite la boîte d’entrée FICTIVE à sec',
+    'Traite la boîte d’entrée FICTIVE, n’enregistre rien',
+  ]) {
+    const progress = new SkillProgress(selectSkillIntents(prompt, [career]));
+    progress.start();
+    assert.deepEqual(progress.incomplete([], false, [], unreached), [], prompt);
+  }
+  // Un intent sans étape qui prouve ce résultat (search) n'est pas concerné.
+  const search = new SkillProgress(searchOf('Trouve des offres FICTIVES'));
+  search.start();
+  search.observe(completedCall('a', { tool: 'career_script', command: 'scan' }));
+  assert.deepEqual(search.incomplete([], false, [], unreached), []);
+  // Les étapes publiées disent si le prompt les a dispensées (pour le Bilan du pack).
+  const dry = new SkillProgress(
+    selectSkillIntents('Traite la boîte d’entrée FICTIVE à sec', [career]),
+  );
+  dry.start();
+  const steps = dry.finish().steps;
+  assert.equal(steps.find((step) => step.id === 'mark').exempt, true);
+  assert.equal(steps.find((step) => step.id === 'inbox').exempt, false);
+});
+
+// bilan-06 (E48) : « scan » / « scanner les portails » sans « traite(r) » : la recherche l'emporte sur
+// la boîte d'entrée ; avec « traite(r) », la boîte d'entrée garde la main et son étape facultative
+// `scan` crédite le scan qui a tourné. Premier prompt : le réel du registre (6c763dc1) ; le second
+// tient la place de la mission réelle 3ea48d51 (pipeline sur des portails), FICTIF.
+test('bilan-06 (E48) : le prompt réel du scan va à search ; une pipeline sur des portails reste pipeline et crédite le scan', () => {
+  const real =
+    "Lance le scan des portails du Skill (mode scan) et ajoute les nouvelles offres à la boîte d'entrée";
+  const [search] = selectSkillIntents(real, [career]);
+  assert.equal(search.intent.id, 'search');
+  assert.equal(search.intent.priority, 120, 'appui déclaré par le manifeste');
+  const scanOnly = new SkillProgress([search]);
+  scanOnly.start();
+  scanOnly.observe(completedCall('a', { tool: 'career_script', command: 'scan' }));
+  assert.deepEqual(scanOnly.incomplete(), []);
+  const bilan = formatSkillBilan(scanOnly.finish());
+  assert.match(bilan, /✓ Scanner les portails du Skill \(faite\)/);
+  assert.doesNotMatch(bilan, /Lire les entrées en attente/);
+  const fictif =
+    'Lance une pipeline complète FICTIVE sur les portails configurés : scanne les portails, puis traite les offres en attente de la boîte d’entrée';
+  const [pipeline] = selectSkillIntents(fictif, [career]);
+  assert.equal(pipeline.intent.id, 'pipeline');
+  assert.equal(pipeline.intent.priority, 110);
+  assert.deepEqual(
+    pipeline.intent.steps
+      .slice(0, 2)
+      .map((step) => [step.id, step.tool, step.argument, step.optional]),
+    [
+      ['scan', 'career_script', 'scan', true],
+      ['inbox', 'career_read', 'data/pipeline.md', false],
+    ],
+  );
+  const withScan = new SkillProgress([pipeline]);
+  withScan.start();
+  withScan.observe(skillCall('s', 'career_script', { command: 'scan' }));
+  withScan.observe(skillCall('r', 'career_read', { path: 'data/pipeline.md' }));
+  const result = withScan.finish();
+  assert.deepEqual(
+    result.steps.slice(0, 2).map((step) => [step.id, step.state]),
+    [
+      ['scan', 'done'],
+      ['inbox', 'done'],
+    ],
+  );
+  assert.equal(result.orderDeviation, false);
+  // Sans scan dans la mission : étape ignorée, aucun écart d'ordre.
+  const noScan = new SkillProgress(
+    selectSkillIntents('Traite la boîte d’entrée FICTIVE', [career]),
+  );
+  noScan.start();
+  noScan.observe(skillCall('r', 'career_read', { path: 'data/pipeline.md' }));
+  const skipped = noScan.finish();
+  assert.equal(skipped.steps[0].state, 'skipped');
+  assert.equal(skipped.orderDeviation, false);
+  assert.match(formatSkillBilan(skipped), /· Scanner les portails du Skill \(ignorée\)/);
+  for (const [prompt, expected] of [
+    ['Scanne les portails FICTIFS', 'search'],
+    ['Scanner les portails du Skill FICTIF', 'search'],
+    ['Mode scan FICTIF', 'search'],
+    ['Scan the portals FICTIF', 'search'],
+    ['Scan the portals FICTIF and process the inbox', 'pipeline'],
+    ['Scanne les portails puis traite la boîte d’entrée FICTIVE', 'pipeline'],
+    ['Traite la boîte d’entrée FICTIVE', 'pipeline'],
+    ['Évalue cette offre FICTIVE sans scan', 'evaluate'],
+    ['Trouve des offres FICTIVES sans scan', 'search'],
+  ])
+    assert.equal(selectSkillIntents(prompt, [career])[0]?.intent.id ?? null, expected, prompt);
+  assert.equal(
+    selectSkillIntents('Trouve des offres FICTIVES sans scan', [career])[0].intent.priority,
+    100,
+    'dispense du scan : aucun appui',
+  );
+  // « n’enregistre rien » retire l'étape scan (persists) de la boîte d'entrée, comme les écritures.
+  const [dry] = selectSkillIntents(
+    'Scanne puis traite la boîte d’entrée FICTIVE, n’enregistre rien',
+    [career],
+  );
+  assert.equal(dry.intent.id, 'pipeline');
+  assert.equal(
+    dry.intent.steps.some((step) => step.id === 'scan'),
+    false,
+  );
+});
+test('bilan-06 (E48) : l’appui (boost) est déclaré par le pack et validé par le routeur', () => {
+  const step = {
+    id: 's',
+    title: 'Étape FICTIVE',
+    tool: 'tool_a',
+    precondition: 'aucune',
+    done: 'faite',
+    optional: false,
+  };
+  const manifest = (boost) => ({
+    pack: 'fictif',
+    intents: [
+      {
+        id: 'a',
+        title: 'A',
+        priority: 1,
+        phrases: ['aa bb'],
+        steps: [step],
+        ...(boost ? { boost } : {}),
+      },
+      { id: 'b', title: 'B', priority: 3, phrases: ['cc dd'], steps: [step] },
+    ],
+  });
+  const ids = (prompt, raw) => selectSkillIntents(prompt, [raw]).map((x) => x.intent.id);
+  assert.deepEqual(ids('cc dd', manifest(null)), ['b']);
+  assert.deepEqual(ids('cc dd', manifest({ priority: 5, phrases: ['cc'] })), ['a']);
+  assert.deepEqual(
+    ids('cc dd stop', manifest({ priority: 5, phrases: ['cc'], unlessPhrases: ['stop'] })),
+    ['b'],
+  );
+  assert.deepEqual(ids('cc dd', manifest({ priority: 2, phrases: ['cc'] })), ['b']);
+  for (const bad of [
+    { priority: 5 },
+    { priority: 5, phrases: [] },
+    { priority: 5, phrases: ['cc'], extra: true },
+    { phrases: ['cc'] },
+  ])
+    assert.equal(skillManifestSchema.safeParse(manifest(bad)).success, false, JSON.stringify(bad));
 });

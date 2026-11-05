@@ -6,6 +6,8 @@ import { connectMcp } from '../../packages/mcp-gateway/client.js';
 let session;
 // preuves-entre-tours-01 : la note attendue au tour de réponse (même processus, même session).
 let pendingNote = null;
+// bilan-06 (E52) : une boîte d'entrée laissée en attente d'un choix du propriétaire.
+let pendingInbox = false;
 const app = agent({ name: 'career-FICTIF' })
   .onRequest(methods.agent.initialize, () => ({
     protocolVersion: PROTOCOL_VERSION,
@@ -173,6 +175,27 @@ const app = agent({ name: 'career-FICTIF' })
         await send(`Tour de réponse FICTIF : offre notée 3/5 (${request.answer?.reponse ?? ''}).`);
         return { stopReason: 'end_turn' };
       }
+      // bilan-06 (E52) : réponse du propriétaire à une question posée en prose. La mission pipeline
+      // coche alors une entrée (« #-- | url | skipped (…) », forme admise par modes/pipeline.md) ;
+      // toute autre mission dit seulement ce qu'elle a reçu.
+      if (request.platform?.turnKind === 'answer') {
+        const reponse = request.answer?.reponse ?? '';
+        if (pendingInbox) {
+          pendingInbox = false;
+          const current = (await call('career_read', { path: 'data/pipeline.md' })).text;
+          const first = current.match(/^- \[ \] (https?:\/\/\S+).*$/m);
+          await call('career_write', {
+            path: 'data/pipeline.md',
+            text:
+              current.replace(first[0] + '\n', '') +
+              `- [x] #-- | ${first[1]} | skipped (réponse FICTIVE)\n`,
+          });
+          await send(`Tour de réponse FICTIF : consigne reçue « ${reponse} », 1 entrée cochée.`);
+          return { stopReason: 'end_turn' };
+        }
+        await send(`Tour de réponse FICTIF : consigne reçue « ${reponse} ».`);
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective?.includes('FICTIF_ENTRE_TOURS_SUITE')) {
         await saveScored(
           request.objective.includes('URL_JAMAIS_LUE')
@@ -245,7 +268,8 @@ const app = agent({ name: 'career-FICTIF' })
       if (request.objective.includes('FICTIF_LENT'))
         await new Promise((resolve) => setTimeout(resolve, 12000));
       if (request.objective.includes('FICTIF_PROFIL')) {
-        await send('Questions FICTIVES : 1. Quelle ville visez-vous ? 2. Quel poste visez-vous ?');
+        // Texte libre sans demande au propriétaire (une question finale attendrait, E52).
+        await send('Questions FICTIVES : 1. ville visée, 2. poste visé ; profil à compléter.');
         return { stopReason: 'end_turn' };
       }
       if (request.objective.includes('FICTIF_PRIORITE')) {
@@ -518,6 +542,28 @@ const app = agent({ name: 'career-FICTIF' })
       // pipeline-01 : « traite la boîte d'entrée » selon modes/pipeline.md (balayage de vivacité,
       // puis chaque « - [ ] » évaluée comme une annonce collée, puis cochée ; une page inaccessible
       // devient « - [!] » sans évaluation). « n'enregistre rien » : lecture et contrôles seulement.
+      // bilan-06 (E51/E52) : boîte lue, vivacité balayée, une entrée AJOUTÉE (écriture sans cocher),
+      // rien d'évalué ; puis un dernier message sans demande (E51) ou qui demande au propriétaire de
+      // choisir, en prose, sans formulaire ni champ `question` (E52, texte réel du registre).
+      if (request.objective.includes('FICTIF_PIPELINE_AJOUT')) {
+        const inbox = await call('career_read', { path: 'data/pipeline.md' });
+        const pending = [...inbox.text.matchAll(/^- \[ \] (https?:\/\/\S+)/gm)].map((m) => m[1]);
+        await call('career_script', { command: 'check-liveness', args: pending });
+        await call('career_write', {
+          path: 'data/pipeline.md',
+          text: inbox.text.replace(
+            '\n## Processed',
+            '- [ ] https://jobs.example.test/offre/9 | Ajout FICTIF | Poste FICTIF\n\n## Processed',
+          ),
+        });
+        pendingInbox = request.objective.includes('DEMANDE');
+        await send(
+          request.objective.includes('DEMANDE')
+            ? `Boîte d'entrée FICTIVE lue : ${pending.length} entrées en attente, 1 ajoutée.\n\nDis-moi lesquelles t’intéressent en priorité : les 6 pistes repérées, les offres déjà dans le pipeline, ou une sélection que tu choisis toi-même.`
+            : `Boîte d'entrée FICTIVE lue : ${pending.length} entrées en attente, 1 ajoutée depuis le scan FICTIF.`,
+        );
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_PIPELINE')) {
         const dry = /n[’']enregistre rien/i.test(request.objective);
         const inbox = await call('career_read', { path: 'data/pipeline.md' });
@@ -638,7 +684,7 @@ const app = agent({ name: 'career-FICTIF' })
           content: {
             type: 'text',
             text: request.objective.includes('TEXTE_LIBRE')
-              ? 'Questions FICTIVES : quels postes visez-vous ?'
+              ? 'Questions FICTIVES : postes visés à préciser ; profil à compléter.'
               : request.objective.includes('MODELE_FICTIF')
                 ? `Modèle FICTIF : env=${process.env.GEMINI_MODEL} session=${session.model}`
                 : JSON.stringify({

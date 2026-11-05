@@ -165,6 +165,25 @@ intents:
     priority: 100
     phrases: [trouve des offres, recherche des offres, cherche des offres, offres d'emploi]
     keywords: [offres, jobs, job, emploi]
+    # bilan-06 (E48) : « scan » / « scanner les portails » sans « traite(r) » : la recherche passe devant
+    # la boîte d'entrée (110), même si le prompt la nomme (« ajoute les nouvelles offres à la boîte
+    # d'entrée »). Avec « traite(r) » ou « process », la boîte d'entrée garde la main et crédite le scan
+    # par sa propre étape facultative. Les dispenses du scan annulent l'appui.
+    boost:
+      priority: 120
+      phrases: [scan, scanne, scanner, scanner les portails, mode scan, lance le scan]
+      unlessPhrases:
+        [
+          traite,
+          traiter,
+          traites,
+          traitez,
+          process,
+          sans scan,
+          sans le scan,
+          pas de scan,
+          sans scanner,
+        ]
     steps:
       - id: scan
         title: Scanner les portails du Skill
@@ -228,6 +247,16 @@ intents:
     # merge-tracker), puis l'entrée passe de Pending à Processed. precheck-duplicate (brief) est
     # consultatif : le Skill ne le cite pas dans ce mode, sa déduplication se fait à merge-tracker.
     steps:
+      # bilan-06 (E48) : un prompt qui demande une pipeline sur des portails fait tourner le scan du
+      # Skill avant la boîte d'entrée ; facultatif, crédité s'il tourne, jamais exigé par cet intent.
+      - id: scan
+        title: Scanner les portails du Skill
+        tool: career_script
+        argument: scan
+        precondition: Portails configurés, quand le prompt demande aussi le scan
+        done: Script scan terminé avec code zéro, nouvelles offres ajoutées à data/pipeline.md
+        optional: true
+        persists: true
       - id: inbox
         title: Lire les entrées en attente de data/pipeline.md
         tool: career_read

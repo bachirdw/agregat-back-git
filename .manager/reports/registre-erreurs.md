@@ -144,3 +144,10 @@ Lignes retirées du tableau ci-dessus sur demande du propriétaire ; les numéro
 | 05/11 14:37:57 | bf7a2269 | claude | Outil en échec | mcp__platform__career_script | ``` Commande career-ops échouée, annulée ou expirée ; consulter la configuration locale ``` |
 | 05/11 14:38:48 | bf7a2269 | claude | Outil en échec | mcp__platform__career_offer_save | ``` MCP error -32602: Input validation error: Invalid arguments for tool career_offer_save: Note et rapport A–G doivent être fournis ensemble ``` |
 | 05/11 15:14:50 | 3a9ee734 | claude | Mission failed |  | Mission incomplète : Scanner les portails du Skill (non exécutée) |
+| 05/11 15:16:40 | 751f7675 | claude | Outil sans réponse | J'ai lu l'offre Indeed en direct (Playwright). Elle affiche le titre « AI Engineer » mais le corps de l'annonce décrit e… | aucun état final après 120 s |
+| 05/11 15:25:55 | 751f7675 | claude | Outil en échec | mcp__platform__career_script | ``` Commande career-ops échouée, annulée ou expirée ; consulter la configuration locale ``` |
+| 05/11 15:25:58 | 751f7675 | claude | Outil en échec | mcp__platform__career_read | ``` Fichier hors du périmètre career-ops ``` |
+| 05/11 15:27:04 | 751f7675 | claude | Événement agent_silent |  | {"elapsedMs":60000,"stopped":false} |
+| 05/11 15:29:47 | 751f7675 | claude | Outil terminé avec erreur | mcp__platform__career_offers | Error: result (150,093 characters across 1 line) exceeds maximum allowed tokens. Output has been saved to /Users/diaw/.claude/projects/-Users-diaw-Downloads-agregat-career-ops/982e0946-16ca-4122-a6a8-1dd99ad374cb/tool-re… |
+| 05/11 15:29:51 | 751f7675 | claude | Outil en échec | Asking for your input | ``` <tool_use_error>InputValidationError: [ { "origin": "array", "code": "too_small", "minimum": 1, "inclusive": true, "path": [ "questions" ], "message": "Too small: expected array to have >=1 items" } ]</tool_use_error… |
+| 05/11 15:29:54 | 751f7675 | claude | Outil sans réponse | L'évaluation est terminée : score 1,5/5, décision Skip (titre Indeed trompeur + salaire 80-85k AUD sous ton plancher de … | aucun état final après 120 s |

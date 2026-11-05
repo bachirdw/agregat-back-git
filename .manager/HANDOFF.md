@@ -5,8 +5,8 @@ Réorganisé le 05/11/2026 à 20:20 à la demande du propriétaire (anciennes pa
 fusionnées ; tout reste lisible dans l'historique Git avec `git show <commit>:<chemin>`).
 
 ## État courant (à lire en premier)
-- **Passation du jour** : [`reports/passation-05-11.md`](reports/passation-05-11.md), section 13
-  (20:04) pour l'état du soir ; section 2 pour les règles permanentes du propriétaire ; section 5
+- **Passation du jour** : [`reports/passation-05-11.md`](reports/passation-05-11.md), sections 13
+  (20:04) et 14 (22:10, fusions bilan-06 et stall-01, API relancée) pour l'état du soir ; section 2 pour les règles permanentes du propriétaire ; section 5
   pour le protocole « éprouver le système » (compartiment `apply`, cycles courts, cinq étapes).
 - **Prompt de reprise** à coller dans une nouvelle session :
   [`briefs/reprise-05-11-soir.md`](briefs/reprise-05-11-soir.md).

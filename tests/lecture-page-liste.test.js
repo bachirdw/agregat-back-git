@@ -156,3 +156,25 @@ test('E56 FICTIF : la passerelle rapporte la page d’une capture et d’une ext
     null,
   );
 });
+
+// Relecture de nuit : des pages d'annonce réelles étaient prises pour des listes (identifiant hors du
+// chemin ou trop court). Un mot de liste ne fait une liste que s'il termine le chemin, s'il est suivi
+// d'un autre mot de liste ou s'il est fondu dans un segment de référencement (« ai-engineer-jobs ») ;
+// un identifiant dans la requête désigne une annonce. Adresses FICTIVES aux formes réelles.
+test('E56 FICTIF : annonces sous /jobs/<slug>, Workday et identifiant en requête', () => {
+  for (const url of [
+    'https://jungle.example.test/fr/companies/acme/jobs/data-engineer_paris',
+    'https://acme.wd5.example.test/en-US/Careers/job/Paris/Engineer_R12345',
+    'https://acme.example.test/careers?gh_jid=4012345',
+    'https://reseau.example.test/jobs/collections/recommended/?currentJobId=4123456',
+  ])
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'done', url);
+  for (const url of [
+    'https://jungle.example.test/fr/jobs?query=ai',
+    'https://emplois.example.test/offres-emploi/',
+    'https://emplois.example.test/q-ai-engineer-jobs.html',
+    'https://acme.example.test/careers',
+    'https://emplois.example.test/recherche/emplois',
+  ])
+    assert.equal(readOffer(PIPELINE, [acpSnapshot('s1', url)]).state, 'pending', url);
+});

@@ -329,9 +329,15 @@ const callUrl = (update) => {
 };
 // The page of that call, host and path only, as pageKey.
 const callPage = (update) => pageKey(callUrl(update));
-// E56 : a page that lists items rather than showing one — one of the pack's words among the words
-// of its path, and no identifier in that path (4 digits or more, or a token of 8 characters or
-// more mixing letters and digits, as an ID or a part of a UUID).
+// E56 : a page that lists items rather than showing one. An identifier marks an item : in the path
+// (4 digits or more, or a token of 8 characters or more mixing letters and digits, as an ID or a
+// part of a UUID) or in the query (`gh_jid`, `jk`, `currentJobId`, `id`… of 3 characters or more).
+// Otherwise a word of the pack's list makes a list when it ends the path (« /jobs »), when another
+// list word follows it (« /jobs/search ») or when it is part of a compound segment
+// (« /ai-engineer-jobs/in-sydney », « /q-ai-engineer-jobs.html ») ; a word followed by a slug
+// (« /jobs/data-engineer_paris ») names one item.
+const QUERY_ID =
+  /^(?:gh_jid|jid|jobid|job_id|jk|vjk|currentjobid|postingid|posting_id|reqid|req_id|id)$/;
 function listPage(value, words) {
   let url;
   try {
@@ -339,13 +345,23 @@ function listPage(value, words) {
   } catch {
     return false;
   }
-  const tokens = url.pathname
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
+  const tokensOf = (text) =>
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean);
   const identifier = (token) =>
     /^\d{4,}$/.test(token) || (token.length >= 8 && /\d/.test(token) && /[a-z]/.test(token));
-  return !tokens.some(identifier) && tokens.some((token) => words.includes(token));
+  if (tokensOf(url.pathname).some(identifier)) return false;
+  for (const [key, value] of url.searchParams)
+    if (QUERY_ID.test(key.toLowerCase()) && /^[a-z0-9_-]{3,}$/i.test(value)) return false;
+  const segments = url.pathname.toLowerCase().split('/').filter(Boolean);
+  const listWord = (segment) => words.includes(segment);
+  return segments.some(
+    (segment, index) =>
+      (listWord(segment) && (index === segments.length - 1 || listWord(segments[index + 1]))) ||
+      (!listWord(segment) && tokensOf(segment).length > 1 && tokensOf(segment).some(listWord)),
+  );
 }
 
 function toolName(update, expected) {

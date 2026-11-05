@@ -11,7 +11,13 @@ export class CallRegistry {
   #context = new AsyncLocalStorage();
   #browserCalls = [];
   current() {
-    return this.#context.getStore() ?? this.#browserCalls.at(-1) ?? null;
+    return (
+      this.#context.getStore() ??
+      // Quatrième relecture : a browser call the agent gave up, still stuck in its handler, is no
+      // longer the call in progress for the browser's callbacks.
+      this.#browserCalls.findLast((call) => !call.signal?.aborted) ??
+      null
+    );
   }
   // Runs `work` as the call `call` of the tool `name`.
   async run(name, call, work) {

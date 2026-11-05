@@ -60,3 +60,27 @@ test('Appels FICTIFS : deux appels navigateur, le plus récent d’abord, puis l
   );
   assert.equal(calls.current(), null);
 });
+
+// Quatrième relecture de nuit : un clic abandonné par l'agent mais resté bloqué (onglet gelé)
+// restait « en cours » ; un accord réseau tardif s'y rattachait et était refusé d'office avec son
+// signal déjà annulé. Un appel annulé n'est plus l'appel en cours des rappels du navigateur.
+test('Appels FICTIFS : un appel navigateur annulé et bloqué n’est plus l’appel en cours', async () => {
+  const calls = new CallRegistry();
+  const abandoned = new AbortController();
+  const stuck = { toolCallId: 'clic-bloqué-FICTIF', signal: abandoned.signal };
+  const stuckWait = pending();
+  const stuckDone = calls.run('browser_click', stuck, () => stuckWait.promise);
+  abandoned.abort();
+  assert.equal(calls.current(), null);
+  const next = { toolCallId: 'clic-suivant-FICTIF', signal: new AbortController().signal };
+  const nextWait = pending();
+  const nextDone = calls.run('browser_click', next, () => nextWait.promise);
+  assert.equal(calls.current(), next);
+  nextWait.release();
+  await nextDone;
+  assert.equal(calls.current(), null);
+  // Dans son propre contexte, l'appel annulé se voit toujours : ses accords échouent d'eux-mêmes.
+  await calls.run('browser_click', stuck, async () => assert.equal(calls.current(), stuck));
+  stuckWait.release();
+  await stuckDone;
+});

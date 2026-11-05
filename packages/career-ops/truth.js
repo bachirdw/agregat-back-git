@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
 import { loadSkillManifest } from '../orchestrator/skill-router.js';
+import { capabilities } from '../capability-registry/index.js';
 
 // The outcomes the career Bilan checks. Which tool calls prove them is declared by the pack's
 // manifest (step field `proves`), never by a tool name written here.
@@ -9,6 +10,20 @@ const EVALUATION_SAVED = 'évaluation enregistrée';
 const TRACKER_WRITTEN = 'suivi écrit';
 let careerManifest;
 const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
+
+// E25 : one tool, one name. The ACP channel lowercases what the agent wrote, the gateway reports
+// the declared name (`browser_fillForm`); both map to the registry's spelling, other names to
+// lowercase. The title must still be the exact name (E22): only its casing is normalised here.
+const DECLARED_TOOL_NAMES = new Map(
+  capabilities.map((capability) => {
+    const declared = capability.id.replace('.', '_');
+    return [declared.toLowerCase(), declared];
+  }),
+);
+export const canonicalToolName = (name) => {
+  const lower = String(name ?? '').toLowerCase();
+  return DECLARED_TOOL_NAMES.get(lower) ?? lower;
+};
 
 // What the progress tracker and the Bilan may learn of a call: a command name or a path prefix,
 // never a file name (report and TSV names carry the company).
@@ -148,7 +163,9 @@ export function createTurnTruth() {
         .match(
           /^(?:mcp__[a-z0-9_]+?__)?(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/i,
         );
-      const name = match?.[1]?.replace('.', '_').toLowerCase() ?? names.get(update.toolCallId);
+      const name = match
+        ? canonicalToolName(match[1].replace('.', '_'))
+        : names.get(update.toolCallId);
       if (!name) return;
       names.set(update.toolCallId, name);
       const path = update.rawInput?.path ?? update.rawInput?.arguments?.path;
@@ -204,17 +221,18 @@ export function createTurnTruth() {
       }
     },
     recordGatewayTool(
-      name,
+      reportedName,
       status,
       { jdRead: sourceRead = false, sent, toolCallId, scoredUrl, argument, tracker: rows } = {},
     ) {
       if (
         !/^(?:browser_[a-z]\w*|career_[a-z]\w*|email_send|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/.test(
-          name,
+          reportedName,
         ) ||
         !['completed', 'failed'].includes(status)
       )
         throw new Error('Résultat d’outil invalide');
+      const name = canonicalToolName(reportedName);
       const key = toolCallId ?? `anonymous-${++anonymousCall}`;
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),

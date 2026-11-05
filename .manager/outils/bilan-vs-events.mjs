@@ -57,9 +57,10 @@ export function analyseRun(run, events) {
   const summary = String(run.result?.summary ?? '');
   const bilanLine = (label) =>
     summary.match(new RegExp(`^- ${label} : (.*)$`, 'mu'))?.[1]?.replace(/\.$/, '') ?? null;
+  // E25 : the Bilan writes the declared name (`browser_fillForm`); event names are lowercased above.
   const successes = (bilanLine('Actions réussies') ?? '')
     .split(/,\s*/)
-    .map((s) => s.replace(/\s*\(.*\)$/, '').trim())
+    .map((s) => s.replace(/\s*\(.*\)$/, '').trim().toLowerCase())
     .filter((s) => s && s !== 'aucune observée');
   const missing = bilanLine('Non exécuté');
   const incomplete = /Mission incomplète/u.test(summary);

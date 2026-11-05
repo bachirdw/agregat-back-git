@@ -200,3 +200,38 @@ test('E58 FICTIF : une fusion simulée (--dry-run) ne prouve pas la fusion du su
   assert.throws(() => element.parse({ ...base, proof: { gain: 'a', unless: 'b' } }));
   assert.ok(element.parse({ ...base, proof: { output: 'a', unless: 'b' } }));
 });
+
+// Seconde relecture de nuit : l'exclusion ne dépend plus seulement du libellé du script ; un appel
+// qui porte --dry-run ne prouve jamais la fusion, quelle que soit sa sortie (proof.unlessArgs).
+test('E58 FICTIF : un appel --dry-run ne prouve pas la fusion, quel que soit son libellé', (t) => {
+  for (const intent of ['evaluate', 'pipeline'])
+    assert.deepEqual(stepOf(intent, 'track').proof.unlessArgs, ['--dry-run'], intent);
+  const dry = {
+    ...acpScript('m1', `${MERGED}(simulation FICTIVE au libellé changé)\n`),
+    rawInput: { arguments: { command: 'merge-tracker', args: ['--dry-run'] } },
+  };
+  assert.equal(progressOf(PIPELINE, [dry]).step('track').state, 'pending');
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'preuve-args-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const merge = proofWatch(career, root, 'career_script', {
+    command: 'merge-tracker',
+    args: ['--dry-run'],
+  });
+  assert.deepEqual(merge.proved({ content: mcp({ text: MERGED, exitCode: 0 }) }, 'completed'), []);
+  // La forme --dry-run=1 aussi ; un autre argument ne change rien ; le schéma n'admet que des options.
+  const real = proofWatch(career, root, 'career_script', { command: 'merge-tracker', args: [] });
+  assert.deepEqual(real.proved({ content: mcp({ text: MERGED, exitCode: 0 }) }, 'completed'), [
+    'evaluate/track',
+    'pipeline/track',
+  ]);
+  const equals = proofWatch(career, root, 'career_script', {
+    command: 'merge-tracker',
+    args: ['--dry-run=1'],
+  });
+  assert.deepEqual(equals.proved({ content: mcp({ text: MERGED, exitCode: 0 }) }, 'completed'), []);
+  const element = skillManifestSchema.shape.intents.element.shape.steps.element;
+  const base = { id: 'x', title: 'X', tool: 'career_script', precondition: 'p', done: 'd' };
+  assert.throws(() =>
+    element.parse({ ...base, optional: false, proof: { output: 'a', unlessArgs: ['rm -rf'] } }),
+  );
+});

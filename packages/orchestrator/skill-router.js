@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { exitFailedOf } from './exit-code.js';
+import { simulatedBy } from './proof-args.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
@@ -100,6 +101,13 @@ const stepSchema = z
       .object({
         output: pattern.optional(),
         unless: pattern.optional(),
+        // Seconde relecture de nuit : arguments that make the call a simulation (« --dry-run ») ;
+        // such a call proves nothing, whatever its output or its file.
+        unlessArgs: z
+          .array(z.string().regex(/^--?[a-z0-9][a-z0-9-]{0,40}$/))
+          .min(1)
+          .max(10)
+          .optional(),
         gain: pattern.optional(),
       })
       .strict()
@@ -406,6 +414,7 @@ function outputText(update) {
 function proven(step, update) {
   const proof = step.definition.proof;
   if (!proof) return true;
+  if (simulatedBy(proof, toolInput(update).args)) return false;
   if (Array.isArray(update.proofs)) return update.proofs.includes(`${step.intent}/${step.id}`);
   if (!proof.output) return false;
   const text = outputText(update);

@@ -1,10 +1,12 @@
 import { relative, resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
+import { simulatedBy } from '../orchestrator/proof-args.js';
 
 // E55, E58 : what a call really did, measured by the gateway for the steps of the pack's manifest
-// that declare a proof — `proof.output` : the call's text output matches the pattern ;
-// `proof.gain` : the lines of the written file (the call's `path`) that match the pattern are more
-// numerous after the call than before. Generic : the patterns, the tools and the paths all come
+// that declare a proof — `proof.output` : the call's text output matches the pattern (and not
+// `proof.unless`) ; `proof.gain` : the lines of the written file (the call's `path`) that match the
+// pattern are more numerous after the call than before. A call that carries one of
+// `proof.unlessArgs` (a simulation, « --dry-run ») proves nothing. Generic : the patterns, the tools and the paths all come
 // from the manifest ; this module only counts. A file is read inside the workspace only, never
 // written, and the platform keeps the keys of the proved steps (`intent/step`), never the text.
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -80,12 +82,16 @@ export function proofWatch(manifest, root, name, args) {
       if (status !== 'completed') return [];
       const text = outputText(result);
       return watched
-        .filter(({ key, step }) =>
-          step.proof.output
-            ? new RegExp(step.proof.output, 'mu').test(text) &&
+        .filter(({ key, step }) => {
+          // A simulation (`unlessArgs`) proves nothing, whatever it printed or left in the file.
+          if (simulatedBy(step.proof, args?.args)) return false;
+          if (step.proof.output)
+            return (
+              new RegExp(step.proof.output, 'mu').test(text) &&
               !(step.proof.unless && new RegExp(step.proof.unless, 'mu').test(text))
-            : (linesMatching(root, args?.path, step.proof.gain) ?? -1) > before.get(key),
-        )
+            );
+          return (linesMatching(root, args?.path, step.proof.gain) ?? -1) > before.get(key);
+        })
         .map(({ key }) => key);
     },
   };

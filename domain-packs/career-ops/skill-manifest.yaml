@@ -169,8 +169,10 @@ intents:
         # ou mise à jour), jamais par un « Nothing to merge into » au code zéro.
         proof:
           output: 'Summary:\s*\+(?:[1-9]\d* added|\d+ added,\s*\S*?\s*[1-9]\d* updated)'
-          # Relecture de nuit : --dry-run imprime le même récapitulatif sans rien écrire.
+          # Relecture de nuit : --dry-run imprime le même récapitulatif sans rien écrire ; l'appel
+          # qui porte l'argument ne prouve rien, quel que soit le libellé de sa sortie.
           unless: 'dry-run — no changes written'
+          unlessArgs: ['--dry-run']
         precondition: TSV d'ajout écrit ; jamais d'écriture directe de data/applications.md
         done: merge-tracker terminé avec code zéro ; un état change ensuite par set-status
         optional: false
@@ -381,8 +383,10 @@ intents:
         # E58 : voir l'intent evaluate.
         proof:
           output: 'Summary:\s*\+(?:[1-9]\d* added|\d+ added,\s*\S*?\s*[1-9]\d* updated)'
-          # Relecture de nuit : --dry-run imprime le même récapitulatif sans rien écrire.
+          # Relecture de nuit : --dry-run imprime le même récapitulatif sans rien écrire ; l'appel
+          # qui porte l'argument ne prouve rien, quel que soit le libellé de sa sortie.
           unless: 'dry-run — no changes written'
+          unlessArgs: ['--dry-run']
         precondition: TSV d'ajout écrit ; jamais d'écriture directe de data/applications.md
         done: merge-tracker terminé avec code zéro ; un état change ensuite par set-status
         optional: false

@@ -289,6 +289,10 @@ intents:
         evalue ma pipeline,
         évalue la pipeline,
         evalue la pipeline,
+        traite les offres de ma pipeline,
+        traite les offres de la pipeline,
+        évalue les offres de ma pipeline,
+        évalue les offres de la pipeline,
       ]
     # E68 : « pipeline » seul nomme aussi la source d'une offre (« postule à cette offre de ma
     # pipeline ») : mot-clé seulement ; les phrases ci-dessus nomment la boîte d'entrée à traiter.

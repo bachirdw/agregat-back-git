@@ -218,10 +218,13 @@ function normalize(value) {
 }
 export function selectSkillIntents(prompt, manifests) {
   if (typeof prompt !== 'string') throw new TypeError('Prompt invalide');
+  // Revue Opus du 06/11 : a pronoun joined to its verb (« Cherche-moi des jobs », « envoie-le »)
+  // hid the pack's phrases (« cherche des jobs ») ; it is dropped before they are compared.
   const objective = normalize(
     prompt
       .replace(/https?:\/\/\S+/giu, ' ')
-      .replace(/(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu, ' '),
+      .replace(/(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu, ' ')
+      .replace(/(?<=\p{L})-(?:moi|toi|nous|vous|lui|leur|les|le|la|en|y)(?![\p{L}\p{N}])/giu, ''),
   );
   const forbidSave =
     /(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(

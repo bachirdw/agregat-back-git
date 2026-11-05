@@ -70,3 +70,28 @@ test('E68 FICTIF : LinkedIn comme lieu de recherche, pipeline comme objet', () =
   assert.equal(intentOf('Cherche des jobs et prépare un CV adapté'), 'search');
   assert.equal(intentOf('Prépare un CV adapté pour les cinq offres'), 'documents');
 });
+
+// Revue Opus du 06/11 (constat 9) : `documents` (« CV adapté », « lettre de motivation », « génère le
+// PDF ») passait devant la boîte d'entrée ou la recherche dès que leur objet n'était trouvé que par
+// un mot-clé, faute de phrase : pronom accolé (« Cherche-moi »), « les offres de ma pipeline ». Le
+// Bilan perdait alors « Mission incomplète » quand la boîte d'entrée n'était pas traitée (dev la
+// gardait). Les pronoms accolés au verbe sont retirés avant la comparaison ; le manifeste nomme
+// « traite / évalue les offres de ma pipeline ».
+test('E68 FICTIF : une demande de documents ne cache plus la boîte d’entrée ni la recherche', () => {
+  assert.equal(
+    intentOf('Traite les offres de ma pipeline et prépare un CV adapté pour chacune'),
+    'pipeline',
+  );
+  assert.equal(intentOf('Évalue les offres de ma pipeline et génère le PDF du CV'), 'pipeline');
+  assert.equal(intentOf('Cherche-moi des jobs data à Paris et prépare un CV adapté'), 'search');
+  assert.equal(
+    intentOf('Trouve-moi des offres de data engineer à Lyon et rédige une lettre de motivation'),
+    'search',
+  );
+  // La candidature reste une candidature, et un CV seul reste des documents.
+  assert.equal(
+    intentOf('Postule à cette offre de ma pipeline : https://emplois.example.test/job/1'),
+    'apply',
+  );
+  assert.equal(intentOf('Prépare-moi un CV adapté pour cette offre'), 'documents');
+});

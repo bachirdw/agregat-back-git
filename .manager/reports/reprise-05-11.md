@@ -178,3 +178,7 @@ Suite de `reprise-04-11.md`. Passation lue : `passation-04-11-soir.md` (20:20). 
 ## 13:28 — Suite verte sur 9697430 ; main avancé
 - `npm test` : 685 parallèles (683 ✔, 2 ignorés), 148 Chrome (148 ✔), 0 échec, code de sortie 0 (`suite-13h23.log`) ; `npm run check` et `format:check` à zéro. Première exécution (13:16) non concluante : code de sortie non capturé (syntaxe bash dans zsh), relancée.
 - `main` avancé à ce commit et poussé avec `suite-astra`. Relance de l'API 4310 sur ce code (onglet c2), annoncée au propriétaire ; puis rejeu « coller une URL » sur l'offre SEEK qui redirige.
+
+## 13:30 — API relancée sur 92048a8 ; rejeu suspendu : `career_offer_save` a réécrit un rapport `<uuid>.md` dans `reports/`
+- API 4310 arrêtée puis relancée 13:29 (onglet c2, annoncé) sur le code fusionné, garde de silence 900 000 ms ; répond (179 missions en base). Page fictive 4321, relais 19988, front 5173 inchangés.
+- Avant le rejeu « coller une URL » (offre FinXL, `www.seek.com.au/job/<n>`, non encore évaluée : aucun rapport ne la cite) : `reports/` de l'espace du propriétaire contient `717b8379-….md` daté 12:17, écrit par `career_offer_save` pendant 05b34578 (E31-3 reproduit en réel). `reserve-report-num` du Skill lirait « 717 » → prochaine réservation 718. Le fichier est une donnée de l'espace du propriétaire : je ne le déplace pas, je lui demande (une commande) et je propose d'ouvrir `offer-save-01` (brief prêt) avant la prochaine mission réelle. Rejeu suspendu jusque-là.

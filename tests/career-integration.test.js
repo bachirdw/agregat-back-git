@@ -1008,6 +1008,35 @@ test('Routeur FICTIF : le faux agent reçoit les étapes ordonnées dans le prom
   assert.match(app.store.get(run.id).error, /Mission incomplète.*Scanner les portails/);
   assert.match(app.store.get(run.id).result.summary, /Scanner les portails du Skill.*non exécutée/);
 });
+// E44 (05/11, mission de lecture d'une page de résultats FICTIVE) : le prompt porte le mot-clé
+// « offres » et une URL ; l'agent lit la page et rend son résumé sans scan. La mission est complète.
+test('E44 FICTIF : lire une page de résultats avec URL ne rend pas la mission incomplète', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  const run = await app.engine.create({
+    prompt:
+      'FICTIF_ROUTEUR Ouvre cette page de résultats Indeed et lis-la en entier, puis résume-moi les offres : https://fr.indeed.com/jobs?q=FICTIF&l=FICTIVE',
+    agent: 'fixture',
+    pack: 'career-ops',
+  });
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  assert.equal(app.store.get(run.id).state, 'completed', app.store.get(run.id).error);
+  assert.doesNotMatch(app.store.get(run.id).result.summary, /Mission incomplète/);
+  const scan = app.store.get(run.id).skillProgress.steps.find((step) => step.id === 'scan');
+  assert.equal(scan.state, 'pending');
+});
 test('Véracité FICTIVE : action échouée et note sans source restent visibles dans le résultat privé', async (t) => {
   const { career, app } = fixture(t);
   reviewCareer(career, app.skills);

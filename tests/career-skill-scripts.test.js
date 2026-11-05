@@ -112,10 +112,14 @@ test('career_script : commande hors liste, drapeau inconnu ou argument libre ref
       /Arguments|argument/i,
       `${command} ${args}`,
     );
-  await assert.rejects(tools.script({ command: 'merge-tracker', query: 'FICTIF' }), /non attendu/);
+  // bilan-04 (E45) : une clé que le script ne prend pas est nommée, avec la forme attendue.
+  await assert.rejects(
+    tools.script({ command: 'merge-tracker', query: 'FICTIF' }),
+    /args: \[\].*clé inconnue pour ce script : query/,
+  );
   await assert.rejects(
     tools.script({ command: 'merge-tracker', path: 'data/applications.md' }),
-    /non attendu/,
+    /clé inconnue pour ce script : path/,
   );
 });
 

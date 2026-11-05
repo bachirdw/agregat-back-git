@@ -80,6 +80,16 @@ lecture seule) avant un CV ou une candidature, et la déduplication de `merge-tr
 `url-key.mjs`, numéro de rapport, puis entreprise et poste) au moment de la fusion. `career_offer_save`
 ne déduplique pas ; il crée toujours une nouvelle fiche.
 
+### Chemins lisibles par `career_read`
+
+Les chemins écrivables ci-dessous, les fichiers du clone revu `AGENTS.md`, `DATA_CONTRACT.md`,
+`modes/*.(md|txt|yml)`, `templates/**` et `references/**` (fichiers texte : md, txt, yml, yaml, json,
+html, tex, css), et, en lecture seule, `batch/*.md` (schéma « Machine Summary » de `batch/batch-prompt.md`,
+cité par `modes/oferta.md`), `config/*.(json|yml|yaml)` (`config/cv-facts.json` : faits du CV, donnée du
+propriétaire) et `docs/*.md` (bilan-04, E46). Mêmes pages de 24 000 caractères (48 000 au plus), même
+marquage `untrusted`. Restent hors lecture : `.env` et tout fichier ou dossier à point, `node_modules/`,
+`scripts/`, les sous-dossiers de `batch/`, `config/` et `docs/`, tout chemin avec `..` ou absolu.
+
 ### Chemins écrivables par `career_write`
 
 `cv.md`, `portals.yml`, `config/profile.yml`, `modes/_profile.md|_custom.md|_brief.md`,
@@ -101,6 +111,15 @@ Même reçu de revue (`relay/source-review.json`) et même refus de `.env` que `
 demandé (seul l’envoi final attend un clic). `args` : un argument par entrée, sans shell ; une valeur ne
 commence jamais par `-` et ne contient aucun caractère de contrôle ; un drapeau inconnu, répété ou
 écrit `--x=y` est refusé. Un code de sortie non nul est rendu avec la sortie, pas masqué.
+Quand `scan` ou `find` a tourné et s’est terminé avec un code non nul, l’erreur rendue à l’agent dit le
+code et les 300 premiers caractères de la sortie d’erreur (une ligne, espace de travail noté `<espace>`,
+tout autre chemin absolu `<chemin>`) ; délai dépassé et annulation gardent le message générique (bilan-04,
+E47 : `find` répondait « Commande career-ops échouée, annulée ou expirée » sans cause).
+Appel complet : `{ command: "verify-cv-structure", args: ["output/<fichier>.json"] }` ; `path` et `query`
+ne servent jamais à un script du Skill (`path` : contrôles `jd-skill-gap`, `cv-title-check`,
+`verify-cv-facts` ; `query` : `find`). Un refus de grammaire rappelle la forme attendue du script et nomme
+la clé en trop (bilan-04, E45 : `{ command: "verify-cv-structure", path: … }` était refusé sans dire
+que la forme est `args: [...]`, et le PDF partait sans contrôle).
 
 | Commande             | Arguments admis                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -143,8 +162,8 @@ rendu en PDF local), mais le manifeste ne l’indique plus comme voie de product
    `career_script generate-cover-letter` `args: ["--payload", …]` → `output/{company-slug}-{role-slug}-cover.pdf` ;
    `proves: lettre produite`.
 
-Dans l’intention `evaluate` (« coller une URL »), les étapes `cv-build` → `cv-verify` → `cv-pdf` suivent
-le rapport et précèdent le TSV, comme `modes/auto-pipeline.md` (Step 3) ; elles sont facultatives (le mode
+Dans l’intention `evaluate` (« coller une URL »), les étapes `cv-structure` → `cv-build` → `cv-verify` →
+`cv-pdf` suivent le rapport et précèdent le TSV, comme `modes/auto-pipeline.md` (Step 3) ; elles sont facultatives (le mode
 `oferta` n’a pas de PDF automatique) et le TSV porte `pdf ✅` si le PDF a été produit. Aucune étape n’est
 obligatoire : le Bilan dit ce qui a été produit.
 

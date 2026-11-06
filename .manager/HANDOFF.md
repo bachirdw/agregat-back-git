@@ -5,6 +5,8 @@ Réorganisé le 05/11/2026 à 20:20 à la demande du propriétaire (anciennes pa
 fusionnées ; tout reste lisible dans l'historique Git avec `git show <commit>:<chemin>`).
 
 ## État courant (à lire en premier)
+- **Passation du 06/11 (11:55)** : [`reports/passation-06-11.md`](reports/passation-06-11.md) — état, processus
+  lancés, fichiers modifiés, décisions, reste à faire, prompt de reprise.
 - **Nuit du 05 au 06/11 et matin du 06/11** (branche `nuit-06-11`, non fusionnée, dossier
   `~/Downloads/agregat-back-nuit`) : [`reports/nuit-06-11.md`](reports/nuit-06-11.md) — point du matin en tête
   (essais réels, cause de E65/E69/E70 trouvée dans le relais Playwriter, revue Opus, décisions à prendre), puis la

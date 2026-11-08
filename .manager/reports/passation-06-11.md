@@ -173,3 +173,24 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
 
 
 - 18:03 (08/11) : API 4311 (onglet « API 4311 nuit ») et front 5174 (onglet « Front test 5174 ») relancés, réponses 200 vérifiées ; relais 19988 et page FICTIVE 4321 non lancés (le relais démarre à la première mission, `relay-start.js`).
+
+## 10. Soir du 08/11 (18:38) : contacto et email du Skill
+
+- Demande du propriétaire : mettre en place et éprouver la prise de contact LinkedIn (mode contacto) et l'e-mail
+  (mode email) dans son Chrome. Correctifs e12f33e (E72, E73, E74, registre 5faf845) : intention `linkedin` refaite sur
+  contacto, intention `email`, `data/contacts.tsv` optionnel, entrée standard des scripts fermée, lignes du Bilan.
+  Suite complète verte (18:34) : 892 unitaires (890, 2 ignorés), 157/157 Chrome, contrôle et format. API 4311 relancée
+  sur ce code (18:35).
+- Déjà permis en mode propriétaire, sans changement : `career_write data/contacts.tsv`, tout script `.mjs` de la racine
+  du Skill (contact-lookup, contacts, contact-extract, linkedin-join) avec ses arguments, navigateur sur linkedin.com et
+  mail.google.com ; un bouton « Envoyer »/« Send » (Gmail, LinkedIn) demande le clic du propriétaire ; `browser_press`
+  n'admet pas Entrée et `browser_type` remplit sans frappe : pas d'envoi au clavier.
+- Essai réel 1, mission bbfd6929 (Sonnet, Chrome du propriétaire par Playwriter, rapport 005 Preacta) : contacto lu,
+  rapport lu, contact-lookup (aucun contact), deux pages LinkedIn lues, message de connexion par linkedin_draft, puis
+  question « enregistrer le contact dans data/contacts.tsv ? » : **en attente de la réponse du propriétaire** (front 5174).
+  Rien envoyé.
+- Essai 2 (email dans Gmail) : refusé tant que bbfd6929 attend (« Une seule mission privée à la fois dans cet espace »).
+  Prompt prévu : « Rédige l'e-mail de candidature pour l'offre du rapport 005 (mode email) et prépare-le dans Gmail dans
+  mon navigateur, jusqu'au bouton Envoyer. N'envoie rien. »
+- À vérifier en réel : le Bilan de bbfd6929 (lignes Contacts / Message LinkedIn) ; Gmail ; sur LinkedIn, un bouton
+  « Se connecter » qui enverrait l'invitation sans fenêtre de note (mot hors de la liste des envois : à observer).

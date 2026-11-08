@@ -137,3 +137,37 @@ Du manager, ce jour (dans les commits, à revoir si le propriétaire le veut) :
 > commence par relever mes missions de test et porte leurs résultats au registre, puis vérifie en réel E65 et E69 par
 > une longue mission. Rappels : l'envoi final attend mon clic ; aucune restriction ajoutée à l'agent ; aucun secret
 > lu ; toute connexion au relais Playwriter en `/cdp/<identifiant-unique>` ; `date` avant chaque horodatage.
+
+## 9. Complément du 08/11 (17:25)
+
+État relevé le 07/11 à 08:18, puis le 08/11 à 17:25 :
+- Le 07/11 au matin, le front habituel (5173) parlait à une API 4310 relancée à 08:13 depuis **`~/Downloads/agregat-back`**
+  (branche `codex/browser-audit-31-10`, 2 novembre, 44 changements non commités) : un code plus ancien que `dev`,
+  **sans** le travail de la nuit. Le propriétaire croyait tester le dernier code : ce n'était pas le cas.
+- L'environnement de test de la branche a été relancé le 07/11 (API 4311 depuis `agregat-back-nuit`, front 5174 par
+  `AGENT_PLATFORM_API_URL=http://127.0.0.1:4311 npx vite --host 127.0.0.1 --port 5174` dans `agregat-front`).
+- **Le 08/11 à 17:25, plus rien ne tourne** (4310, 4311, 5173, 5174 et le relais 19988 libres). Pour tester la branche,
+  relancer 4311 et 5174 (commandes ci-dessus et section 2). Aucune mission de test du propriétaire n'a été relevée.
+- Branche inchangée depuis 9b4c9e9 (passation du 06/11), toujours ni fusionnée ni poussée.
+
+Ce que le propriétaire veut tester : chercher sur LinkedIn des profils (et des e-mails) de personnes liées à « AI
+Engineer », **sans lancer le scan des portails**. Points établis avec lui (lecture du Skill, rien modifié) :
+- Le mot « brouillon » au suivi vient seulement du nom de l'intention `linkedin` du manifeste (« Préparer un brouillon
+  LinkedIn ») : la plateforme suit une intention par mission (E54) ; ce n'est pas ce que fait l'agent.
+- Dans le Skill career-ops, `modes/contacto.md` travaille **pour une offre précise** : contacts déjà enregistrés d'abord
+  (`contact-lookup.mjs`, `data/contacts.tsv`), sinon **un seul** contact trouvé par recherche web (3 recherches au plus,
+  sans connexion à LinkedIn), puis un message de demande de connexion ; enregistrement du contact seulement avec son
+  accord ; **rien n'est envoyé**, le propriétaire copie-colle.
+- `modes/email.md` rédige un e-mail de candidature à coller (« Never submit. Never send email. Never click send. ») ; il
+  ne cherche pas d'adresses.
+- Côté plateforme : `linkedin_draft` rend texte et lien marqués « envoi manuel seulement » ; un message tapé dans
+  LinkedIn ou un `email_send` (si un SMTP est configuré dans `secrets.env`, non lu) attend la carte d'accord.
+- Prompts conseillés (front 5174) : « Pour l'offre du rapport 005, trouve le bon contact et rédige le message LinkedIn
+  (mode contacto). N'envoie rien. » ; « Rédige l'e-mail de candidature pour l'offre du rapport 005 (mode email). ».
+  Une recherche large de plusieurs profils n'est pas un mode du Skill : le prompt seul la demande. Avant de lancer :
+  extension Playwriter active dans Chrome (sinon bascule en Chrome isolé, sans session LinkedIn) ; CAPTCHA ou
+  vérification LinkedIn → arrêt.
+
+Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces essais (suivre la mission avec
+`.manager/outils/suivre-mission.py 4311 <id>`), porter les constats au registre.
+

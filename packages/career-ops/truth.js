@@ -18,6 +18,9 @@ const COVER_PRODUCED = 'lettre produite';
 const FACT_GATE = 'verify-cv-facts';
 // pipeline-01: the inbox step of modes/pipeline.md (career_write data/pipeline.md, proves it).
 const INBOX_PROCESSED = 'boîte d’entrée traitée';
+// 08/11 : modes/contacto.md (contact book) and modes/email.md (draft), declared by the pack.
+const CONTACT_SAVED = 'contact enregistré';
+const EMAIL_PREPARED = 'e-mail préparé';
 let careerManifest;
 const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
 
@@ -41,6 +44,8 @@ const WRITE_PREFIXES = [
   'reports/',
   'batch/tracker-additions/',
   'data/pipeline.md',
+  // 08/11 : the contact book of modes/contacto.md (its fixed name carries no company).
+  'data/contacts.tsv',
   'jds/',
   'output/',
 ];
@@ -53,9 +58,16 @@ export function progressArgument(name, args = {}) {
       : /^[a-z][a-z0-9-]{1,40}$/.test(command)
         ? command
         : null;
-  // A read of the Skill's inbox proves the first step of modes/pipeline.md; other reads say nothing.
+  // A read of the Skill's inbox proves the first step of modes/pipeline.md; a report read is the
+  // context of modes/email.md (prefix only, never the file name) ; other reads say nothing.
   if (name === 'career_read')
-    return path.startsWith('jds/') ? 'jds/' : path === 'data/pipeline.md' ? path : null;
+    return path.startsWith('jds/')
+      ? 'jds/'
+      : path.startsWith('reports/')
+        ? 'reports/'
+        : path === 'data/pipeline.md'
+          ? path
+          : null;
   if (name === 'career_write')
     return WRITE_PREFIXES.find((prefix) => path.startsWith(prefix)) ?? null;
   return null;
@@ -237,8 +249,13 @@ function callProgress(name, status, args, result) {
       },
     };
   }
+  // 08/11 : contact-extract prints « Saved. » only when it wrote data/contacts.tsv ; « Not saved. »
+  // (refusal, or no keyboard input) exits 0 as well.
+  if (completed && name === 'career_script' && argument === 'contact-extract')
+    return { argument, contactSaved: CONTACT_EXTRACT_SAVED.test(scriptOutput(result)) };
   return { argument };
 }
+const CONTACT_EXTRACT_SAVED = /^Saved\. data\/contacts\.tsv now has/m;
 // The `text` a career_script result carries (stdout and stderr of the script), as the gateway wraps it.
 const scriptText = (content) => {
   try {
@@ -329,6 +346,9 @@ export function createTurnTruth({ root, seed } = {}) {
   const trackers = new Map();
   // Last verdict of the Skill's fact gate: null when the last run passed, else the count it listed.
   let factsUnsourcedCount = null;
+  // 08/11 : how the contact book of modes/contacto.md was written this turn (career_write of
+  // data/contacts.tsv, or contact-extract that printed « Saved. »).
+  const contactWrites = new Set();
   // C8 : the last completed scan of the turn, as its own output says (one entry per call, in
   // the order calls first completed: a replayed earlier scan does not become the last one).
   const scans = new Map();
@@ -442,6 +462,7 @@ export function createTurnTruth({ root, seed } = {}) {
         tracker: rows,
         facts,
         scan: scanRows,
+        contactSaved,
       } = {},
     ) {
       if (
@@ -493,6 +514,10 @@ export function createTurnTruth({ root, seed } = {}) {
           });
         if (name === 'career_script' && safeArgument === 'scan')
           setScan(`gateway:${key}`, scanRows ?? {});
+        if (name === 'career_write' && safeArgument === 'data/contacts.tsv')
+          contactWrites.add('write');
+        if (name === 'career_script' && safeArgument === 'contact-extract' && contactSaved === true)
+          contactWrites.add('extract');
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
@@ -512,6 +537,10 @@ export function createTurnTruth({ root, seed } = {}) {
     },
     completedCalls() {
       return [...proofs.values()];
+    },
+    // 08/11 : 'write' (career_write data/contacts.tsv), 'extract' (contact-extract « Saved. »).
+    contactWrites() {
+      return [...contactWrites];
     },
     // One call seen by both channels has two keys: as in toolOutcomes(), the gateway's counts
     // stand when it gave any, the ACP ones otherwise.
@@ -765,6 +794,46 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
           `${INBOX_PROCESSED}${inbox ? ` (${plural(inbox.remaining, 'restante')})` : ''}`,
       );
   }
+  // 08/11 : what modes/contacto.md and modes/email.md produced, said when the selected intent
+  // declares these outcomes (or when the calls happened anyway). Found, drafted, saved : read from
+  // the calls ; sent : the platform's own « Envoi » line, never claimed here.
+  const calls = truth.completedCalls?.() ?? [];
+  const called = (name, argument) =>
+    calls.some((call) => call.name === name && (!argument || call.argument === argument));
+  const contactWrites = truth.contactWrites?.() ?? [];
+  const contactDue = skillSteps.some((step) => step.proves === CONTACT_SAVED);
+  const contactLines = [];
+  if (contactDue || called('career_script', 'contact-lookup') || contactWrites.length)
+    contactLines.push(
+      `\n- Contacts du Skill : ${called('career_script', 'contact-lookup') ? 'carnet consulté (contact-lookup)' : 'carnet non consulté'} ; ${
+        contactWrites.includes('write')
+          ? 'contact enregistré dans data/contacts.tsv'
+          : contactWrites.includes('extract')
+            ? 'contact enregistré par contact-extract'
+            : 'aucun contact enregistré'
+      }.`,
+    );
+  if (contactDue || done.has('linkedin_draft'))
+    contactLines.push(
+      done.has('linkedin_draft')
+        ? '\n- Message LinkedIn : rédigé (linkedin_draft), non envoyé : envoi à la main.'
+        : '\n- Message LinkedIn : aucun brouillon enregistré par linkedin_draft (texte éventuel dans la réponse).',
+    );
+  if (skillSteps.some((step) => step.proves === EMAIL_PREPARED)) {
+    const drafted = outcomes.some(
+      (item) => item.name === 'email_send' && item.status === 'completed' && item.sent === false,
+    );
+    const typed = ['browser_type', 'browser_fillForm'].some((name) => done.has(name));
+    contactLines.push(
+      `\n- E-mail du Skill : ${
+        drafted
+          ? 'brouillon Relay (email_send), non envoyé'
+          : typed
+            ? 'préparé dans le navigateur (saisie observée)'
+            : 'texte seulement dans la réponse (aucune préparation observée)'
+      }.`,
+    );
+  }
   const rows = truth.trackerRows?.();
   const trackerLine = trackerProved
     ? `\n- Suivi du Skill : ${
@@ -806,7 +875,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
     (pendingSteps.length
       ? `${pendingSteps.length > 1 ? 'étapes du Skill non exécutées' : 'étape du Skill non exécutée'} : ${pendingSteps.join(' ; ')}`
       : 'aucune action demandée identifiable comme manquante');
-  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missingLine}.${trackerLine}${documentLines.join('')}${inboxLine}${scanLine}`;
+  return `Bilan\n- Actions réussies : ${successes.join(', ') || 'aucune observée'}.\n- Actions échouées : ${failedLine}.\n- Résultats mixtes : ${mixed.join(' ; ') || 'aucun'}.\n- Non exécuté : ${missingLine}.${trackerLine}${documentLines.join('')}${contactLines.join('')}${inboxLine}${scanLine}`;
 }
 
 // Only source material can establish a recipient. Generated drafts, reports and agent output

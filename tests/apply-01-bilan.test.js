@@ -70,7 +70,8 @@ test('Manifeste apply : l’étape upload désigne le CV adapté (generate-pdf /
   // Rien d'autre que la section apply n'a bougé (les autres intents gardent leurs étapes).
   assert.deepEqual(
     manifest.intents.map((intent) => intent.id),
-    ['evaluate', 'search', 'pipeline', 'documents', 'apply', 'linkedin'],
+    // 08/11 : email (modes/email.md), après linkedin (tests/contacts-courriel.test.js).
+    ['evaluate', 'search', 'pipeline', 'documents', 'apply', 'linkedin', 'email'],
   );
 });
 

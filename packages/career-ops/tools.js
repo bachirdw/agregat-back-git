@@ -20,6 +20,14 @@ import { validatePortalsConfig } from './providers.js';
 import { inboxEntries } from './inbox.js';
 import { emailSchema, EmailGateway, linkedInDraft } from './sends.js';
 const exec = promisify(execFile);
+// 08/11 : a script that asks at the keyboard (contact-extract « Save this contact? [y/N] », any
+// readline prompt) reads end of input at once, as in a shell without a terminal, instead of waiting
+// for an answer that never comes until the script's time limit. The agent asks the owner itself and
+// passes the script's own non-interactive flag (contact-extract --yes).
+const withoutInput = (pending) => {
+  pending.child?.stdin?.end();
+  return pending;
+};
 const noNetworkPreload = fileURLToPath(new URL('./no-network.cjs', import.meta.url));
 const sectionText = z.string().min(1).max(10000);
 const sections = z
@@ -954,19 +962,21 @@ export class CareerTools {
       if (approved !== true || signal?.aborted)
         throw new Error('Exécution du script refusée ou annulée');
       try {
-        const result = await exec(
-          command.endsWith('.sh') ? '/bin/sh' : process.execPath,
-          [resolve(root, command), ...scriptArgs],
-          {
-            cwd: root,
-            env: buildChildEnv({ env: [] }, process.env, {
-              CAREER_OPS_ROOT: root,
-              CAREER_OPS_DATA_DIR: root,
-            }),
-            signal,
-            timeout: this.scriptTimeoutMs,
-            maxBuffer: 200000,
-          },
+        const result = await withoutInput(
+          exec(
+            command.endsWith('.sh') ? '/bin/sh' : process.execPath,
+            [resolve(root, command), ...scriptArgs],
+            {
+              cwd: root,
+              env: buildChildEnv({ env: [] }, process.env, {
+                CAREER_OPS_ROOT: root,
+                CAREER_OPS_DATA_DIR: root,
+              }),
+              signal,
+              timeout: this.scriptTimeoutMs,
+              maxBuffer: 200000,
+            },
+          ),
         );
         return { text: result.stdout, exitCode: 0, untrusted: true };
       } catch (error) {
@@ -1066,16 +1076,18 @@ export class CareerTools {
     // counts as produced.
     const before = skillEntry ? documentStamp(root, command, scriptArgs) : null;
     try {
-      const result = await exec(process.execPath, execArgs, {
-        cwd: root,
-        env: buildChildEnv({ env: [] }, process.env, {
-          CAREER_OPS_ROOT: root,
-          CAREER_OPS_DATA_DIR: root,
+      const result = await withoutInput(
+        exec(process.execPath, execArgs, {
+          cwd: root,
+          env: buildChildEnv({ env: [] }, process.env, {
+            CAREER_OPS_ROOT: root,
+            CAREER_OPS_DATA_DIR: root,
+          }),
+          signal,
+          timeout: this.scriptTimeoutMs,
+          maxBuffer: 200000,
         }),
-        signal,
-        timeout: this.scriptTimeoutMs,
-        maxBuffer: 200000,
-      });
+      );
       // A Skill script reports through stdout and warns on stderr (merge-tracker's skipped TSVs).
       return {
         text: skillEntry
@@ -1309,7 +1321,7 @@ export function registerCareerTools(
   );
   register(
     'linkedin_draft',
-    'Rédiger uniquement : renvoyer lien du profil/conversation et texte à copier. Aucun clic automatisé LinkedIn.',
+    'Garder un message LinkedIn rédigé (modes/contacto.md) : lien du profil ou de la conversation et texte, montrés au propriétaire, qui l’envoie lui-même. Cet outil n’envoie et ne clique rien ; les outils navigateur lisent LinkedIn comme tout site.',
     z.object({ url: z.string().max(2048), text: z.string().max(20000) }).strict(),
     async (args) => {
       const draft = tools.linkedIn(args);

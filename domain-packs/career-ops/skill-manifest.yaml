@@ -577,16 +577,111 @@ intents:
         done: Instantané de relecture obtenu ; s’arrêter avant Envoyer sauf si le prompt demande l’envoi, la plateforme demande alors le clic au propriétaire
         optional: false
   - id: linkedin
-    title: Préparer un brouillon LinkedIn
-    priority: 50
+    title: Prendre contact sur LinkedIn (mode contacto)
+    # 08/11 : au-dessus d'apply (60), dont la phrase « candidature » figure souvent dans la demande
+    # (« le recruteur de ma candidature ») ; sous documents (70).
+    priority: 66
     # Quatrième relecture de nuit (E68) : « linkedin » nu n'est qu'un mot-clé (« cherche des jobs sur
     # LinkedIn » est une recherche) ; les phrases nomment l'objet de l'intention.
-    phrases: [profil linkedin, message linkedin, brouillon linkedin]
+    phrases:
+      [
+        profil linkedin,
+        message linkedin,
+        brouillon linkedin,
+        mode contacto,
+        contacto,
+        bon contact,
+        prise de contact,
+        prends contact,
+        demande de connexion,
+        message de connexion,
+      ]
     keywords: [linkedin]
+    # Ordre du Skill (modes/contacto.md, « LinkedIn power move ») : 0. carnet data/contacts.tsv par
+    # contact-lookup ; 1. une cible confirmée (WebSearch, LinkedIn lu dans le navigateur du
+    # propriétaire) ; 4. message de connexion ; 7. enregistrement du contact seulement après son oui
+    # (career_write data/contacts.tsv, ou contact-extract depuis une réponse collée). Le message est
+    # du texte : linkedin_draft (outil de la plateforme, lien + texte à envoyer à la main) le garde
+    # pour le front, il n'est pas une étape du Skill.
     steps:
-      - id: draft
-        title: Rédiger le brouillon LinkedIn
-        tool: linkedin_draft
-        precondition: Profil disponible
-        done: Brouillon créé
+      - id: lookup
+        title: Consulter le carnet de contacts (contact-lookup)
+        tool: career_script
+        argument: contact-lookup
+        precondition: Entreprise de l'offre connue (args ["--company", "…", "--summary"])
+        done: contact-lookup terminé ; un contact déjà enregistré est proposé avant toute recherche
         optional: false
+        # Variante Greeting du mode : aucune recherche de contact.
+        unlessPhrases: [greeting, cold opener, 打招呼]
+      - id: find
+        title: Trouver et confirmer une cible
+        tool: browser_snapshot
+        alternativeTools: [browser_extract, google_web_search]
+        precondition: Aucun contact du carnet retenu ; trois recherches au plus (modes/contacto.md)
+        done: Une cible confirmée (nom, rôle, profil), ou dite introuvable sans deviner
+        optional: true
+      - id: draft
+        title: Rédiger le message de connexion
+        tool: linkedin_draft
+        precondition: Cible choisie ; limite de caractères du compte (200 sans Premium)
+        done: Message rédigé (lien du profil + texte), envoi à la main
+        optional: true
+      - id: save
+        title: Enregistrer le contact (data/contacts.tsv)
+        tool: career_write
+        argument: data/contacts.tsv
+        precondition: Oui du propriétaire ; ligne au format de DATA_CONTRACT.md, mise à jour sur place par nom + entreprise
+        done: data/contacts.tsv écrit
+        optional: true
+        persists: true
+        proves: contact enregistré
+      - id: extract
+        title: Enregistrer un contact depuis une réponse collée (contact-extract)
+        tool: career_script
+        argument: contact-extract
+        # « Not saved. » (refus, ou aucune entrée au clavier) sort aussi en code 0 : seule la ligne
+        # « Saved. » du script prouve l'enregistrement.
+        proof:
+          output: '^Saved\. data/contacts\.tsv now has'
+        precondition: Réponse d'un recruteur dans un fichier de l'espace ; oui du propriétaire (--yes)
+        done: contact-extract a enregistré le contact (« Saved. »)
+        optional: true
+        persists: true
+        proves: contact enregistré
+  - id: email
+    title: Rédiger l'e-mail de candidature ou de relance (mode email)
+    priority: 65
+    phrases:
+      [
+        mode email,
+        e-mail de candidature,
+        email de candidature,
+        mail de candidature,
+        courriel de candidature,
+        e-mail de relance,
+        email de relance,
+        mail de relance,
+        courriel de relance,
+        brouillon gmail,
+        dans gmail,
+      ]
+    keywords: [gmail]
+    # Ordre du Skill (modes/email.md) : contexte (rapport, CV adapté de data/pdf-index.tsv), type
+    # d'e-mail, liste des pièces, brouillon. « Never send » est la règle du Skill ; la plateforme
+    # n'exige aucun envoi et demande le clic du propriétaire sur tout bouton d'envoi.
+    steps:
+      - id: report
+        title: Lire le rapport de l'offre
+        tool: career_read
+        argument: reports/
+        precondition: Rapport de l'offre connu (numéro ou entreprise)
+        done: Rapport lu
+        optional: false
+      - id: compose
+        title: Préparer l'e-mail (Gmail dans le navigateur, ou brouillon Relay)
+        tool: email_send
+        alternativeTools: [browser_type, browser_fillForm]
+        precondition: Texte rédigé ; destinataire tiré des sources
+        done: Brouillon prêt, bouton d'envoi laissé au propriétaire
+        optional: true
+        proves: e-mail préparé

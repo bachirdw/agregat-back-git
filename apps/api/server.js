@@ -500,6 +500,8 @@ export function createApp({
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,
+            // 08/11 : contact-extract printed « Saved. » (data/contacts.tsv written).
+            contactSaved: body.contactSaved === true,
             // apply-01 (E40): file names only, never a path or a folder.
             ...Object.fromEntries(
               ['uploaded', 'produced', 'rendered']

@@ -71,12 +71,14 @@ test('E2 FICTIF : fetchedAt futur, absent ou illisible prend l’horloge de la p
     assert.doesNotThrow(() => storedOfferSchema.parse(offer));
 });
 
-test('Packs : optionalFiles vaut [] par défaut et career-ops déclare ses trois fichiers', () => {
+test('Packs : optionalFiles vaut [] par défaut et career-ops déclare ses quatre fichiers', () => {
   assert.deepEqual(getPack('core').optionalFiles, []);
+  // 08/11 : data/contacts.tsv, carnet de modes/contacto.md (tests/contacts-courriel.test.js).
   assert.deepEqual(getPack('career-ops').optionalFiles, [
     'data/blacklist.md',
     'modes/_custom.md',
     'data/applications.md',
+    'data/contacts.tsv',
   ]);
 });
 

@@ -171,3 +171,5 @@ Engineer », **sans lancer le scan des portails**. Points établis avec lui (lec
 Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces essais (suivre la mission avec
 `.manager/outils/suivre-mission.py 4311 <id>`), porter les constats au registre.
 
+
+- 18:03 (08/11) : API 4311 (onglet « API 4311 nuit ») et front 5174 (onglet « Front test 5174 ») relancés, réponses 200 vérifiées ; relais 19988 et page FICTIVE 4321 non lancés (le relais démarre à la première mission, `relay-start.js`).

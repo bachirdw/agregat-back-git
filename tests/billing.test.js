@@ -387,3 +387,20 @@ test('budget : 0 ou absent = illimité par run, plafond positif respecté, valeu
     store.close();
   }
 });
+
+test('stockage : écouteur qui lève, ligne de run illisible, base partagée sans SQLITE_BUSY immédiat', () => {
+  const file = join(temporary(), 'db');
+  let store = new Store(file);
+  store.create({ id: 'r1', state: 'running', budgetCents: 1 });
+  store.on('r1', () => {
+    throw new Error('socket détruite');
+  });
+  assert.doesNotThrow(() => store.event('r1', 'note', { x: 1 }));
+  assert.equal(store.events('r1').filter((e) => e.type === 'note').length, 1);
+  assert.equal(store.db.prepare('PRAGMA busy_timeout').get().timeout, 5000);
+  store.db.exec("INSERT INTO runs VALUES ('abime', '{pas du json')");
+  store.close();
+  store = new Store(file); // ne doit pas lever
+  assert.equal(store.get('r1').state, 'interrupted');
+  store.close();
+});

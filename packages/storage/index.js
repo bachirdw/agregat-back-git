@@ -11,7 +11,7 @@ export class Store extends EventEmitter {
     this.setMaxListeners(100);
     mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(file);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
+    this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL REFERENCES runs(id), type TEXT NOT NULL, data TEXT NOT NULL, at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS skills(id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -36,7 +36,12 @@ export class Store extends EventEmitter {
     // Full chain check once at startup (cost linear, paid once); each charge then only checks the tail.
     this.startupLedger = this.verifyLedger();
     for (const { data } of this.db.prepare('SELECT data FROM runs').all()) {
-      const run = JSON.parse(data);
+      let run;
+      try {
+        run = JSON.parse(data);
+      } catch {
+        continue; // one unreadable row must not prevent the platform from starting
+      }
       if (!terminal.has(run.state))
         this.update(run.id, {
           state: 'interrupted',
@@ -95,7 +100,11 @@ export class Store extends EventEmitter {
       .prepare('INSERT INTO events(run_id,type,data,at) VALUES (?,?,?,?)')
       .run(id, type, encoded, at);
     const event = { seq: Number(row.lastInsertRowid), runId: id, type, data, at };
-    this.emit(id, event);
+    try {
+      this.emit(id, event);
+    } catch {
+      // A failing listener (e.g. an SSE socket destroyed meanwhile) must not fail the mission.
+    }
     return event;
   }
   events(id, after = 0) {

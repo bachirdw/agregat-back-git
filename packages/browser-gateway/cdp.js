@@ -1075,8 +1075,12 @@ export class CdpBrowser {
         if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
+        // Relecture fix5 (constat 12) : a write of more than 100 kB (a CV with the application)
+        // waits for the card outside a click's window too.
+        const large = Buffer.byteLength(body) > 100000;
         if (
           !forceCard &&
+          !large &&
           !sensitive &&
           !this.writeInProgress &&
           Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS
@@ -1090,14 +1094,21 @@ export class CdpBrowser {
         }
         // Continue/Next or choosing an option: the page saves its own step (no approval).
         // Relecture fix5 (constat 3) : unless it goes to a submission target.
-        if (firstParty && this.formStep && !sensitive && !isSubmitPath(request.url()))
+        // Relecture fix5 (constat 12) : a step of a past click no longer frees anything.
+        const clickWindow =
+          this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS;
+        if (
+          clickWindow &&
+          firstParty &&
+          this.formStep &&
+          !sensitive &&
+          !isSubmitPath(request.url())
+        )
           return route.continue();
         // Owner decision (05/11): only the agent's click on a send button waits for the owner. Any
         // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.
         const samePage = pageKey(pageUrl) === this.clickPage;
-        const clickWindow =
-          this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS;
         const afterSendClick =
           clickWindow &&
           // A candidate click that led to another page (« Postuler » opening the form) : the new
@@ -1116,7 +1127,6 @@ export class CdpBrowser {
         // Audit du 10/11 (constat 13) : a write of more than 100 kB that no approval covers (a CV
         // posted with the application) was cancelled without a trace. It is now asked like a send :
         // the owner's click decides, and a refusal is said to the agent and in the Bilan.
-        const large = Buffer.byteLength(body) > 100000;
         if (!forceCard && !afterSendClick && !large && !request.isNavigationRequest()) {
           this.#traceAutoSend(request.url());
           return route.continue();

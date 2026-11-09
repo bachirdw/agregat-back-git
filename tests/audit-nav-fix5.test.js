@@ -598,3 +598,25 @@ test(
     );
   },
 );
+
+test(
+  'Relecture 12 : une écriture de plus de 100 ko hors fenêtre de clic attend la carte',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(t, '<p>Brouillon FICTIF</p>');
+    const { gateway, provider, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    await provider.page.evaluate(() => {
+      fetch('/api/brouillon', { method: 'POST', body: 'x'.repeat(150_000) }).catch(() => {});
+      fetch('/api/petit', { method: 'POST', body: 'x' }).catch(() => {});
+    });
+    for (let i = 0; i < 80 && !sends().length; i++) await sleep(25);
+    await settle(lines);
+    await sleep(300);
+    assert.deepEqual(lines(), ['POST /api/petit'], 'la petite écriture passe, la grande attend');
+    assert.deepEqual(
+      sends().map((r) => r.capability),
+      ['browser.send'],
+    );
+  },
+);

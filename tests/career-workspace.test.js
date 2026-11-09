@@ -164,3 +164,24 @@ test('Garde de test : createApp sans espace explicite démarre mais n’ouvre au
   assert.notEqual(app.engine.career.root, DEFAULT_WORKSPACE);
   assert.throws(() => app.engine.career.path(), /introuvable/);
 });
+
+// Audit misc3 (constat career 18) : seul le DERNIER composant compte ; un ancêtre symbolique
+// (/tmp → /private/tmp sur macOS) ne fait plus rejeter l'espace, un lien DANS l'espace reste refusé.
+test('Espace sous un ancêtre symbolique accepté ; dernier composant symbolique refusé', (t) => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'career-ancetre-FICTIF-')));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  mkdirSync(join(base, 'vrai/espace'), { recursive: true });
+  mkdirSync(join(base, 'vrai/autre'));
+  symlinkSync(join(base, 'vrai'), join(base, 'lien'));
+  const viaAncestor = new CareerWorkspace({
+    root: join(base, 'lien/espace'),
+    roots: [join(base, 'lien')],
+  });
+  assert.equal(viaAncestor.path(), join(base, 'vrai/espace'));
+  symlinkSync(join(base, 'vrai/autre'), join(base, 'vrai/final'));
+  const finalLink = new CareerWorkspace({
+    root: join(base, 'lien/final'),
+    roots: [join(base, 'lien')],
+  });
+  assert.throws(() => finalLink.path(), /symbolique|invalide/);
+});

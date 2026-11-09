@@ -1,5 +1,5 @@
 import { homedir, tmpdir } from 'node:os';
-import { resolve, relative, isAbsolute, extname } from 'node:path';
+import { resolve, relative, isAbsolute, extname, dirname, basename, join } from 'node:path';
 import { realpathSync, statSync, lstatSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -96,8 +96,16 @@ export class CareerWorkspace {
     } catch {
       throw new Error('Espace career-ops introuvable : lancer son installation');
     }
+    // Only the last component may not be a link : an ancestor that is one (/tmp → /private/tmp)
+    // is resolved, and the final containment check below still keeps the space inside the roots.
+    let parent;
+    try {
+      parent = realpathSync(dirname(this.root));
+    } catch {
+      throw new Error('Espace career-ops introuvable : lancer son installation');
+    }
     if (
-      actual !== this.root ||
+      actual !== join(parent, basename(this.root)) ||
       lstatSync(this.root).isSymbolicLink() ||
       !statSync(actual).isDirectory()
     )

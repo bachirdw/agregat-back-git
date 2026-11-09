@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { agentHomeFor, removeRunHomes, workspacesRoot } from './isolation.js';
-import { MISSION_FILES_RULE, copyMissionFiles } from './mission-files.js';
+import { MISSION_FILES_RULE, WORK_FILES_RULE, copyMissionFiles } from './mission-files.js';
 import { z } from 'zod';
 import {
   AcpRuntime,
@@ -1277,6 +1277,8 @@ export class Orchestrator {
           (run.workspace !== 'career-ops' && run.missionFiles?.length
             ? '\n' + MISSION_FILES_RULE
             : '') +
+          '\n' +
+          WORK_FILES_RULE +
           (toolRoles ? '\n' + toolRoles : '') +
           (plan.skillSelection?.length ? '\n' + formatSkillOrder(plan.skillSelection) : ''),
       });

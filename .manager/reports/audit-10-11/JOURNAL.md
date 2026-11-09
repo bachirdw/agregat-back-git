@@ -98,3 +98,9 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   10 prompts sur 50 basculés à tort sur `apply` ; regex de reprise courte du manager (b0295b1) trop large ; ledger
   (falsification ancienne non vue, budget dépassable) ; `ps` en locale française ; formes d'erreur d'authentification
   oubliées. Correcteur `audit-fix4` (Opus) lancé à 02:48.
+- 02:53 — relecture navigateur rendue (`relecture-nav.md`, 12 constats reproduits) : **des envois finaux partent sans
+  carte** depuis les correctifs de la nuit — Entrée (messagerie, contenteditable, case du formulaire final),
+  bouton submit avec `aria-haspopup`, boutons au libellé non reconnu, iframe d'un autre site écrivant vers sa propre
+  origine (constat 4 du premier tour, **accepté trop vite par le manager à 01:08**), accord qui couvre 8 s de
+  navigations vers tout site, faux « refusé par le site » (télémétrie en 404). Correcteur `audit-fix5` (Opus) lancé
+  à 02:54 avec la priorité explicite : « l'envoi final ne part jamais sans carte ; dans le doute, une carte ».

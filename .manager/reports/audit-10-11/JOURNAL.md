@@ -131,3 +131,10 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   explicite (CV, lettre, LinkedIn, e-mail, évaluation avant « to apply ») — contrôlées par le manager, cohérentes avec
   la règle française ; consigne « fichiers de travail dans le dossier de mission ou output/, jamais /tmp » envoyée à
   l'agent (avec et sans Skill) ; « évalue … et postule si > 4/5 » : ligne de Bilan sur la candidature hors suivi.
+- 04:40 — `audit-ws` rendu (Chrome 237/237) et fusionné (a7602ed) : en mode propriétaire, chaque WebSocket des onglets
+  de mission est relayé ; une trame sortante qui porte une saisie de l'agent, émise pendant ou juste après un clic ou
+  une touche non cartée, attend la carte ; présence, frappe, accusés passent. Limite : WebSocket ouvert par un Worker
+  non couvert ; **non éprouvé sur le vrai relais Playwriter**.
+- 04:44 — correctif du manager a109c23 : interrupteur `AGENT_PLATFORM_WS_GUARD=0` (coupe le relais des sockets si un
+  site en souffrait dans votre Chrome ; le repli garde la carte avant un clic d'envoi), avec son test.
+- 04:45 — suite complète et relecture indépendante du dernier tour lancées.

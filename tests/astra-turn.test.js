@@ -127,3 +127,19 @@ test('DAG : envoi demandé, navigation non prouvée, aucun accord → failed, r�
   );
   assert.match(done.result.summary, /Envoi par la plateforme : aucun approuvé\./);
 });
+
+// Relecture du 10/11 (constat 11) : le mode DAG suit le plafond du mode agent (AGENT_PLATFORM_MAX_EVENTS).
+test('DAG : plafond de mises à jour commun au mode agent, cause explicite', async (t) => {
+  const { app, run, plan, control } = await setup(t, {
+    workflow: true,
+    config: { chunkCount: 200, loadSession: true },
+  });
+  app.engine.maxEvents = 50;
+  await app.engine.execute(run, plan, control, null);
+  const done = app.store.get(run.id);
+  assert.equal(done.state, 'failed');
+  assert.match(
+    done.error,
+    /Trop de mises à jour de l’agent \(plafond 50\).*AGENT_PLATFORM_MAX_EVENTS/,
+  );
+});

@@ -181,8 +181,16 @@ export async function executeWorkflow(orch, run, plan, control) {
           if (isBrowserToolName(update.title)) browserObserved = true;
           rateLimit =
             rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
-          if (++events > 4000) {
-            control.abort.abort(new Error('Trop d’événements'));
+          // Relecture du 10/11 (constat 11) : the agent mode's ceiling and message.
+          if (++events > orch.maxEvents) {
+            control.abort.abort(
+              Object.assign(
+                new Error(
+                  `Trop de mises à jour de l’agent (plafond ${orch.maxEvents}) ; relever AGENT_PLATFORM_MAX_EVENTS ou relancer.`,
+                ),
+                { code: 'too_many_events' },
+              ),
+            );
             return;
           }
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {

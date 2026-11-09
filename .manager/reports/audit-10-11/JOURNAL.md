@@ -12,3 +12,21 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
 - 23:57 — branche et worktree créés (`node_modules` en lien vers `agregat-back-dev`).
 - 00:00 — suite de référence lancée (sans variables Gemini). Quatre auditeurs en lecture seule : orchestrateur (Opus),
   navigateur + MCP (Opus), career-ops (Sonnet), socle (Sonnet). Rapports dans ce dossier.
+- 00:04 — suite de référence verte sur 615b8b9 : 897 unitaires (895 ✔, 2 ignorés), 157/157 Chrome.
+- 00:05 — banc isolé : page FICTIVE 4321, API d'audit 4312 (mode propriétaire, Chrome isolé, origine locale 4321,
+  espace career-ops COPIÉ dans le scratchpad, Skill importé depuis `.agents/skills/career-ops`, même empreinte 4380dfe).
+- 00:06-00:12 — **Démo 1 (career-ops, Claude Sonnet)**, mission f2c6d66b : 3 étapes remplies, CV adapté Preacta joint,
+  question « confirmes-tu Envoyer ? » (réponse : oui), carte d'envoi (accordée : page FICTIVE locale), page fictive :
+  1 envoi, CV reçu ; question « marquer Applied ? » (oui) ; `set-status` fait. **Mais mission `failed`** : intention
+  `documents` choisie au lieu de `apply` (« cv adapté » priorité 70 > « postule » 60) → étapes du CV « non exécutées ».
+  Aussi : « 1 offre notée sans lecture de sa page » (faux), échecs d'outils = verdicts normaux de scripts.
+- 00:20 — audits rendus (≈ 90 constats). Correctifs lancés en parallèle dans trois worktrees : `audit-orch` (Opus),
+  `audit-nav` (Opus), `audit-career` (Sonnet). Le manager fusionnera et relancera la suite complète.
+- 00:15-00:16 — **Démo 2 (sans Skill, pack core / navigation libre, Claude Sonnet)**, mission 0157d67b, données fictives
+  dans le prompt : 3 étapes, carte d'envoi (accordée, page FICTIVE), `completed` en 1 min 10 s, page fictive : envoi n° 2.
+  Défaut : le Bilan ne dit rien de l'envoi approuvé (constat orchestrateur 8) ; une seule ligne « non vérifiées ».
+- 00:31 — `audit-career` rendu (13 commits, unitaires 880 ✔ / 0 échec). Contrôle du manager : diff relu (e-mail : la
+  carte d'accord reste, seul le filtre de destinataire tombe en mode propriétaire) ; hypothèse du point 5 confirmée par
+  le journal réel de f2c6d66b (`career_write reports/005…` réécrit à note inchangée). Fusionné (a7da851).
+- 00:32 — correcteur `audit-socle` (Sonnet) lancé depuis a7da851 (ledger, agents orphelins, onEvent, routage, workflow,
+  budget). Reste signalé par career : le code de sortie des scripts n'arrive pas jusqu'au Bilan (passe par l'API).

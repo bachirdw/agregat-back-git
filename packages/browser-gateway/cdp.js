@@ -1696,6 +1696,8 @@ export class CdpBrowser {
       this.lastUploadEnd = 0;
       this.clickApproved = false;
       this.uploadedFile = null;
+      // Constats 9 et 11 : the fields the agent filled belong to the page it leaves.
+      this.agentFields = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])

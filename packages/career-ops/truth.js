@@ -20,8 +20,9 @@ const COVER_PRODUCED = 'lettre produite';
 const FACT_GATE = 'verify-cv-facts';
 // Control scripts whose non-zero exit is an answer, not a breakdown: check-liveness (posting
 // expired), precheck-duplicate (duplicate found), verify-cv-facts (facts without a source). The
-// Bilan counts them apart as « verdicts » and never as failures of the tool.
-const VERDICT_SCRIPTS = new Set(['check-liveness', 'precheck-duplicate', FACT_GATE]);
+// Bilan counts them apart as « verdicts » and never as failures of the tool. Audit du 10/11 : find
+// (find.mjs) exits 1 when nothing matches its query, an answer as well.
+const VERDICT_SCRIPTS = new Set(['check-liveness', 'precheck-duplicate', FACT_GATE, 'find']);
 const VERDICT_CAUSE = 'verdict du script de contrôle, pas une panne';
 // pipeline-01: the inbox step of modes/pipeline.md (career_write data/pipeline.md, proves it).
 const INBOX_PROCESSED = 'boîte d’entrée traitée';

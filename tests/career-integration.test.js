@@ -160,6 +160,14 @@ test('Bilan FICTIF : un verdict de script de contrôle (expiré, doublon, faits)
   });
   bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
   assert.match(bilan, /1 échoué \(échec signalé par l’outil\), 2 verdicts/);
+  // Audit du 10/11 (essai c6c0250e) : find.mjs sort en 1 quand rien ne correspond.
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(5),
+    argument: 'find',
+    exitCode: 1,
+  });
+  bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
+  assert.match(bilan, /1 échoué \(échec signalé par l’outil\), 3 verdicts/);
 });
 test('Bilan FICTIF : sans code de sortie ou hors 1-125, un script de contrôle en échec reste une panne', () => {
   const id = (n) => `00000000-0000-4000-8000-00000000010${n}`;

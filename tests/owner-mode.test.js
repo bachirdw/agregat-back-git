@@ -417,6 +417,7 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
   assert.equal(kind(sub('Supprimer cette expérience')), 'step');
   assert.equal(kind(sub('Se connecter', { formHasPassword: true })), 'step');
   assert.equal(kind(sub('Rechercher', { formMethod: 'get' })), 'candidate');
+  assert.equal(kind(sub('Rechercher', { formMethod: null })), 'candidate');
   assert.equal(kind({ tag: 'button', inForm: false, text: 'Apply filters' }), 'plain');
   for (const d of [
     sub('Supprimer et envoyer'),
@@ -424,6 +425,8 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     sub('Rechercher', { formMethod: 'get', formCrossSite: true }),
     sub('Rechercher', { formMethod: 'get', formHasFile: true }),
     sub('Envoyer', { formMethod: 'get' }),
+    // Un formulaire sans méthode (formulaire de script) n'est une recherche que par son libellé.
+    sub('OK', { formMethod: null }),
   ])
     assert.equal(kind(d), 'submit', JSON.stringify(d));
   assert.equal(kind({ tag: 'button', inForm: false, text: 'Apply now' }), 'candidate');

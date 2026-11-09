@@ -469,7 +469,8 @@ const describeElement = (el) => {
     inForm: !!form,
     formAction: form?.getAttribute('action') ?? null,
     // Relecture fix5 (constat 8) : what tells a search or a login form from a send.
-    formMethod: form ? String(form.method || 'get').toLowerCase() : null,
+    // The method the form states (a form without one, often a script's form, states nothing).
+    formMethod: form?.getAttribute('method')?.trim().toLowerCase() || null,
     formHasFile: !!form?.querySelector('input[type=file]'),
     formHasPassword: !!form?.querySelector('input[type=password]'),
     formCrossSite: form
@@ -1391,7 +1392,8 @@ export class CdpBrowser {
         autocomplete,
         multiline,
         implicit,
-        method: String(form.method || 'get').toLowerCase(),
+        // Relecture fix5 (constat 8) : only a stated GET is a search.
+        method: form.getAttribute('method')?.trim().toLowerCase() || null,
         hasButton: !!button && !button.disabled,
       };
     });

@@ -255,14 +255,19 @@ export class RunPolicy {
       (d.tag === 'button' && d.buttonType === 'submit' && d.inForm);
     if (submitControl) {
       // Relecture fix5 (constat 8), only where it is sure : removing an entry of the form, logging
-      // in (a password field, a login label) are steps ; a search form (GET, to this site, no
-      // file, no send label) is a candidate (its GET passes, a write it triggers waits for the
+      // in (a password field, a login label) are steps ; a search form (a stated GET, or no method
+      // and a search label ; to this site, no file, no send label) is a candidate (its GET passes, a write it triggers waits for the
       // card). Anything else submitting a form is the send.
       const whole = stepLabel(label);
       if (!SEND_LABEL_WORDS.test(label)) {
         if (DELETE_LABEL.test(whole)) return 'step';
         if (d.formHasPassword && LOGIN_LABEL.test(whole)) return 'step';
-        if (d.formMethod === 'get' && !d.formHasFile && d.formCrossSite === false && !sendLabel)
+        if (
+          (d.formMethod === 'get' || (!d.formMethod && FILTER_WORDS.test(label))) &&
+          !d.formHasFile &&
+          d.formCrossSite === false &&
+          !sendLabel
+        )
           return 'candidate';
       }
       return 'submit';

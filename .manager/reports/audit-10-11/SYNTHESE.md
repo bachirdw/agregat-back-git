@@ -3,8 +3,8 @@
 ## Où est le travail
 
 - Branche **`audit-nuit-10-11`**, worktree `~/Downloads/agregat-back-audit`, partie de `nuit-06-11` (615b8b9).
-  **Rien n'est poussé ni fusionné.** ~125 commits (code : 40 fichiers, +2 900 / −410 lignes ; tests : 62 fichiers,
-  +4 900 lignes).
+  **Rien n'est poussé ni fusionné.** ~147 commits (code : 40 fichiers, +3 370 / −430 lignes ; tests : 69 fichiers,
+  +5 950 lignes).
 - **Tout enlever** (si ça ne vous plaît pas) :
   ```bash
   git -C ~/Downloads/agregat-back-dev worktree remove --force ~/Downloads/agregat-back-audit
@@ -13,8 +13,8 @@
 - **Garder** : la fusionner dans `nuit-06-11` (ou `dev` si `nuit-06-11` y est déjà), sur votre ordre seulement.
 - Vos environnements n'ont pas été touchés : API 4310/4311, fronts 5173/5174, relais Playwriter 19988, votre Chrome,
   votre espace `~/Downloads/agregat-career-ops` (les démos ont travaillé sur une **copie** dans le scratchpad).
-- **Suite complète verte sur le commit final** (10/11, 04:24) : 1003 unitaires (1001 ✔, 2 ignorés), **193/193 Chrome**
-  (contre 157 avant la nuit), contrôle et format.
+- **Suite complète verte sur le code final** (10/11, 05:27) : 1061 unitaires (1059 ✔, 2 ignorés), **213/213 Chrome**
+  (contre 897 et 157 avant la nuit), contrôle et format.
 - Aucun test avec la clé Gemini (toutes les suites lancées sans `GEMINI_API_KEY`/`GOOGLE_API_KEY`) ; les démos réelles
   ont utilisé Claude Sonnet.
 
@@ -25,9 +25,9 @@ FICTIVE 127.0.0.1:4321). Les missions de la nuit y sont, avec leurs Bilans. Dém
 
 | Démo | Résultat avant correctifs | Résultat sur le code final |
 |---|---|---|
-| **career-ops** : « Postule à l'offre du rapport 005 via le formulaire FICTIF … joins mon CV adapté … clique sur Envoyer » | envoi fait, mais mission **`failed`** (intention `documents` choisie au lieu de `apply`), Bilan faux (« offre notée sans lecture », échecs qui étaient des verdicts) | **`completed` en 5 min** (abd7b126) : question « postuler malgré 3,4/5 ? », **une seule carte** (l'envoi final), CV adapté Preacta reçu par la page, suivi passé à Applied ; Bilan : étapes `apply` faites, aucun écart d'ordre |
-| **sans Skill** (pack `core`, données fictives dans le prompt) | `completed`, mais le Bilan ne disait rien de l'envoi approuvé | **`completed` en 60 s**, une carte, HTTP 200 vu, « Envoi par la plateforme : 1 approuvé(s) » |
-| **sans Skill avec CV joint** | impossible (toute pièce jointe forçait career-ops) | **`completed` en 55 s**, la page a reçu `cv-alex-martin-FICTIF.pdf` |
+| **career-ops** : « Postule à l'offre du rapport 005 via le formulaire FICTIF … joins mon CV adapté … clique sur Envoyer » | envoi fait, mais mission **`failed`** (intention `documents` choisie au lieu de `apply`), Bilan faux (« offre notée sans lecture », échecs qui étaient des verdicts) | **`completed` en 5 min** (dernière : 8028c9c6, 05:27) : **une seule carte** (l'envoi final), CV adapté Preacta reçu par la page ; Bilan : étapes `apply` faites, aucun écart d'ordre, fichier de travail de l'agent dans `output/` |
+| **sans Skill** (pack `core`, données fictives dans le prompt) | `completed`, mais le Bilan ne disait rien de l'envoi approuvé | **`completed` en 60 s** (58893d1b), une carte, HTTP 200 vu, « Envoi par la plateforme : 1 approuvé(s) » |
+| **sans Skill avec CV joint** | impossible (toute pièce jointe forçait career-ops) | **`completed` en 55 s** (110f4791), la page a reçu `cv-alex-martin-FICTIF.pdf` |
 
 Les missions tournent avec l'agent Claude Sonnet, dans un Chrome isolé (pas le vôtre) ; les cartes d'envoi vers la page
 fictive ont été accordées par le manager (page locale 127.0.0.1:4321, aucun envoi réel).
@@ -60,6 +60,12 @@ ces onglets.
    partaient sans carte** (Entrée, `aria-haspopup`, libellés inconnus, iframe d'un autre site — ce dernier accepté trop
    vite par le manager). Toutes corrigées (`correctifs-fix4.md`, `correctifs-fix5.md`) et vérifiées en rejouant les
    sondes du relecteur.
+
+4. **Dernier tour** (04:25-05:18) : envois par **WebSocket** et prompts **anglais**. La garde par relais WebSocket
+   s'est révélée risquée à la relecture (`relecture-ws.md` : trafic normal retenu ou réordonné) : **décision du
+   manager**, elle est optionnelle (`AGENT_PLATFORM_WS_GUARD=1`) et désactivée par défaut ; par défaut, sur un onglet
+   où un WebSocket est ouvert, la carte vient **avant** un clic ou une Entrée d'envoi (bouton, icône, zone de message).
+   Intentions anglaises : 56 + 43 prompts en test (`correctifs-en.md`, `correctifs-en2.md`).
 
 ## Principaux défauts corrigés
 
@@ -105,16 +111,21 @@ ces onglets.
    assumés au nom de votre règle).
 5. Décisions anciennes toujours ouvertes (passation du 06/11) : E43, E59, E54, « Bilan cumulé en reprise ».
 
+6. **WebSocket** : garder le relais désactivé par défaut (carte avant le clic d'envoi sur un onglet à WebSocket, quelques
+   cartes en plus possibles, par ex. « Postuler » de type bouton) ou l'activer (`AGENT_PLATFORM_WS_GUARD=1`) après un
+   essai dans votre Chrome.
+
 ## Ce qui reste (non traité)
 
-- Envoi par **WebSocket** non intercepté en mode propriétaire (défaut antérieur à la nuit) : un envoi par WebSocket
-  après un clic sans carte échapperait.
-- `target=_blank` et iframes d'un autre site **non vérifiés sur le vrai relais Playwriter** (seulement Chrome isolé).
-- Une seule intention par mission (« évalue et postule » ne suit que l'évaluation).
+- **Rien n'a été éprouvé sur le vrai relais Playwriter** cette nuit (votre Chrome n'a pas été touché) : `target=_blank`,
+  iframes d'un autre site, WebSocket, cartes avant l'envoi. Premier essai conseillé : une candidature sur la page
+  FICTIVE 4321 avec `browser: 'playwriter'`, puis un brouillon Gmail.
+- WebSocket : un socket ouvert par le clic lui-même, ou dans un Worker, n'est pas vu par le repli ; en mode `=1`,
+  l'ordre binaire/texte n'est pas garanti.
+- Une seule intention par mission (« évalue et postule » ne suit que l'évaluation ; le Bilan le dit maintenant).
 - Popup OAuth ouvert par un site : non géré par le transport propriétaire.
-- L'agent peut écrire des fichiers de travail hors du dossier de mission (vu : `/tmp/apply-answers-005.json` avec nom
-  et e-mail) ; le Bilan le dit, rien ne l'empêche (aucune restriction en mode propriétaire).
-- « Write a cover letter for this job » → `search` (défaut d'avant la nuit).
+- L'agent reçoit la consigne de garder ses fichiers de travail dans le dossier de mission ou `output/` (vu cette nuit :
+  `/tmp/apply-answers-005.json` avec nom et e-mail) ; rien ne l'en empêche (aucune restriction en mode propriétaire).
 
 ## Fichiers
 

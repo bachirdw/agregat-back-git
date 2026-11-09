@@ -150,3 +150,13 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
 - 05:07 — `audit-en2` rendu et fusionné (951e343) : les 7 intentions fausses (+1) corrigées, 43 prompts de la sonde en
   test, cas réel Preacta toujours `apply` ; ligne « Candidature hors suivi » plus déclenchée par « should I apply » ni
   par une simple frappe.
+- 05:17 — `audit-ws2` rendu (Chrome 250/250) et fusionné (c4259be) : relais WebSocket désactivé par défaut
+  (`AGENT_PLATFORM_WS_GUARD=1` pour l'activer) ; repli par défaut : sur un onglet où un WebSocket est ouvert, carte AVANT
+  le clic ou l'Entrée d'envoi (bouton, icône, zone de message) ; accord après fermeture du socket non compté.
+- 05:27 — **suite complète finale verte sur c4259be** : 1061 unitaires (1059 ✔, 2 ignorés), **213/213 Chrome**,
+  contrôle et format.
+- 05:27-05:35 — **démos finales** sur l'API relancée : career-ops 8028c9c6 `completed` en 5 min 15 (une carte, CV
+  adapté reçu, fichier de travail de l'agent dans `output/` grâce à la nouvelle consigne) ; sans Skill 58893d1b
+  `completed` en 60 s ; sans Skill + CV 110f4791 `completed` en 55 s. Copie career-ops remise à neuf ensuite.
+- 05:36 — fin du travail de code. Environnement laissé en marche pour le matin : API 4312, front 5175, page FICTIVE 4321
+  (onglets du terminal « API 4312 audit », « Front 5175 audit », « Page FICTIVE 4321 »).

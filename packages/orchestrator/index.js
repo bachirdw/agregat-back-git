@@ -222,6 +222,9 @@ export class Orchestrator {
       // Nobody follows the mission (script, CI): an agent step that failed ends at once instead of
       // waiting for an owner who is not there. Default: supervised (the owner's front can settle it).
       unsupervised = process.env.AGENT_PLATFORM_UNSUPERVISED === '1',
+      // Relecture du 10/11 (constat 12) : how long an `uncertain` workflow step waits for the owner
+      // before it fails (default 30 min), AGENT_PLATFORM_HUMAN_WAIT_MS.
+      humanWaitMs = positiveEnv('AGENT_PLATFORM_HUMAN_WAIT_MS') ?? 30 * 60 * 1000,
     } = {},
   ) {
     Object.assign(this, {
@@ -238,6 +241,7 @@ export class Orchestrator {
       questionTimeoutMs,
       ownerMode,
       unsupervised,
+      humanWaitMs,
     });
     this.active = new Map();
     this.permissions = new Map();

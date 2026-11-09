@@ -93,6 +93,7 @@ export async function executeWorkflow(orch, run, plan, control) {
     store: orch.store,
     executors: {},
     unsupervised: orch.unsupervised === true,
+    ...(orch.humanWaitMs > 0 ? { humanWaitMs: orch.humanWaitMs } : {}),
   });
   control.engine = engine;
   const signal = control.abort.signal;

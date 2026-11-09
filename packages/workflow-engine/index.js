@@ -227,7 +227,7 @@ export class WorkflowEngine {
             this.set(runId, s.id, {
               state: 'failed',
               error:
-                `Échec de l’agent, sans réponse humaine${this.unsupervised ? ' (mode non supervisé)' : ` après ${Math.round(this.humanWaitMs / 1000)} s`} : ${r.error ?? 'cause inconnue'}`.slice(
+                `Échec de l’agent, sans réponse humaine${this.unsupervised ? ' (mode non supervisé)' : ` après ${Math.round(this.humanWaitMs / 1000)} s (réglable : AGENT_PLATFORM_HUMAN_WAIT_MS)`} : ${r.error ?? 'cause inconnue'}`.slice(
                   0,
                   1000,
                 ),

@@ -143,3 +143,24 @@ test('DAG : plafond de mises à jour commun au mode agent, cause explicite', asy
     /Trop de mises à jour de l’agent \(plafond 50\).*AGENT_PLATFORM_MAX_EVENTS/,
   );
 });
+
+// Relecture du 10/11 (constat 12) : délai d'attente du propriétaire réglable (AGENT_PLATFORM_HUMAN_WAIT_MS) et dit.
+test('DAG : délai d’attente humaine réglable par variable et écrit dans la cause', async (t) => {
+  process.env.AGENT_PLATFORM_HUMAN_WAIT_MS = '150';
+  let ctx;
+  try {
+    ctx = await setup(t, { workflow: true, config: { chunkCount: 20, loadSession: true } });
+  } finally {
+    delete process.env.AGENT_PLATFORM_HUMAN_WAIT_MS;
+  }
+  const { app, run, plan, control } = ctx;
+  assert.equal(app.engine.humanWaitMs, 150);
+  await app.engine.execute(run, plan, control, null);
+  assert.equal(control.engine.humanWaitMs, 150);
+  const row = app.engine.workflows.row(run.id, 'agent');
+  assert.equal(row.state, 'failed', row.error);
+  assert.match(
+    row.error,
+    /sans réponse humaine après 0 s \(réglable : AGENT_PLATFORM_HUMAN_WAIT_MS\)/,
+  );
+});

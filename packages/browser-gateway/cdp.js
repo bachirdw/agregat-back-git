@@ -165,6 +165,20 @@ function hasSensitiveWord(value) {
     .split(/[^\p{L}\p{N}]+/u)
     .some((word) => word && SENSITIVE_WORDS.test(word));
 }
+// Audit du 10/11 (constat 2) : a path that names the submission itself (…/submit, /postuler,
+// /send…), not the many paths that merely contain « apply » or « order » (autosaves, applyFlow).
+const SUBMIT_PATH_WORD =
+  /^(submit\p{L}*|send|envoyer|postuler|soumettre|candidater|transmettre|finali[sz]e)$/iu;
+export function isSubmitPath(url) {
+  try {
+    return decodeURIComponent(new URL(url).pathname)
+      .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+      .split(/[^\p{L}\p{N}]+/u)
+      .some((word) => word && SUBMIT_PATH_WORD.test(word));
+  } catch {
+    return false;
+  }
+}
 export function isSensitiveRequest(url, body) {
   // A GraphQL read stays a read even when its operation name contains an action word.
   if (isGraphqlRead(body)) return false;
@@ -831,12 +845,15 @@ export class CdpBrowser {
         // Owner decision (05/11): only the agent's click on a send button waits for the owner. Any
         // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.
+        const samePage = pageKey(pageUrl) === this.clickPage;
         const afterSendClick =
-          this.sendClick === true &&
+          (this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS) &&
           // A candidate click that led to another page (« Postuler » opening the form) : the new
           // page's own writes are no send of that click.
-          (this.clickKind !== 'candidate' || pageKey(pageUrl) === this.clickPage) &&
-          (this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS);
+          ((this.sendClick === true && (this.clickKind !== 'candidate' || samePage)) ||
+            // Audit du 10/11 (constat 2) : an ordinary click (icon button, unknown label) whose
+            // page then writes to a submission path of its own site is a send too.
+            (this.clickKind === 'plain' && firstParty && samePage && isSubmitPath(request.url())));
         if (this.sendGrant !== true && !afterSendClick && !request.isNavigationRequest()) {
           if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
           this.#traceAutoSend(request.url());

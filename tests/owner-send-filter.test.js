@@ -4,6 +4,7 @@ import {
   isAuthRefresh,
   isGraphqlRead,
   isSensitiveRequest,
+  isSubmitPath,
   previewBody,
   previewUrl,
   registrableSite,
@@ -116,4 +117,22 @@ test('Même site : API de la page oui, statistiques tierces non', () => {
   assert.equal(sameSite('https://api.example.co.uk/x', 'https://www.example.co.uk/y'), true);
   assert.equal(sameSite('http://127.0.0.1/x', 'http://192.0.0.1/y'), false);
   assert.equal(sameSite('http://[::1]/x', 'http://[::2]/y'), false);
+});
+
+test('Audit 10/11 (constat 2) : chemin d’envoi explicite, pas les sauvegardes « apply »', () => {
+  for (const url of [
+    'https://example.test/api/application/submit',
+    'https://example.test/api/submitApplication',
+    'https://example.test/candidature/postuler',
+    'https://example.test/api/messages/send',
+  ])
+    assert.equal(isSubmitPath(url), true, url);
+  for (const url of [
+    'https://example.test/wday/applyFlow/answers',
+    'https://example.test/api/answers',
+    'https://example.test/api/candidature/draft',
+    'https://example.test/?submit=1',
+    'URL malformée',
+  ])
+    assert.equal(isSubmitPath(url), false, url);
 });

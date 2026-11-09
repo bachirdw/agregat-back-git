@@ -114,3 +114,76 @@ test(
     assert.deepEqual(writes, [], 'rien n’est parti sans accord');
   },
 );
+
+test(
+  'Constat 2 : l’envoi final hors <form> ou au libellé conjugué a sa carte, et une seule',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const post = (n) => `onclick="fetch('/api/c/${n}',{method:'POST',body:'{}'})"`;
+    const labels = [
+      'Je postule',
+      'Soumettre ma candidature',
+      'Terminer',
+      'Finaliser ma candidature',
+      'Submit application',
+      'Send',
+      'Finish application',
+    ];
+    const { origin, writes } = await site(
+      t,
+      labels.map((label, i) => `<button id="b${i}" ${post(i)}>${label}</button>`).join('') +
+        `<div role="button" tabindex="0" id="d" ${post('d')}>Candidatez</div>` +
+        `<input type="button" id="v" value="Envoyer" ${post('v')}>` +
+        // Bouton sans libellé (icône) vers un chemin d'envoi explicite : le garde réseau demande.
+        `<button id="icon" aria-label="" onclick="fetch('/api/application/submit',{method:'POST',body:'{}'})">→</button>` +
+        // Un bouton ordinaire qui enregistre une réponse : passe sans carte (tracé).
+        `<button id="oui" onclick="fetch('/api/answers',{method:'POST',body:'{}'})">Oui</button>` +
+        `<form><button type="button" id="inform" ${post('f')}>Je postule</button></form>`,
+    );
+    const { gateway, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    const ids = [...labels.map((_, i) => `#b${i}`), '#d', '#v', '#icon'];
+    for (const id of ids) {
+      const before = sends().length;
+      await gateway.call('browser.click', { ref: await refFor(gateway, id) });
+      for (let i = 0; i < 100 && sends().length === before; i++) await sleep(20);
+      assert.equal(sends().length, before + 1, `une carte pour ${id}`);
+    }
+    await sleep(300);
+    assert.equal(sends().length, ids.length, 'une seule carte par envoi');
+    assert.deepEqual(writes, [], 'aucun envoi refusé n’est parti');
+    const answered = await gateway.call('browser.click', { ref: await refFor(gateway, '#oui') });
+    for (let i = 0; i < 100 && !writes.length; i++) await sleep(20);
+    assert.deepEqual(writes, ['POST /api/answers']);
+    assert.equal(sends().length, ids.length, '« Oui » ne demande rien');
+    assert.ok(answered);
+    await assert.rejects(
+      gateway.call('browser.click', { ref: await refFor(gateway, '#inform') }),
+      /Action refusée/,
+    );
+    assert.equal(
+      sends().at(-1).capability,
+      'browser.click',
+      'dans un formulaire : carte avant le clic',
+    );
+    assert.deepEqual(writes, ['POST /api/answers']);
+  },
+);
+
+test(
+  'Constat 2 : « Postuler » qui mène au formulaire ne demande rien pour les écritures de la nouvelle page',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, writes } = await site(t, (path) =>
+      path === '/form'
+        ? `<script>fetch('/api/draft',{method:'POST',body:'{}'})</script><form><input name="nom"></form>`
+        : `<button onclick="location.href='/form'">Postuler</button>`,
+    );
+    const { gateway, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    for (let i = 0; i < 100 && !writes.length; i++) await sleep(20);
+    assert.deepEqual(writes, ['POST /api/draft']);
+    assert.deepEqual(sends(), []);
+  },
+);

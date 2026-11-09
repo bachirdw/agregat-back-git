@@ -230,3 +230,13 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
   Défauts de Bilan **E76** (préparation par lien non vue) et **E77** (« e-mail de candidature » pris pour un formulaire),
   corrigés (commit suivant), à vérifier en réel par un nouvel essai Gmail.
 - 19:52 : suite complète verte sur 2573d9b : 896 unitaires (894 ✔, 2 ignorés), 157/157 Chrome, contrôle et format ; API 4311 relancée sur ce code. Aucune mission en cours. Reste : rejouer l'essai Gmail pour vérifier E76/E77 en réel ; E73 ; décision « Bilan cumulé en reprise ».
+- 09/11 20:10 : essai Gmail **25d47b55** (code E76/E77, décision « candidature complète » dans le prompt) : rapport, profil,
+  cv lus ; **3 navigations et 1 capture expirées dans le Chrome du propriétaire** (Gmail lourd, onglet en arrière-plan :
+  « page.goto: Timeout 20000ms », « Délai CDP : Page.navigate », « ariaSnapshot: Timeout 5000ms » ; l'agent a repris et
+  réussi ensuite — à surveiller, cause non établie, cf. E69) ; `email_send` sans SMTP → brouillon Relay
+  `drafts/0000….json` + lien de composition ; Gmail rouvert, « Envoyer » visible ; 2 questions en prose (retenter ?
+  compléter le tracker ?) répondues « non » par le manager pour conclure (parcours, pas d'envoi) ; `completed` 20:07 ;
+  **rien envoyé** (aucun accord demandé, 30 requêtes Gmail accordées automatiquement). Effet : un second brouillon dans
+  les Brouillons Gmail du propriétaire, un brouillon Relay dans `drafts/`. Observé sans effet : `career_offer_save` sans
+  arguments (refusé), appel natif « Report findings » de l'adaptateur. **E76 vérifié en réel** ; **E78** constaté et
+  corrigé (commit suivant) ; E77 corrigé mais non vérifié (le mot « candidature complète » déclenchait aussi).

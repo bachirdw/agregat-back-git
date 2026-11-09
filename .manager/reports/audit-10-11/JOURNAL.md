@@ -92,3 +92,9 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
 - 02:30-02:31 — **Démo 3 (sans Skill, CV FICTIF joint)**, mission 24331394 : CV téléversé par `/api/files`, mission
   restée en pack `core`, la page fictive a reçu `cv-alex-martin-FICTIF.pdf`, `completed`, envoi approuvé au Bilan.
 - 02:36 — relecture indépendante du diff complet de la nuit lancée (deux relecteurs, lecture seule).
+- 02:46 — relecture orchestrateur/reste rendue (`relecture-orch.md`, 12 constats, 9 reproduits) : **régressions de
+  la nuit** — reprise « oui, envoie » sans preuve qui finit en succès muet ; vraies questions de décision ignorées par
+  le filtre de politesse ; échec effacé par un succès du même outil ; panne de script de contrôle prise pour un verdict ;
+  10 prompts sur 50 basculés à tort sur `apply` ; regex de reprise courte du manager (b0295b1) trop large ; ledger
+  (falsification ancienne non vue, budget dépassable) ; `ps` en locale française ; formes d'erreur d'authentification
+  oubliées. Correcteur `audit-fix4` (Opus) lancé à 02:48.

@@ -64,3 +64,31 @@ test('Bilan FICTIF : candidature multi-pages, relire avant téléverser n’est 
   assert.equal(result.orderDeviation, false);
   assert.match(formatSkillBilan(result), /Écart d’ordre : aucun constaté/);
 });
+
+// Audit du 10/11 (essai c6c0250e) : la capture de la page 1 comptait déjà pour « Relire avant
+// soumission » ; le téléversement de la page 2 passait alors pour un écart.
+test('Bilan FICTIF : candidature multi-pages, capture de la page 1 avant téléverser n’est pas un écart', () => {
+  const progress = new SkillProgress(
+    selectSkillIntents('Postule à cette offre FICTIVE', [manifest]),
+  );
+  progress.start();
+  call(progress, 'nav', 'browser_navigate', { url: URL_FORM }, { url: URL_FORM, title: 'F' });
+  call(
+    progress,
+    'fill',
+    'browser_fillForm',
+    { fields: [{ ref: 'e1', value: 'F' }] },
+    { url: URL_FORM, filled: 1, hidden: false },
+  );
+  call(progress, 'snap1', 'browser_snapshot');
+  call(
+    progress,
+    'up',
+    'browser_upload',
+    { path: 'output/cv.pdf' },
+    { url: URL_FORM, uploaded: 'cv.pdf' },
+  );
+  const result = progress.finish();
+  assert.equal(result.orderDeviation, false);
+  assert.match(formatSkillBilan(result), /Écart d’ordre : aucun constaté/);
+});

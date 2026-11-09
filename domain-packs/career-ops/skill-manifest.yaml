@@ -609,6 +609,9 @@ intents:
         precondition: Champs préparés
         done: Instantané de relecture obtenu ; s’arrêter avant Envoyer sauf si le prompt demande l’envoi, la plateforme demande alors le clic au propriétaire
         optional: false
+        # Audit du 10/11 : une capture de chaque page la valide (après « fill », requiresStep) ; sur
+        # un formulaire en plusieurs pages, sa place parmi le téléversement et la relecture est libre.
+        repeatable: true
   - id: linkedin
     title: Prendre contact sur LinkedIn (mode contacto)
     # 08/11 : au-dessus d'apply (60), dont la phrase « candidature » figure souvent dans la demande

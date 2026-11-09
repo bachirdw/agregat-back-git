@@ -50,3 +50,33 @@ test('Bilan : une évaluation sans mot de candidature n’ajoute pas la ligne', 
     /Candidature :/,
   );
 });
+
+// Relecture du 10/11 (constat 7) : une question n'est pas une demande de candidature, et une frappe
+// de recherche (browser_type) n'est pas un appel de formulaire de candidature.
+for (const prompt of [
+  'Should I apply? https://acme.com/jobs/1',
+  'Is this a good fit? Tell me before I apply https://acme.com/jobs/1',
+  'Dois-je postuler ? https://acme.com/jobs/1',
+])
+  test(`Bilan : sans ligne de candidature pour la question « ${prompt} »`, () => {
+    const intent = selectSkillIntents(prompt, [manifest])[0].intent;
+    const steps = intent.steps.map((step) => ({
+      title: step.title,
+      state: 'pending',
+      optional: step.optional,
+      exempt: false,
+      proves: step.proves ?? null,
+    }));
+    const truth = createTurnTruth();
+    truth.recordGatewayTool('browser_type', 'completed', {});
+    assert.doesNotMatch(formatCareerBilan(prompt, truth, undefined, steps), /Candidature :/);
+  });
+
+test('Bilan : browser_type seul n’est pas cité comme appel de formulaire', () => {
+  const prompt = 'Evaluate this job https://acme.com/jobs/1 and apply';
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('browser_type', 'completed', {});
+  const bilan = formatCareerBilan(prompt, truth, undefined, published(prompt));
+  assert.doesNotMatch(bilan, /Candidature :[^\n]*browser_type/);
+  assert.match(bilan, /aucun appel de formulaire observé/);
+});

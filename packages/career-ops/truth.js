@@ -952,18 +952,18 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   // Audit EN du 10/11 : « Évalue cette offre et postule si elle dépasse 4/5 » ne suit que l'intention
   // choisie (une seule par mission). La candidature n'y est pas due (la condition peut ne pas être
   // remplie) : le Bilan ne la réclame pas, il dit qu'elle est hors suivi et ce que les appels montrent.
-  const formTools = [
-    'browser_fillForm',
-    'browser_type',
-    'browser_check',
-    'browser_select',
-    'browser_upload',
-  ];
+  // Relecture du 10/11 (constat 7) : browser_type (recherche, connexion) n'est pas un formulaire de
+  // candidature ; une question (« should I apply », « dois-je postuler ») n'est pas une demande.
+  const applicationAsked = formRequest.replace(
+    /\b(?:should i apply|before i apply|before applying|whether to apply|is it worth applying|dois[- ]je postuler|faut[- ]il postuler|avant de postuler)\b/giu,
+    ' ',
+  );
+  const formTools = ['browser_fillForm', 'browser_check', 'browser_select', 'browser_upload'];
   let applicationLine = '';
   if (
     skillSteps.length &&
     !due(APPLICATION_PREPARED) &&
-    /\b(?:postul(?:e|er|ez|ons)|apply|submit)\b/i.test(formRequest)
+    /\b(?:postul(?:e|er|ez|ons)|apply|submit)\b/i.test(applicationAsked)
   ) {
     const called = formTools.filter((name) => done.has(name));
     applicationLine = `\n- Candidature : hors du suivi de l’intention choisie ; ${

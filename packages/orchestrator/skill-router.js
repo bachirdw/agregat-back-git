@@ -172,6 +172,9 @@ export const skillManifestSchema = z
                 // Relecture du 10/11 (constat 5) : phrases that boost only when they open the request
                 // or one of its sentences (an infinitive used as an order), never inside it.
                 leadPhrases: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
+                // Audit EN2 : orders that open a sentence and contain the very words of
+                // `unlessPhrases` (« Use my CV to apply for this job »): they boost nonetheless.
+                headPhrases: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
               })
               .strict()
               .optional(),
@@ -257,8 +260,9 @@ export function selectSkillIntents(prompt, manifests) {
   const leads = (phrase) => heads.some((head) => head.startsWith(` ${normalize(phrase)} `));
   const boosted = (intent) =>
     Boolean(
-      (intent.boost?.phrases.some(said) || intent.boost?.leadPhrases?.some(leads)) &&
-        !intent.boost.unlessPhrases?.some(said),
+      intent.boost?.headPhrases?.some(leads) ||
+        ((intent.boost?.phrases.some(said) || intent.boost?.leadPhrases?.some(leads)) &&
+          !intent.boost.unlessPhrases?.some(said)),
     );
   return (
     manifests

@@ -487,7 +487,10 @@ intents:
         update my resume,
         update my cv,
         pdf resume,
-        generate a pdf,
+        generate a pdf resume,
+        generate a pdf cv,
+        pdf of my cv,
+        pdf of my resume,
         adapte mon cv à,
       ]
     keywords: []
@@ -602,6 +605,21 @@ intents:
         ]
       # En tête de la demande ou d'une phrase seulement : « Postuler à cette offre avec mon CV ».
       leadPhrases: [postuler, candidater, apply, submit]
+      # Audit EN2 : « Use my tailored CV to apply for this job » est une candidature (le CV est un
+      # moyen) ; « Tailor my CV to apply for … » reste des documents (le document est demandé).
+      headPhrases:
+        [
+          use my cv to apply,
+          use my resume to apply,
+          use my tailored cv to apply,
+          use my tailored resume to apply,
+          use the tailored cv to apply,
+          use the tailored resume to apply,
+          using my cv to apply,
+          using my tailored cv to apply,
+          utilise mon cv pour postuler,
+          utilise mon cv adapté pour postuler,
+        ]
       unlessPhrases:
         [
           before i apply,
@@ -712,6 +730,10 @@ intents:
         message au recruteur,
       ]
     keywords: [linkedin]
+    # Audit EN2 : « Update my CV on my LinkedIn profile » vise le profil LinkedIn, pas un document.
+    boost:
+      priority: 72
+      phrases: [my linkedin profile, linkedin profile]
     # Ordre du Skill (modes/contacto.md, « LinkedIn power move ») : 0. carnet data/contacts.tsv par
     # contact-lookup ; 1. une cible confirmée (WebSearch, LinkedIn lu dans le navigateur du
     # propriétaire) ; 4. message de connexion ; 7. enregistrement du contact seulement après son oui
@@ -784,11 +806,28 @@ intents:
         application email,
         follow-up email,
         follow up email,
-        draft an email,
-        write an email,
+        draft an email to the recruiter,
+        write an email to the recruiter,
+        draft an email to the hiring manager,
+        write an email to the hiring manager,
+        recruiter email,
         email to the recruiter,
       ]
     keywords: [gmail]
+    # Audit EN2 : « by email » oriente vers l'e-mail avant LinkedIn (66), sous documents (70) et apply.
+    boost:
+      priority: 67
+      phrases:
+        [
+          by email,
+          by e-mail,
+          via email,
+          via e-mail,
+          par email,
+          par e-mail,
+          par mail,
+          recruiter email,
+        ]
     # Ordre du Skill (modes/email.md) : contexte (rapport, CV adapté de data/pdf-index.tsv), type
     # d'e-mail, liste des pièces, brouillon. « Never send » est la règle du Skill ; la plateforme
     # n'exige aucun envoi et demande le clic du propriétaire sur tout bouton d'envoi.

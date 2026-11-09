@@ -62,11 +62,11 @@ test('E47 FICTIF : sans sortie d’erreur, le code seul ; délai dépassé reste
     /: Commande career-ops find terminée avec le code 4 \(aucune sortie d’erreur\)$/,
   );
   const slow = workspace(t, 'setTimeout(() => {}, 5000);');
-  await assert.rejects(
-    new CareerTools({ path: () => slow }, { scriptTimeoutMs: 100 }).script({
-      command: 'find',
-      query: 'FICTIF',
-    }),
-    /: Commande career-ops échouée, annulée ou expirée ; consulter la configuration locale$/,
-  );
+  // Audit misc3 : le délai dépassé n'est plus une erreur générique, il rend la sortie partielle.
+  const expired = await new CareerTools({ path: () => slow }, { scriptTimeoutMs: 100 }).script({
+    command: 'find',
+    query: 'FICTIF',
+  });
+  assert.equal(expired.timedOut, true);
+  assert.match(expired.text, /Délai dépassé/);
 });

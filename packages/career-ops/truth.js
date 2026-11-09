@@ -24,6 +24,10 @@ const FACT_GATE = 'verify-cv-facts';
 // (find.mjs) exits 1 when nothing matches its query, an answer as well.
 const VERDICT_SCRIPTS = new Set(['check-liveness', 'precheck-duplicate', FACT_GATE, 'find']);
 const VERDICT_CAUSE = 'verdict du script de contrôle, pas une panne';
+// Un script arrêté par le délai est rapporté avec le code 124 (convention de timeout(1)) : ni un
+// verdict ni un échec du script, un « délai dépassé ».
+const TIMEOUT_EXIT = 124;
+const TIMEOUT_CAUSE = 'délai dépassé';
 // pipeline-01: the inbox step of modes/pipeline.md (career_write data/pipeline.md, proves it).
 const INBOX_PROCESSED = 'boîte d’entrée traitée';
 // 08/11 : modes/contacto.md (contact book) and modes/email.md (draft), declared by the pack.
@@ -232,6 +236,7 @@ export function gatewayProgress(name, status, args, result) {
 function scriptExitCode(result) {
   try {
     const value = JSON.parse(result?.content?.[0]?.text ?? '');
+    if (value?.timedOut === true) return TIMEOUT_EXIT;
     return Number.isInteger(value?.exitCode) ? value.exitCode : undefined;
   } catch {
     return undefined;
@@ -239,7 +244,8 @@ function scriptExitCode(result) {
 }
 // A control script « answers » with a plain exit status (1 to 125). 126/127 (not runnable, not found)
 // and 128+ (killed by a signal) are the tool's breakdown, never a verdict.
-const scriptAnswered = (exitCode) => Number.isInteger(exitCode) && exitCode >= 1 && exitCode <= 125;
+const scriptAnswered = (exitCode) =>
+  Number.isInteger(exitCode) && exitCode >= 1 && exitCode <= 125 && exitCode !== TIMEOUT_EXIT;
 function callProgress(name, status, args, result) {
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
@@ -539,7 +545,11 @@ export function createTurnTruth({ root, seed } = {}) {
         status,
         ...(status === 'failed'
           ? {
-              cause: verdict ? VERDICT_CAUSE : 'échec signalé par l’outil',
+              cause: verdict
+                ? VERDICT_CAUSE
+                : name === 'career_script' && exitCode === TIMEOUT_EXIT
+                  ? TIMEOUT_CAUSE
+                  : 'échec signalé par l’outil',
               ...(verdict ? { verdict } : {}),
             }
           : {}),

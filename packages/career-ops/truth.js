@@ -87,8 +87,17 @@ export function progressArgument(name, args = {}) {
 export function reportScore(text) {
   if (typeof text !== 'string') return null;
   const head = text.slice(0, 4000);
-  const score = head.match(/^\*\*Score:\*\*\s*(\d(?:[.,]\d{1,2})?)\s*\/\s*5\b/m);
-  const url = head.match(/^\*\*URL:\*\*\s*<?(https?:\/\/[^\s>]{1,2040})/m);
+  // Tolerant header : « **Score:** », « **Score**: », « Score: », « Note : » ; the URL plain, in
+  // angle brackets or as a Markdown link.
+  const score = head.match(
+    /^[ \t]*\**[ \t]*(?:Score|Note)[ \t]*\**[ \t]*:[ \t]*\**[ \t]*(\d(?:[.,]\d{1,2})?)[ \t]*\/[ \t]*5\b/m,
+  );
+  const label = String.raw`^[ \t]*\**[ \t]*URL[ \t]*\**[ \t]*:[ \t]*\**[ \t]*`;
+  const link = head.match(
+    new RegExp(label + String.raw`\[[^\]\n]*\]\(<?(https?:\/\/[^\s>)]{1,2040})`, 'm'),
+  );
+  const plain = head.match(new RegExp(label + String.raw`<?(https?:\/\/[^\s>]{1,2040})`, 'm'));
+  const url = link ?? plain;
   if (!score || !url) return null;
   return { score: Number(score[1].replace(',', '.')), url: url[1] };
 }

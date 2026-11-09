@@ -56,3 +56,15 @@ test('email fictif : destinataire absent des sources refusé avant brouillon et 
   writeFileSync(join(root, 'jds/offre.md'), 'Offre FICTIVE : recrutement@example.test');
   assert.equal((await gateway.send(draft)).sent, false);
 });
+
+// Audit misc3 (constat career 16) : en-tête de rapport tolérant.
+test('reportScore : Score sans gras, « Note : », deux-points hors gras, lien Markdown', async () => {
+  const { reportScore } = await import('../packages/career-ops/truth.js');
+  const url = 'https://jobs.example.test/x';
+  assert.deepEqual(reportScore(`**URL:** ${url}\n**Score**: 4.2/5`), { score: 4.2, url });
+  assert.deepEqual(reportScore(`**URL:** ${url}\nScore: 3,5 / 5`), { score: 3.5, url });
+  assert.deepEqual(reportScore(`URL: ${url}\nNote : 4/5`), { score: 4, url });
+  assert.deepEqual(reportScore(`**URL:** [l'offre](${url})\n**Score:** 4.0/5`), { score: 4, url });
+  assert.equal(reportScore(`**URL:** ${url}\n**Score:** N/A`), null);
+  assert.equal(reportScore(`**URL:** ${url}\nUn score de 4/5 dans une phrase`), null);
+});

@@ -846,20 +846,30 @@ export class CdpBrowser {
         // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.
         const samePage = pageKey(pageUrl) === this.clickPage;
+        const clickWindow =
+          this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS;
         const afterSendClick =
-          (this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS) &&
+          clickWindow &&
           // A candidate click that led to another page (« Postuler » opening the form) : the new
           // page's own writes are no send of that click.
           ((this.sendClick === true && (this.clickKind !== 'candidate' || samePage)) ||
             // Audit du 10/11 (constat 2) : an ordinary click (icon button, unknown label) whose
             // page then writes to a submission path of its own site is a send too.
             (this.clickKind === 'plain' && firstParty && samePage && isSubmitPath(request.url())));
-        if (this.sendGrant !== true && !afterSendClick && !request.isNavigationRequest()) {
+        // Audit du 10/11 (constat 5) : the owner's approval of a send click covers the writes that
+        // click triggers on its site (or the form it posts elsewhere) during the click's window :
+        // a submission that awaits a check or a token before its fetch asks nothing more, and the
+        // send is counted once.
+        const covered =
+          this.clickApproved === true &&
+          clickWindow &&
+          (firstParty || request.isNavigationRequest());
+        const granted = this.sendGrant === true || covered;
+        if (!granted && !afterSendClick && !request.isNavigationRequest()) {
           if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
@@ -1447,8 +1457,10 @@ export class CdpBrowser {
     this.redirectLanding = null;
     const goto = async (url, landing = false) => {
       this.snapshotRefs = null;
-      // E43 : a navigation of the agent ends the moment of an upload, and frees the file.
+      // E43 : a navigation of the agent ends the moment of an upload, and frees the file. It also
+      // ends what an approved send click covered (audit du 10/11, constat 5).
       this.lastUploadEnd = 0;
+      this.clickApproved = false;
       this.uploadedFile = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
@@ -1556,6 +1568,7 @@ export class CdpBrowser {
         this.formStep = args.formStep === true;
         this.clickKind = args.clickKind ?? null;
         this.clickPage = pageKey(page.url());
+        this.clickApproved = args.sendApproved === true;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -1927,6 +1940,7 @@ export class CdpBrowser {
           this.sendClick = args.sendApproved === true;
           this.formStep = false;
           this.clickKind = null;
+          this.clickApproved = args.sendApproved === true;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);

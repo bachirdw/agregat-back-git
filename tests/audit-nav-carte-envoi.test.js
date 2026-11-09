@@ -187,3 +187,34 @@ test(
     assert.deepEqual(sends(), []);
   },
 );
+
+// Formulaire FICTIF dont la soumission est asynchrone (validation, jeton), comme une SPA React.
+const asyncForm = `<script>
+  async function go() {
+    await new Promise((r) => setTimeout(r, 400));
+    await fetch('/api/candidatures', { method: 'POST', body: JSON.stringify({ nom: 'FICTIF' }) });
+    await fetch('/api/suivi', { method: 'POST', body: '{}' });
+    document.body.dataset.sent = '1';
+  }
+</script>
+<form onsubmit="event.preventDefault(); go()"><input name="nom"><button type="submit">Envoyer ma candidature</button></form>`;
+
+test(
+  'Constat 5 : l’accord du clic couvre la soumission asynchrone qu’il déclenche : une carte, un envoi',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, writes } = await site(t, asyncForm);
+    const { gateway, asked, sends } = await owner(t, origin, () => true);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    for (let i = 0; i < 150 && writes.length < 2; i++) await sleep(20);
+    await sleep(300);
+    assert.deepEqual(writes, ['POST /api/candidatures', 'POST /api/suivi']);
+    assert.deepEqual(
+      sends().map((r) => r.capability),
+      ['browser.click'],
+      'une seule carte, celle du clic',
+    );
+    assert.equal(asked.length, 1);
+  },
+);

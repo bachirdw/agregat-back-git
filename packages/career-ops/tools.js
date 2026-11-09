@@ -216,13 +216,13 @@ function checkTrackerAddition(root, text) {
 }
 // pipeline-01: form of the Skill's inbox, and no entry removed (packages/career-ops/inbox.js).
 function checkPipelineInbox(root, text) {
-  const kept = new Set(inboxEntries(text, true).map((entry) => entry.key));
   let previous = '';
   try {
     previous = readConfined(root, 'data/pipeline.md', 10 * 1024 * 1024).toString('utf8');
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
+  const kept = new Set(inboxEntries(text, true, previous).map((entry) => entry.key));
   const removed = new Set(
     inboxEntries(previous, false)
       .filter((entry) => !kept.has(entry.key))

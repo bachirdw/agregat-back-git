@@ -5,15 +5,18 @@
 // Headings and free text are the file's own (scan.mjs skeleton, sections in any language). An
 // entry is only ever ticked, by the mode, scan.mjs or reconcile-pipeline.mjs: never removed.
 // Read by career_write (form, no removal) and by the Bilan (counts before and after a turn).
-const INBOX_ITEM = /^- \[([ x!])\] (.*)$/;
-const INBOX_LIKE = /^\s*[-*]\s*\[.?\]/;
+const INBOX_ITEM = /^\s*[-*+] \[([ xX!])\] (.*)$/;
+const INBOX_LIKE = /^\s*[-*+]\s*\[.?\]/;
 const INBOX_URL = /(?:https?:\/\/|local:)[^\s|]+/;
 // Under-strip on purpose, as url-key.mjs: a trailing slash only, never a query parameter.
 const inboxKey = (url) => url.replace(/[~/]+$/, '');
-export function inboxEntries(text, strict = false) {
+// Strict mode refuses only the lines that are new or changed against `previous` (a text): a line the
+// file already held is the owner's (or Obsidian's), kept as is, never a reason to block a write.
+export function inboxEntries(text, strict = false, previous = '') {
   const entries = [];
-  const refuse = (index) => {
-    if (strict)
+  const known = new Set(String(previous ?? '').split(/\r?\n/));
+  const refuse = (index, line) => {
+    if (strict && !known.has(line))
       throw new Error(
         `data/pipeline.md : ligne ${index + 1} refusée ; une entrée est « - [ ] url | entreprise | poste », « - [x] #NNN | url | … » ou « - [!] url — note » (modes/pipeline.md)`,
       );
@@ -23,14 +26,17 @@ export function inboxEntries(text, strict = false) {
     .forEach((line, index) => {
       const item = line.match(INBOX_ITEM);
       if (!item) {
-        if (INBOX_LIKE.test(line)) refuse(index);
+        if (INBOX_LIKE.test(line)) refuse(index, line);
         return;
       }
       const body = item[2].replace(/^~~([\s\S]*?)~~/, '$1').trim();
       const url = body.match(INBOX_URL)?.[0];
       const leadsWithUrl = INBOX_URL.test(body.split(/[\s|]+/)[0] ?? '');
-      if (!url || (item[1] !== 'x' && !leadsWithUrl)) return refuse(index);
-      entries.push({ state: item[1], key: inboxKey(url) });
+      const state = item[1].toLowerCase();
+      // A processed line without URL (« - [x] #042 | Company | … ») is kept, it names no entry.
+      if (!url) return state === 'x' ? undefined : refuse(index, line);
+      if (state !== 'x' && !leadsWithUrl) return refuse(index, line);
+      entries.push({ state, key: inboxKey(url) });
     });
   return entries;
 }

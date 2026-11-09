@@ -124,15 +124,12 @@ test('career_write data/pipeline.md : formes du Skill admises (scan, cochage, er
 test('career_write data/pipeline.md : une ligne hors format est refusée avec son numéro', (t) => {
   const { tools } = workspace(t);
   for (const line of [
-    `- [X] ${URLS[0]}`,
     `- [?] ${URLS[0]}`,
     '- [ ]',
     '- [ ] ',
     '- [ ] Entreprise FICTIVE | Poste FICTIF',
     `-[ ] ${URLS[0]}`,
-    `* [ ] ${URLS[0]}`,
     `- [] ${URLS[0]}`,
-    '- [x] #042 | Entreprise FICTIVE | Poste FICTIF | 4.2/5',
     '- [!] Error: login required',
   ])
     assert.throws(
@@ -140,6 +137,20 @@ test('career_write data/pipeline.md : une ligne hors format est refusée avec so
       /ligne 6/,
       line,
     );
+});
+
+test('career_write data/pipeline.md : [X], puces * ou +, indentation et [x] sans URL admis ; seules les lignes nouvelles invalides sont refusées', (t) => {
+  const { root, tools } = workspace(t);
+  const odd = `${SKELETON}- [X] ${URLS[0]} | Entreprise FICTIVE | Poste FICTIF\n* [ ] ${URLS[1]}\n  - [ ] ${URLS[2]}\n- [x] #042 | Entreprise FICTIVE | Poste FICTIF | 4.2/5\n`;
+  assert.equal(tools.write('data/pipeline.md', odd).saved, true);
+  // Une ligne invalide déjà présente dans le fichier n'est pas un motif de refus.
+  const legacy = `${odd}- [?] ancienne ligne du propriétaire\n`;
+  writeFileSync(join(root, 'data/pipeline.md'), legacy);
+  assert.equal(tools.write('data/pipeline.md', `${legacy}Note libre.\n`).saved, true);
+  // Une ligne nouvelle invalide l'est toujours, avec son numéro.
+  assert.throws(() => tools.write('data/pipeline.md', `${legacy}- [?] nouvelle\n`), /ligne 11/);
+  // Une entrée [X] ou en puce * ne peut pas disparaître non plus.
+  assert.throws(() => tools.write('data/pipeline.md', SKELETON), /3 entrée/);
 });
 
 test('career_write data/pipeline.md : une entrée existante ne disparaît jamais, elle se coche', (t) => {

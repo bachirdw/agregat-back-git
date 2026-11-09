@@ -69,16 +69,25 @@ export function proseQuestion(id, question, askedAt) {
 // « do you want », « would you like », « which one(s) », or a final « ? »). The agent's own words,
 // nothing rephrased; no options, the owner answers freely.
 const ASKS =
-  /(?:^|[^\p{L}])(?:dis[-‑ ]?moi|dites[-‑ ]?moi|veux[-‑ ]?tu|voulez[-‑ ]?vous|prefere[sz][-‑ ]?(?:tu|vous)|souhaite[sz][-‑ ]?(?:tu|vous)|do you want|would you like|which one(?:s)?|let me know which|tell me which)(?![\p{L}])/iu;
+  /(?:^|[^\p{L}])(?:dis[-‑ ]?moi|dites[-‑ ]?moi|veux[-‑ ]?tu|voulez[-‑ ]?vous|prefere[sz][-‑ ]?(?:tu|vous)|souhaite[sz][-‑ ]?(?:tu|vous)|do you want|would you like|which one(?:s)?|let me know which|tell me which|(?:me|nous) (?:dire|indiquer|confirmer) si|confirme[sz]?[-‑ ]?moi|let me know (?:if|whether) (?:you want|i should)|should i)(?![\p{L}])/iu;
 // Audit du 10/11 (constat 4) : « lequel / laquelle / lesquel(le)s » ask only when they open the
 // sentence (« Laquelle traiter ? ») ; inside it they are mostly relatives (« l'offre à laquelle tu
 // voulais candidater ») and asked nothing.
 const ASKING_PRONOUN = /^(?:lesquel(?:le)?s?|laquelle|lequel)(?![\p{L}])/iu;
 // A courtesy sentence offers more help and asks for no decision (« Dis-moi si tu veux autre chose »,
 // « Would you like me to also save it? », « Let me know if you need anything else ») : it is left
-// out before the paragraph is read as a question.
+// out before the paragraph is read as a question. Relecture du 10/11 (constat 2) : a sentence that
+// proposes an action with consequences (submit, send, apply, click, attach…) or a choice
+// (« … ou … ? ») is never courtesy, even with « aussi », « autre chose » or « dis-moi si tu veux ».
+// The text is read without accents (NFD).
 const COURTESY =
-  /(?:(?:dis|dites)[-‑ ]?moi si (?:tu|vous) (?:veux|voulez|souhaite[sz]?|as|avez|aimerais|aimeriez)|let me know if you|n['’]h[e]site[sz]? pas|autre chose|quoi que ce soit d['’]autre|anything else|feel free|(?:je reste|reste) a (?:ta|votre) disposition|(?:would you like|do you want|veux[-‑ ]?tu|voulez[-‑ ]?vous|souhaite[sz][-‑ ]?(?:tu|vous))(?![\p{L}])[^.?!]*(?:^|[^\p{L}])(?:aussi|egalement|also|as well)(?![\p{L}]))/iu;
+  /(?:(?:dis|dites)[-‑ ]?moi si (?:tu|vous) (?:veux|voulez|souhaite[sz]?|as|avez|aimerais|aimeriez)|let me know if you|n['’]h[e]site[sz]? pas|(?:veux|voulez|souhaite[sz]?)(?:[-‑ ]?(?:tu|vous))?\s+(?:(?:encore|quelque)\s+)?autre chose|besoin d['’]\s*(?:encore\s+)?autre chose|(?:pour|avec|sur) (?:autre chose|quoi que ce soit)|quoi que ce soit d['’]autre|anything else|feel free|(?:je reste|reste) a (?:ta|votre) disposition|(?:would you like|do you want|veux[-‑ ]?tu|voulez[-‑ ]?vous|souhaite[sz][-‑ ]?(?:tu|vous))(?![\p{L}])[^.?!]*(?:^|[^\p{L}])(?:aussi|egalement|also|as well)(?![\p{L}]))/iu;
+const PROPOSED_ACTION =
+  /(?:^|[^\p{L}])(?:soumet\p{L}*|soumis|soumettre|envoi\p{L}*|envoy\p{L}*|j['’]envoie|postul\p{L}*|candidat(?:er|ez)|cliqu\p{L}*|joign\p{L}*|joindre|joins|rempli(?:r|sse|sses|ssiez)|publi(?:e|er|es|ez)|supprim\p{L}*|pay(?:e|er|ez)|achet\p{L}*|televers\p{L}*|submit\p{L}*|send(?:ing)?|apply(?:ing)?|click\p{L}*|attach\p{L}*|fill(?:ing)?|publish\p{L}*|upload\p{L}*|delete|purchase)(?![\p{L}])/iu;
+const OFFERS_CHOICE =
+  /(?:^|[^\p{L}])(?:prefere[sz]?|prefer|plutot|rather|veux[-‑ ]?tu|voulez[-‑ ]?vous|souhaite[sz][-‑ ]?(?:tu|vous)|(?:dis|dites)[-‑ ]?moi si (?:tu|vous) (?:veux|voulez)|would you|do you want|should i|dois[-‑ ]?je)(?![\p{L}])[^.?!]*(?:^|[^\p{L}])(?:ou|or)(?![\p{L}])/iu;
+const isCourtesy = (sentence) =>
+  COURTESY.test(sentence) && !PROPOSED_ACTION.test(sentence) && !OFFERS_CHOICE.test(sentence);
 export function decisionRequest(summary) {
   if (typeof summary !== 'string') return null;
   const last = summary
@@ -91,7 +100,7 @@ export function decisionRequest(summary) {
   const sentences = plain
     .split(/(?<=[.!?])\s+/u)
     .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence && !COURTESY.test(sentence));
+    .filter((sentence) => sentence && !isCourtesy(sentence));
   if (!sentences.length) return null;
   const end = sentences.at(-1).replace(/[\s*_`"'»)\]]+$/u, '');
   if (

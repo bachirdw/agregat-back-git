@@ -17,8 +17,10 @@ export function loadProbes(dataDir) {
 }
 // Only a precise authentication refusal may mark an agent as unusable. "author", "authorized", a
 // quoted login page or a one-off network failure must not (they used to, through a loose regex).
+// Precise forms of real CLIs are also listed (audit 10/11, constat 9): expired OAuth token,
+// `authentication_error` (Anthropic API), missing GEMINI_API_KEY, unset auth method (Gemini CLI).
 export const AUTH_REFUSAL =
-  /\b(?:auth[_ ]required|authentication (?:is )?(?:required|failed|error)|authentification (?:api )?(?:refus|requise|échou)\w*|failed to authenticate|unauthenticated|unauthori[sz]ed|\b401\b|login required|not logged in|(?:invalid|incorrect|missing|expired) (?:api[ _-]?key|credentials?|token)|api[ _-]?key (?:is )?(?:missing|invalid|not valid))\b/i;
+  /\b(?:auth[_ ]required|authentication (?:is )?(?:required|failed|error)|authentification (?:api )?(?:refus|requise|échou)\w*|failed to authenticate|unauthenticated|unauthori[sz]ed|\b401\b|login required|not logged in|(?:invalid|incorrect|missing|expired) (?:api[ _-]?key|credentials?|token)|api[ _-]?key (?:is )?(?:missing|invalid|not valid)|(?:o?auth |access |refresh )?token (?:has )?expired|authentication_error|(?:specify|set) (?:the )?GEMINI_API_KEY|GEMINI_API_KEY (?:is )?(?:missing|not set|required)|set an auth method|error authenticating|please run \/login)\b/i;
 const TRANSIENT_NETWORK =
   /ECONN|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|socket hang up|fetch failed|network|réseau|Délai dépassé|timed? ?out|503|502|504/i;
 export function saveProbe(dataDir, id, rawProbe) {

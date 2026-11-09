@@ -28,6 +28,41 @@ test('reprise rapide fictive : demande d’action sans navigateur signalée, cas
     assert.equal(shortResumeWithoutBrowser({ ...input, prompt, browserObserved: false }), true);
 });
 
+test('reprise rapide : seuls les impératifs d’action non niés comptent (constat 6)', () => {
+  const short = (prompt) =>
+    shortResumeWithoutBrowser({ previous: true, prompt, durationMs: 5000, browserObserved: false });
+  for (const prompt of [
+    'Oui, envoie.',
+    'OK envoie-la',
+    'Envoyez-la',
+    'Soumets le formulaire',
+    'Vas-y, postule',
+    'Postule à cette offre FICTIVE',
+    'Candidate à l’offre Acme',
+    'OK, candidate chez Acme',
+    'Clique sur Envoyer',
+    'clique sur « Envoyer »',
+    'Ne fais pas de brouillon mais envoie l’email',
+    'Ok, submit it',
+    'yes, send it',
+  ])
+    assert.equal(short(prompt), true, prompt);
+  for (const prompt of [
+    'N’envoie pas encore, dis-moi juste quel CV tu as joint',
+    "N'envoie rien",
+    'Quel est l’envoi prévu ?',
+    'Ne soumets rien, résume l’offre',
+    'Je suis candidate : quel score as-tu donné ?',
+    'Je suis candidate à ce poste, quel score ?',
+    'Elle est candidate au poste ?',
+    'Je postule demain, quel CV ?',
+    'Il m’envoie un e-mail ?',
+    'Qui postule ?',
+    'Don’t submit yet, show me the form',
+  ])
+    assert.equal(short(prompt), false, prompt);
+});
+
 test('email fictif : destinataire absent des sources refusé avant brouillon et approbation', async (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-truth-FICTIF-')));
   t.after(() => rmSync(root, { recursive: true, force: true }));

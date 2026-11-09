@@ -216,3 +216,11 @@ export function browserObservationFailure(evidence) {
 // the latter : « _ » then « b » is no word boundary.
 export const isBrowserToolName = (name) =>
   /(?:^|[^a-z0-9])browser[_.][a-z]/i.test(String(name ?? ''));
+
+// Relecture du 10/11 (constat 1) : an action ordered by the prompt (send, application, form) with no
+// page proven and no send approved. Said at the head of the Bilan, and as the mission's error.
+export const UNPROVEN_ACTION =
+  'Avertissement — navigation non prouvée : aucun envoi constaté par la plateforme';
+export const UNPROVEN_ACTION_ERROR =
+  'Navigation non prouvée : action demandée (envoi, candidature ou formulaire) sans page observée ni envoi approuvé';
+export const NO_SEND_APPROVED = '\nEnvoi par la plateforme : aucun approuvé.';

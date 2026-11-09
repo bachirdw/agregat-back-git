@@ -29,11 +29,26 @@ export class Store extends EventEmitter {
     this.db.exec(
       'CREATE TABLE IF NOT EXISTS ledger_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)',
     );
+    // Per-run lookups (mission start, budget sum) without scanning the whole ledger (constat 7).
+    this.db.exec('CREATE INDEX IF NOT EXISTS ledger_run ON ledger(run_id, id)');
     this.db
       .prepare('INSERT OR IGNORE INTO ledger_meta VALUES (?,?)')
       .run('anchor', JSON.stringify(this.ledgerHead()));
     this.limits = { monthlyCapCents: null };
     // Full chain check once at startup (cost linear, paid once); each charge then only checks the tail.
+    // Relecture du 10/11 (constat 7) : the chain is verified in full at startup, then incrementally
+    // (rows added since the last verified one), in full again at the first charge of each mission
+    // and every `ledgerFullEvery` charges ; a run's budget is checked on its own rows, re-hashed.
+    this.ledgerFullEvery =
+      Number(process.env.AGENT_PLATFORM_LEDGER_FULL_EVERY) > 0
+        ? Number(process.env.AGENT_PLATFORM_LEDGER_FULL_EVERY)
+        : 500;
+    // Per run: the sum and last row id last proven by verifyRunLedger() or written here. A sum or
+    // last id that no longer matches the table re-verifies the run's rows before its budget is used.
+    this.runSums = new Map();
+    this.chargesSinceFullCheck = 0;
+    this.ledgerBroken = null;
+    this.verifiedTip = null;
     this.startupLedger = this.verifyLedger();
     for (const { data } of this.db.prepare('SELECT data FROM runs').all()) {
       let run;
@@ -183,16 +198,31 @@ export class Store extends EventEmitter {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       if (currency) this.bindCurrency(currency);
-      if (!this.verifyLedgerTail().ok) throw new Error('Intégrité du ledger invalide');
+      const missionStart = !this.db.prepare('SELECT 1 FROM ledger WHERE run_id=? LIMIT 1').get(id);
+      const check =
+        missionStart || ++this.chargesSinceFullCheck >= this.ledgerFullEvery
+          ? this.verifyLedger()
+          : this.verifyLedgerTail();
+      if (missionStart || this.chargesSinceFullCheck >= this.ledgerFullEvery)
+        this.chargesSinceFullCheck = 0;
+      if (!check.ok) throw new Error('Intégrité du ledger invalide');
       // 0 or absent = no per-run cap (the monthly cap still applies); only a positive budget is a ceiling.
       // A malformed value is an integrity problem, reported apart from a real overrun.
       const budget = this.get(id)?.budgetCents ?? 0;
       if (!Number.isSafeInteger(budget) || budget < 0)
         throw new Error('Valeur illisible : budgetCents du run');
       if (budget > 0) {
-        const { spent } = this.db
-          .prepare('SELECT COALESCE(SUM(platform_cents),0) AS spent FROM ledger WHERE run_id=?')
+        // The budget is summed over this run's rows only once each of them is proven unaltered.
+        const { spent, last } = this.db
+          .prepare(
+            'SELECT COALESCE(SUM(platform_cents),0) AS spent, COALESCE(MAX(id),0) AS last FROM ledger WHERE run_id=?',
+          )
           .get(id);
+        const known = this.runSums.get(id);
+        if (!known || known.spent !== spent || known.last !== last) {
+          if (!this.verifyRunLedger(id).ok) throw new Error('Intégrité du ledger invalide');
+          this.runSums.set(id, { spent, last });
+        }
         if (spent + cents > budget) throw new Error('Budget plateforme dépassé');
       }
       if (this.limits.monthlyCapCents !== null && cents > 0) {
@@ -228,28 +258,78 @@ export class Store extends EventEmitter {
         .prepare('UPDATE ledger_meta SET value=? WHERE key=?')
         .run(JSON.stringify(this.ledgerHead()), 'anchor');
       this.db.exec('COMMIT');
+      const known = this.runSums.get(id);
+      if (known) this.runSums.set(id, { spent: known.spent + cents, last: entry.id });
     } catch (e) {
       this.db.exec('ROLLBACK');
       throw e;
     }
   }
-  // Constant-time check used on every charge/poll: the last row against its predecessor, and the
-  // anchor. An old edit is caught by the startup check or by verifyLedger() (full), not here.
+  // Incremental check used on every charge/poll: the last verified row is unchanged, and the rows
+  // added since chain from it ; then the anchor. An old edit is caught by the full check (startup,
+  // first charge of a mission, every `ledgerFullEvery` charges) or, for a run with a budget, by
+  // verifyRunLedger() before its budget is summed.
   verifyLedgerTail() {
     if (!this.startupLedger.ok) return this.startupLedger;
-    const rows = this.db.prepare('SELECT * FROM ledger ORDER BY id DESC LIMIT 2').all();
-    const [tip, before] = rows;
-    if (tip) {
-      if (![1, 2].includes(tip.hash_version)) return { ok: false, brokenAt: tip.id };
-      if (tip.hash === null) {
-        if (tip.hash_version !== 1) return { ok: false, brokenAt: tip.id };
-      } else {
-        const prev = before?.hash ?? null;
-        if (tip.prev_hash !== prev || Store.entryHash(prev, tip) !== tip.hash)
-          return { ok: false, brokenAt: tip.id };
-      }
+    if (this.ledgerBroken) return this.ledgerBroken;
+    if (!this.verifiedTip) return this.verifyLedger();
+    const tip = this.verifiedTip;
+    if (tip.id) {
+      const row = this.db.prepare('SELECT hash FROM ledger WHERE id=?').get(tip.id);
+      if (!row || row.hash !== tip.hash) return this.markBroken({ ok: false, brokenAt: tip.id });
     }
+    const walked = Store.walkLedger(
+      this.db.prepare('SELECT * FROM ledger WHERE id>? ORDER BY id').iterate(tip.id),
+      tip,
+    );
+    if (!walked.ok) return this.markBroken(walked);
+    this.verifiedTip = walked.tip;
     return this.anchorMatches();
+  }
+  markBroken(result) {
+    this.ledgerBroken = result;
+    return result;
+  }
+  // Every row of one run, re-hashed and linked to the row that really precedes it.
+  verifyRunLedger(id) {
+    if (!this.startupLedger.ok) return this.startupLedger;
+    if (this.ledgerBroken) return this.ledgerBroken;
+    const rows = this.db
+      .prepare(
+        'SELECT l.*, (SELECT p.hash FROM ledger p WHERE p.id<l.id ORDER BY p.id DESC LIMIT 1) AS actual_prev FROM ledger l WHERE l.run_id=? ORDER BY l.id',
+      )
+      .all(id);
+    for (const e of rows) {
+      if (![1, 2].includes(e.hash_version)) return this.markBroken({ ok: false, brokenAt: e.id });
+      if (e.hash === null) {
+        if (e.hash_version !== 1) return this.markBroken({ ok: false, brokenAt: e.id });
+        continue;
+      }
+      if (e.prev_hash !== (e.actual_prev ?? null) || Store.entryHash(e.prev_hash, e) !== e.hash)
+        return this.markBroken({ ok: false, brokenAt: e.id });
+    }
+    return { ok: true };
+  }
+  // Walks rows in id order from a verified point ({ id, hash, chained }).
+  static walkLedger(rows, from) {
+    let prev = from.hash;
+    let chained = from.chained;
+    let id = from.id;
+    for (const e of rows) {
+      if (![1, 2].includes(e.hash_version)) return { ok: false, brokenAt: e.id };
+      if (e.hash === null) {
+        if (e.hash_version !== 1) return { ok: false, brokenAt: e.id };
+        if (chained) return { ok: false, brokenAt: e.id }; // unchained row after the chain began
+        id = e.id;
+        continue; // legacy rows written before chaining
+      }
+      chained = true;
+      if (e.prev_hash !== prev || Store.entryHash(prev, e) !== e.hash)
+        return { ok: false, brokenAt: e.id };
+      prev = e.hash;
+      id = e.id;
+    }
+    return { ok: true, tip: { id, hash: prev, chained } };
   }
   anchorMatches() {
     try {
@@ -265,20 +345,13 @@ export class Store extends EventEmitter {
   }
   // Recomputes the whole chain; returns the first broken entry id, if any.
   verifyLedger() {
-    let prev = null;
-    let chained = false;
-    for (const e of this.db.prepare('SELECT * FROM ledger ORDER BY id').all()) {
-      if (![1, 2].includes(e.hash_version)) return { ok: false, brokenAt: e.id };
-      if (e.hash === null) {
-        if (e.hash_version !== 1) return { ok: false, brokenAt: e.id };
-        if (chained) return { ok: false, brokenAt: e.id }; // unchained row after the chain began
-        continue; // legacy rows written before chaining
-      }
-      chained = true;
-      if (e.prev_hash !== prev || Store.entryHash(prev, e) !== e.hash)
-        return { ok: false, brokenAt: e.id };
-      prev = e.hash;
-    }
+    const walked = Store.walkLedger(this.db.prepare('SELECT * FROM ledger ORDER BY id').iterate(), {
+      id: 0,
+      hash: null,
+      chained: false,
+    });
+    if (!walked.ok) return this.markBroken(walked);
+    this.verifiedTip = walked.tip;
     return this.anchorMatches();
   }
   usage(id) {

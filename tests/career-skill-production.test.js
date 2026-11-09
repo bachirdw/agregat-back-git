@@ -247,6 +247,7 @@ test('Passerelle : préfixe output/, faits sans source comptés dans la sortie d
   assert.deepEqual(failed, {
     argument: 'verify-cv-facts',
     exitCode: 1,
+    verdictOutput: true,
     facts: { unsourced: 3 },
   });
   assert.doesNotMatch(JSON.stringify(failed), /Rust|90%|synergie/);

@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../apps/api/server.js';
 
-async function setup(t, { config = {}, workflow = false, astra = false } = {}) {
+async function setup(t, { config = {}, workflow = false, astra = false, prompt = 'FICTIF' } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'astra-turn-FICTIF-'));
   const app = createApp({ dataDir: root, ownerMode: true, silentMs: 300 });
   app.engine.toolIdleMs = 80;
@@ -19,7 +19,7 @@ async function setup(t, { config = {}, workflow = false, astra = false } = {}) {
     id: randomUUID(),
     state: 'queued',
     cwd: root,
-    prompt: 'FICTIF',
+    prompt,
     model: '',
     mode: workflow ? 'workflow' : 'agent',
     budgetCents: 0,
@@ -101,4 +101,66 @@ test('DAG : outil navigateur déclaré sans observation : avertissement au Bilan
   assert.match(done.result.summary, /Tout lu FICTIF/);
   assert.ok(app.store.events(run.id).some((e) => e.type === 'browser_unproven'));
   assert.equal(app.engine.attemptTokens.size, 0);
+});
+
+// Relecture du 10/11 (constat 1), mode DAG : même règle que le mode agent.
+test('DAG : envoi demandé, navigation non prouvée, aucun accord → failed, réponse gardée, Bilan averti', async (t) => {
+  const { app, run, plan, control } = await setup(t, {
+    workflow: true,
+    prompt: 'Postule à l’offre FICTIVE et clique sur Envoyer',
+    config: {
+      promptBrowserTool: 'browser_click',
+      result: { simulated: true, summary: 'Candidature FICTIVE envoyée.', evidence: [] },
+    },
+  });
+  plan.dag.steps.push({ id: 'verify', title: 'FICTIF', kind: 'verify', dependsOn: ['agent'] });
+  await app.engine.execute(run, plan, control, null);
+  const done = app.store.get(run.id);
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /Navigation non prouvée : action demandée/);
+  const verification = app.store.events(run.id).find((event) => event.type === 'verification');
+  assert.equal(verification?.data.valid, false);
+  assert.match(verification.data.scope, /navigation non prouvée/);
+  assert.match(
+    done.result.summary,
+    /^Avertissement — navigation non prouvée : aucun envoi constaté par la plateforme\.\nCandidature FICTIVE envoyée\./,
+  );
+  assert.match(done.result.summary, /Envoi par la plateforme : aucun approuvé\./);
+});
+
+// Relecture du 10/11 (constat 11) : le mode DAG suit le plafond du mode agent (AGENT_PLATFORM_MAX_EVENTS).
+test('DAG : plafond de mises à jour commun au mode agent, cause explicite', async (t) => {
+  const { app, run, plan, control } = await setup(t, {
+    workflow: true,
+    config: { chunkCount: 200, loadSession: true },
+  });
+  app.engine.maxEvents = 50;
+  await app.engine.execute(run, plan, control, null);
+  const done = app.store.get(run.id);
+  assert.equal(done.state, 'failed');
+  assert.match(
+    done.error,
+    /Trop de mises à jour de l’agent \(plafond 50\).*AGENT_PLATFORM_MAX_EVENTS/,
+  );
+});
+
+// Relecture du 10/11 (constat 12) : délai d'attente du propriétaire réglable (AGENT_PLATFORM_HUMAN_WAIT_MS) et dit.
+test('DAG : délai d’attente humaine réglable par variable et écrit dans la cause', async (t) => {
+  process.env.AGENT_PLATFORM_HUMAN_WAIT_MS = '150';
+  let ctx;
+  try {
+    ctx = await setup(t, { workflow: true, config: { chunkCount: 20, loadSession: true } });
+  } finally {
+    delete process.env.AGENT_PLATFORM_HUMAN_WAIT_MS;
+  }
+  const { app, run, plan, control } = ctx;
+  assert.equal(app.engine.humanWaitMs, 150);
+  await app.engine.execute(run, plan, control, null);
+  assert.equal(control.engine.humanWaitMs, 150);
+  const row = app.engine.workflows.row(run.id, 'agent');
+  assert.equal(row.state, 'failed', row.error);
+  assert.match(
+    row.error,
+    /sans réponse humaine après 0 s \(réglable : AGENT_PLATFORM_HUMAN_WAIT_MS\)/,
+  );
 });

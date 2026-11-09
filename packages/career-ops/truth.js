@@ -240,7 +240,14 @@ export function gatewayProgress(name, status, args, result) {
   // from « the tool failed » (spawn error, timeout, cancel : no exit code, the gateway raised).
   const exitCode =
     name === 'career_script' && status === 'failed' ? scriptExitCode(result) : undefined;
-  return exitCode === undefined ? withArgs : { ...withArgs, exitCode };
+  if (exitCode === undefined) return withArgs;
+  return VERDICT_SCRIPTS.has(withArgs.argument)
+    ? {
+        ...withArgs,
+        exitCode,
+        verdictOutput: scriptVerdictOutput(withArgs.argument, scriptText(result?.content)),
+      }
+    : { ...withArgs, exitCode };
 }
 function scriptExitCode(result) {
   try {
@@ -255,6 +262,55 @@ function scriptExitCode(result) {
 // and 128+ (killed by a signal) are the tool's breakdown, never a verdict.
 const scriptAnswered = (exitCode) =>
   Number.isInteger(exitCode) && exitCode >= 1 && exitCode <= 125 && exitCode !== TIMEOUT_EXIT;
+// Relecture du 10/11 (constat 4) : an exit code 1-125 is also what a usage error or a crash of the
+// script gives (precheck-duplicate without --company, check-liveness without a tracker, find with
+// an unknown flag, verify-cv-facts on a missing file). A verdict needs the script's own verdict
+// output as well (messages read in the Skill's scripts, never modified); otherwise it is a breakdown.
+const STACK_TRACE = /^\s+at\s.+(?::\d+:\d+\)?|\(native\))\s*$/m;
+const VERDICT_OUTPUT = {
+  // check-liveness.mjs : « Results: N active  N expired  N uncertain » with an expired or uncertain one.
+  'check-liveness': (text) => {
+    const m = text.match(/^Results:\s+\d+\s+active\s+(\d+)\s+expired\s+(\d+)\s+uncertain/m);
+    return !!m && Number(m[1]) + Number(m[2]) > 0 && !/^Fatal:/m.test(text);
+  },
+  // precheck-duplicate.mjs : « Possible duplicate(s) in the tracker », or its --json candidates.
+  'precheck-duplicate': (text) => {
+    if (/^Possible duplicate\(s\) in the tracker/m.test(text)) return true;
+    try {
+      const value = JSON.parse(text);
+      return Array.isArray(value?.candidates) && value.candidates.length > 0;
+    } catch {
+      return false;
+    }
+  },
+  // verify-cv-facts.mjs : « CV fact check failed: … », or its --json verdict « block » without errors.
+  [FACT_GATE]: (text) => {
+    if (/^CV fact check failed: /m.test(text)) return true;
+    try {
+      const value = JSON.parse(text);
+      return (
+        value?.verdict === 'block' && !(Array.isArray(value.errors) && value.errors.length > 0)
+      );
+    } catch {
+      return false;
+    }
+  },
+  // find.mjs : « No application matches "…" », or `[]` with --json.
+  find: (text) => {
+    if (/^No application matches "/m.test(text)) return true;
+    try {
+      const value = JSON.parse(text);
+      return Array.isArray(value) && value.length === 0;
+    } catch {
+      return false;
+    }
+  },
+};
+export function scriptVerdictOutput(argument, text) {
+  const output = String(text ?? '').trim();
+  const looks = VERDICT_OUTPUT[argument];
+  return !!looks && !!output && !STACK_TRACE.test(output) && looks(output);
+}
 function callProgress(name, status, args, result) {
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
@@ -325,16 +381,54 @@ const outputText = (output) => {
 // Seconde relecture de nuit : the one reader of an answered exit code (orchestrator/exit-code.js).
 const exitFailed = (output) => exitFailedOf(output);
 
-export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browserObserved }) {
+// A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
+// « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
+// mais envoie l'email » keeps « envoie l'email ».
+const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
+const NEGATED = new RegExp(
+  String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
+  'giu',
+);
+export const withoutNegations = (prompt) => String(prompt ?? '').replace(NEGATED, ' ');
+
+// An action the owner orders now: an imperative not denied, not said of someone else (« je postule »,
+// « il m’envoie »), never the noun « envoi » or the adjective « candidate » (audit 10/11, constat 6:
+// « N’envoie pas encore », « Quel est l’envoi prévu ? », « Je suis candidate » used to match and
+// the agent's answer was replaced by « L’agent n’a rien exécuté »).
+const NOT_SAID_OF_SOMEONE = String.raw`(?<!(?:^|[^\p{L}])(?:je|j['’]|tu|il|elle|on|ils|elles|qui|qu['’](?:il|elle|on))\s*(?:(?:me|m['’]|te|t['’]|lui|leur|les|la|le|l['’]|nous|vous)\s*)?)`;
+const ACTION_ORDER = new RegExp(
+  [
+    String.raw`${NOT_SAID_OF_SOMEONE}(?<![\p{L}])(?:envoie(?:-(?:la|le|les|lui|leur|moi))?|envoyez|envoyons|soumets|soumettez|soumettons|postule|postulez|postulons|candidatez|clique[sz]?\s+sur\s+(?:le bouton\s+)?[«"“']?\s*(?:envoyer|soumettre|postuler|send|submit|apply))(?![\p{L}])`,
+    String.raw`${NOT_SAID_OF_SOMEONE}(?<!(?:^|[^\p{L}])(?:suis|es|est|sommes|êtes|sont|être|serai|serais|étais|était|reste|une|la|ma|ta|sa|la seule)\s+)(?<![\p{L}])candidate\s+(?:à|a|au|aux|chez|pour|sur)(?![\p{L}])`,
+    String.raw`(?:^|[.!?;]\s*|(?:^|[^\p{L}])(?:oui|ok|okay|vas-y|go)\s*,?\s*)candidate(?![\p{L}])`,
+    String.raw`(?<![\p{L}])(?:submit|apply|send\s+(?:it|them|the|my))(?![\p{L}])`,
+  ].join('|'),
+  'iu',
+);
+export const ordersAction = (prompt) => ACTION_ORDER.test(withoutNegations(prompt));
+// Relecture du 10/11 (constat 1) : the prompt orders an action in the browser — a send (above) or
+// filling a form — that an unproven navigation cannot be taken for.
+const FILL_ORDER =
+  /(?<![\p{L}])(?:remplis|remplissez|complète le formulaire|fill (?:in|out)(?: the)? form)(?![\p{L}])/iu;
+export const ordersBrowserAction = (prompt) =>
+  ordersAction(prompt) || FILL_ORDER.test(withoutNegations(prompt));
+
+// The « Action(s) échouée(s) » line of a mission without the Skill (relecture 10/11, constat 3).
+export function formatFailedActions(list) {
   return (
-    !!previous &&
-    durationMs < 15000 &&
-    !browserObserved &&
-    // Audit du 10/11 : the imperative « envoie », « soumets » and « candidate » were missed.
-    /\b(?:postul(?:e|er|ez|ons)|envoi(?:e|es)?|envoy(?:e|er|ez|ons)|soumet(?:s|tre|tez)?|candidat(?:e|er|ez)|submit|apply)\b/i.test(
-      prompt,
-    )
+    'Action(s) échouée(s) : ' +
+    list
+      .map(({ name, cause, failures, recovered }) =>
+        recovered
+          ? `${name} — ${cause}, ${failures} échoué${failures > 1 ? 's' : ''} puis réussi`
+          : `${name} — ${cause}${failures > 1 ? ` (${failures} échecs)` : ''}`,
+      )
+      .join(' ; ')
   );
+}
+
+export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browserObserved }) {
+  return !!previous && durationMs < 15000 && !browserObserved && ordersAction(prompt);
 }
 
 export function gatewayToolOutcome(name, result) {
@@ -394,7 +488,25 @@ export function createTurnTruth({ root, seed } = {}) {
   const viaReport = new Set();
   const names = new Map();
   const paths = new Map();
+  // Failed browser/e-mail actions, per tool: the failed call ids, the last cause and whether a later
+  // call of the tool succeeded. Relecture du 10/11 (constat 3) : a success of another call of the
+  // same tool (another button, another recipient) used to erase the failure; only the same call id
+  // succeeding clears it, otherwise the Bilan says « 1 échoué puis réussi ».
   const failed = new Map();
+  const markFailed = (name, id, cause) => {
+    const entry = failed.get(name) ?? { ids: new Set(), cause, recovered: false };
+    entry.ids.add(id ?? `anonymous-failure-${entry.ids.size}`);
+    entry.cause = cause;
+    entry.recovered = false;
+    failed.set(name, entry);
+  };
+  const markCompleted = (name, id) => {
+    const entry = failed.get(name);
+    if (!entry) return;
+    if (id != null) entry.ids.delete(id);
+    if (!entry.ids.size) failed.delete(name);
+    else entry.recovered = true;
+  };
   const outcomes = new Map();
   const gatewayOutcomes = new Map();
   let anonymousCall = 0;
@@ -448,8 +560,9 @@ export function createTurnTruth({ root, seed } = {}) {
       if (path) paths.set(update.toolCallId, String(path));
       if (update.rawInput) inputs.set(update.toolCallId, update.rawInput);
       if (update.status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
-        failed.set(
+        markFailed(
           name,
+          update.toolCallId,
           /écriture automatisée interdite|automated writing prohibited/i.test(
             JSON.stringify(update.rawOutput ?? update.content ?? ''),
           )
@@ -460,10 +573,9 @@ export function createTurnTruth({ root, seed } = {}) {
         outcomes.set(update.toolCallId, {
           name,
           status: 'failed',
-          cause: failed.get(name) ?? 'échec signalé par l’outil',
+          cause: failed.get(name)?.cause ?? 'échec signalé par l’outil',
         });
-      // A later successful call of the same tool clears its earlier failure: the retry worked.
-      if (update.status === 'completed') failed.delete(name);
+      if (update.status === 'completed') markCompleted(name, update.toolCallId);
       if (update.status === 'completed') {
         outcomes.set(update.toolCallId, {
           ...outcomes.get(update.toolCallId),
@@ -532,6 +644,7 @@ export function createTurnTruth({ root, seed } = {}) {
         facts,
         scan: scanRows,
         contactSaved,
+        verdictOutput,
       } = {},
     ) {
       if (
@@ -547,7 +660,8 @@ export function createTurnTruth({ root, seed } = {}) {
         status === 'failed' &&
         name === 'career_script' &&
         VERDICT_SCRIPTS.has(argument) &&
-        scriptAnswered(exitCode);
+        scriptAnswered(exitCode) &&
+        verdictOutput === true;
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),
         name,
@@ -606,17 +720,24 @@ export function createTurnTruth({ root, seed } = {}) {
           contactWrites.add('extract');
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
-      if (status === 'completed') failed.delete(name);
+      if (status === 'completed') markCompleted(name, key);
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
-        failed.set(name, 'échec signalé par l’outil');
+        markFailed(name, key, 'échec signalé par l’outil');
     },
     toolOutcomes() {
       const gateway = [...gatewayOutcomes.values()];
       const gatewayNames = new Set(gateway.map((item) => item.name));
       return [...outcomes.values()].filter((item) => !gatewayNames.has(item.name)).concat(gateway);
     },
+    // One entry per tool that failed: `failures` (distinct calls) when more than one, `recovered`
+    // when a later call of that tool succeeded. The failure stays visible either way.
     failedActions() {
-      return [...failed].map(([name, cause]) => ({ name, cause }));
+      return [...failed].map(([name, entry]) => ({
+        name,
+        cause: entry.cause,
+        ...(entry.ids.size > 1 || entry.recovered ? { failures: entry.ids.size } : {}),
+        ...(entry.recovered ? { recovered: true } : {}),
+      }));
     },
     // An evaluation kept by the platform's tools: a Relay record or a report in reports/.
     hasOfferSave() {
@@ -760,17 +881,7 @@ function emailSendRequested(text) {
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,
 // optional, exempt): a step neither optional nor waived that never ran is said as missing.
 export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), skillSteps = []) {
-  // A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
-  // « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
-  // mais envoie l'email » keeps « envoie l'email ».
-  const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
-  const requested = prompt.replace(
-    new RegExp(
-      String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
-      'giu',
-    ),
-    ' ',
-  );
+  const requested = withoutNegations(prompt);
   const outcomes = truth.toolOutcomes();
   const byName = new Map();
   for (const outcome of outcomes) {

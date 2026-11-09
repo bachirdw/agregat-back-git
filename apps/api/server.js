@@ -254,10 +254,14 @@ export function createApp({
               ...store.usage(id),
               byDimension: summarize(store.usage(id).entries),
             },
+            // Relecture du 10/11 (constat 7) : the rows of this run are re-hashed as well, so the
+            // usage shown is proven ; `?ledger=full` checks the whole chain.
             ledger:
               url.searchParams.get('ledger') === 'full'
                 ? store.verifyLedger()
-                : store.verifyLedgerTail(),
+                : ([store.verifyLedgerTail(), store.verifyRunLedger(id)].find((r) => !r.ok) ?? {
+                    ok: true,
+                  }),
             steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
             pendingPermission: engine.pendingPermission(id),
             permissions: [...engine.permissions.values()]
@@ -526,6 +530,8 @@ export function createApp({
               typeof body.scoredUrl === 'string' ? body.scoredUrl.slice(0, 2048) : undefined,
             argument: typeof body.argument === 'string' ? body.argument.slice(0, 60) : undefined,
             exitCode: Number.isInteger(body.exitCode) ? body.exitCode : undefined,
+            // Relecture du 10/11 (constat 4) : the script printed its own verdict (gatewayProgress).
+            verdictOutput: body.verdictOutput === true,
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,

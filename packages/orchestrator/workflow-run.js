@@ -10,7 +10,10 @@ import {
   assessBrowserClaims,
   browserObservationFailure,
   isBrowserToolName,
+  NO_SEND_APPROVED,
+  UNPROVEN_ACTION,
 } from './browser-proof.js';
+import { ordersAction, ordersBrowserAction } from '../career-ops/truth.js';
 import { TurnGuard } from './turn-guard.js';
 import { agentHomeFor } from './isolation.js';
 
@@ -90,6 +93,7 @@ export async function executeWorkflow(orch, run, plan, control) {
     store: orch.store,
     executors: {},
     unsupervised: orch.unsupervised === true,
+    ...(orch.humanWaitMs > 0 ? { humanWaitMs: orch.humanWaitMs } : {}),
   });
   control.engine = engine;
   const signal = control.abort.signal;
@@ -178,8 +182,16 @@ export async function executeWorkflow(orch, run, plan, control) {
           if (isBrowserToolName(update.title)) browserObserved = true;
           rateLimit =
             rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
-          if (++events > 4000) {
-            control.abort.abort(new Error('Trop d’événements'));
+          // Relecture du 10/11 (constat 11) : the agent mode's ceiling and message.
+          if (++events > orch.maxEvents) {
+            control.abort.abort(
+              Object.assign(
+                new Error(
+                  `Trop de mises à jour de l’agent (plafond ${orch.maxEvents}) ; relever AGENT_PLATFORM_MAX_EVENTS ou relancer.`,
+                ),
+                { code: 'too_many_events' },
+              ),
+            );
             return;
           }
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
@@ -307,8 +319,17 @@ export async function executeWorkflow(orch, run, plan, control) {
         result.verification = assessBrowserClaims(result.summary, scope.browserEvidence);
         if (!definition.simulated || browserObserved || plan.browserWorkflow)
           result.summary += '\n' + result.verification.notice;
-        if (unprovenWarning)
+        if (unprovenWarning) {
           result.summary += `\nAvertissement — ${unprovenWarning} Réponse de l’agent gardée : à vérifier.`;
+          // Relecture du 10/11 (constat 1) : an ordered action with nothing proven and no send
+          // approved opens the Bilan, says « aucun approuvé » and fails the mission (index.js).
+          control.unprovenSteps = [...(control.unprovenSteps ?? []), step.id];
+          if (ordersBrowserAction(run.prompt) && !(control.sendsApproved > 0)) {
+            control.unprovenAction = true;
+            result.summary = `${UNPROVEN_ACTION}.\n${result.summary}`;
+            if (ordersAction(run.prompt)) result.summary += NO_SEND_APPROVED;
+          }
+        }
         return result;
       } finally {
         guard.close();
@@ -325,7 +346,12 @@ export async function executeWorkflow(orch, run, plan, control) {
         plan.pack.id === 'core'
           ? 'Structure seulement ; faits non vérifiés'
           : 'Classement et provenance recalculés indépendamment';
-      orch.store.event(run.id, 'verification', { valid: true, stepId: step.id, scope });
+      const unproven = control.unprovenSteps?.length > 0;
+      orch.store.event(run.id, 'verification', {
+        valid: !unproven,
+        stepId: step.id,
+        scope: unproven ? `${scope} ; navigation non prouvée` : scope,
+      });
       return { ...candidate, verified: true, scope };
     },
     aggregate: async (step, { inputs }) => aggregateOutputs(inputs),

@@ -141,11 +141,13 @@ test('Bilan FICTIF : un verdict de script de contrôle (expiré, doublon, faits)
     toolCallId: id(2),
     argument: 'check-liveness',
     exitCode: 1,
+    verdictOutput: true,
   });
   truth.recordGatewayTool('career_script', 'failed', {
     toolCallId: id(3),
     argument: 'precheck-duplicate',
     exitCode: 1,
+    verdictOutput: true,
   });
   let bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
   assert.match(
@@ -165,6 +167,7 @@ test('Bilan FICTIF : un verdict de script de contrôle (expiré, doublon, faits)
     toolCallId: id(5),
     argument: 'find',
     exitCode: 1,
+    verdictOutput: true,
   });
   bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
   assert.match(bilan, /1 échoué \(échec signalé par l’outil\), 3 verdicts/);
@@ -176,6 +179,7 @@ test('Bilan FICTIF : sans code de sortie ou hors 1-125, un script de contrôle e
     toolCallId: id(1),
     argument: 'check-liveness',
     exitCode: 1,
+    verdictOutput: true,
   });
   truth.recordGatewayTool('career_script', 'failed', {
     toolCallId: id(2),
@@ -1733,4 +1737,79 @@ test('audit 10/11 : nom d’outil navigateur, nu ou préfixé par l’adaptateur
     assert.equal(isBrowserToolName(name), true, name);
   for (const name of ['mybrowser_click', 'career_read', '', undefined])
     assert.equal(isBrowserToolName(name), false, String(name));
+});
+
+test('Bilan FICTIF : erreur d’usage, trace de pile ou sortie vide d’un script de contrôle restent une panne (relecture 10/11, constat 4)', () => {
+  const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
+  const progress = (command, text, exitCode = 1) =>
+    gatewayProgress(
+      'career_script',
+      'failed',
+      { command, args: ['x'] },
+      result({ text, exitCode }),
+    );
+  const breakdowns = [
+    ['precheck-duplicate', 'precheck-duplicate: --company (or --url) is required.\nUsage: …'],
+    ['check-liveness', 'Error: --file requires a value'],
+    ['check-liveness', 'No tracker at data/applications.md. Evaluate a role first.'],
+    ['check-liveness', 'Fatal: boom FICTIF'],
+    ['find', 'Error: unrecognized flag(s): --zzz. Valid flags: --json'],
+    ['find', 'Error: data/applications.md not found — nothing to search.'],
+    ['verify-cv-facts', 'ERROR: target file not found: output/x.html'],
+    [
+      'verify-cv-facts',
+      JSON.stringify({ verdict: 'block', invented: [], errors: ['Unexpected token FICTIF'] }),
+    ],
+    [
+      'verify-cv-facts',
+      'TypeError: x is not a function\n    at run (file:///s/verify-cv-facts.mjs:12:3)',
+    ],
+    ['find', ''],
+  ];
+  for (const [command, text] of breakdowns)
+    assert.equal(progress(command, text).verdictOutput, false, `${command} : ${text}`);
+  const verdicts = [
+    [
+      'check-liveness',
+      '❌ expired    https://example.test/a\n\nResults: 0 active  1 expired  0 uncertain  (0 via API, no browser)',
+    ],
+    ['check-liveness', 'Results: 2 active  0 expired  1 uncertain  (0 via API, no browser)'],
+    [
+      'precheck-duplicate',
+      'Possible duplicate(s) in the tracker (advisory, nothing written):\n  #3 Acme',
+    ],
+    [
+      'verify-cv-facts',
+      'CV fact check failed: cv.html\n\nMetric-like claims absent from sources:\n  - 90%',
+    ],
+    [
+      'verify-cv-facts',
+      JSON.stringify({ verdict: 'block', invented: ['90%'], unsupportedFacts: [] }),
+    ],
+    ['find', 'No application matches "Acme" — try a report #, tracker #, or company fragment.'],
+    ['find', '[]'],
+  ];
+  for (const [command, text] of verdicts)
+    assert.equal(progress(command, text).verdictOutput, true, `${command} : ${text}`);
+  // Résultats du Bilan : sans sortie de verdict, c’est une panne.
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: 'p1',
+    argument: 'precheck-duplicate',
+    exitCode: 1,
+    verdictOutput: false,
+  });
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: 'p2',
+    argument: 'verify-cv-facts',
+    exitCode: 1,
+  });
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: 'p3',
+    argument: 'find',
+    exitCode: 1,
+    verdictOutput: true,
+  });
+  const bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
+  assert.match(bilan, /2 échoués \(échec signalé par l’outil\), 1 verdict de script/);
 });

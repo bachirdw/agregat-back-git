@@ -51,8 +51,12 @@ import {
   formatCareerBilan,
   inboxUnprocessed,
   shortResumeWithoutBrowser,
+  formatFailedActions,
+  ordersAction,
+  ordersBrowserAction,
 } from '../career-ops/truth.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
+import { UNPROVEN_ACTION, UNPROVEN_ACTION_ERROR } from './browser-proof.js';
 import {
   selectSkillIntents,
   SkillProgress,
@@ -73,6 +77,7 @@ import { scriptLimits } from '../career-ops/tools.js';
 import { NativeActions } from './native-actions.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
+import { engineCloseTimeoutMs } from '../agent-runtime/guards.js';
 import {
   AnswerError,
   decisionRequest,
@@ -217,6 +222,9 @@ export class Orchestrator {
       // Nobody follows the mission (script, CI): an agent step that failed ends at once instead of
       // waiting for an owner who is not there. Default: supervised (the owner's front can settle it).
       unsupervised = process.env.AGENT_PLATFORM_UNSUPERVISED === '1',
+      // Relecture du 10/11 (constat 12) : how long an `uncertain` workflow step waits for the owner
+      // before it fails (default 30 min), AGENT_PLATFORM_HUMAN_WAIT_MS.
+      humanWaitMs = positiveEnv('AGENT_PLATFORM_HUMAN_WAIT_MS') ?? 30 * 60 * 1000,
     } = {},
   ) {
     Object.assign(this, {
@@ -233,6 +241,7 @@ export class Orchestrator {
       questionTimeoutMs,
       ownerMode,
       unsupervised,
+      humanWaitMs,
     });
     this.active = new Map();
     this.permissions = new Map();
@@ -241,10 +250,7 @@ export class Orchestrator {
     this.questions = [];
     this.expiredOutcomes = new WeakSet();
     this.permissionTimeoutMs = 60000;
-    this.closeTimeoutMs =
-      Number(process.env.AGENT_PLATFORM_CLOSE_MS) > 0
-        ? Number(process.env.AGENT_PLATFORM_CLOSE_MS)
-        : 10000;
+    this.closeTimeoutMs = engineCloseTimeoutMs(process.env);
     // Final send in owner mode: waits for the owner's click, no ceiling unless configured.
     this.sendTimeoutMs =
       Number(process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS) > 0
@@ -1098,8 +1104,10 @@ export class Orchestrator {
       if (run.mode === 'workflow') {
         const result = await executeWorkflow(this, run, plan, control);
         if (control.abort.signal.aborted) throw control.abort.signal.reason;
+        // Relecture du 10/11 (constat 1) : same rule as the agent mode, the answer is kept.
         this.store.update(run.id, {
-          state: 'completed',
+          state: control.unprovenAction ? 'failed' : 'completed',
+          ...(control.unprovenAction ? { error: UNPROVEN_ACTION_ERROR } : {}),
           result,
           finishedAt: new Date().toISOString(),
         });
@@ -1382,6 +1390,7 @@ export class Orchestrator {
       });
       const skillResult = skillProgress.finish();
       if (skillResult.steps.length) this.store.update(run.id, { skillProgress: skillResult });
+      let unproven = false;
       if (plan.browserWorkflow) {
         const observed = this.store
           .events(run.id)
@@ -1395,7 +1404,7 @@ export class Orchestrator {
         // Audit du 10/11 (constat 3) : checked once the agent has finished, an unproven navigation
         // no longer throws the work away (a resumed « oui, envoie » may be one approved click and no
         // capture) : the Bilan says it next to the agent's answer, which is kept.
-        const unproven = !answeredWithoutNavigation && !observed.some(readableBrowserObservation);
+        unproven = !answeredWithoutNavigation && !observed.some(readableBrowserObservation);
         if (unproven) {
           const warning = browserObservationFailure(observed);
           this.store.event(run.id, 'browser_unproven', { message: warning.slice(0, 300) });
@@ -1415,6 +1424,12 @@ export class Orchestrator {
               : 'navigateur réel';
         }
       }
+      // Relecture du 10/11 (constat 1) : the prompt ordered an action (send, application, form), no
+      // page was proven and no send approved : the agent's answer is kept, but the Bilan opens on it
+      // and the mission ends `failed` — nothing the platform saw shows the action happened.
+      const unprovenAction =
+        unproven && ordersBrowserAction(run.prompt) && !(control.sendsApproved > 0);
+      if (unprovenAction) value.summary = `${UNPROVEN_ACTION}.\n${value.summary}`;
       await verifyPack(plan.pack.id, value, run.prompt);
       {
         const observations =
@@ -1482,14 +1497,14 @@ export class Orchestrator {
       if (plan.pack.id !== 'career-ops' && skillResult.steps.length)
         value.summary += '\nBilan\n' + formatSkillBilan(skillResult);
       if (plan.pack.id !== 'career-ops' && turnTruth.failedActions().length)
-        value.summary +=
-          '\nAction(s) échouée(s) : ' +
-          turnTruth
-            .failedActions()
-            .map(({ name, cause }) => `${name} — ${cause}`)
-            .join(' ; ');
+        value.summary += '\n' + formatFailedActions(turnTruth.failedActions());
       // Fact from the platform, next to the agent's own claims: a model can announce a send it never made.
-      if (plan.pack.id === 'career-ops' || control.sendsAsked || control.sendsApproved)
+      if (
+        plan.pack.id === 'career-ops' ||
+        control.sendsAsked ||
+        control.sendsApproved ||
+        (plan.browserWorkflow && ordersAction(run.prompt))
+      )
         value.summary += formatSendLine(
           control.sendsApproved ?? 0,
           control.sendsFailed ?? 0,
@@ -1540,19 +1555,25 @@ export class Orchestrator {
         readsBeforeScore(plan.pack.skillManifest) ? turnTruth.scoredOffers() : [],
         unreached,
       );
-      const incompleteMessage = incomplete.length
-        ? `Mission incomplète : ${incomplete.join(' ; ')}`
-        : null;
-      if (incompleteMessage) value.summary += `\n${incompleteMessage}.`;
+      const incompleteMessage =
+        [
+          incomplete.length ? `Mission incomplète : ${incomplete.join(' ; ')}` : null,
+          unprovenAction ? UNPROVEN_ACTION_ERROR : null,
+        ]
+          .filter(Boolean)
+          .join(' ; ') || null;
+      if (incomplete.length) value.summary += `\nMission incomplète : ${incomplete.join(' ; ')}.`;
       this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
-        valid: !incompleteMessage,
+        valid: !incompleteMessage && !unproven,
         scope:
           verificationScope(
             plan.pack.id,
             plan.simulated,
             value.provenance.data === 'navigateur réel',
-          ) + (turnTruth.failedActions().length ? ' ; actions échouées' : ''),
+          ) +
+          (turnTruth.failedActions().length ? ' ; actions échouées' : '') +
+          (unproven ? ' ; navigation non prouvée' : ''),
       });
       recordDiagnostic();
       this.store.update(run.id, {

@@ -532,17 +532,24 @@ intents:
     # CV. Un verbe de candidature passe devant documents (70), LinkedIn (66) et l'e-mail (65), pas
     # devant l'évaluation, la recherche ni la boîte d'entrée. « Candidature » seul (nom) n'appuie pas :
     # « adapte mon CV pour ma candidature » reste des documents, comme « … pour postuler ».
+    # Relecture du 10/11 (constat 5) : seul l'impératif (« Postule », « Candidate à/chez », « Apply
+    # to », « envoie ma candidature ») appuie. L'infinitif (« je veux postuler », « pour candidater »),
+    # l'indicatif (« je postule », « je candidate ») et l'adjectif (« je suis candidate ») ne prennent
+    # plus le pas sur une demande de CV, de lettre, de message LinkedIn ou d'e-mail.
     boost:
       priority: 80
       phrases:
         [
           postule,
-          postuler,
           postulez,
           postulons,
-          candidate,
-          candidater,
           candidatez,
+          candidate a,
+          candidate au,
+          candidate aux,
+          candidate chez,
+          candidate pour,
+          candidate sur,
           envoie ma candidature,
           envoyer ma candidature,
           soumets ma candidature,
@@ -554,7 +561,24 @@ intents:
           submit the application,
           send my application,
         ]
-      unlessPhrases: [pour postuler, pour candidater, avant de postuler, avant de candidater]
+      # En tête de la demande ou d'une phrase seulement : « Postuler à cette offre avec mon CV ».
+      leadPhrases: [postuler, candidater, apply, submit]
+      unlessPhrases:
+        [
+          pour postuler,
+          pour candidater,
+          avant de postuler,
+          avant de candidater,
+          je postule,
+          j'ai postulé,
+          je candidate,
+          suis candidate,
+          es candidate,
+          est candidate,
+          to apply,
+          will apply,
+          before i apply,
+        ]
     steps:
       - id: open
         title: Ouvrir le formulaire

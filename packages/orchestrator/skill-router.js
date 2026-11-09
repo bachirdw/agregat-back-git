@@ -169,6 +169,9 @@ export const skillManifestSchema = z
                 priority: z.number().int().min(0).max(1000),
                 phrases: z.array(z.string().trim().min(2).max(120)).min(1).max(30),
                 unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
+                // Relecture du 10/11 (constat 5) : phrases that boost only when they open the request
+                // or one of its sentences (an infinitive used as an order), never inside it.
+                leadPhrases: z.array(z.string().trim().min(2).max(60)).max(20).optional(),
               })
               .strict()
               .optional(),
@@ -247,8 +250,16 @@ export function selectSkillIntents(prompt, manifests) {
   const words = new Set(objective.match(/[\p{L}\p{N}]+/gu) ?? []);
   const hasUrl = /https?:\/\/\S+/iu.test(prompt);
   const said = (phrase) => ` ${objective} `.includes(` ${normalize(phrase)} `);
+  const heads = prompt
+    .replace(/https?:\/\/\S+/giu, ' ')
+    .split(/[.!?;:\n]+/u)
+    .map((sentence) => ` ${normalize(sentence)} `);
+  const leads = (phrase) => heads.some((head) => head.startsWith(` ${normalize(phrase)} `));
   const boosted = (intent) =>
-    Boolean(intent.boost?.phrases.some(said) && !intent.boost.unlessPhrases?.some(said));
+    Boolean(
+      (intent.boost?.phrases.some(said) || intent.boost?.leadPhrases?.some(leads)) &&
+        !intent.boost.unlessPhrases?.some(said),
+    );
   return (
     manifests
       .flatMap((raw) => {

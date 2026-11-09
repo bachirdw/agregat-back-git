@@ -10,7 +10,10 @@ import {
   assessBrowserClaims,
   browserObservationFailure,
   isBrowserToolName,
+  NO_SEND_APPROVED,
+  UNPROVEN_ACTION,
 } from './browser-proof.js';
+import { ordersAction, ordersBrowserAction } from '../career-ops/truth.js';
 import { TurnGuard } from './turn-guard.js';
 import { agentHomeFor } from './isolation.js';
 
@@ -307,8 +310,17 @@ export async function executeWorkflow(orch, run, plan, control) {
         result.verification = assessBrowserClaims(result.summary, scope.browserEvidence);
         if (!definition.simulated || browserObserved || plan.browserWorkflow)
           result.summary += '\n' + result.verification.notice;
-        if (unprovenWarning)
+        if (unprovenWarning) {
           result.summary += `\nAvertissement — ${unprovenWarning} Réponse de l’agent gardée : à vérifier.`;
+          // Relecture du 10/11 (constat 1) : an ordered action with nothing proven and no send
+          // approved opens the Bilan, says « aucun approuvé » and fails the mission (index.js).
+          control.unprovenSteps = [...(control.unprovenSteps ?? []), step.id];
+          if (ordersBrowserAction(run.prompt) && !(control.sendsApproved > 0)) {
+            control.unprovenAction = true;
+            result.summary = `${UNPROVEN_ACTION}.\n${result.summary}`;
+            if (ordersAction(run.prompt)) result.summary += NO_SEND_APPROVED;
+          }
+        }
         return result;
       } finally {
         guard.close();
@@ -325,7 +337,12 @@ export async function executeWorkflow(orch, run, plan, control) {
         plan.pack.id === 'core'
           ? 'Structure seulement ; faits non vérifiés'
           : 'Classement et provenance recalculés indépendamment';
-      orch.store.event(run.id, 'verification', { valid: true, stepId: step.id, scope });
+      const unproven = control.unprovenSteps?.length > 0;
+      orch.store.event(run.id, 'verification', {
+        valid: !unproven,
+        stepId: step.id,
+        scope: unproven ? `${scope} ; navigation non prouvée` : scope,
+      });
       return { ...candidate, verified: true, scope };
     },
     aggregate: async (step, { inputs }) => aggregateOutputs(inputs),

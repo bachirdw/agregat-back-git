@@ -135,7 +135,11 @@ test('nouvelle mission sans outil navigateur : réponse marquée sans navigation
   assert.deepEqual(done.result.evidence, []);
 });
 
-test('audit 10/11 FICTIF : reprise « oui, envoie » réduite à un clic, sans capture → completed', async (t) => {
+// Relecture du 10/11 (constat 1) : sans page prouvée ni envoi approuvé, une demande d'action ne
+// finit plus `completed` en silence. La réponse de l'agent reste (gain de la nuit), mais le Bilan
+// s'ouvre sur l'avertissement, dit « aucun approuvé », la vérification est invalide et la mission
+// finit `failed` : rien de ce que la plateforme a vu ne montre que l'envoi a eu lieu.
+test('relecture 10/11 FICTIF : reprise « oui, envoie » réduite à un clic, sans capture ni accord → failed, réponse gardée', async (t) => {
   const done = await runFixture(t, {
     prompt: 'oui, envoie',
     previous: { sessionId: 'fake-session-1' },
@@ -144,9 +148,47 @@ test('audit 10/11 FICTIF : reprise « oui, envoie » réduite à un clic, sans c
       result: { simulated: true, summary: 'Candidature FICTIVE envoyée.', evidence: [] },
     },
   });
+  assert.equal(done.state, 'failed');
+  assert.match(done.error, /Navigation non prouvée : action demandée/);
+  assert.match(
+    done.result.summary,
+    /^Avertissement — navigation non prouvée : aucun envoi constaté par la plateforme\.\nCandidature FICTIVE envoyée\./,
+  );
+  assert.match(done.result.summary, /Envoi par la plateforme : aucun approuvé\./);
+  const verification = done.testEvents.find((event) => event.type === 'verification')?.data;
+  assert.equal(verification.valid, false);
+  assert.match(verification.scope, /navigation non prouvée/);
+});
+
+test('relecture 10/11 FICTIF : reprise « oui, envoie » avec un envoi approuvé par le propriétaire → completed', async (t) => {
+  const done = await runFixture(t, {
+    prompt: 'oui, envoie',
+    previous: { sessionId: 'fake-session-1' },
+    config: {
+      promptBrowserTool: 'browser_click',
+      lateMs: 100,
+      result: { simulated: true, summary: 'Candidature FICTIVE envoyée.', evidence: [] },
+    },
+    duringPrompt: (app, run) => {
+      app.engine.active.get(run.id).sendsApproved = 1;
+    },
+  });
   assert.equal(done.state, 'completed', done.error);
   assert.match(done.result.summary, /^Candidature FICTIVE envoyée\./);
   assert.match(done.result.summary, /Navigation non prouvée/);
+  assert.match(done.result.summary, /Envoi par la plateforme : 1 approuvé\(s\)/);
+  assert.equal(done.testEvents.find((event) => event.type === 'verification')?.data.valid, false);
+});
+
+test('relecture 10/11 FICTIF : lecture sans action, navigation non prouvée → completed averti, vérification invalide', async (t) => {
+  const done = await runFixture(t, {
+    previous: { sessionId: 'fake-session-1' },
+    config: { promptBrowserTool: 'browser.navigate', result: answer },
+  });
+  assert.equal(done.state, 'completed', done.error);
+  assert.doesNotMatch(done.result.summary, /^Avertissement/);
+  assert.doesNotMatch(done.result.summary, /Envoi par la plateforme/);
+  assert.equal(done.testEvents.find((event) => event.type === 'verification')?.data.valid, false);
 });
 
 test('nouvelle mission nommant une URL sans navigation : avertie, pas présentée comme lue', async (t) => {

@@ -406,6 +406,12 @@ const ACTION_ORDER = new RegExp(
   'iu',
 );
 export const ordersAction = (prompt) => ACTION_ORDER.test(withoutNegations(prompt));
+// Relecture du 10/11 (constat 1) : the prompt orders an action in the browser — a send (above) or
+// filling a form — that an unproven navigation cannot be taken for.
+const FILL_ORDER =
+  /(?<![\p{L}])(?:remplis|remplissez|complète le formulaire|fill (?:in|out)(?: the)? form)(?![\p{L}])/iu;
+export const ordersBrowserAction = (prompt) =>
+  ordersAction(prompt) || FILL_ORDER.test(withoutNegations(prompt));
 
 // The « Action(s) échouée(s) » line of a mission without the Skill (relecture 10/11, constat 3).
 export function formatFailedActions(list) {

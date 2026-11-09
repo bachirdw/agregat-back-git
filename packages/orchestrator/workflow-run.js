@@ -1,7 +1,7 @@
 import { rateLimitState, usageLimitMessage } from './failure.js';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { AcpRuntime, saveProbe } from '../agent-runtime/index.js';
+import { AcpRuntime, saveProbe, AUTH_REFUSAL } from '../agent-runtime/index.js';
 import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
@@ -260,7 +260,7 @@ export async function executeWorkflow(orch, run, plan, control) {
           guard.start();
           response = await runtime.prompt(prompt, stepSignal);
         } catch (e) {
-          if (!definition.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
+          if (!definition.simulated && AUTH_REFUSAL.test(String(e.message ?? '')))
             saveProbe(orch.dataDir, definition.id, {
               inference: false,
               inferenceError: String(e.message).slice(0, 120),

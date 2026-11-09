@@ -9,7 +9,7 @@ export { AgentRegistry, reapOrphanAgents } from './orphans.js';
 export { detectAgents, loadAgentConfig, findCli } from './discovery.js';
 export { profiles, getProfile, agentIds } from './profiles.js';
 export { chooseAgent, requirementsFor } from './router.js';
-export { loadProbes, saveProbe } from './probes.js';
+export { loadProbes, saveProbe, AUTH_REFUSAL } from './probes.js';
 export { sessionModels, sessionModes, agentCapabilities } from './capabilities.js';
 
 // Gemini CLI implements the unstable model switch under this method name (acpRpcDispatcher.ts).

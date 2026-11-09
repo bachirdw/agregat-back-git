@@ -21,6 +21,7 @@ import {
   loadProbes,
   requirementsFor,
   saveProbe,
+  AUTH_REFUSAL,
 } from '../agent-runtime/index.js';
 import { ROOT, getDag, getPack, packs, proposeDag, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
@@ -1235,7 +1236,7 @@ export class Orchestrator {
         response = await runtime.prompt(prompt, control.abort.signal);
         clearSilence();
       } catch (e) {
-        if (!plan.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
+        if (!plan.simulated && AUTH_REFUSAL.test(String(e.message ?? '')))
           saveProbe(this.dataDir, plan.agent.id, {
             inference: false,
             inferenceError:

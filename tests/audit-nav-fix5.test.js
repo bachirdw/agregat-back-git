@@ -415,3 +415,54 @@ test(
     assert.deepEqual(lines(), []);
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Constats 5, 6 et 7 : ce que couvre l'accord d'un clic, la soumission retenue, une seule carte
+// ---------------------------------------------------------------------------------------------
+
+test(
+  'Constat 5 : l’accord du clic ne couvre ni un autre site ni plus de deux écritures ; une action suivante le clôt',
+  { skip },
+  async (t) => {
+    const other = await site(t, '', { host: 'localhost' });
+    const { origin, lines } = await site(
+      t,
+      `<iframe name="h" style="display:none"></iframe>
+       <form id="x" action="${other.origin}/collect" method="post" target="h"><input name="d" value="donnees-FICTIVES"></form>
+       <form id="a" onsubmit="event.preventDefault(); ${post('/api/candidatures')};
+         setTimeout(() => document.getElementById('x').submit(), 600);
+         setTimeout(() => document.getElementById('x').submit(), 1200)">
+         <input name="nom" aria-label="Nom"><button type="submit" id="go">Envoyer ma candidature</button></form>
+       <form id="b" onsubmit="event.preventDefault(); for (let i = 0; i < 4; i++) setTimeout(() => ${post('/api/rafale')}, i * 150)">
+         <button type="submit" id="burst">Envoyer la rafale</button></form>
+       <form id="c" onsubmit="event.preventDefault(); setTimeout(() => ${post('/api/tardif')}, 3000)">
+         <input id="note" name="note" aria-label="Note"><button type="submit" id="late">Envoyer plus tard</button></form>`,
+    );
+    const { gateway, sends } = await owner(
+      t,
+      [origin, other.origin],
+      (r) => r.capability !== 'browser.send',
+    );
+    await gateway.call('browser.navigate', { url: origin });
+    // Un autre site, même par navigation d'un formulaire caché : carte (refusée), rien ne part.
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#go') });
+    await sleep(1800);
+    assert.deepEqual(other.lines(), [], 'aucune soumission vers l’autre site sans carte');
+    assert.ok(sends().filter((r) => r.capability === 'browser.send').length >= 1);
+    assert.deepEqual(lines(), ['POST /api/candidatures']);
+    // Même site : deux écritures couvertes, la troisième demande la carte (compteur du serveur).
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#burst') });
+    await sleep(1200);
+    assert.equal(lines().filter((l) => l === 'POST /api/rafale').length, 2);
+    // Une action suivante de l'agent clôt la couverture.
+    const note = await refFor(gateway, '#note');
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#late') });
+    await gateway.call('browser.type', { ref: note, text: 'FICTIF' });
+    assert.deepEqual(lines().slice(-1), ['POST /api/rafale'], 'rien de tardif avant la saisie');
+    await sleep(3300);
+    assert.ok(
+      !lines().includes('POST /api/tardif'),
+      'l’écriture après une autre action attend la carte',
+    );
+  },
+);

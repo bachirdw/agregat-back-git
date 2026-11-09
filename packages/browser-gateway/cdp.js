@@ -884,7 +884,7 @@ export class CdpBrowser {
   // Second tour : `origin` is the gateway call that opened the send (the click) ; a status that
   // arrives once that call has returned is reported to it (onLateSubmission), never to the next call.
   #recordSubmission(request, origin = this.callToken) {
-    if (request.resourceType() === 'ping') return;
+    if (request.resourceType() === 'ping') return null;
     let host = '';
     try {
       host = new URL(request.url()).host;
@@ -902,7 +902,7 @@ export class CdpBrowser {
       )
       .finally(() => {
         entry.done = true;
-        if (origin?.done && origin.call?.toolCallId)
+        if (!entry.dropped && origin?.done && origin.call?.toolCallId)
           this.onLateSubmission?.({
             toolCallId: origin.call.toolCallId,
             host,
@@ -910,6 +910,41 @@ export class CdpBrowser {
           });
       });
     this.submissions = [...(this.submissions ?? []), entry].slice(-10);
+    return entry;
+  }
+  // Relecture fix5 (constats 5 et 6) : what the owner's approval of a send covers. Only writes to
+  // the site of the target shown on the card (the form's action, the request's host), at most
+  // `left` of them, while the click runs and for a short window after it ; any other action of the
+  // agent closes it.
+  #takeCover(request, sensitive) {
+    const cover = this.cover;
+    if (!cover || cover.left <= 0 || Date.now() > cover.until) return false;
+    const url = request.url();
+    if (!sameSite(url, cover.target)) return false;
+    cover.left -= 1;
+    if (request.resourceType() === 'ping') {
+      this.#traceAutoSend(url);
+      return true;
+    }
+    this.#recordSubmission(request, cover.token);
+    return true;
+  }
+  // The cover of an approved click on `locator` : the site of its form's action (or of its page).
+  async #coverFor(locator) {
+    const target = await locator
+      .evaluate((el) => {
+        const form = el.form ?? el.closest('form');
+        const action = el.getAttribute?.('formaction') || form?.getAttribute('action') || '';
+        return new URL(action || location.href, document.baseURI).href;
+      })
+      .catch(() => null);
+    return {
+      target: target || this.page?.url() || '',
+      left: 2,
+      until: Infinity,
+      token: this.callToken,
+      primary: null,
+    };
   }
   // Called after each tool call : this call's submissions, with their status once answered (5 s at
   // most ; a submission still unanswered keeps a null status, reported later), and those of an
@@ -1013,6 +1048,8 @@ export class CdpBrowser {
           this.#traceAutoSend(request.url());
           return route.continue();
         }
+        // Relecture fix5 (constat 5) : a write the owner's approval covers.
+        if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
         if (
@@ -1050,16 +1087,6 @@ export class CdpBrowser {
               firstParty &&
               samePage &&
               isSubmitPath(request.url())));
-        // Audit du 10/11 (constat 5) : the owner's approval of a send click covers the writes that
-        // click triggers on its site (or the form it posts elsewhere) during the click's window :
-        // a submission that awaits a check or a token before its fetch asks nothing more, and the
-        // send is counted once.
-        const covered =
-          !forceCard &&
-          this.clickApproved === true &&
-          clickWindow &&
-          (firstParty || request.isNavigationRequest());
-        const granted = (!forceCard && this.sendGrant === true) || covered;
         // Second tour (constats 7 et 16) : a write of a click's window belongs to that click's
         // gateway call (its card and its HTTP status), not to the call in progress when it leaves.
         const origin = clickWindow ? (this.clickToken ?? this.callToken) : this.callToken;
@@ -1067,17 +1094,16 @@ export class CdpBrowser {
         // posted with the application) was cancelled without a trace. It is now asked like a send :
         // the owner's click decides, and a refusal is said to the agent and in the Bilan.
         const large = Buffer.byteLength(body) > 100000;
-        if (!forceCard && !granted && !afterSendClick && !large && !request.isNavigationRequest()) {
+        if (!forceCard && !afterSendClick && !large && !request.isNavigationRequest()) {
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        if (!forceCard) this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
         // refused or expired answer blocks them all. An approval only ever frees the request it showed.
-        while (!granted && this.sendDecision)
+        while (this.sendDecision) {
           if ((await this.sendDecision) !== true) return route.abort('blockedbyclient');
-        let approved = granted;
-        if (!granted) {
+        }
+        {
           const decision = Promise.resolve(
             this.approve?.(
               {
@@ -1095,10 +1121,10 @@ export class CdpBrowser {
             ),
           ).catch(() => false);
           this.sendDecision = decision;
-          approved = await decision;
+          const approved = await decision;
           if (this.sendDecision === decision) this.sendDecision = null;
+          if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         }
-        if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         this.#recordSubmission(request, origin);
         return route.continue();
       };
@@ -1823,6 +1849,9 @@ export class CdpBrowser {
   }
   async #perform(page, id, args, policy) {
     page.setDefaultTimeout(this.navigationTimeoutMs);
+    // Relecture fix5 (constat 5) : any other action of the agent closes what an approval covered.
+    if (!['browser.snapshot', 'browser.extract', 'browser.verify', 'browser.dialog'].includes(id))
+      this.cover = null;
     await this.assertLanded(policy);
     this.blocked = null;
     this.redirectLanding = null;
@@ -1831,7 +1860,7 @@ export class CdpBrowser {
       // E43 : a navigation of the agent ends the moment of an upload, and frees the file. It also
       // ends what an approved send click covered (audit du 10/11, constat 5).
       this.lastUploadEnd = 0;
-      this.clickApproved = false;
+      this.cover = null;
       this.uploadedFile = null;
       // Constats 9 et 11 : the fields the agent filled belong to the page it leaves.
       this.agentFields = null;
@@ -1950,7 +1979,6 @@ export class CdpBrowser {
         const target = await this.targetLocator({ ref: args.ref });
         await this.#noteActionFrame(target);
         this.ownerConnection?.takeOpenedWindow();
-        this.sendGrant = args.sendApproved === true;
         // A click inside a form is a submission even when its label says "Continue". Audit du
         // 10/11 (constat 1) : a send-worded control outside a form (`candidate`) asks nothing
         // before the click ; a write it triggers from the same page waits for the owner's card.
@@ -1959,9 +1987,10 @@ export class CdpBrowser {
         this.formStep = args.formStep === true;
         this.clickKind = args.clickKind ?? null;
         this.clickPage = pageKey(page.url());
-        this.clickApproved = args.sendApproved === true;
         // Second tour : the gateway call of this click, owner of the writes of its window.
         this.clickToken = this.callToken;
+        // Relecture fix5 (constat 5) : what the owner's approval of this click covers.
+        this.cover = args.sendApproved === true ? await this.#coverFor(target) : null;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -2001,8 +2030,9 @@ export class CdpBrowser {
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {
           this.writeInProgress = false;
-          this.sendGrant = false;
           this.lastClickEnd = Date.now();
+          if (this.cover?.until === Infinity)
+            this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
         }
         if (this.blocked) {
           await this.reset();
@@ -2140,7 +2170,6 @@ export class CdpBrowser {
         const enter = args.key === 'Enter';
         let guard = null;
         if (enter) {
-          this.sendGrant = args.sendApproved === true;
           // Relecture fix5 (constat 1) : an Enter the gateway did not classify is a doubt : any
           // write it triggers from the page waits for the owner's card.
           const kind = args.sendApproved === true ? null : (args.clickKind ?? 'candidate');
@@ -2149,8 +2178,8 @@ export class CdpBrowser {
           this.formStep = args.formStep === true;
           this.clickKind = kind;
           this.clickPage = pageKey(page.url());
-          this.clickApproved = args.sendApproved === true;
           this.clickToken = this.callToken;
+          this.cover = args.sendApproved === true ? await this.#coverFor(target) : null;
           this.blockedThirdParty = new Set();
           this.writeInProgress = true;
           if (args.guardSubmit === true)
@@ -2174,8 +2203,9 @@ export class CdpBrowser {
         } finally {
           if (enter) {
             this.writeInProgress = false;
-            this.sendGrant = false;
             this.lastClickEnd = Date.now();
+            if (this.cover?.until === Infinity)
+              this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
           }
         }
         let blocked = false;
@@ -2382,12 +2412,11 @@ export class CdpBrowser {
         try {
           // The gateway has already approved this element, including form submissions.
           // Permit its POST only until the click and download event have completed.
-          this.sendGrant = args.sendApproved === true;
           this.sendClick = args.sendApproved === true;
           this.formStep = false;
           this.clickKind = null;
-          this.clickApproved = args.sendApproved === true;
           this.clickToken = this.callToken;
+          this.cover = args.sendApproved === true ? await this.#coverFor(link) : null;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);
@@ -2396,6 +2425,8 @@ export class CdpBrowser {
             // Revue Opus du 06/11 : a click of the agent, like browser.click : it closes the upload
             // window (E43) and opens the click's own window for the page's requests.
             this.lastClickEnd = Date.now();
+            if (this.cover?.until === Infinity)
+              this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
           }
           await policy.assertUrl(download.url()).catch((e) => {
             throw new Error(`Téléchargement refusé : ${e.message}`);

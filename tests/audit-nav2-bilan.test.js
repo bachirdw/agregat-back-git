@@ -97,3 +97,28 @@ test('Refus du site : un 422 rapporté sur l’appel de l’envoi approuvé n’
   assert.match(line(), /dont 1 refusé\(s\) par le site \(HTTP 422\)/);
   assert.match(line(), /dont 1 à l’issue incertaine/);
 });
+
+test('Code HTTP tardif : rattaché à l’envoi qui l’a déclenché (déjà rapporté ou encore ouvert)', async (t) => {
+  const { control, outcome, approveFor, line } = await platform(t);
+  const [click, open, ok, next] = Array.from({ length: 4 }, () => crypto.randomUUID());
+  // Le clic approuvé a rendu « completed » avant que le site réponde 422.
+  await approveFor(click);
+  await outcome({ name: 'browser_click', status: 'completed', toolCallId: click });
+  // L'appel suivant réussit : il ne porte rien de l'envoi précédent.
+  await outcome({ name: 'browser_snapshot', status: 'completed', toolCallId: next });
+  assert.equal((await outcome({ late: true, toolCallId: click, httpStatus: 422 })).status, 200);
+  // Une carte demandée après la fin de son appel : l'issue arrive par le code tardif.
+  await approveFor(open);
+  await outcome({ late: true, toolCallId: open, httpStatus: 503 });
+  await approveFor(ok);
+  await outcome({ late: true, toolCallId: ok, httpStatus: 201 });
+  // Un code tardif d'un appel qui n'a demandé aucun accord ne compte pas.
+  await outcome({ late: true, toolCallId: next, httpStatus: 500 });
+  assert.deepEqual(control.sendsRefused, [422, 503]);
+  assert.equal(control.sendCalls.size, 0, 'aucun envoi « sans issue connue »');
+  assert.equal(control.sendsUncertain ?? 0, 0);
+  assert.equal(
+    line(),
+    '\nEnvoi par la plateforme : 3 approuvé(s) par le propriétaire, dont 2 refusé(s) par le site (HTTP 422, 503).',
+  );
+});

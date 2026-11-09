@@ -128,6 +128,22 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
     signal: AbortSignal.timeout(5000),
   });
 }
+// Audit du 10/11, second tour : the HTTP status (null : no answer) of an approved submission that
+// arrived after its call returned, for the platform's send line.
+async function reportLateSubmission(toolCallId, status) {
+  const url = process.env.RELAY_TOOL_OUTCOME_URL;
+  if (!url || !process.env.RELAY_APPROVAL_TOKEN || !toolCallId) return;
+  await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-platform-request': '1',
+      'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+    },
+    body: JSON.stringify({ late: true, toolCallId, httpStatus: status }),
+    signal: AbortSignal.timeout(5000),
+  });
+}
 server.registerTool = (name, definition, handler) =>
   register(
     name,
@@ -226,6 +242,11 @@ if (mode === 'fixture') {
     onAutoSend,
     // Seconde relecture de nuit : the agent's call, checked again once the owner has decided.
     callSignal: () => currentCall()?.signal,
+    // Audit du 10/11, second tour : the call a submission belongs to, and its HTTP status when
+    // it arrives after that call returned (reported to that very call, never to the next one).
+    currentCall,
+    onLateSubmission: ({ toolCallId, status }) =>
+      reportLateSubmission(toolCallId, status).catch(() => {}),
   });
   browserGateway = gateway;
   let fallbackReported = false;

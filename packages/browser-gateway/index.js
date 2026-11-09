@@ -103,31 +103,60 @@ export class BrowserGateway {
     onAutoSend,
     // The agent's call in progress (its abort signal), checked again once the owner has decided.
     callSignal = () => undefined,
+    // Audit du 10/11, second tour : the agent's call in progress ({ toolCallId, signal }), and
+    // where the HTTP status of an approved submission goes when it arrives after its call
+    // returned ({ toolCallId, host, status }).
+    currentCall = () => undefined,
+    onLateSubmission,
   }) {
-    Object.assign(this, { provider, policy, approve, meter, callSignal });
+    Object.assign(this, { provider, policy, approve, meter, callSignal, currentCall });
+    this.onLateSubmission = onLateSubmission;
+    provider.onLateSubmission = (entry) => this.onLateSubmission?.(entry);
     // Owner mode only: network writes that are not an agent's send click are granted and traced
     // through this callback ({ capability, host }); it never receives a URL, a body or a query.
     if (onAutoSend && policy.ownerMode) provider.onAutoSend = onAutoSend;
     this.autoApprove = new Set(autoApprove); // write (never sensitive) capabilities pre-approved by the user
   }
   call(capabilityId, rawArgs = {}) {
+    // Audit du 10/11, second tour : the gateway call a submission belongs to (calls run one at a
+    // time) ; `done` once it has returned, so that a later status is reported apart.
+    const token = { call: this.currentCall() ?? null, done: false };
     const task = (this.pending ?? Promise.resolve()).then(async () => {
-      const output = await this.execute(capabilityId, rawArgs);
-      // Network writes granted without a question since the previous call (owner mode).
-      const hosts = (await this.provider.takeAutoSends?.()) ?? [];
-      // Audit du 10/11 (constat 7) : approved submissions since the previous call, with their
-      // HTTP status (host and status only).
-      const submissions = (await this.provider.takeSubmissions?.()) ?? [];
-      return {
-        ...output,
-        ...(hosts.length
-          ? {
-              networkSends: hosts.length,
-              networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
-            }
-          : {}),
-        ...(submissions.length ? { submissions } : {}),
-      };
+      this.provider.callToken = token;
+      try {
+        const output = await this.execute(capabilityId, rawArgs);
+        // Network writes granted without a question since the previous call (owner mode).
+        const hosts = (await this.provider.takeAutoSends?.()) ?? [];
+        // Audit du 10/11 (constat 7) : approved submissions of this call, with their HTTP status
+        // (host and status only). Second tour : those of an earlier call whose status came late
+        // are only told (`lateSubmissions`) : they never make this call fail.
+        const taken = (await this.provider.takeSubmissions?.(token)) ?? {};
+        const submissions = Array.isArray(taken) ? taken : (taken.own ?? []);
+        const late = Array.isArray(taken) ? [] : (taken.late ?? []);
+        return {
+          ...output,
+          ...(hosts.length
+            ? {
+                networkSends: hosts.length,
+                networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
+              }
+            : {}),
+          ...(submissions.length ? { submissions } : {}),
+          ...(late.length
+            ? {
+                lateSubmissions: late,
+                ...(late.some((s) => s.status >= 400)
+                  ? {
+                      lateSubmissionNote:
+                        'Un envoi approuvé lors d’un appel précédent a été refusé par le site : relis la page (browser_snapshot) avant toute autre tentative.',
+                    }
+                  : {}),
+              }
+            : {}),
+        };
+      } finally {
+        token.done = true;
+      }
     });
     this.pending = task.catch(() => {});
     return task;

@@ -782,7 +782,9 @@ export class CdpBrowser {
   }
   // Audit du 10/11 (constat 7) : a write the owner approved (or that an approved click covers) is a
   // submission ; its HTTP status tells whether the site took it. Host and status only.
-  #recordSubmission(request) {
+  // Second tour : `origin` is the gateway call that opened the send (the click) ; a status that
+  // arrives once that call has returned is reported to it (onLateSubmission), never to the next call.
+  #recordSubmission(request, origin = this.callToken) {
     if (request.resourceType() === 'ping') return;
     let host = '';
     try {
@@ -790,30 +792,46 @@ export class CdpBrowser {
     } catch {
       /* unparsable URL: recorded without a host */
     }
-    const entry = { host, status: null };
-    entry.settled = request.response().then(
-      (response) => {
-        entry.status = response ? response.status() : null;
-      },
-      () => {},
-    );
+    const entry = { host, status: null, origin, done: false };
+    entry.settled = request
+      .response()
+      .then(
+        (response) => {
+          entry.status = response ? response.status() : null;
+        },
+        () => {},
+      )
+      .finally(() => {
+        entry.done = true;
+        if (origin?.done && origin.call?.toolCallId)
+          this.onLateSubmission?.({
+            toolCallId: origin.call.toolCallId,
+            host,
+            status: entry.status,
+          });
+      });
     this.submissions = [...(this.submissions ?? []), entry].slice(-10);
   }
-  // Called after each tool call : the submissions since the previous call, with their status once
-  // answered (5 s at most ; a submission still unanswered keeps a null status).
-  async takeSubmissions(ms = 5000) {
+  // Called after each tool call : this call's submissions, with their status once answered (5 s at
+  // most ; a submission still unanswered keeps a null status, reported later), and those of an
+  // earlier call answered since (`late`, told to the agent without making this call fail).
+  async takeSubmissions(token, ms = 5000) {
     const list = this.submissions ?? [];
-    this.submissions = [];
-    if (!list.length) return [];
-    let timer;
-    await Promise.race([
-      Promise.all(list.map((entry) => entry.settled)),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, ms);
-      }),
-    ]);
-    clearTimeout(timer);
-    return list.map(({ host, status }) => ({ host, status }));
+    const own = list.filter((entry) => !entry.origin || entry.origin === token);
+    const late = list.filter((entry) => !own.includes(entry) && entry.done);
+    this.submissions = list.filter((entry) => !own.includes(entry) && !late.includes(entry));
+    const shown = ({ host, status }) => ({ host, status });
+    if (own.length) {
+      let timer;
+      await Promise.race([
+        Promise.all(own.map((entry) => entry.settled)),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, ms);
+        }),
+      ]);
+      clearTimeout(timer);
+    }
+    return { own: own.map(shown), late: late.map(shown) };
   }
   // Called after each tool call: waits for the traces already started, then returns and resets the
   // count of network writes granted automatically since the previous call.
@@ -918,6 +936,9 @@ export class CdpBrowser {
           clickWindow &&
           (firstParty || request.isNavigationRequest());
         const granted = this.sendGrant === true || covered;
+        // Second tour (constats 7 et 16) : a write of a click's window belongs to that click's
+        // gateway call (its card and its HTTP status), not to the call in progress when it leaves.
+        const origin = clickWindow ? (this.clickToken ?? this.callToken) : this.callToken;
         // Audit du 10/11 (constat 13) : a write of more than 100 kB that no approval covers (a CV
         // posted with the application) was cancelled without a trace. It is now asked like a send :
         // the owner's click decides, and a refusal is said to the agent and in the Bilan.
@@ -950,7 +971,7 @@ export class CdpBrowser {
           if (this.sendDecision === decision) this.sendDecision = null;
         }
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
-        this.#recordSubmission(request);
+        this.#recordSubmission(request, origin);
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);
@@ -1625,6 +1646,8 @@ export class CdpBrowser {
         this.clickKind = args.clickKind ?? null;
         this.clickPage = pageKey(page.url());
         this.clickApproved = args.sendApproved === true;
+        // Second tour : the gateway call of this click, owner of the writes of its window.
+        this.clickToken = this.callToken;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -1675,7 +1698,11 @@ export class CdpBrowser {
         // token) : wait 1.5 s at most for its request, so that its status comes with this result
         // (a later one comes with the next call's result).
         if (args.sendApproved === true)
-          for (let i = 0; i < 30 && !this.submissions?.length; i++)
+          for (
+            let i = 0;
+            i < 30 && !this.submissions?.some((entry) => entry.origin === this.callToken);
+            i++
+          )
             await new Promise((resolve) => setTimeout(resolve, 50));
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);
@@ -2003,6 +2030,7 @@ export class CdpBrowser {
           this.formStep = false;
           this.clickKind = null;
           this.clickApproved = args.sendApproved === true;
+          this.clickToken = this.callToken;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);

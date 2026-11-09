@@ -499,6 +499,30 @@ export function createApp({
           (typeof body.toolCallId !== 'string' || !/^[a-f0-9-]{36}$/.test(body.toolCallId))
         )
           throw new Error('Identifiant d’appel invalide');
+        // Audit du 10/11, second tour : the HTTP status of an approved submission that arrived
+        // after its call returned. It settles that call's send (a refusal by the site, or the
+        // outcome of a send still open) ; it is no tool call of its own.
+        if (body.late === true) {
+          const call = body.toolCallId;
+          const status = Number.isInteger(body.httpStatus) ? body.httpStatus : null;
+          const settled = control.sendSettled?.get(call);
+          if (siteRefusal(status) && (control.sendCalls?.has(call) || settled === 'uncertain')) {
+            control.sendCalls?.delete(call);
+            if (settled === 'uncertain') control.sendsUncertain -= 1;
+            control.sendsRefused = [...(control.sendsRefused ?? []), status];
+            (control.sendSettled ??= new Map()).set(call, 'refused');
+          } else if (siteRefusal(status) && settled === 'completed') {
+            control.sendsRefused = [...(control.sendsRefused ?? []), status];
+            control.sendSettled.set(call, 'refused');
+          } else if (control.sendCalls?.has(call)) {
+            // A send whose call never reported its own outcome (its card was asked after it).
+            control.sendCalls.delete(call);
+            const outcome = status === null ? 'uncertain' : 'completed';
+            if (outcome === 'uncertain') control.sendsUncertain = (control.sendsUncertain ?? 0) + 1;
+            (control.sendSettled ??= new Map()).set(call, outcome);
+          }
+          return json(res, 200, { ok: true });
+        }
         control.toolDelivered?.(null, 'gateway');
         if (store.get(id)?.workspace === 'career-ops')
           control.turnTruth.recordGatewayTool(body.name, body.status, {
@@ -530,13 +554,21 @@ export function createApp({
         // approved submission) is a refusal by the site, not an uncertain outcome.
         if (control.sendCalls?.has(body.toolCallId)) {
           control.sendCalls.delete(body.toolCallId);
+          let outcome = 'completed';
           if (body.status === 'failed') {
-            if (siteRefusal(body.httpStatus))
+            if (siteRefusal(body.httpStatus)) {
+              outcome = 'refused';
               control.sendsRefused = [...(control.sendsRefused ?? []), body.httpStatus];
-            else if (body.actionDone === false)
+            } else if (body.actionDone === false) {
+              outcome = 'failed';
               control.sendsFailed = (control.sendsFailed ?? 0) + 1;
-            else control.sendsUncertain = (control.sendsUncertain ?? 0) + 1;
+            } else {
+              outcome = 'uncertain';
+              control.sendsUncertain = (control.sendsUncertain ?? 0) + 1;
+            }
           }
+          // Kept so that an HTTP status arriving later (second tour) settles this send.
+          (control.sendSettled ??= new Map()).set(body.toolCallId, outcome);
         }
         if (body.toolCallId != null) {
           control.skillProgress?.observe({

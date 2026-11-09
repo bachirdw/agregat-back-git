@@ -143,3 +143,43 @@ test(
     assert.deepEqual(lines(), ['POST /apply/123/submit'], 'accordé, il part');
   },
 );
+
+// Soumission FICTIVE asynchrone qui ne poste qu'après 2 s (validation lente, jeton) : le code HTTP
+// arrive après le retour du clic.
+const slowForm = `<script>
+  async function go() {
+    await new Promise((r) => setTimeout(r, 2000));
+    await fetch('/api/candidatures', { method: 'POST', body: JSON.stringify({ nom: 'FICTIF' }) });
+  }
+</script>
+<form onsubmit="event.preventDefault(); go()"><input name="nom"><button type="submit">Envoyer ma candidature</button></form>`;
+
+test(
+  'Code HTTP tardif : rattaché à l’envoi qui l’a déclenché, sans faire échouer l’appel suivant',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin } = await site(t, slowForm, {
+      status: (req) => (req.url === '/api/candidatures' ? 422 : 200),
+    });
+    const { gateway } = await owner(t, origin);
+    let current = { toolCallId: 'appel-navigation-FICTIF' };
+    const late = [];
+    gateway.currentCall = () => current;
+    gateway.onLateSubmission = (entry) => late.push(entry);
+    await gateway.call('browser.navigate', { url: origin });
+    current = { toolCallId: 'appel-clic-FICTIF' };
+    const ref = await refFor(gateway, 'button');
+    const click = await gateway.call('browser.click', { ref });
+    assert.equal(click.submissions, undefined, 'le code n’est pas encore arrivé');
+    current = { toolCallId: 'appel-suivant-FICTIF' };
+    // L'agent enchaîne aussitôt : la soumission part pendant ou après cet appel, sans lui être imputée.
+    const early = await gateway.call('browser.snapshot', {});
+    assert.equal(early.submissions, undefined);
+    for (let i = 0; i < 100 && !late.length; i++) await sleep(50);
+    const host = origin.replace('http://', '');
+    assert.deepEqual(late, [{ toolCallId: 'appel-clic-FICTIF', host, status: 422 }]);
+    const next = await gateway.call('browser.snapshot', {});
+    assert.equal(next.submissions, undefined, 'l’appel suivant ne porte pas l’envoi précédent');
+    assert.deepEqual(next.lateSubmissions, [{ host, status: 422 }]);
+  },
+);

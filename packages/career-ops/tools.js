@@ -733,8 +733,11 @@ export class CareerTools {
     try {
       bytes = readConfined(this.career.path(), path, 10 * 1024 * 1024);
     } catch (e) {
-      // A file the pack declares optional is absent until the Skill creates it: a normal state.
-      if (e.code !== 'ENOENT' || !this.optionalFiles.includes(path)) throw e;
+      // A file the pack declares optional, and any file of the owner's layer (article-digest.md,
+      // voice-dna.md, data/pipeline.md, data/pdf-index.tsv…: « if exists » in the Skill), is absent
+      // until the Skill creates it: a normal state, not a failure. System files stay errors.
+      if (e.code !== 'ENOENT' || !(this.optionalFiles.includes(path) || userPath.test(path)))
+        throw e;
       return {
         path,
         absent: true,

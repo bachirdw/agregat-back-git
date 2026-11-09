@@ -40,9 +40,12 @@ test('E13 FICTIF : un fichier optionnel déclaré par le pack, absent, est un é
   const present = tools.read('data/blacklist.md');
   assert.equal(present.text, 'FICTIF\n');
   assert.equal(present.absent, undefined);
-  // Absent and not declared: still an error. Out of scope: still refused.
-  assert.throws(() => tools.read('data/autre.md'), /ENOENT/);
-  assert.throws(() => new CareerTools(career).read('modes/_custom.md'), /ENOENT/);
+  // Absent, any file of the owner's layer (« if exists » in the Skill) is absent, not an error;
+  // an absent system file stays one. Out of scope: still refused.
+  for (const name of ['data/autre.md', 'article-digest.md', 'voice-dna.md', 'data/pdf-index.tsv'])
+    assert.equal(tools.read(name).absent, true, name);
+  assert.equal(new CareerTools(career).read('modes/_custom.md').absent, true);
+  assert.throws(() => tools.read('modes/oferta.md'), /ENOENT/);
   assert.throws(() => tools.read('scripts/x.mjs'), /hors du périmètre/);
 });
 
@@ -102,8 +105,14 @@ test('E13 FICTIF par la passerelle MCP : career_read répond absent pour un fich
   assert.equal(parsed.optional, true);
   const other = await client.callTool({
     name: 'career_read',
-    arguments: { path: 'data/autre.md' },
+    arguments: { path: 'article-digest.md' },
   });
-  assert.equal(other.isError, true);
-  assert.match(other.content[0].text, /ENOENT/);
+  assert.equal(other.isError, undefined, other.content?.[0]?.text);
+  assert.equal(JSON.parse(other.content[0].text).absent, true);
+  const system = await client.callTool({
+    name: 'career_read',
+    arguments: { path: 'modes/oferta.md' },
+  });
+  assert.equal(system.isError, true);
+  assert.match(system.content[0].text, /ENOENT/);
 });

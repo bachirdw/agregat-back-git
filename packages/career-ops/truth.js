@@ -351,6 +351,20 @@ const ACTION_ORDER = new RegExp(
 );
 export const ordersAction = (prompt) => ACTION_ORDER.test(withoutNegations(prompt));
 
+// The « Action(s) échouée(s) » line of a mission without the Skill (relecture 10/11, constat 3).
+export function formatFailedActions(list) {
+  return (
+    'Action(s) échouée(s) : ' +
+    list
+      .map(({ name, cause, failures, recovered }) =>
+        recovered
+          ? `${name} — ${cause}, ${failures} échoué${failures > 1 ? 's' : ''} puis réussi`
+          : `${name} — ${cause}${failures > 1 ? ` (${failures} échecs)` : ''}`,
+      )
+      .join(' ; ')
+  );
+}
+
 export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browserObserved }) {
   return !!previous && durationMs < 15000 && !browserObserved && ordersAction(prompt);
 }
@@ -412,7 +426,25 @@ export function createTurnTruth({ root, seed } = {}) {
   const viaReport = new Set();
   const names = new Map();
   const paths = new Map();
+  // Failed browser/e-mail actions, per tool: the failed call ids, the last cause and whether a later
+  // call of the tool succeeded. Relecture du 10/11 (constat 3) : a success of another call of the
+  // same tool (another button, another recipient) used to erase the failure; only the same call id
+  // succeeding clears it, otherwise the Bilan says « 1 échoué puis réussi ».
   const failed = new Map();
+  const markFailed = (name, id, cause) => {
+    const entry = failed.get(name) ?? { ids: new Set(), cause, recovered: false };
+    entry.ids.add(id ?? `anonymous-failure-${entry.ids.size}`);
+    entry.cause = cause;
+    entry.recovered = false;
+    failed.set(name, entry);
+  };
+  const markCompleted = (name, id) => {
+    const entry = failed.get(name);
+    if (!entry) return;
+    if (id != null) entry.ids.delete(id);
+    if (!entry.ids.size) failed.delete(name);
+    else entry.recovered = true;
+  };
   const outcomes = new Map();
   const gatewayOutcomes = new Map();
   let anonymousCall = 0;
@@ -466,8 +498,9 @@ export function createTurnTruth({ root, seed } = {}) {
       if (path) paths.set(update.toolCallId, String(path));
       if (update.rawInput) inputs.set(update.toolCallId, update.rawInput);
       if (update.status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
-        failed.set(
+        markFailed(
           name,
+          update.toolCallId,
           /écriture automatisée interdite|automated writing prohibited/i.test(
             JSON.stringify(update.rawOutput ?? update.content ?? ''),
           )
@@ -478,10 +511,9 @@ export function createTurnTruth({ root, seed } = {}) {
         outcomes.set(update.toolCallId, {
           name,
           status: 'failed',
-          cause: failed.get(name) ?? 'échec signalé par l’outil',
+          cause: failed.get(name)?.cause ?? 'échec signalé par l’outil',
         });
-      // A later successful call of the same tool clears its earlier failure: the retry worked.
-      if (update.status === 'completed') failed.delete(name);
+      if (update.status === 'completed') markCompleted(name, update.toolCallId);
       if (update.status === 'completed') {
         outcomes.set(update.toolCallId, {
           ...outcomes.get(update.toolCallId),
@@ -624,17 +656,24 @@ export function createTurnTruth({ root, seed } = {}) {
           contactWrites.add('extract');
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
-      if (status === 'completed') failed.delete(name);
+      if (status === 'completed') markCompleted(name, key);
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
-        failed.set(name, 'échec signalé par l’outil');
+        markFailed(name, key, 'échec signalé par l’outil');
     },
     toolOutcomes() {
       const gateway = [...gatewayOutcomes.values()];
       const gatewayNames = new Set(gateway.map((item) => item.name));
       return [...outcomes.values()].filter((item) => !gatewayNames.has(item.name)).concat(gateway);
     },
+    // One entry per tool that failed: `failures` (distinct calls) when more than one, `recovered`
+    // when a later call of that tool succeeded. The failure stays visible either way.
     failedActions() {
-      return [...failed].map(([name, cause]) => ({ name, cause }));
+      return [...failed].map(([name, entry]) => ({
+        name,
+        cause: entry.cause,
+        ...(entry.ids.size > 1 || entry.recovered ? { failures: entry.ids.size } : {}),
+        ...(entry.recovered ? { recovered: true } : {}),
+      }));
     },
     // An evaluation kept by the platform's tools: a Relay record or a report in reports/.
     hasOfferSave() {

@@ -40,7 +40,7 @@ test('progressArgument : seul « scan » vaut le scan des portails', async () =>
   assert.equal(progressArgument('career_script', { command: 'scripts/scan-foo.mjs' }), null);
 });
 
-test('failedActions : un appel réussi du même outil efface l’échec précédent', () => {
+test('failedActions : un succès ultérieur du même outil n’efface pas l’échec (relecture 10/11, constat 3)', () => {
   const truth = createTurnTruth();
   const a = '11111111-1111-4111-8111-111111111111';
   const b = '22222222-2222-4222-8222-222222222222';
@@ -50,7 +50,19 @@ test('failedActions : un appel réussi du même outil efface l’échec précéd
     ['browser_click'],
   );
   truth.recordGatewayTool('browser_click', 'completed', { toolCallId: b });
-  assert.deepEqual(truth.failedActions(), []);
+  assert.deepEqual(truth.failedActions(), [
+    { name: 'browser_click', cause: 'échec signalé par l’outil', failures: 1, recovered: true },
+  ]);
+  truth.recordGatewayTool('email_send', 'failed', { toolCallId: 'm1' });
+  truth.recordGatewayTool('email_send', 'completed', { toolCallId: 'm2', sent: true });
+  assert.equal(truth.failedActions().find((item) => item.name === 'email_send')?.recovered, true);
+  // Le même appel qui finit par réussir (mise à jour rejouée) efface bien son échec.
+  truth.recordGatewayTool('browser_type', 'failed', { toolCallId: 'same' });
+  truth.recordGatewayTool('browser_type', 'completed', { toolCallId: 'same' });
+  assert.equal(
+    truth.failedActions().find((item) => item.name === 'browser_type'),
+    undefined,
+  );
   const acp = createTurnTruth();
   const call = (id, status) => {
     acp.observe({ sessionUpdate: 'tool_call', toolCallId: id, title: 'browser_click' });
@@ -59,5 +71,24 @@ test('failedActions : un appel réussi du même outil efface l’échec précéd
   call('x1', 'failed');
   assert.equal(acp.failedActions().length, 1);
   call('x2', 'completed');
-  assert.deepEqual(acp.failedActions(), []);
+  assert.deepEqual(acp.failedActions(), [
+    { name: 'browser_click', cause: 'échec signalé par l’outil', failures: 1, recovered: true },
+  ]);
+  call('x3', 'failed');
+  assert.deepEqual(acp.failedActions(), [
+    { name: 'browser_click', cause: 'échec signalé par l’outil', failures: 2 },
+  ]);
+});
+
+test('formatFailedActions : l’échec reste dit, même suivi d’un succès (constat 3)', async () => {
+  const { formatFailedActions } = await import('../packages/career-ops/truth.js');
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('browser_click', 'failed', { toolCallId: 'c1' });
+  truth.recordGatewayTool('browser_click', 'completed', { toolCallId: 'c2' });
+  truth.recordGatewayTool('email_send', 'failed', { toolCallId: 'm1' });
+  truth.recordGatewayTool('email_send', 'failed', { toolCallId: 'm2' });
+  assert.equal(
+    formatFailedActions(truth.failedActions()),
+    'Action(s) échouée(s) : browser_click — échec signalé par l’outil, 1 échoué puis réussi ; email_send — échec signalé par l’outil (2 échecs)',
+  );
 });

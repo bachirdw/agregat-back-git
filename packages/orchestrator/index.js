@@ -51,6 +51,7 @@ import {
   formatCareerBilan,
   inboxUnprocessed,
   shortResumeWithoutBrowser,
+  formatFailedActions,
 } from '../career-ops/truth.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
 import {
@@ -1480,12 +1481,7 @@ export class Orchestrator {
       if (plan.pack.id !== 'career-ops' && skillResult.steps.length)
         value.summary += '\nBilan\n' + formatSkillBilan(skillResult);
       if (plan.pack.id !== 'career-ops' && turnTruth.failedActions().length)
-        value.summary +=
-          '\nAction(s) échouée(s) : ' +
-          turnTruth
-            .failedActions()
-            .map(({ name, cause }) => `${name} — ${cause}`)
-            .join(' ; ');
+        value.summary += '\n' + formatFailedActions(turnTruth.failedActions());
       // Fact from the platform, next to the agent's own claims: a model can announce a send it never made.
       if (plan.pack.id === 'career-ops' || control.sendsAsked || control.sendsApproved)
         value.summary += formatSendLine(

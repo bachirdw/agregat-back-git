@@ -66,3 +66,45 @@ test('outil sans qualification interrompu : incertain ; lecture explicite rejoua
   engine.recover('run', wf);
   assert.equal(engine.row('run', 'action').state, 'uncertain');
 });
+
+test('agent en échec sans humain : mode non supervisé → échec terminal avec la cause', async (t) => {
+  const { store } = setup(t);
+  const engine = new WorkflowEngine({
+    store,
+    unsupervised: true,
+    executors: {
+      agent: async () => {
+        throw new Error('Session refusée FICTIVE');
+      },
+    },
+  });
+  const wf = workflow();
+  engine.init('run', wf);
+  const out = await engine.drive('run', wf, {}, undefined);
+  assert.equal(out.state, 'failed');
+  assert.match(engine.row('run', 'action').error, /Session refusée FICTIVE/);
+  assert.equal(engine.row('run', 'action').state, 'failed');
+  // Reprise explicite : l'incertitude est rétablie, jamais de rejeu aveugle.
+  engine.recover('run', wf, { retryFailed: true });
+  assert.equal(engine.row('run', 'action').state, 'uncertain');
+});
+
+test('agent en échec, supervisé : attend l’humain puis échec terminal après le délai', async (t) => {
+  const { store } = setup(t);
+  const engine = new WorkflowEngine({
+    store,
+    humanWaitMs: 150,
+    executors: {
+      agent: async () => {
+        throw new Error('Délai FICTIF');
+      },
+    },
+  });
+  const wf = workflow();
+  engine.init('run', wf);
+  const started = Date.now();
+  const out = await engine.drive('run', wf, {}, undefined);
+  assert.equal(out.state, 'failed');
+  assert.ok(Date.now() - started >= 140);
+  assert.match(engine.row('run', 'action').error, /sans réponse humaine.*Délai FICTIF/);
+});

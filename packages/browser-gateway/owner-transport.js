@@ -233,12 +233,18 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
               Math.max(timeoutMs, RELAYED_COMMAND_MS),
             );
           } else if (m.method === 'Target.setAutoAttach') {
-            if (!m.sessionId)
+            if (!m.sessionId) {
               send({
                 method: 'Target.attachedToTarget',
                 params: { sessionId: targetSession, targetInfo, waitingForDebugger: false },
               });
-            result = {};
+              result = {};
+            } else
+              // Audit du 10/11 (constat 3) : on a session of the mission, auto-attach reaches only
+              // that page's own children (out-of-process iframes of another site, its workers) ;
+              // their sessions are accepted as children of ours. A relay that refuses it leaves the
+              // page as before (iframes of another site unreadable), never broken.
+              result = await rpc(m.method, m.params, m.sessionId).catch(() => ({}));
           } else if (m.method === 'Target.getTargets') result = { targetInfos: [targetInfo] };
           else if (m.method === 'Target.getTargetInfo') {
             if (m.params?.targetId && !targets.has(m.params.targetId))

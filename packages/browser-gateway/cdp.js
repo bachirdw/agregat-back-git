@@ -837,12 +837,20 @@ export class CdpBrowser {
         if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
         const body = request.postData() ?? '';
         let pageUrl = '';
+        let frameUrl = '';
         try {
           pageUrl = request.frame().page().url();
+          frameUrl = request.frame().url();
         } catch {
           /* no page: treated as third party */
         }
-        const firstParty = sameSite(request.url(), pageUrl);
+        // Audit du 10/11 (constat 4) : an iframe of another site writing to its own origin (the
+        // token of an anti-bot widget, an embedded ATS) is that frame's own site, judged by the
+        // frame that posts, not by the tab. A script of the tab posting to another site stays third
+        // party, and the agent's file still only leaves through the upload rule below.
+        const firstParty =
+          sameSite(request.url(), pageUrl) ||
+          (/^https?:/.test(frameUrl) && sameSite(request.url(), frameUrl));
         // Reads and session upkeep are automatic only for this site's own endpoints.
         // Chrome/Playwright classify navigator.sendBeacon as "ping". A beacon cannot
         // wait for an application response, even if its endpoint says "send".

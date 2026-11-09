@@ -141,3 +141,38 @@ test(
     assert.match(snapshot, /textbox "Prenom" \[ref=f\d+e\d+\]/);
   },
 );
+
+test(
+  'Constat 4 : une iframe d’une autre origine écrit vers sa propre origine ; son envoi final garde sa carte',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, ats, writes } = await careerSite(t);
+    const provider = new CdpBrowser({ launch: { executablePath: CHROME } });
+    let allow = false;
+    const { gateway, asked } = gatewayFor(t, provider, [origin, ats], () => allow);
+    await gateway.call('browser.navigate', { url: origin });
+    for (let i = 0; i < 100 && !writes.length; i++) await sleep(20);
+    assert.deepEqual(writes, ['POST /recaptcha/api2/reload'], 'le jeton du widget est obtenu');
+    const frame = provider.page.frames().find((f) => f.url().startsWith(ats));
+    assert.equal(await frame.evaluate(() => document.body.dataset.token), 'ok');
+    const snapshot = (await gateway.call('browser.snapshot', {})).snapshot;
+    const ref = snapshot
+      .split('\n')
+      .find((line) => line.includes('Envoyer ma candidature'))
+      ?.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
+    assert.ok(ref, 'bouton de l’iframe visible');
+    await assert.rejects(gateway.call('browser.click', { ref }), /Action refusée/);
+    assert.deepEqual(
+      asked.filter((r) => r.actionClass === 'send').map((r) => r.capability),
+      ['browser.click'],
+    );
+    await sleep(500);
+    assert.deepEqual(writes, ['POST /recaptcha/api2/reload'], 'rien d’autre ne part sans accord');
+    // Accordé : la soumission de l'iframe vers sa propre origine part, sans deuxième carte.
+    allow = true;
+    await gateway.call('browser.click', { ref });
+    for (let i = 0; i < 100 && writes.length < 2; i++) await sleep(20);
+    assert.deepEqual(writes, ['POST /recaptcha/api2/reload', 'POST /api/candidatures']);
+    assert.equal(asked.filter((r) => r.actionClass === 'send').length, 2);
+  },
+);

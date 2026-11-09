@@ -4,6 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { requestDecision } from '../packages/mcp-gateway/approval.js';
+import { withEvidence } from '../packages/mcp-gateway/evidence.js';
+import { submissionRefused } from '../packages/mcp-gateway/outcome.js';
 import {
   BrowserGateway,
   FixturePageProvider,
@@ -60,6 +62,32 @@ test('Constat 15 : une erreur HTTP du pont d’accord n’est pas un refus du pr
   await assert.rejects(
     gateway.call('browser.click', { ref: 'e1' }),
     (error) => /réponse HTTP 503/.test(error.message) && !/refusée/.test(error.message),
+  );
+});
+
+test('Constat 8 : journal de preuves indisponible après une action faite : succès et avertissement', async () => {
+  const output = { url: 'https://jobs.example.test/merci', capability: 'browser.click' };
+  assert.deepEqual(await withEvidence(output, async () => ({ ok: true })), output);
+  for (const post of [
+    async () => ({ ok: false, status: 500 }),
+    async () => {
+      throw new Error('timeout FICTIF');
+    },
+  ]) {
+    const result = await withEvidence(output, post);
+    assert.equal(result.url, output.url);
+    assert.equal(result.evidence, 'non journalisé');
+    assert.match(result.evidenceWarning, /Action effectuée.*ne la refais pas/);
+  }
+});
+
+test('Constat 7 : une soumission approuvée en 4xx/5xx est un échec, pas un succès', () => {
+  assert.equal(submissionRefused({}), null);
+  assert.equal(submissionRefused({ submissions: [{ host: 'a.test', status: 201 }] }), null);
+  assert.equal(submissionRefused({ submissions: [{ host: 'a.test', status: null }] }), null);
+  assert.match(
+    submissionRefused({ submissions: [{ host: 'a.test', status: 503 }] }),
+    /a\.test a répondu HTTP 503.*ne pas recliquer/,
   );
 });
 

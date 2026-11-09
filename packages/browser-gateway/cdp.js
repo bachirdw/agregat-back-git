@@ -863,7 +863,9 @@ export class CdpBrowser {
         // the page's own sending of THAT file — often to a storage host of another site — is
         // granted and traced (host only), as a scripted write to the page's own site already is.
         // Other requests (statistics, trackers, beacons, a body with the candidate's e-mail around
-        // the file), a send-worded request and a navigation keep the rules below.
+        // the file) and a navigation keep the rules below. Audit du 10/11 (constat 13) : the path
+        // does not matter (`/apply/<id>/resume` is a piece of the form, not its send) ; a body
+        // that carries the file alone is the attachment, the candidate's contact makes it a send.
         const uploadWindow =
           this.uploading === true ||
           (Date.now() - (this.lastUploadEnd ?? 0) <= UPLOAD_WINDOW_MS &&
@@ -871,7 +873,6 @@ export class CdpBrowser {
             !this.writeInProgress);
         if (
           uploadWindow &&
-          !sensitive &&
           !request.isNavigationRequest() &&
           sendsFile(request, this.uploadedFile)
         ) {
@@ -917,12 +918,14 @@ export class CdpBrowser {
           clickWindow &&
           (firstParty || request.isNavigationRequest());
         const granted = this.sendGrant === true || covered;
-        if (!granted && !afterSendClick && !request.isNavigationRequest()) {
-          if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
+        // Audit du 10/11 (constat 13) : a write of more than 100 kB that no approval covers (a CV
+        // posted with the application) was cancelled without a trace. It is now asked like a send :
+        // the owner's click decides, and a refusal is said to the agent and in the Bilan.
+        const large = Buffer.byteLength(body) > 100000;
+        if (!granted && !afterSendClick && !large && !request.isNavigationRequest()) {
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
         // refused or expired answer blocks them all. An approval only ever frees the request it showed.

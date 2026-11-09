@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { BrowserGateway, CdpBrowser } from '../packages/browser-gateway/index.js';
 import { RunPolicy } from '../packages/policy-engine/run-policy.js';
 import { capabilityIds } from '../packages/capability-registry/index.js';
+import { approvalCall } from '../packages/mcp-gateway/calls.js';
 import { refFor } from './support/click-ref.js';
 
 const CHROME =
@@ -181,5 +182,45 @@ test(
     const next = await gateway.call('browser.snapshot', {});
     assert.equal(next.submissions, undefined, 'l’appel suivant ne porte pas l’envoi précédent');
     assert.deepEqual(next.lateSubmissions, [{ host, status: 422 }]);
+  },
+);
+
+test(
+  'Constat 16 : la carte demandée depuis la route réseau porte l’appel du clic, pas l’appel en cours',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      `<button onclick="setTimeout(() => fetch('/api/postuler', { method: 'POST', body: '{}' }), 2000)">Je postule</button>`,
+    );
+    const { gateway } = await owner(t, origin);
+    const cards = [];
+    gateway.approve = async (request, options) => {
+      cards.push({ request, options });
+      return true;
+    };
+    let current = { toolCallId: 'appel-navigation-FICTIF', signal: new AbortController().signal };
+    const late = [];
+    gateway.currentCall = () => current;
+    gateway.onLateSubmission = (entry) => late.push(entry);
+    await gateway.call('browser.navigate', { url: origin });
+    const click = { toolCallId: 'appel-clic-FICTIF', signal: new AbortController().signal };
+    current = click;
+    await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    assert.deepEqual(cards, [], 'un libellé d’envoi hors formulaire ne demande rien avant le clic');
+    const next = new AbortController();
+    current = { toolCallId: 'appel-suivant-FICTIF', signal: next.signal };
+    await gateway.call('browser.snapshot', {});
+    for (let i = 0; i < 100 && !cards.length; i++) await sleep(50);
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0].request.capability, 'browser.send');
+    const named = approvalCall(cards[0].options?.origin, current);
+    assert.equal(named.call.toolCallId, 'appel-clic-FICTIF', 'la carte nomme le clic');
+    assert.equal(named.signal, undefined, 'annuler l’appel suivant ne retire pas la carte');
+    for (let i = 0; i < 100 && !late.length; i++) await sleep(50);
+    assert.deepEqual(lines(), ['POST /api/postuler']);
+    assert.deepEqual(late, [
+      { toolCallId: 'appel-clic-FICTIF', host: origin.replace('http://', ''), status: 200 },
+    ]);
   },
 );

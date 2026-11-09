@@ -955,16 +955,20 @@ export class CdpBrowser {
         let approved = granted;
         if (!granted) {
           const decision = Promise.resolve(
-            this.approve?.({
-              capability: 'browser.send',
-              sensitive: true,
-              actionClass: 'send',
-              args: {
-                url: previewUrl(request.url()),
-                method: request.method(),
-                body: previewBody(body),
+            this.approve?.(
+              {
+                capability: 'browser.send',
+                sensitive: true,
+                actionClass: 'send',
+                args: {
+                  url: previewUrl(request.url()),
+                  method: request.method(),
+                  body: previewBody(body),
+                },
               },
-            }),
+              // Constat 16 : the card is the click's (its call identifier, not the next call's).
+              { origin },
+            ),
           ).catch(() => false);
           this.sendDecision = decision;
           approved = await decision;

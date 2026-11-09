@@ -5,7 +5,7 @@ import { landedUrl, refusedSubmission, submissionRefused } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { withEvidence } from './evidence.js';
 import { proofWatch } from './proofs.js';
-import { CallRegistry } from './calls.js';
+import { CallRegistry, approvalCall } from './calls.js';
 import { chargeUsage } from './meter.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -48,10 +48,11 @@ const currentCall = () => calls.current();
 // Revue Opus du 06/11 : a write already granted (`trace`, owner mode) is only recorded ; the
 // request leaves anyway, so its trace never dies with a cancelled call and waits 10 s at most.
 const TRACE_MS = 10000;
-async function approve(request, { trace = false } = {}) {
+async function approve(request, { trace = false, origin } = {}) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
-  const call = currentCall();
+  // Audit du 10/11 (constat 16) : a card asked from a network route names the click's call.
+  const { call, signal } = approvalCall(origin, currentCall());
   // E64 : no deadline of the gateway's own beyond the platform's (see approval.js). E66 : the
   // approval names its call, so the platform reads that very call's outcome.
   return requestDecision(
@@ -62,7 +63,7 @@ async function approve(request, { trace = false } = {}) {
       ? { timeoutMs: TRACE_MS }
       : {
           timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
-          signal: call?.signal,
+          signal,
         },
   );
 }

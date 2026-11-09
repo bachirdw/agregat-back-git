@@ -86,7 +86,11 @@ export function aggregateOutputs(inputs) {
 }
 
 export async function executeWorkflow(orch, run, plan, control) {
-  const engine = new WorkflowEngine({ store: orch.store, executors: {} });
+  const engine = new WorkflowEngine({
+    store: orch.store,
+    executors: {},
+    unsupervised: orch.unsupervised === true,
+  });
   control.engine = engine;
   const signal = control.abort.signal;
   const runtimes = new Set();

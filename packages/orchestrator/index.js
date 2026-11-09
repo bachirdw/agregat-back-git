@@ -200,6 +200,9 @@ export class Orchestrator {
         : null,
       career = defaultCareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
+      // Nobody follows the mission (script, CI): an agent step that failed ends at once instead of
+      // waiting for an owner who is not there. Default: supervised (the owner's front can settle it).
+      unsupervised = process.env.AGENT_PLATFORM_UNSUPERVISED === '1',
     } = {},
   ) {
     Object.assign(this, {
@@ -214,6 +217,7 @@ export class Orchestrator {
       silentMs,
       questionTimeoutMs,
       ownerMode,
+      unsupervised,
     });
     this.active = new Map();
     this.permissions = new Map();

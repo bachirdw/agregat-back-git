@@ -539,3 +539,35 @@ test('étape DAG : question de formulaire → awaiting_owner → réponse → é
     await app.close();
   }
 });
+
+test('moteur de workflow : non supervisé quand l’orchestrateur l’indique, supervisé sinon', async () => {
+  const { executeWorkflow } = await import('../packages/orchestrator/workflow-run.js');
+  for (const unsupervised of [false, true]) {
+    const app = createApp({ dataDir: temporary() });
+    app.engine.unsupervised = unsupervised;
+    const run = {
+      id: crypto.randomUUID(),
+      state: 'running',
+      cwd: temporary(),
+      prompt: 'F',
+      model: '',
+      budgetCents: 0,
+    };
+    app.store.create(run);
+    const control = { abort: new AbortController() };
+    const plan = {
+      agent: { id: 'f', simulated: true },
+      pack: { id: 'core' },
+      skills: [],
+      dag: { id: 'f', title: 'F', steps: [] },
+    };
+    try {
+      const pending = executeWorkflow(app.engine, run, plan, control).catch(() => {});
+      assert.equal(control.engine.unsupervised, unsupervised);
+      control.abort.abort();
+      await pending;
+    } finally {
+      await app.close();
+    }
+  }
+});

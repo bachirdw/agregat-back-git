@@ -656,6 +656,10 @@ const FIELD_MAIL = new RegExp(
   'giu',
 );
 const SEND_WORD = /\b(?:envoi|envoie[sz]?|envoyer|envoyez|expédie[rz]?|send)\b/iu;
+const EMAIL_OF_APPLICATION = new RegExp(
+  String.raw`\b${MAIL}\s+(?:de\s+)?candidature\b|\bapplication\s+${MAIL}\b`,
+  'giu',
+);
 const MAIL_WORD = new RegExp(String.raw`\b${MAIL}\b`, 'iu');
 function emailSendRequested(text) {
   const plain = String(text ?? '')
@@ -703,8 +707,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   }
   const missing = [];
   const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(requested);
+  // Essai ae98fa16 (09/11) : « l'e-mail de candidature » (modes/email.md) asks for no form.
+  const formRequest = requested.replace(EMAIL_OF_APPLICATION, ' ');
   if (
-    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(requested) &&
+    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(formRequest) &&
     ![...done].some((name) =>
       /^(?:browser_fillForm|browser_type|browser_check|browser_select|browser_upload)$/i.test(name),
     )
@@ -749,7 +755,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
     documentLines.push(`\n- CV du Skill : ${cvProduced ? 'produit (PDF)' : 'non produit'}.`);
   if (coverProduced || (documentsRequested && /\blettre\b/iu.test(requested)))
     documentLines.push(`\n- Lettre : ${coverProduced ? 'produite' : 'non produite'}.`);
-  documentLines.push(cvAttachmentLine(truth, requested)); // apply-01 (E40) : « CV joint : adapté / brut / aucun »
+  documentLines.push(cvAttachmentLine(truth, formRequest)); // apply-01 (E40) : « CV joint : adapté / brut / aucun »
   const unsourced = truth.factsUnsourced?.();
   if (Number.isInteger(unsourced))
     documentLines.push(
@@ -829,13 +835,19 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
       (item) => item.name === 'email_send' && item.status === 'completed' && item.sent === false,
     );
     const typed = ['browser_type', 'browser_fillForm'].some((name) => done.has(name));
+    // Essai ae98fa16 : a prefilled compose link opened in the browser (step declared by the pack).
+    const linked = skillSteps.some(
+      (step) => step.proves === EMAIL_PREPARED && step.state === 'done' && !typed,
+    );
     contactLines.push(
       `\n- E-mail du Skill : ${
         drafted
           ? 'brouillon Relay (email_send), non envoyé'
           : typed
             ? 'préparé dans le navigateur (saisie observée)'
-            : 'texte seulement dans la réponse (aucune préparation observée)'
+            : linked
+              ? 'préparé dans le navigateur (brouillon prérempli ouvert)'
+              : 'texte seulement dans la réponse (aucune préparation observée)'
       }.`,
     );
   }

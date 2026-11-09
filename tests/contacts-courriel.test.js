@@ -18,7 +18,11 @@ import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { selectSkillIntents, skillManifestSchema } from '../packages/orchestrator/skill-router.js';
+import {
+  selectSkillIntents,
+  skillManifestSchema,
+  SkillProgress,
+} from '../packages/orchestrator/skill-router.js';
 import { CareerTools, sourceSnapshot } from '../packages/career-ops/tools.js';
 import {
   createTurnTruth,
@@ -248,6 +252,63 @@ test('Bilan FICTIF : une mission contacto sans enregistrement garde ses lignes d
   const bilan = formatCareerBilan(prompt, createTurnTruth(), undefined, steps(intent));
   assert.match(bilan, /\n- Contacts du Skill : carnet non consulté ; aucun contact enregistré\./);
   assert.match(bilan, /\n- Message LinkedIn : aucun brouillon enregistré par linkedin_draft/);
+});
+
+// Essai réel ae98fa16 (09/11) : l'agent a ouvert le brouillon dans Gmail par un lien de composition
+// prérempli (to, su, body) puis l'a vérifié ; le Bilan disait « aucune préparation observée » et
+// « Non exécuté : candidature (aucun appel de formulaire) » pour un « e-mail de candidature ».
+test('email FICTIF : un lien de composition prérempli prépare l’e-mail (étape créditée)', () => {
+  const prompt = EMAIL[0];
+  const selected = selectSkillIntents(prompt, [career]);
+  const link = selected[0].intent.steps.find((step) => step.id === 'compose-link');
+  assert.ok(link, 'étape compose-link déclarée');
+  assert.equal(link.optional, true);
+  assert.equal(link.proves, 'e-mail préparé');
+  const progress = new SkillProgress(selected);
+  progress.start();
+  // Lecture de la boîte : une navigation Gmail ordinaire ne prépare rien.
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'a',
+    title: 'browser_navigate',
+    rawInput: { url: 'https://mail.example.test/mail/u/0/#inbox' },
+    status: 'completed',
+  });
+  // Facultative et non faite à la fin : « ignorée », jamais « faite ».
+  assert.equal(progress.finish().steps.find((step) => step.id === 'compose-link').state, 'skipped');
+  const again = new SkillProgress(selected);
+  again.start();
+  again.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'b',
+    title: 'browser_navigate',
+    rawInput: {
+      url: 'https://mail.example.test/mail/?view=cm&fs=1&to=recruteur%40entreprise-fictive.test&su=Application&body=Bonjour',
+    },
+    status: 'completed',
+  });
+  const done = again.finish().steps;
+  assert.equal(done.find((step) => step.id === 'compose-link').state, 'done');
+});
+
+test('Bilan FICTIF : brouillon prérempli ouvert dit « préparé », « e-mail de candidature » n’est pas un formulaire', () => {
+  const prompt = EMAIL[0];
+  const intent = intentOf(prompt);
+  const published = steps(intent).map((step) =>
+    step.title.includes('lien de composition') ? { ...step, state: 'done' } : step,
+  );
+  const bilan = formatCareerBilan(prompt, createTurnTruth(), undefined, published);
+  assert.match(
+    bilan,
+    /\n- E-mail du Skill : préparé dans le navigateur \(brouillon prérempli ouvert\)\./,
+  );
+  assert.doesNotMatch(bilan, /candidature \(aucun appel de formulaire\)/);
+  assert.doesNotMatch(bilan, /\n- CV joint/);
+  // Une candidature par formulaire reste dite manquante.
+  assert.match(
+    formatCareerBilan('Postule à cette offre FICTIVE.', createTurnTruth()),
+    /candidature \(aucun appel de formulaire\)/,
+  );
 });
 
 test('Bilan FICTIF : e-mail préparé dans le navigateur ou en brouillon, sans envoi', () => {

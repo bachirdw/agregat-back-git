@@ -70,15 +70,26 @@ const stepSchema = z
       .max(10)
       .optional(),
     // The pack names the URL path segments that prove this step (e.g. a form page). No regex:
-    // whole lowercase words, compared to each path segment, case-insensitively.
+    // whole lowercase words, compared to each path segment, case-insensitively. Essai ae98fa16
+    // (09/11) : `query`, the names of URL parameters the call must all carry (a prefilled compose
+    // link : `to`, `body`) ; a URL without them is an ordinary page of the same site.
     urlPattern: z
       .object({
         words: z
           .array(z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/))
           .min(1)
-          .max(20),
+          .max(20)
+          .optional(),
+        query: z
+          .array(z.string().regex(/^[a-z][a-z0-9_-]{0,39}$/))
+          .min(1)
+          .max(10)
+          .optional(),
       })
       .strict()
+      .refine((pattern) => pattern.words || pattern.query, {
+        message: 'urlPattern : words ou query',
+      })
       .optional(),
     // E56 : the pack's list pages (a results page is not the item a step reads). A call of an
     // alternative tool made on such a page does not prove the step. Whole lowercase words compared
@@ -468,7 +479,8 @@ function matches(step, update, name) {
       const segments = url.pathname.toLowerCase().split('/');
       if (
         !/^https?:$/.test(url.protocol) ||
-        !step.urlPattern.words.some((word) => segments.includes(word))
+        (step.urlPattern.words && !step.urlPattern.words.some((word) => segments.includes(word))) ||
+        (step.urlPattern.query && !step.urlPattern.query.every((key) => url.searchParams.has(key)))
       )
         return false;
     } catch {

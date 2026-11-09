@@ -687,3 +687,15 @@ intents:
         done: Brouillon prêt, bouton d'envoi laissé au propriétaire
         optional: true
         proves: e-mail préparé
+      # Essai ae98fa16 (09/11) : l'agent ouvre aussi le brouillon par un lien de composition prérempli
+      # (paramètres to et body : Gmail « view=cm », Outlook « compose »…), puis le relit. En dernier :
+      # une étape à motif d'URL n'est jamais créditée « visitée » par l'étape qui la suit.
+      - id: compose-link
+        title: Ouvrir le brouillon prérempli (lien de composition)
+        tool: browser_navigate
+        urlPattern:
+          query: [to, body]
+        precondition: Texte rédigé ; destinataire tiré des sources
+        done: Brouillon ouvert dans la messagerie, bouton d'envoi laissé au propriétaire
+        optional: true
+        proves: e-mail préparé

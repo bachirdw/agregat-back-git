@@ -18,6 +18,11 @@ const COVER_PRODUCED = 'lettre produite';
 // The Skill's fact gate (verify-cv-facts.mjs, modes/pdf.md step 19): a non-zero exit is a claim absent
 // from the CV source, reported as a count, never as the claims themselves.
 const FACT_GATE = 'verify-cv-facts';
+// Control scripts whose non-zero exit is an answer, not a breakdown: check-liveness (posting
+// expired), precheck-duplicate (duplicate found), verify-cv-facts (facts without a source). The
+// Bilan counts them apart as « verdicts » and never as failures of the tool.
+const VERDICT_SCRIPTS = new Set(['check-liveness', 'precheck-duplicate', FACT_GATE]);
+const VERDICT_CAUSE = 'verdict du script de contrôle, pas une panne';
 // pipeline-01: the inbox step of modes/pipeline.md (career_write data/pipeline.md, proves it).
 const INBOX_PROCESSED = 'boîte d’entrée traitée';
 // 08/11 : modes/contacto.md (contact book) and modes/email.md (draft), declared by the pack.
@@ -478,11 +483,18 @@ export function createTurnTruth({ root, seed } = {}) {
         throw new Error('Résultat d’outil invalide');
       const name = canonicalToolName(reportedName);
       const key = toolCallId ?? `anonymous-${++anonymousCall}`;
+      const verdict =
+        status === 'failed' && name === 'career_script' && VERDICT_SCRIPTS.has(argument);
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),
         name,
         status,
-        ...(status === 'failed' ? { cause: 'échec signalé par l’outil' } : {}),
+        ...(status === 'failed'
+          ? {
+              cause: verdict ? VERDICT_CAUSE : 'échec signalé par l’outil',
+              ...(verdict ? { verdict } : {}),
+            }
+          : {}),
         ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
       });
       const safeArgument =
@@ -680,8 +692,8 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const outcomes = truth.toolOutcomes();
   const byName = new Map();
   for (const outcome of outcomes) {
-    const group = byName.get(outcome.name) ?? { completed: [], failed: [] };
-    group[outcome.status].push(outcome);
+    const group = byName.get(outcome.name) ?? { completed: [], failed: [], verdicts: [] };
+    group[outcome.verdict ? 'verdicts' : outcome.status].push(outcome);
     byName.set(outcome.name, group);
   }
   const done = new Set(
@@ -691,7 +703,24 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const failures = [];
   const mixed = [];
   for (const [name, group] of byName) {
-    if (group.completed.length && group.failed.length) {
+    const verdicts = group.verdicts.length
+      ? `${group.verdicts.length} verdict${group.verdicts.length > 1 ? 's' : ''} de script (sortie non nulle, pas une panne)`
+      : '';
+    if (verdicts) {
+      // A verdict is an answer of a control script: said apart from the successes and failures.
+      const parts = [
+        ...(group.completed.length
+          ? [`${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}`]
+          : []),
+        ...(group.failed.length
+          ? [
+              `${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''} (${group.failed.at(-1).cause})`,
+            ]
+          : []),
+        verdicts,
+      ];
+      mixed.push(`${name} : ${parts.join(', ')}`);
+    } else if (group.completed.length && group.failed.length) {
       // E29 : the only line about a partly failed tool, with the cause of its last failure.
       mixed.push(
         `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''} (${group.failed.at(-1).cause})`,

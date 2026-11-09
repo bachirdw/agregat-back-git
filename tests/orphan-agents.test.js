@@ -126,3 +126,49 @@ test('orphelin : un AcpRuntime enregistre son agent, le retire à la fermeture',
     r.close();
   }
 });
+
+test('inspectProcess : ps lancé en locale C ; une date française est refusée, une date C acceptée (constat 8)', async () => {
+  const { inspectProcess } = await import('../packages/agent-runtime/orphans.js');
+  const calls = [];
+  const fake = (out) => (cmd, args, opts) => {
+    calls.push(opts?.env ?? {});
+    return out;
+  };
+  assert.equal(
+    inspectProcess(4242, {
+      exec: fake('  501  4242 Mar 10 nov 02:37:14 2026     node agent.js\n'),
+    }),
+    null,
+  );
+  const info = inspectProcess(4242, {
+    exec: fake('  501  4242 Tue Nov 10 02:37:14 2026     node agent.js\n'),
+  });
+  assert.equal(info.pgid, 4242);
+  assert.equal(info.command, 'node agent.js');
+  assert.ok(Number.isFinite(info.startedAt));
+  for (const env of calls) {
+    assert.equal(env.LC_ALL, 'C');
+    assert.equal(env.LANG, 'C');
+  }
+});
+
+test('reap : une ligne dont le processus vit mais reste illisible est gardée (constat 8)', async () => {
+  const reg = new AgentRegistry(join(dir(), 'agents.json'));
+  reg.write([
+    {
+      pid: 999991,
+      pgid: 999991,
+      apiPid: deadPid(),
+      startedAt: Date.now(),
+      uid: null,
+      names: ['x'],
+    },
+  ]);
+  const r = await reapOrphanAgents(reg, {
+    inspect: () => null,
+    alive: (pid) => pid === 999991,
+    kill: () => assert.fail('aucun kill'),
+  });
+  assert.deepEqual(r.killed, []);
+  assert.equal(reg.read().length, 1);
+});

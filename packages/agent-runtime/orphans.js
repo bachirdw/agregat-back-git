@@ -50,12 +50,15 @@ export class AgentRegistry {
   }
 }
 
-// Process facts from `ps` (uid, process group, start time, command); null when it does not exist.
-export function inspectProcess(pid) {
+// Process facts from `ps` (uid, process group, start time, command); null when it does not exist or
+// cannot be read. `ps` runs in the C locale: in French, `lstart` reads « Mar 10 nov … » and the
+// parse used to fail, so the agents of a crashed API were never stopped (audit 10/11, constat 8).
+export function inspectProcess(pid, { exec = execFileSync } = {}) {
   try {
-    const out = execFileSync('ps', ['-o', 'uid=,pgid=,lstart=,command=', '-p', String(pid)], {
+    const out = exec('ps', ['-o', 'uid=,pgid=,lstart=,command=', '-p', String(pid)], {
       encoding: 'utf8',
       timeout: 3000,
+      env: { ...process.env, LC_ALL: 'C', LANG: 'C' },
     }).trim();
     const m = out.match(/^(\d+)\s+(\d+)\s+(\w{3}\s+\w{3}\s+\d+\s+[\d:]+\s+\d{4})\s+(.*)$/s);
     if (!m) return null;
@@ -103,7 +106,14 @@ export async function reapOrphanAgents(
       continue;
     }
     const info = inspect(row.pid);
-    if (!info) continue; // gone
+    if (!info) {
+      // Unreadable but still alive: keep the row for a later start rather than forgetting it.
+      if (alive(row.pid)) {
+        keep.push(row);
+        skipped.push(row.pid);
+      }
+      continue; // gone
+    }
     if (!looksLikeRecordedAgent(row, info)) {
       skipped.push(row.pid);
       log(`pid ${row.pid} ignoré : ne ressemble plus à l’agent lancé`);

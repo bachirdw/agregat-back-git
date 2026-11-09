@@ -161,7 +161,26 @@ export class AcpRuntime {
       this.close();
       return;
     }
-    if (this.promptActive) this.onEvent(redactValue(update, this.secrets));
+    if (this.promptActive) this.deliverEvent(redactValue(update, this.secrets));
+  }
+  // A processing error must neither lose the update silently nor reach the SDK, which would log
+  // the raw (unredacted) agent message. We log a redacted, bounded summary and tell the mission
+  // through a small platform update (no payload) so the loss is visible.
+  deliverEvent(update) {
+    try {
+      this.onEvent(update);
+    } catch (e) {
+      const error = redact(String(e?.message ?? e), this.secrets)
+        .replace(/\s+/g, ' ')
+        .slice(0, 300);
+      const originalType = String(update?.sessionUpdate ?? '').slice(0, 60);
+      console.error(`agent_event_dropped ${originalType} : ${error}`);
+      try {
+        this.onEvent({ sessionUpdate: 'platform_event_dropped', originalType, error });
+      } catch {
+        // The mission itself cannot take notes any more: nothing else to do here.
+      }
+    }
   }
   async startProcess() {
     const d = this.definition;

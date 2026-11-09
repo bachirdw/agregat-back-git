@@ -132,6 +132,32 @@ test('Bilan FICTIF : appels réels mixtes comptés sans contradiction ni doublon
     /browser_extract : 1 réussi, 1 échoué/,
   );
 });
+test('Bilan FICTIF : un verdict de script de contrôle (expiré, doublon, faits) n’est pas une panne', () => {
+  const truth = createTurnTruth();
+  const id = (n) => `00000000-0000-4000-8000-00000000000${n}`;
+  truth.recordGatewayTool('career_script', 'completed', { toolCallId: id(1), argument: 'doctor' });
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(2),
+    argument: 'check-liveness',
+  });
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(3),
+    argument: 'precheck-duplicate',
+  });
+  let bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
+  assert.match(
+    bilan,
+    /career_script : 1 réussi, 2 verdicts de script \(sortie non nulle, pas une panne\)/,
+  );
+  assert.doesNotMatch(bilan, /échec signalé par l’outil/);
+  // Un autre script qui sort en erreur reste un échec.
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(4),
+    argument: 'merge-tracker',
+  });
+  bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
+  assert.match(bilan, /1 échoué \(échec signalé par l’outil\), 2 verdicts/);
+});
 test('Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon', () => {
   const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
   assert.deepEqual(gatewayToolOutcome('career_script', result({ exitCode: 2 })), {

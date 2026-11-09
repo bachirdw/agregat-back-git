@@ -6,7 +6,7 @@ import {
   tailoredCv,
   UPLOAD_NOTE,
 } from './produced-documents.js';
-import { readdirSync, lstatSync, existsSync, realpathSync } from 'node:fs';
+import { readdirSync, lstatSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { resolve, extname, sep, relative, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
@@ -216,13 +216,13 @@ function checkTrackerAddition(root, text) {
 }
 // pipeline-01: form of the Skill's inbox, and no entry removed (packages/career-ops/inbox.js).
 function checkPipelineInbox(root, text) {
-  const kept = new Set(inboxEntries(text, true).map((entry) => entry.key));
   let previous = '';
   try {
     previous = readConfined(root, 'data/pipeline.md', 10 * 1024 * 1024).toString('utf8');
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
+  const kept = new Set(inboxEntries(text, true, previous).map((entry) => entry.key));
   const removed = new Set(
     inboxEntries(previous, false)
       .filter((entry) => !kept.has(entry.key))
@@ -733,8 +733,11 @@ export class CareerTools {
     try {
       bytes = readConfined(this.career.path(), path, 10 * 1024 * 1024);
     } catch (e) {
-      // A file the pack declares optional is absent until the Skill creates it: a normal state.
-      if (e.code !== 'ENOENT' || !this.optionalFiles.includes(path)) throw e;
+      // A file the pack declares optional, and any file of the owner's layer (article-digest.md,
+      // voice-dna.md, data/pipeline.md, data/pdf-index.tsv…: « if exists » in the Skill), is absent
+      // until the Skill creates it: a normal state, not a failure. System files stay errors.
+      if (e.code !== 'ENOENT' || !(this.optionalFiles.includes(path) || userPath.test(path)))
+        throw e;
       return {
         path,
         absent: true,
@@ -825,13 +828,37 @@ export class CareerTools {
       throw e;
     }
     if (names.length > 2000) throw new Error('Trop de fichiers ; archiver les anciens éléments');
-    return names
-      .filter((name) => /^[a-f0-9-]{36}\.json$/.test(name))
-      .slice(0, 500)
-      .map((name) => ({
-        id: name.slice(0, -'.json'.length),
-        record: schema.parse(JSON.parse(readConfined(root, `${directory}/${name}`, 200000))),
-      }));
+    let files = names.filter((name) => /^[a-f0-9-]{36}\.json$/.test(name));
+    // Beyond 500 files the newest ones are kept, not the first in name order.
+    if (files.length > 500) {
+      const mtime = (name) => {
+        try {
+          return statSync(resolve(root, directory, name)).mtimeMs;
+        } catch {
+          return 0;
+        }
+      };
+      files = files
+        .map((name) => ({ name, at: mtime(name) }))
+        .sort((a, b) => b.at - a.at)
+        .slice(0, 500)
+        .map((item) => item.name);
+    }
+    // One corrupted record is skipped (counted in `unreadable`), it never fails the whole list.
+    this.unreadable = 0;
+    return files.flatMap((name) => {
+      try {
+        return [
+          {
+            id: name.slice(0, -'.json'.length),
+            record: schema.parse(JSON.parse(readConfined(root, `${directory}/${name}`, 200000))),
+          },
+        ];
+      } catch {
+        this.unreadable++;
+        return [];
+      }
+    });
   }
   list(directory, schema) {
     return this.entries(directory, schema).map((entry) => entry.record);
@@ -1241,6 +1268,7 @@ export function registerCareerTools(
     career,
     approve,
     meter,
+    ownerMode,
     ...(config !== undefined ? { config } : {}),
   });
   const register = (name, description, schema, handler) =>

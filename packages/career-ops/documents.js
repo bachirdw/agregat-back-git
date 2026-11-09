@@ -112,7 +112,20 @@ export async function attachDocument(
     written = renderedPdfPath(root, name);
     writeConfined(root, written, bytes);
   }
-  const item = await career.upload(bytes, `${name}.${format}`, type, { updateCv: false });
+  let item;
+  try {
+    item = await career.upload(bytes, `${name}.${format}`, type, { updateCv: false });
+  } catch (error) {
+    if (!written) throw error;
+    // The PDF is rendered and written: say where it is rather than hide it behind the failure of
+    // the text conversion (pdftotext missing or no extractable text), so it is not rendered again.
+    return {
+      path: written,
+      tailored: false,
+      uploadError: error instanceof Error ? error.message : String(error),
+      note: `PDF rendu et utilisable tel quel par browser_upload (path: « ${written} ») ; avertissement : ${error instanceof Error ? error.message : error} (aucune copie texte dans inputs/). Ne pas le régénérer.`,
+    };
+  }
   if (!written) return item;
   return {
     ...item,

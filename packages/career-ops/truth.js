@@ -18,6 +18,11 @@ const COVER_PRODUCED = 'lettre produite';
 // The Skill's fact gate (verify-cv-facts.mjs, modes/pdf.md step 19): a non-zero exit is a claim absent
 // from the CV source, reported as a count, never as the claims themselves.
 const FACT_GATE = 'verify-cv-facts';
+// Control scripts whose non-zero exit is an answer, not a breakdown: check-liveness (posting
+// expired), precheck-duplicate (duplicate found), verify-cv-facts (facts without a source). The
+// Bilan counts them apart as « verdicts » and never as failures of the tool.
+const VERDICT_SCRIPTS = new Set(['check-liveness', 'precheck-duplicate', FACT_GATE]);
+const VERDICT_CAUSE = 'verdict du script de contrôle, pas une panne';
 // pipeline-01: the inbox step of modes/pipeline.md (career_write data/pipeline.md, proves it).
 const INBOX_PROCESSED = 'boîte d’entrée traitée';
 // 08/11 : modes/contacto.md (contact book) and modes/email.md (draft), declared by the pack.
@@ -57,11 +62,7 @@ export function progressArgument(name, args = {}) {
   const command = String(args?.command ?? args?.script ?? '');
   const path = String(args?.path ?? '');
   if (name === 'career_script')
-    return command.includes('scan')
-      ? 'scan'
-      : /^[a-z][a-z0-9-]{1,40}$/.test(command)
-        ? command
-        : null;
+    return command === 'scan' ? 'scan' : /^[a-z][a-z0-9-]{1,40}$/.test(command) ? command : null;
   // A read of the Skill's inbox proves the first step of modes/pipeline.md; a report read is the
   // context of modes/email.md (prefix only, never the file name) ; other reads say nothing.
   if (name === 'career_read')
@@ -328,11 +329,36 @@ function readInbox(root) {
     return e.code === 'ENOENT' ? [] : null;
   }
 }
+// What the reports/ folder said before the turn: URL -> score of every report header, so that a
+// report only re-saved or re-read this mission is not counted as an offer scored this mission.
+// Names stay out of it (company in the file name). Unreadable or no workspace: null.
+function readReportScores(root) {
+  if (typeof root !== 'string' || !root) return null;
+  const scores = new Map();
+  try {
+    for (const file of readdirSync(resolve(root, 'reports')).slice(0, 2000)) {
+      if (!/\.md$/i.test(file)) continue;
+      try {
+        const head = reportScore(
+          readConfined(root, `reports/${file}`, 10 * 1024 * 1024).toString('utf8'),
+        );
+        if (head) scores.set(head.url, head.score);
+      } catch {
+        /* unreadable report: ignored */
+      }
+    }
+  } catch (e) {
+    return e.code === 'ENOENT' ? scores : null;
+  }
+  return scores;
+}
 // ACP can replay old tool updates on session/load. One tracker per execution of a mission: it
 // spans every answer turn of that execution. `seed` carries what an earlier execution of the same
 // mission proved (reprise from its checkpoint): today, that a job description was read.
 export function createTurnTruth({ root, seed } = {}) {
   const inboxBefore = readInbox(root);
+  const reportsBefore = readReportScores(root);
+  const viaReport = new Set();
   const names = new Map();
   const paths = new Map();
   const failed = new Map();
@@ -403,6 +429,8 @@ export function createTurnTruth({ root, seed } = {}) {
           status: 'failed',
           cause: failed.get(name) ?? 'échec signalé par l’outil',
         });
+      // A later successful call of the same tool clears its earlier failure: the retry worked.
+      if (update.status === 'completed') failed.delete(name);
       if (update.status === 'completed') {
         outcomes.set(update.toolCallId, {
           ...outcomes.get(update.toolCallId),
@@ -437,7 +465,10 @@ export function createTurnTruth({ root, seed } = {}) {
           if (name === 'career_write' && argument === 'reports/') {
             offerSaved = true;
             const header = reportScore(input.text);
-            if (header) scored.set(update.toolCallId, header.url);
+            if (header) {
+              scored.set(update.toolCallId, header.url);
+              viaReport.add(update.toolCallId);
+            }
           }
           if (name === 'career_script' && argument === 'merge-tracker')
             addTracker(
@@ -478,11 +509,18 @@ export function createTurnTruth({ root, seed } = {}) {
         throw new Error('Résultat d’outil invalide');
       const name = canonicalToolName(reportedName);
       const key = toolCallId ?? `anonymous-${++anonymousCall}`;
+      const verdict =
+        status === 'failed' && name === 'career_script' && VERDICT_SCRIPTS.has(argument);
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),
         name,
         status,
-        ...(status === 'failed' ? { cause: 'échec signalé par l’outil' } : {}),
+        ...(status === 'failed'
+          ? {
+              cause: verdict ? VERDICT_CAUSE : 'échec signalé par l’outil',
+              ...(verdict ? { verdict } : {}),
+            }
+          : {}),
         ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
       });
       const safeArgument =
@@ -501,7 +539,10 @@ export function createTurnTruth({ root, seed } = {}) {
         const report = name === 'career_write' && safeArgument === 'reports/';
         if (name === 'career_offer_save' || report) {
           offerSaved = true;
-          if (typeof scoredUrl === 'string' && scoredUrl) scored.set(key, scoredUrl);
+          if (typeof scoredUrl === 'string' && scoredUrl) {
+            scored.set(key, scoredUrl);
+            if (report) viaReport.add(key);
+          }
         }
         if (
           name === 'career_script' &&
@@ -524,6 +565,7 @@ export function createTurnTruth({ root, seed } = {}) {
           contactWrites.add('extract');
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
+      if (status === 'completed') failed.delete(name);
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
         failed.set(name, 'échec signalé par l’outil');
     },
@@ -587,10 +629,17 @@ export function createTurnTruth({ root, seed } = {}) {
     },
     // Offers saved with a score, by the ACP update or by the gateway: one entry per tool call
     // (the same call seen by both channels counts once, the gateway uses its own id).
+    // A report written again with the score it already had before the turn is no new rating (a
+    // status change of the tracker, an applied note): only new or re-scored reports count.
     scoredOffers() {
       const seen = new Set();
+      const after = reportsBefore ? readReportScores(root) : null;
+      const unchanged = (toolCallId, url) =>
+        viaReport.has(toolCallId) &&
+        reportsBefore?.has(url) &&
+        after?.get(url) === reportsBefore.get(url);
       return [...scored].flatMap(([toolCallId, url]) =>
-        seen.has(url) ? [] : (seen.add(url), [{ url, toolCallId }]),
+        seen.has(url) || unchanged(toolCallId, url) ? [] : (seen.add(url), [{ url, toolCallId }]),
       );
     },
   };
@@ -605,10 +654,7 @@ function proved(manifest, truth, label) {
   const calls = truth.completedCalls?.() ?? [];
   return steps.some((step) =>
     calls.some(
-      (call) =>
-        call.name === step.tool &&
-        (!step.argument ||
-          (typeof call.argument === 'string' && call.argument.includes(step.argument))),
+      (call) => call.name === step.tool && (!step.argument || call.argument === step.argument),
     ),
   );
 }
@@ -659,7 +705,7 @@ const FIELD_MAIL = new RegExp(
 );
 const SEND_WORD = /\b(?:envoi|envoie[sz]?|envoyer|envoyez|expédie[rz]?|send)\b/iu;
 const EMAIL_OF_APPLICATION = new RegExp(
-  String.raw`\b${MAIL}\s+(?:de\s+)?candidature\b|\bapplication\s+${MAIL}\b`,
+  String.raw`\b${MAIL}\s+(?:de\s+)?candidatures?\b|\b(?:job\s+)?applications?\s+${MAIL}\b`,
   'giu',
 );
 const MAIL_WORD = new RegExp(String.raw`\b${MAIL}\b`, 'iu');
@@ -673,15 +719,22 @@ function emailSendRequested(text) {
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,
 // optional, exempt): a step neither optional nor waived that never ran is said as missing.
 export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), skillSteps = []) {
+  // A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
+  // « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
+  // mais envoie l'email » keeps « envoie l'email ».
+  const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
   const requested = prompt.replace(
-    /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
+    new RegExp(
+      String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
+      'giu',
+    ),
     ' ',
   );
   const outcomes = truth.toolOutcomes();
   const byName = new Map();
   for (const outcome of outcomes) {
-    const group = byName.get(outcome.name) ?? { completed: [], failed: [] };
-    group[outcome.status].push(outcome);
+    const group = byName.get(outcome.name) ?? { completed: [], failed: [], verdicts: [] };
+    group[outcome.verdict ? 'verdicts' : outcome.status].push(outcome);
     byName.set(outcome.name, group);
   }
   const done = new Set(
@@ -691,7 +744,24 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const failures = [];
   const mixed = [];
   for (const [name, group] of byName) {
-    if (group.completed.length && group.failed.length) {
+    const verdicts = group.verdicts.length
+      ? `${group.verdicts.length} verdict${group.verdicts.length > 1 ? 's' : ''} de script (sortie non nulle, pas une panne)`
+      : '';
+    if (verdicts) {
+      // A verdict is an answer of a control script: said apart from the successes and failures.
+      const parts = [
+        ...(group.completed.length
+          ? [`${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}`]
+          : []),
+        ...(group.failed.length
+          ? [
+              `${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''} (${group.failed.at(-1).cause})`,
+            ]
+          : []),
+        verdicts,
+      ];
+      mixed.push(`${name} : ${parts.join(', ')}`);
+    } else if (group.completed.length && group.failed.length) {
       // E29 : the only line about a partly failed tool, with the cause of its last failure.
       mixed.push(
         `${name} : ${group.completed.length} réussi${group.completed.length > 1 ? 's' : ''}, ${group.failed.length} échoué${group.failed.length > 1 ? 's' : ''} (${group.failed.at(-1).cause})`,
@@ -708,7 +778,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
     }
   }
   const missing = [];
-  const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(requested);
+  const offerContext =
+    /\b(?:offres?|annonces?|postes?|emplois?|jobs?|offers?|postings?|listings?)\b/iu.test(
+      requested,
+    );
   // Essai ae98fa16 (09/11) : « l'e-mail de candidature » (modes/email.md) asks for no form.
   const formRequest = requested.replace(EMAIL_OF_APPLICATION, ' ');
   // Essai 25d47b55 (09/11), as bilan-06 (E48) did for the inbox : with an intent selected, an
@@ -718,7 +791,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const due = (label) => !skillSteps.length || declares(label);
   if (
     due(APPLICATION_PREPARED) &&
-    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(formRequest) &&
+    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:es?|er)|apply|submit)\b/i.test(formRequest) &&
     ![...done].some((name) =>
       /^(?:browser_fillForm|browser_type|browser_check|browser_select|browser_upload)$/i.test(name),
     )
@@ -727,8 +800,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const evaluationRequested =
     due(EVALUATION_SAVED) &&
     offerContext &&
-    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(requested) &&
-    !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(
+    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement|evaluate|score|rate|rank)(?=$|[^\p{L}])/iu.test(
+      requested,
+    ) &&
+    !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b|\b(?:don['’]?t|do not|without)\s+(?:save|saving|record|recording)\b)/iu.test(
       prompt,
     );
   if (evaluationRequested && !proved(manifest, truth, EVALUATION_SAVED))

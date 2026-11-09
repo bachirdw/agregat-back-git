@@ -5,12 +5,12 @@
 // attached. Names stay in memory for the classification; the Bilan never prints a file name.
 import { exitFailedOf } from '../orchestrator/exit-code.js';
 import { basename } from 'node:path';
-import { listProducedDocuments } from './produced-documents.js';
+import { documentKind, listProducedDocuments } from './produced-documents.js';
 
 const TOOL = /^(?:mcp__[a-z0-9_]+?__)?(browser_upload|career_script|career_document)$/i;
 // Seconde relecture de nuit : the one reader of an answered exit code (orchestrator/exit-code.js).
 const exitFailed = (output) => exitFailedOf(output);
-const APPLY_REQUESTED = /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i;
+const APPLY_REQUESTED = /\b(?:postul(?:e|er|ez|ons)|candidatur(?:es?|er)|apply|submit)\b/i;
 const name = (value) => (typeof value === 'string' && value ? basename(value) : null);
 // The gateway's JSON answer inside an ACP rawOutput/content, when there is one.
 function answerOf(update) {
@@ -74,7 +74,11 @@ export function trackAttachments(truth, { root } = {}) {
     if (root)
       for (const document of listProducedDocuments(root))
         if (document.tailored) tailored.add(document.name);
-    const attached = [...uploads].filter(Boolean);
+    // A cover letter (generate-cover-letter, or a name that says so) is never the CV: it is counted
+    // apart (`covers`) and cannot make the CV « adapté ».
+    const all = [...uploads].filter(Boolean);
+    const attached = all.filter((file) => documentKind(file) !== 'cover');
+    const covers = all.length - attached.length;
     const kind = !attached.length
       ? 'aucun'
       : attached.some((file) => tailored.has(file))
@@ -82,6 +86,7 @@ export function trackAttachments(truth, { root } = {}) {
         : 'brut';
     return {
       kind,
+      covers,
       attached: attached.length,
       attempted: uploadsAttempted.size,
       viaCareerDocument: kind === 'brut' && attached.some((file) => rendered.has(file)),
@@ -109,7 +114,9 @@ export function producedBy(command, args = []) {
 export function cvAttachmentLine(truth, requested = '') {
   const attachment = truth?.cvAttachment?.();
   if (!attachment) return '';
-  if (attachment.kind === 'aucun' && !APPLY_REQUESTED.test(String(requested))) return '';
+  const cover = attachment.covers ? '\n- Lettre jointe : oui.' : '';
+  if (attachment.kind === 'aucun' && !APPLY_REQUESTED.test(String(requested)) && !cover) return '';
+  if (attachment.kind === 'aucun' && !APPLY_REQUESTED.test(String(requested))) return cover;
   const detail =
     attachment.kind === 'adapté'
       ? ' (PDF de la chaîne du Skill)'
@@ -118,5 +125,5 @@ export function cvAttachmentLine(truth, requested = '') {
           ? ' (PDF rendu depuis cv.md par career_document, pas le CV adapté de la chaîne du Skill)'
           : ' (fichier du dossier, pas le CV adapté de la chaîne du Skill)'
         : '';
-  return `\n- CV joint : ${attachment.kind}${detail}.`;
+  return `\n- CV joint : ${attachment.kind}${detail}.${cover}`;
 }

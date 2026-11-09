@@ -285,3 +285,11 @@ test('E34 : GET /api/career/offers garde la liste complète pour le front ; les 
   for (const bad of ['limit=0', 'limit=101', 'offset=-1', 'offset=abc', 'id=..%2Fx'])
     assert.equal((await fetch(`${base}/api/career/offers?${bad}`)).status, 400, bad);
 });
+
+test('E34 : une fiche JSON corrompue est ignorée, elle ne casse pas la liste', (t) => {
+  const { root, tools } = space(t, 5);
+  writeFileSync(join(root, `relay/offers/${randomUUID()}.json`), '{ pas du JSON');
+  writeFileSync(join(root, `relay/offers/${randomUUID()}.json`), JSON.stringify({ title: 1 }));
+  assert.equal(tools.offers().length, 5);
+  assert.equal(tools.offersPage().total, 5);
+});

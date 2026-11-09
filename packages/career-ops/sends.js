@@ -55,7 +55,7 @@ export function linkedInDraft({ url, text }) {
   const target = new URL(url);
   if (
     target.protocol !== 'https:' ||
-    !/^(www\.)?linkedin\.com$/.test(target.hostname) ||
+    !/^(?:[a-z0-9-]{2,12}\.)?(?:www\.)?linkedin\.com$/.test(target.hostname) ||
     target.username ||
     target.password ||
     target.port ||
@@ -75,16 +75,29 @@ export class EmailGateway {
     career,
     approve = async () => false,
     meter = () => {},
-    config = smtpConfig(),
+    config,
     transportFactory = nodemailer.createTransport,
+    ownerMode = false,
   }) {
-    Object.assign(this, { career, approve, meter, config, transportFactory });
+    // `config` undefined = read the environment when sending, so a bad CAREER_SMTP_* setting
+    // fails email_send alone, never the whole registration of the career tools.
+    Object.assign(this, { career, approve, meter, config, transportFactory, ownerMode });
+  }
+  settings() {
+    return this.config === undefined ? smtpConfig() : this.config;
   }
   async send(raw, signal) {
     const email = emailSchema.parse(raw);
     const root = this.career.path();
-    if (!recipientInCareerSources(root, email.to))
+    // Owner mode adds no restriction: any address is accepted, the final approval card shows it.
+    if (!this.ownerMode && !recipientInCareerSources(root, email.to))
       throw new Error('Adresse du destinataire absente de l’offre, du CV et des fichiers sources');
+    let config;
+    try {
+      config = this.settings();
+    } catch {
+      throw notDone('Configuration SMTP invalide (CAREER_SMTP_HOST, CAREER_SMTP_FROM, port)');
+    }
     const files = this.career.attachments(email.attachments).map((f) => ({
       filename: f.name,
       content: readConfined(root, f.path, 10 * 1024 * 1024),
@@ -112,7 +125,7 @@ export class EmailGateway {
           'Identifiant déjà utilisé ; vérifier le suivi avant toute nouvelle tentative',
         );
       writeConfined(root, `drafts/${email.id}.json`, JSON.stringify(email));
-      if (!this.config)
+      if (!config)
         return {
           sent: false,
           draft: email.id,
@@ -126,7 +139,7 @@ export class EmailGateway {
         sensitive: true,
         args: {
           ...email,
-          from: this.config.from,
+          from: config.from,
           attachments: files.map(({ content, ...f }) => ({ ...f, size: content.length })),
         },
       });
@@ -146,8 +159,8 @@ export class EmailGateway {
       } finally {
         closeSync(reservation);
       }
-      const { from, ...config } = this.config;
-      const transport = this.transportFactory(config);
+      const { from, ...smtp } = config;
+      const transport = this.transportFactory(smtp);
       try {
         await transport.sendMail({
           from,

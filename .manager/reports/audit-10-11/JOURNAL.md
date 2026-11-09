@@ -43,3 +43,9 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   mineur, à décider : nommer l'écart ou ne pas l'exiger pour `apply`).
 - 00:47-00:48 — **Démo 2 rejouée** (sans Skill), mission 47f75fb6 : `completed` en 1 min, envoi fictif n° 4, et le Bilan
   porte maintenant « Envoi par la plateforme : 1 approuvé(s) par le propriétaire ».
+- 00:49 — `audit-socle` rendu (12 commits ; ledger 1 000→5 000 entrées : 33,6 s → 1,3 s). Contrôle du manager : le
+  nettoyage des agents orphelins ne tue qu'un groupe dont l'API est morte et dont uid, chef de groupe, date de démarrage
+  (±15 s) et commande correspondent ; branché seulement au lancement réel de l'API (jamais en test). Fusionné (7b0f6a7).
+- 00:50 — second lot orchestrateur `audit-orch2` (Sonnet) : regex d'authentification restantes, workflow non supervisé,
+  arrêt borné, « Navigation non prouvée » en mode DAG, code de sortie des scripts jusqu'au Bilan, écart d'ordre nommé.
+  Phase unitaire lancée sur la branche fusionnée.

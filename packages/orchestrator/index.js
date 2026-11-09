@@ -189,6 +189,9 @@ export class Orchestrator {
       browserTimeoutMs = positiveEnv('AGENT_PLATFORM_BROWSER_TIMEOUT_MS'),
       // Audit du 10/11 (constat 10) : the tool guard's ceiling, AGENT_PLATFORM_TOOL_IDLE_MS.
       toolIdleMs = positiveEnv('AGENT_PLATFORM_TOOL_IDLE_MS') ?? 120000,
+      // Audit misc3 (constat orchestrateur 11) : ceiling of ACP updates per mission,
+      // AGENT_PLATFORM_MAX_EVENTS (default 20 000, it was 4 000).
+      maxEvents = positiveEnv('AGENT_PLATFORM_MAX_EVENTS') ?? 20000,
       // A long report or CV is generated without any visible event until the tool call is
       // emitted: the owner may raise this ceiling (AGENT_PLATFORM_SILENT_MS) rather than lose it.
       silentMs = Number(process.env.AGENT_PLATFORM_SILENT_MS) > 0
@@ -214,6 +217,7 @@ export class Orchestrator {
       careerTimeoutMs: careerTimeoutMs ?? timeoutMs ?? 900000,
       browserTimeoutMs: browserTimeoutMs ?? careerTimeoutMs ?? timeoutMs ?? 900000,
       toolIdleMs,
+      maxEvents,
       silentMs,
       questionTimeoutMs,
       ownerMode,
@@ -1136,8 +1140,15 @@ export class Orchestrator {
             isBrowserToolName(update.title ?? update.rawInput?.name ?? update.rawInput?.tool)
           )
             browserToolObserved = true;
-          if (++events > 4000) {
-            control.abort.abort(new Error('Trop d’événements'));
+          if (++events > this.maxEvents) {
+            control.abort.abort(
+              Object.assign(
+                new Error(
+                  `Trop de mises à jour de l’agent (plafond ${this.maxEvents}) ; relever AGENT_PLATFORM_MAX_EVENTS ou relancer.`,
+                ),
+                { code: 'too_many_events' },
+              ),
+            );
             return;
           }
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {

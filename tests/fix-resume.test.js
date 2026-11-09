@@ -388,3 +388,55 @@ test('mission navigateur : le prompt prime et un consentement revient à l’uti
   });
   assert.equal(done.state, 'completed');
 });
+
+// Audit du 10/11 (constat 8) : sans Skill, le Bilan ne disait rien des envois ; l'agent pouvait
+// écrire « candidature envoyée » après un refus. La ligne des envois suit toute mission qui a demandé
+// un accord d'envoi, comme career-ops.
+async function sendDuringPrompt(t, choice) {
+  const callId = randomUUID();
+  return runFixture(t, {
+    browserWorkflow: false,
+    config: {
+      lateMs: 400,
+      result: { simulated: true, summary: 'Candidature FICTIVE envoyée.', evidence: [] },
+    },
+    duringPrompt: (app, run) => {
+      app.engine.approvalTokens.set(run.id, 'JETON_FICTIF');
+      const decision = app.engine.gatewayApproval(run.id, 'JETON_FICTIF', {
+        capability: 'browser.click',
+        actionClass: 'send',
+        sensitive: true,
+        element: { text: 'Envoyer FICTIF' },
+        callId,
+      });
+      const wait = setInterval(() => {
+        const [id] = app.engine.permissions.keys();
+        if (!id) return;
+        clearInterval(wait);
+        app.engine.decide(id, choice);
+      }, 5);
+      decision.finally(() => clearInterval(wait));
+    },
+  });
+}
+
+test('audit 10/11 FICTIF : sans Skill, un envoi approuvé est dit au Bilan', async (t) => {
+  const done = await sendDuringPrompt(t, 'allow');
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(
+    done.result.summary,
+    /Envoi par la plateforme : 1 approuvé\(s\) par le propriétaire, dont 1 sans issue connue/,
+  );
+});
+
+test('audit 10/11 FICTIF : sans Skill, un envoi refusé contredit « candidature envoyée »', async (t) => {
+  const done = await sendDuringPrompt(t, 'deny');
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /Envoi par la plateforme : aucun approuvé/);
+});
+
+test('audit 10/11 FICTIF : sans demande d’envoi, pas de ligne d’envoi hors career-ops', async (t) => {
+  const done = await runFixture(t, { browserWorkflow: false, config: { result: answer } });
+  assert.equal(done.state, 'completed', done.error);
+  assert.doesNotMatch(done.result.summary, /Envoi par la plateforme/);
+});

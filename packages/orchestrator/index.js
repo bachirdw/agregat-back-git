@@ -447,6 +447,9 @@ export class Orchestrator {
     if (this.bridgeControl(runId, token) !== control) return { approved: false };
     // E64 : an approval the gateway is no longer waiting for sends nothing and is never counted.
     const approved = outcome.outcome?.optionId === 'allow' && !abandoned?.aborted;
+    // Audit du 10/11 (constat 8) : any mission that asked a send approval gets the Bilan's send line.
+    if (request.actionClass === 'send' && !abandoned?.aborted)
+      control.sendsAsked = (control.sendsAsked ?? 0) + 1;
     if (request.actionClass === 'send' && approved) {
       control.sendsApproved = (control.sendsApproved ?? 0) + 1;
       // E66 : the approval names the gateway call that asked it ; that very call's outcome (the
@@ -1391,7 +1394,7 @@ export class Orchestrator {
             .map(({ name, cause }) => `${name} — ${cause}`)
             .join(' ; ');
       // Fact from the platform, next to the agent's own claims: a model can announce a send it never made.
-      if (plan.pack.id === 'career-ops')
+      if (plan.pack.id === 'career-ops' || control.sendsAsked || control.sendsApproved)
         value.summary += formatSendLine(
           control.sendsApproved ?? 0,
           control.sendsFailed ?? 0,

@@ -1206,29 +1206,50 @@ export class CdpBrowser {
       await handle.dispose().catch(() => {});
     }
   }
+  // Audit du 10/11 (constat 9) : the fields the agent filled (name or id), so that the check after
+  // the owner's approval compares them, and not what the page renews by itself (a token, a title).
+  async #markAgentField(ref) {
+    try {
+      const key = await (
+        await this.targetLocator({ ref })
+      ).evaluate((el) => {
+        const field = el.matches('input, select, textarea')
+          ? el
+          : (el.control ?? el.querySelector('input, select, textarea') ?? el);
+        return field.name || field.id || null;
+      });
+      if (key) (this.agentFields ??= new Set()).add(key);
+    } catch {
+      /* the action itself reports a missing ref */
+    }
+  }
   async submissionPreview(target) {
     if (!this.page) return null;
     const fields = await (
       await this.targetLocator(target)
-    ).evaluate((el) => {
-      const form = el.form || el.closest('form');
-      return {
-        action: form?.action ?? null,
-        method: form?.method ?? null,
-        enctype: form?.enctype ?? null,
-        fields: Array.from(form?.elements ?? []).map((f) => ({
-          name: f.name || f.id,
-          type: f.type,
-          value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
-          checked: f.checked,
-          files: Array.from(f.files ?? []).map((x) => ({
-            name: x.name,
-            size: x.size,
-            type: x.type,
+    ).evaluate(
+      (el, agentFields) => {
+        const form = el.form || el.closest('form');
+        return {
+          action: form?.action ?? null,
+          method: form?.method ?? null,
+          enctype: form?.enctype ?? null,
+          fields: Array.from(form?.elements ?? []).map((f) => ({
+            name: f.name || f.id,
+            type: f.type,
+            value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
+            checked: f.checked,
+            files: Array.from(f.files ?? []).map((x) => ({
+              name: x.name,
+              size: x.size,
+              type: x.type,
+            })),
+            ...(agentFields.includes(f.name || f.id) ? { agent: true } : {}),
           })),
-        })),
-      };
-    });
+        };
+      },
+      [...(this.agentFields ?? [])],
+    );
     return { page: this.page.url(), title: await this.page.title(), ...fields };
   }
   // A key to an element : real keyboard input in a visible tab ; in a hidden tab (CDP keyboard
@@ -1448,6 +1469,7 @@ export class CdpBrowser {
     }
   }
   async #setChecked(page, ref, checked) {
+    await this.#markAgentField(ref);
     const target = await this.targetLocator({ ref: ref });
     const kind = await target.evaluate((el) => (el instanceof HTMLInputElement ? el.type : null));
     if (!['checkbox', 'radio'].includes(kind))
@@ -1485,6 +1507,7 @@ export class CdpBrowser {
     return { checked: actual, changed: true, clickMode, hidden };
   }
   async #selectValues(ref, values) {
+    await this.#markAgentField(ref);
     const target = await this.targetLocator({ ref: ref });
     const options = await target.evaluate((el) => {
       if (!(el instanceof HTMLSelectElement)) return null;
@@ -1522,6 +1545,7 @@ export class CdpBrowser {
     return { selected };
   }
   async #fillText(ref, text) {
+    await this.#markAgentField(ref);
     // Filling a field is not a send; same-site autosave stays automatic.
     // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
     const target = await this.targetLocator({ ref: ref });

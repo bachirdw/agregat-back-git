@@ -93,6 +93,28 @@ export function missionDocumentHint(workspace, max = 12) {
 // The gateway is the only path from agents to the browser. It validates arguments against the
 // capability contract, enforces the run policy, asks a human for write/sensitive actions, meters
 // usage and marks every page-derived output as untrusted content (prompt-injection boundary).
+// Audit du 10/11 (constat 9) : what must not change while the owner decides on a send : where it
+// goes (action, method, encoding), the fields the agent filled (their value) and the attached
+// files. The page's title, a token it renews, a counter, a field it adds are not the owner's
+// decision : comparing them refused the approval, and could loop.
+export function formFingerprint(preview) {
+  if (!preview) return preview ?? null;
+  return {
+    action: preview.action ?? null,
+    method: preview.method ?? null,
+    enctype: preview.enctype ?? null,
+    fields: (preview.fields ?? [])
+      .filter((field) => field.agent || field.files?.length)
+      .map((field) => ({
+        name: field.name,
+        type: field.type,
+        value: field.agent ? field.value : undefined,
+        checked: field.agent ? field.checked : undefined,
+        files: (field.files ?? []).map((file) => [file.name, file.size]),
+      })),
+  };
+}
+
 // Roles of a field that opens a list (an autocompletion) : Enter there validates a suggestion.
 const WIDGET_INPUT_ROLES = new Set(['combobox', 'searchbox', 'listbox', 'spinbutton']);
 
@@ -379,7 +401,7 @@ export class BrowserGateway {
     }
     if (element && (!isDeepStrictEqual(element, current) || pageBefore !== pageNow))
       throw changed('Élément ou page modifié pendant l’approbation');
-    if (sending && !isDeepStrictEqual(preview, previewNow))
+    if (sending && !isDeepStrictEqual(formFingerprint(preview), formFingerprint(previewNow)))
       throw changed('Formulaire modifié pendant l’approbation');
     cancelled();
     if (capabilityId === 'browser.upload') {

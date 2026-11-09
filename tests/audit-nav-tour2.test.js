@@ -300,3 +300,55 @@ test(
     assert.deepEqual(sends(), []);
   },
 );
+
+// Formulaire FICTIF dont la page change pendant que le propriétaire décide : titre à compteur et
+// jeton anti-robot renouvelé (champs que l'agent n'a pas saisis).
+const tokenForm = `<form action="/candidature" method="post">
+  <input id="nom" name="nom" aria-label="Nom">
+  <textarea id="jeton" name="g-recaptcha-response" hidden>jeton-1</textarea>
+  <button type="submit">Envoyer ma candidature</button>
+</form>`;
+
+test(
+  'Constat 9 : un titre ou un jeton renouvelé pendant l’accord ne fait pas refuser l’envoi ; un champ saisi par l’agent ou la cible changés, si',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, lines } = await site(t, tokenForm);
+    let during = async () => {};
+    const { gateway, provider } = await owner(t, origin, async () => {
+      await during();
+      return true;
+    });
+    const fill = async () => {
+      await gateway.call('browser.navigate', { url: origin });
+      await gateway.call('browser.type', { ref: await refFor(gateway, '#nom'), text: 'FICTIF' });
+    };
+    // Le site renouvelle titre et jeton : l'envoi part.
+    await fill();
+    during = () =>
+      provider.page.evaluate(() => {
+        document.title = '(2) FICTIF';
+        document.getElementById('jeton').value = 'jeton-2';
+      });
+    await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    for (let i = 0; i < 100 && !lines().length; i++) await sleep(30);
+    assert.deepEqual(lines(), ['POST /candidature']);
+    // Le champ saisi par l'agent a changé : refus, rien ne part.
+    await fill();
+    during = () => provider.page.evaluate(() => (document.getElementById('nom').value = 'AUTRE'));
+    await assert.rejects(
+      gateway.call('browser.click', { ref: await refFor(gateway, 'button') }),
+      /Formulaire modifié/,
+    );
+    // La cible de l'envoi a changé : refus (le bouton décrit aussi l'action de son formulaire).
+    await fill();
+    during = () =>
+      provider.page.evaluate(() => (document.querySelector('form').action = '/ailleurs'));
+    await assert.rejects(
+      gateway.call('browser.click', { ref: await refFor(gateway, 'button') }),
+      /modifié pendant l’approbation/,
+    );
+    await sleep(300);
+    assert.deepEqual(lines(), ['POST /candidature']);
+  },
+);

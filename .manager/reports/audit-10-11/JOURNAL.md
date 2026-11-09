@@ -147,3 +147,6 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   optionnel (`AGENT_PLATFORM_WS_GUARD=1`), désactivé par défaut ; par défaut, carte AVANT tout clic ou touche d'envoi
   (repli renforcé : Entrée, Ctrl+Entrée, icône d'envoi). Correcteurs `audit-ws2` (Opus) et `audit-en2` (Sonnet)
   lancés à 04:57, fin exigée avant 06:25.
+- 05:07 — `audit-en2` rendu et fusionné (951e343) : les 7 intentions fausses (+1) corrigées, 43 prompts de la sonde en
+  test, cas réel Preacta toujours `apply` ; ligne « Candidature hors suivi » plus déclenchée par « should I apply » ni
+  par une simple frappe.

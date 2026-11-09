@@ -405,6 +405,38 @@ async function prepareCapture(page, args) {
   };
 }
 
+// What the gateway and the policy read of an element (its action control : a field, or the
+// button or link around the node). Runs in the page.
+const describeElement = (el) => {
+  const field = el.matches('input, select, textarea, option, label');
+  const control = field ? el : (el.closest('button, a, [role="button"]') ?? el);
+  const form = control.form ?? control.closest('form');
+  return {
+    tag: control.tagName.toLowerCase(),
+    role: control.getAttribute('role'),
+    inputType: control.tagName === 'INPUT' ? control.type : null,
+    buttonType: control.tagName === 'BUTTON' ? control.type : null,
+    inForm: !!form,
+    formAction: form?.getAttribute('action') ?? null,
+    // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
+    // is its value, never a secret.
+    text: (
+      (control.tagName === 'INPUT' && ['submit', 'button', 'reset', 'image'].includes(control.type)
+        ? control.value || control.getAttribute('alt')
+        : control.innerText) ?? ''
+    ).slice(0, 200),
+    ariaLabel: control.getAttribute('aria-label'),
+    // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
+    ariaHasPopup: control.getAttribute('aria-haspopup'),
+    ariaExpanded: control.getAttribute('aria-expanded'),
+    // Values may contain passwords, card numbers or private data even on text inputs.
+    value: null,
+    href: control.getAttribute('href'),
+    target: control.getAttribute('target'),
+    autocomplete: control.getAttribute('autocomplete'),
+  };
+};
+
 export class CdpBrowser {
   #authorization = null;
   #boundPolicy = null;
@@ -593,7 +625,24 @@ export class CdpBrowser {
           () => ownerTransport(this.endpoint, Math.min(this.startupTimeoutMs, 10000)),
           (connection) => connection.close(),
         );
+        this.ownerReached = true;
       } catch (error) {
+        // Audit du 10/11 (constat 17) : the relay lost in the middle of a mission (a form half
+        // filled in the owner's tab) never switches to an invisible isolated Chrome : the call
+        // fails and says so, and the next one tries the relay again.
+        if (this.ownerReached && !this.#closed) {
+          this.relayLost = (this.relayLost ?? 0) + 1;
+          throw new Error(
+            'Relais Playwriter perdu en cours de mission : l’onglet du propriétaire n’est plus joignable (' +
+              String(error.message ?? error)
+                .split('\n')[0]
+                .slice(0, 160) +
+              '). Aucune bascule vers un autre navigateur, action non effectuée. Le formulaire en cours ' +
+              'est peut-être à reprendre : demande au propriétaire de rouvrir Chrome avec l’extension ; ' +
+              'l’appel suivant réessaie le relais.',
+            { cause: error },
+          );
+        }
         if (!this.fallbackLaunch || this.#closed) throw error;
         this.fallbackReason =
           `Extension Playwriter indisponible : ${error.message}. Bascule sur Chrome isolé : ` +
@@ -782,7 +831,9 @@ export class CdpBrowser {
   }
   // Audit du 10/11 (constat 7) : a write the owner approved (or that an approved click covers) is a
   // submission ; its HTTP status tells whether the site took it. Host and status only.
-  #recordSubmission(request) {
+  // Second tour : `origin` is the gateway call that opened the send (the click) ; a status that
+  // arrives once that call has returned is reported to it (onLateSubmission), never to the next call.
+  #recordSubmission(request, origin = this.callToken) {
     if (request.resourceType() === 'ping') return;
     let host = '';
     try {
@@ -790,30 +841,46 @@ export class CdpBrowser {
     } catch {
       /* unparsable URL: recorded without a host */
     }
-    const entry = { host, status: null };
-    entry.settled = request.response().then(
-      (response) => {
-        entry.status = response ? response.status() : null;
-      },
-      () => {},
-    );
+    const entry = { host, status: null, origin, done: false };
+    entry.settled = request
+      .response()
+      .then(
+        (response) => {
+          entry.status = response ? response.status() : null;
+        },
+        () => {},
+      )
+      .finally(() => {
+        entry.done = true;
+        if (origin?.done && origin.call?.toolCallId)
+          this.onLateSubmission?.({
+            toolCallId: origin.call.toolCallId,
+            host,
+            status: entry.status,
+          });
+      });
     this.submissions = [...(this.submissions ?? []), entry].slice(-10);
   }
-  // Called after each tool call : the submissions since the previous call, with their status once
-  // answered (5 s at most ; a submission still unanswered keeps a null status).
-  async takeSubmissions(ms = 5000) {
+  // Called after each tool call : this call's submissions, with their status once answered (5 s at
+  // most ; a submission still unanswered keeps a null status, reported later), and those of an
+  // earlier call answered since (`late`, told to the agent without making this call fail).
+  async takeSubmissions(token, ms = 5000) {
     const list = this.submissions ?? [];
-    this.submissions = [];
-    if (!list.length) return [];
-    let timer;
-    await Promise.race([
-      Promise.all(list.map((entry) => entry.settled)),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, ms);
-      }),
-    ]);
-    clearTimeout(timer);
-    return list.map(({ host, status }) => ({ host, status }));
+    const own = list.filter((entry) => !entry.origin || entry.origin === token);
+    const late = list.filter((entry) => !own.includes(entry) && entry.done);
+    this.submissions = list.filter((entry) => !own.includes(entry) && !late.includes(entry));
+    const shown = ({ host, status }) => ({ host, status });
+    if (own.length) {
+      let timer;
+      await Promise.race([
+        Promise.all(own.map((entry) => entry.settled)),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, ms);
+        }),
+      ]);
+      clearTimeout(timer);
+    }
+    return { own: own.map(shown), late: late.map(shown) };
   }
   // Called after each tool call: waits for the traces already started, then returns and resets the
   // count of network writes granted automatically since the previous call.
@@ -863,7 +930,9 @@ export class CdpBrowser {
         // the page's own sending of THAT file — often to a storage host of another site — is
         // granted and traced (host only), as a scripted write to the page's own site already is.
         // Other requests (statistics, trackers, beacons, a body with the candidate's e-mail around
-        // the file), a send-worded request and a navigation keep the rules below.
+        // the file) and a navigation keep the rules below. Audit du 10/11 (constat 13) : the path
+        // does not matter (`/apply/<id>/resume` is a piece of the form, not its send) ; a body
+        // that carries the file alone is the attachment, the candidate's contact makes it a send.
         const uploadWindow =
           this.uploading === true ||
           (Date.now() - (this.lastUploadEnd ?? 0) <= UPLOAD_WINDOW_MS &&
@@ -871,7 +940,6 @@ export class CdpBrowser {
             !this.writeInProgress);
         if (
           uploadWindow &&
-          !sensitive &&
           !request.isNavigationRequest() &&
           sendsFile(request, this.uploadedFile)
         ) {
@@ -917,12 +985,17 @@ export class CdpBrowser {
           clickWindow &&
           (firstParty || request.isNavigationRequest());
         const granted = this.sendGrant === true || covered;
-        if (!granted && !afterSendClick && !request.isNavigationRequest()) {
-          if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
+        // Second tour (constats 7 et 16) : a write of a click's window belongs to that click's
+        // gateway call (its card and its HTTP status), not to the call in progress when it leaves.
+        const origin = clickWindow ? (this.clickToken ?? this.callToken) : this.callToken;
+        // Audit du 10/11 (constat 13) : a write of more than 100 kB that no approval covers (a CV
+        // posted with the application) was cancelled without a trace. It is now asked like a send :
+        // the owner's click decides, and a refusal is said to the agent and in the Bilan.
+        const large = Buffer.byteLength(body) > 100000;
+        if (!granted && !afterSendClick && !large && !request.isNavigationRequest()) {
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
         // refused or expired answer blocks them all. An approval only ever frees the request it showed.
@@ -931,23 +1004,27 @@ export class CdpBrowser {
         let approved = granted;
         if (!granted) {
           const decision = Promise.resolve(
-            this.approve?.({
-              capability: 'browser.send',
-              sensitive: true,
-              actionClass: 'send',
-              args: {
-                url: previewUrl(request.url()),
-                method: request.method(),
-                body: previewBody(body),
+            this.approve?.(
+              {
+                capability: 'browser.send',
+                sensitive: true,
+                actionClass: 'send',
+                args: {
+                  url: previewUrl(request.url()),
+                  method: request.method(),
+                  body: previewBody(body),
+                },
               },
-            }),
+              // Constat 16 : the card is the click's (its call identifier, not the next call's).
+              { origin },
+            ),
           ).catch(() => false);
           this.sendDecision = decision;
           approved = await decision;
           if (this.sendDecision === decision) this.sendDecision = null;
         }
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
-        this.#recordSubmission(request);
+        this.#recordSubmission(request, origin);
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);
@@ -1112,61 +1189,162 @@ export class CdpBrowser {
       return null;
     }
     const handle = await this.targetLocator(target);
-    return handle.evaluate((el) => {
-      const field = el.matches('input, select, textarea, option, label');
-      const control = field ? el : (el.closest('button, a, [role="button"]') ?? el);
-      const form = control.form ?? control.closest('form');
-      return {
-        tag: control.tagName.toLowerCase(),
-        role: control.getAttribute('role'),
-        inputType: control.tagName === 'INPUT' ? control.type : null,
-        buttonType: control.tagName === 'BUTTON' ? control.type : null,
-        inForm: !!form,
-        formAction: form?.getAttribute('action') ?? null,
-        // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
-        // is its value, never a secret.
-        text: (
-          (control.tagName === 'INPUT' &&
-          ['submit', 'button', 'reset', 'image'].includes(control.type)
-            ? control.value || control.getAttribute('alt')
-            : control.innerText) ?? ''
-        ).slice(0, 200),
-        ariaLabel: control.getAttribute('aria-label'),
-        // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
-        ariaHasPopup: control.getAttribute('aria-haspopup'),
-        ariaExpanded: control.getAttribute('aria-expanded'),
-        // Values may contain passwords, card numbers or private data even on text inputs.
-        value: null,
-        href: control.getAttribute('href'),
-        target: control.getAttribute('target'),
-        autocomplete: control.getAttribute('autocomplete'),
-      };
+    return handle.evaluate(describeElement);
+  }
+  // Audit du 10/11 (constat 14) : what Enter in this field would do to its form, by the browser's
+  // implicit submission : null when it submits nothing, else the description of the form's default
+  // button ({ implicit: true } for a lone field without one).
+  async enterSubmitter(target) {
+    if (!this.page) return null;
+    const handle = await (
+      await this.targetLocator(target)
+    ).evaluateHandle((el) => {
+      const blocking =
+        /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
+      if (!(el instanceof HTMLInputElement) || !blocking.test(el.type) || !el.form) return null;
+      const elements = Array.from(el.form.elements);
+      const button = elements.find(
+        (f) =>
+          (f instanceof HTMLButtonElement && f.type === 'submit') ||
+          (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
+      );
+      if (button) return button.disabled ? null : button;
+      const fields = elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type));
+      return fields.length === 1 ? el.form : null;
     });
+    try {
+      const kind = await handle.evaluate((node) =>
+        node instanceof HTMLFormElement ? 'form' : node ? 'button' : null,
+      );
+      if (!kind) return null;
+      if (kind === 'form') return { implicit: true, tag: 'form', inForm: true, text: '' };
+      return await handle.evaluate(describeElement);
+    } finally {
+      await handle.dispose().catch(() => {});
+    }
+  }
+  // Audit du 10/11 (constat 9) : the fields the agent filled (name or id), so that the check after
+  // the owner's approval compares them, and not what the page renews by itself (a token, a title).
+  async #markAgentField(ref) {
+    try {
+      const key = await (
+        await this.targetLocator({ ref })
+      ).evaluate((el) => {
+        const field = el.matches('input, select, textarea')
+          ? el
+          : (el.control ?? el.querySelector('input, select, textarea') ?? el);
+        return field.name || field.id || null;
+      });
+      if (key) (this.agentFields ??= new Set()).add(key);
+      if (key) this.agentFieldsPage = pageKey(this.page.url());
+    } catch {
+      /* the action itself reports a missing ref */
+    }
   }
   async submissionPreview(target) {
     if (!this.page) return null;
     const fields = await (
       await this.targetLocator(target)
-    ).evaluate((el) => {
-      const form = el.form || el.closest('form');
-      return {
-        action: form?.action ?? null,
-        method: form?.method ?? null,
-        enctype: form?.enctype ?? null,
-        fields: Array.from(form?.elements ?? []).map((f) => ({
-          name: f.name || f.id,
-          type: f.type,
-          value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
-          checked: f.checked,
-          files: Array.from(f.files ?? []).map((x) => ({
-            name: x.name,
-            size: x.size,
-            type: x.type,
+    ).evaluate(
+      (el, agentFields) => {
+        const form = el.form || el.closest('form');
+        return {
+          action: form?.action ?? null,
+          method: form?.method ?? null,
+          enctype: form?.enctype ?? null,
+          fields: Array.from(form?.elements ?? []).map((f) => ({
+            name: f.name || f.id,
+            type: f.type,
+            value: /password|hidden/i.test(f.type) ? '[masqué]' : f.value,
+            checked: f.checked,
+            files: Array.from(f.files ?? []).map((x) => ({
+              name: x.name,
+              size: x.size,
+              type: x.type,
+            })),
+            ...(agentFields.includes(f.name || f.id) ? { agent: true } : {}),
           })),
-        })),
-      };
-    });
+        };
+      },
+      [...(this.agentFields ?? [])],
+    );
     return { page: this.page.url(), title: await this.page.title(), ...fields };
+  }
+  // A key to an element : real keyboard input in a visible tab ; in a hidden tab (CDP keyboard
+  // input is dropped silently) DOM events for page scripts, and the browser's default action for
+  // Tab (focus the next field) and Enter (implicit submission of the form, unless `keep`) when the
+  // page did not prevent it.
+  async #press(target, key, hidden, keep) {
+    if (!hidden) {
+      await target.press(key, { timeout: Math.min(3000, this.navigationTimeoutMs) });
+      return { mode: 'keyboard' };
+    }
+    const done = await target.evaluate(
+      (el, { key, keep }) => {
+        el.focus();
+        const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
+        // Older widgets (jQuery UI autocomplete) still read keyCode/which.
+        const code = {
+          ArrowLeft: 37,
+          ArrowUp: 38,
+          ArrowRight: 39,
+          ArrowDown: 40,
+          Escape: 27,
+          Home: 36,
+          End: 35,
+          Tab: 9,
+          Enter: 13,
+        }[key];
+        const event = (type) => {
+          const e = new KeyboardEvent(type, init);
+          for (const name of ['keyCode', 'which'])
+            Object.defineProperty(e, name, { get: () => code });
+          return e;
+        };
+        const down = event('keydown');
+        el.dispatchEvent(down);
+        el.dispatchEvent(event('keyup'));
+        let submitBlocked = false;
+        if (!down.defaultPrevented && key === 'Tab') {
+          const focusable = Array.from(
+            document.querySelectorAll(
+              'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+            ),
+          );
+          focusable[focusable.indexOf(el) + 1]?.focus();
+        }
+        const blocking =
+          /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
+        if (
+          !down.defaultPrevented &&
+          key === 'Enter' &&
+          el instanceof HTMLInputElement &&
+          blocking.test(el.type) &&
+          el.form
+        ) {
+          const elements = Array.from(el.form.elements);
+          const button = elements.find(
+            (f) =>
+              (f instanceof HTMLButtonElement && f.type === 'submit') ||
+              (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
+          );
+          const lone =
+            elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type))
+              .length === 1;
+          if ((button && !button.disabled) || (!button && lone)) {
+            if (keep) submitBlocked = true;
+            else el.form.requestSubmit(button ?? undefined);
+          }
+        }
+        return { handled: down.defaultPrevented, submitBlocked };
+      },
+      { key, keep },
+    );
+    return {
+      mode: 'dom',
+      handled: done.handled,
+      ...(done.submitBlocked ? { submitBlocked: true } : {}),
+    };
   }
   #isHidden(page) {
     return page.evaluate(() => document.visibilityState === 'hidden');
@@ -1309,6 +1487,7 @@ export class CdpBrowser {
     }
   }
   async #setChecked(page, ref, checked) {
+    await this.#markAgentField(ref);
     const target = await this.targetLocator({ ref: ref });
     const kind = await target.evaluate((el) => (el instanceof HTMLInputElement ? el.type : null));
     if (!['checkbox', 'radio'].includes(kind))
@@ -1346,6 +1525,7 @@ export class CdpBrowser {
     return { checked: actual, changed: true, clickMode, hidden };
   }
   async #selectValues(ref, values) {
+    await this.#markAgentField(ref);
     const target = await this.targetLocator({ ref: ref });
     const options = await target.evaluate((el) => {
       if (!(el instanceof HTMLSelectElement)) return null;
@@ -1383,6 +1563,7 @@ export class CdpBrowser {
     return { selected };
   }
   async #fillText(ref, text) {
+    await this.#markAgentField(ref);
     // Filling a field is not a send; same-site autosave stays automatic.
     // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
     const target = await this.targetLocator({ ref: ref });
@@ -1515,6 +1696,8 @@ export class CdpBrowser {
       this.lastUploadEnd = 0;
       this.clickApproved = false;
       this.uploadedFile = null;
+      // Constats 9 et 11 : the fields the agent filled belong to the page it leaves.
+      this.agentFields = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])
@@ -1543,6 +1726,23 @@ export class CdpBrowser {
         windowNotFollowed: 'Le site a ouvert un onglet que Relay n’a pas pu charger ici.',
       };
       if (!/^https?:/i.test(url)) return notFollowed;
+      // Audit du 10/11 (constat 11) : a form the agent has started filling is never left for a
+      // window the site opened (a policy link, a chat, an OAuth popup) : the tab stays, and the
+      // agent learns where that window goes (address masked) to decide.
+      if (this.agentFields?.size && this.agentFieldsPage === pageKey(page.url())) {
+        let host = '';
+        try {
+          host = new URL(url).host;
+          await policy.assertUrl(url);
+        } catch {
+          return { ...notFollowed, openedWindow: { host } };
+        }
+        return {
+          openedWindow: { host, url: previewUrl(url) },
+          windowNotFollowed:
+            'Le site a ouvert une autre fenêtre ; l’onglet de mission reste sur le formulaire en cours (saisie conservée). Pour l’ouvrir, browser_navigate vers openedWindow.url fera quitter ce formulaire.',
+        };
+      }
       try {
         await policy.assertUrl(url);
         await goto(url);
@@ -1622,6 +1822,8 @@ export class CdpBrowser {
         this.clickKind = args.clickKind ?? null;
         this.clickPage = pageKey(page.url());
         this.clickApproved = args.sendApproved === true;
+        // Second tour : the gateway call of this click, owner of the writes of its window.
+        this.clickToken = this.callToken;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -1672,7 +1874,11 @@ export class CdpBrowser {
         // token) : wait 1.5 s at most for its request, so that its status comes with this result
         // (a later one comes with the next call's result).
         if (args.sendApproved === true)
-          for (let i = 0; i < 30 && !this.submissions?.length; i++)
+          for (
+            let i = 0;
+            i < 30 && !this.submissions?.some((entry) => entry.origin === this.callToken);
+            i++
+          )
             await new Promise((resolve) => setTimeout(resolve, 50));
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);
@@ -1789,38 +1995,73 @@ export class CdpBrowser {
       case 'browser.press': {
         const target = await this.targetLocator({ ref: args.ref });
         const hidden = await this.#isHidden(page);
-        if (!hidden) {
-          await target.press(args.key, { timeout: Math.min(3000, this.navigationTimeoutMs) });
-          return { url: page.url(), key: args.key, mode: 'keyboard', hidden };
+        // Audit du 10/11 (constat 14) : Enter that submits a form is a click on its default
+        // button : the same send window (approved send, step, ordinary click). From an
+        // autocompletion (`guardSubmit`), a submission of the final send is retained and told.
+        const enter = args.key === 'Enter';
+        let guard = null;
+        if (enter) {
+          this.sendGrant = args.sendApproved === true;
+          this.sendClick =
+            args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
+          this.formStep = args.formStep === true;
+          this.clickKind = args.clickKind ?? 'plain';
+          this.clickPage = pageKey(page.url());
+          this.clickApproved = args.sendApproved === true;
+          this.clickToken = this.callToken;
+          this.blockedThirdParty = new Set();
+          this.writeInProgress = true;
+          if (args.guardSubmit === true)
+            guard = await target.evaluateHandle(() => {
+              let fired = false;
+              const stop = (event) => {
+                fired = true;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              };
+              window.addEventListener('submit', stop, true);
+              return {
+                fired: () => fired,
+                stop: () => window.removeEventListener('submit', stop, true),
+              };
+            });
         }
-        // A hidden tab drops CDP keyboard input silently: dispatch DOM events for page scripts.
-        // Browser default actions (text edit, focus move, implicit submission) are not reproduced,
-        // which is why the registry allows no Enter, Space or Tab.
-        const handled = await target.evaluate((el, key) => {
-          el.focus();
-          const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
-          // Older widgets (jQuery UI autocomplete) still read keyCode/which.
-          const code = {
-            ArrowLeft: 37,
-            ArrowUp: 38,
-            ArrowRight: 39,
-            ArrowDown: 40,
-            Escape: 27,
-            Home: 36,
-            End: 35,
-          }[key];
-          const event = (type) => {
-            const e = new KeyboardEvent(type, init);
-            for (const name of ['keyCode', 'which'])
-              Object.defineProperty(e, name, { get: () => code });
-            return e;
-          };
-          const down = event('keydown');
-          el.dispatchEvent(down);
-          el.dispatchEvent(event('keyup'));
-          return down.defaultPrevented;
-        }, args.key);
-        return { url: page.url(), key: args.key, mode: 'dom', hidden, handled };
+        let pressed;
+        try {
+          pressed = await this.#press(target, args.key, hidden, args.guardSubmit === true);
+        } finally {
+          if (enter) {
+            this.writeInProgress = false;
+            this.sendGrant = false;
+            this.lastClickEnd = Date.now();
+          }
+        }
+        let blocked = false;
+        if (guard) {
+          blocked = await guard.evaluate((value) => value.fired()).catch(() => false);
+          await guard.evaluate((value) => value.stop()).catch(() => {});
+          await guard.dispose().catch(() => {});
+        }
+        if (enter && args.sendApproved === true)
+          for (
+            let i = 0;
+            i < 30 && !this.submissions?.some((entry) => entry.origin === this.callToken);
+            i++
+          )
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        if (enter) await this.assertLanded(policy);
+        return {
+          url: page.url(),
+          key: args.key,
+          ...pressed,
+          hidden,
+          ...(blocked || pressed.submitBlocked
+            ? {
+                submitBlocked:
+                  'Entrée allait soumettre le formulaire d’envoi final depuis une liste : soumission retenue, rien n’a été envoyé. Pour envoyer, clique le bouton d’envoi (browser_click) : l’accord du propriétaire sera demandé.',
+              }
+            : {}),
+        };
       }
       case 'browser.upload': {
         const target = await this.targetLocator({ ref: args.ref });
@@ -2000,6 +2241,7 @@ export class CdpBrowser {
           this.formStep = false;
           this.clickKind = null;
           this.clickApproved = args.sendApproved === true;
+          this.clickToken = this.callToken;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);

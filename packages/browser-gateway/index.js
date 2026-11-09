@@ -93,6 +93,31 @@ export function missionDocumentHint(workspace, max = 12) {
 // The gateway is the only path from agents to the browser. It validates arguments against the
 // capability contract, enforces the run policy, asks a human for write/sensitive actions, meters
 // usage and marks every page-derived output as untrusted content (prompt-injection boundary).
+// Audit du 10/11 (constat 9) : what must not change while the owner decides on a send : where it
+// goes (action, method, encoding), the fields the agent filled (their value) and the attached
+// files. The page's title, a token it renews, a counter, a field it adds are not the owner's
+// decision : comparing them refused the approval, and could loop.
+export function formFingerprint(preview) {
+  if (!preview) return preview ?? null;
+  return {
+    action: preview.action ?? null,
+    method: preview.method ?? null,
+    enctype: preview.enctype ?? null,
+    fields: (preview.fields ?? [])
+      .filter((field) => field.agent || field.files?.length)
+      .map((field) => ({
+        name: field.name,
+        type: field.type,
+        value: field.agent ? field.value : undefined,
+        checked: field.agent ? field.checked : undefined,
+        files: (field.files ?? []).map((file) => [file.name, file.size]),
+      })),
+  };
+}
+
+// Roles of a field that opens a list (an autocompletion) : Enter there validates a suggestion.
+const WIDGET_INPUT_ROLES = new Set(['combobox', 'searchbox', 'listbox', 'spinbutton']);
+
 export class BrowserGateway {
   constructor({
     provider,
@@ -103,31 +128,60 @@ export class BrowserGateway {
     onAutoSend,
     // The agent's call in progress (its abort signal), checked again once the owner has decided.
     callSignal = () => undefined,
+    // Audit du 10/11, second tour : the agent's call in progress ({ toolCallId, signal }), and
+    // where the HTTP status of an approved submission goes when it arrives after its call
+    // returned ({ toolCallId, host, status }).
+    currentCall = () => undefined,
+    onLateSubmission,
   }) {
-    Object.assign(this, { provider, policy, approve, meter, callSignal });
+    Object.assign(this, { provider, policy, approve, meter, callSignal, currentCall });
+    this.onLateSubmission = onLateSubmission;
+    provider.onLateSubmission = (entry) => this.onLateSubmission?.(entry);
     // Owner mode only: network writes that are not an agent's send click are granted and traced
     // through this callback ({ capability, host }); it never receives a URL, a body or a query.
     if (onAutoSend && policy.ownerMode) provider.onAutoSend = onAutoSend;
     this.autoApprove = new Set(autoApprove); // write (never sensitive) capabilities pre-approved by the user
   }
   call(capabilityId, rawArgs = {}) {
+    // Audit du 10/11, second tour : the gateway call a submission belongs to (calls run one at a
+    // time) ; `done` once it has returned, so that a later status is reported apart.
+    const token = { call: this.currentCall() ?? null, done: false };
     const task = (this.pending ?? Promise.resolve()).then(async () => {
-      const output = await this.execute(capabilityId, rawArgs);
-      // Network writes granted without a question since the previous call (owner mode).
-      const hosts = (await this.provider.takeAutoSends?.()) ?? [];
-      // Audit du 10/11 (constat 7) : approved submissions since the previous call, with their
-      // HTTP status (host and status only).
-      const submissions = (await this.provider.takeSubmissions?.()) ?? [];
-      return {
-        ...output,
-        ...(hosts.length
-          ? {
-              networkSends: hosts.length,
-              networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
-            }
-          : {}),
-        ...(submissions.length ? { submissions } : {}),
-      };
+      this.provider.callToken = token;
+      try {
+        const output = await this.execute(capabilityId, rawArgs);
+        // Network writes granted without a question since the previous call (owner mode).
+        const hosts = (await this.provider.takeAutoSends?.()) ?? [];
+        // Audit du 10/11 (constat 7) : approved submissions of this call, with their HTTP status
+        // (host and status only). Second tour : those of an earlier call whose status came late
+        // are only told (`lateSubmissions`) : they never make this call fail.
+        const taken = (await this.provider.takeSubmissions?.(token)) ?? {};
+        const submissions = Array.isArray(taken) ? taken : (taken.own ?? []);
+        const late = Array.isArray(taken) ? [] : (taken.late ?? []);
+        return {
+          ...output,
+          ...(hosts.length
+            ? {
+                networkSends: hosts.length,
+                networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
+              }
+            : {}),
+          ...(submissions.length ? { submissions } : {}),
+          ...(late.length
+            ? {
+                lateSubmissions: late,
+                ...(late.some((s) => s.status >= 400)
+                  ? {
+                      lateSubmissionNote:
+                        'Un envoi approuvé lors d’un appel précédent a été refusé par le site : relis la page (browser_snapshot) avant toute autre tentative.',
+                    }
+                  : {}),
+              }
+            : {}),
+        };
+      } finally {
+        token.done = true;
+      }
     });
     this.pending = task.catch(() => {});
     return task;
@@ -221,14 +275,40 @@ export class BrowserGateway {
       !element.inForm &&
       !element.formAction;
     if (ownerLink) sensitive = false;
-    const sending = clickKind
-      ? clickKind === 'submit'
-      : ['browser.click', 'browser.download'].includes(capabilityId) &&
-        !!element &&
-        !step &&
-        !ownerLink &&
-        (element.inForm ||
-          this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
+    // Audit du 10/11 (constat 14) : Enter in a field that would submit its form is a click on the
+    // form's default button, with the same classification : a card for the final send only. From
+    // an autocompletion (a list the key may only validate), no card : a submission of the final
+    // send it would cause is retained and told (cdp.js).
+    const submitter =
+      capabilityId === 'browser.press' && args.key === 'Enter' && element
+        ? await this.provider.enterSubmitter?.(target)
+        : null;
+    const pressKind = submitter
+      ? this.policy.ownerMode
+        ? submitter.implicit
+          ? 'plain'
+          : this.policy.ownerClickKind(submitter)
+        : this.policy.isFormStep(submitter)
+          ? 'step'
+          : 'submit'
+      : null;
+    const fromList =
+      !!element &&
+      (WIDGET_INPUT_ROLES.has(String(element.role ?? '').toLowerCase()) ||
+        (element.ariaExpanded !== null && element.ariaExpanded !== undefined) ||
+        (!!element.ariaHasPopup && element.ariaHasPopup !== 'false'));
+    const guardSubmit = pressKind === 'submit' && fromList;
+    const pressSends = pressKind === 'submit' && !fromList;
+    const sending = pressSends
+      ? true
+      : clickKind
+        ? clickKind === 'submit'
+        : ['browser.click', 'browser.download'].includes(capabilityId) &&
+          !!element &&
+          !step &&
+          !ownerLink &&
+          (element.inForm ||
+            this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     // apply-01 (E42, E26): a step click that still asks (outside owner mode) carries the same form
     // summary as a send, so the card can say « Suivant » with its action, multipart and attachment.
     const preview =
@@ -248,11 +328,16 @@ export class BrowserGateway {
           ...(sending || preview
             ? {
                 preview: preview
-                  ? { ...preview, submission: summarizeSubmission(preview, element) }
+                  ? {
+                      ...preview,
+                      submission: summarizeSubmission(preview, pressSends ? submitter : element),
+                    }
                   : preview,
               }
             : {}),
           element,
+          // Enter that sends : the card names the send button it stands for.
+          ...(pressSends ? { submitter } : {}),
           // Typed text of secret fields is never shown or stored.
           args:
             capabilityId === 'browser.type'
@@ -316,7 +401,7 @@ export class BrowserGateway {
     }
     if (element && (!isDeepStrictEqual(element, current) || pageBefore !== pageNow))
       throw changed('Élément ou page modifié pendant l’approbation');
-    if (sending && !isDeepStrictEqual(preview, previewNow))
+    if (sending && !isDeepStrictEqual(formFingerprint(preview), formFingerprint(previewNow)))
       throw changed('Formulaire modifié pendant l’approbation');
     cancelled();
     if (capabilityId === 'browser.upload') {
@@ -345,8 +430,10 @@ export class BrowserGateway {
         : {
             ...args,
             ...(sending ? { sendApproved: true } : {}),
-            ...(step ? { formStep: true } : {}),
+            ...(step || pressKind === 'step' ? { formStep: true } : {}),
             ...(clickKind ? { clickKind } : {}),
+            ...(pressKind && pressKind !== 'submit' ? { clickKind: pressKind } : {}),
+            ...(guardSubmit ? { guardSubmit: true } : {}),
           },
       this.policy,
     );

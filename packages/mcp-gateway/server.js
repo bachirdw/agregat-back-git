@@ -1,11 +1,11 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
-import { landedUrl, submissionRefused } from './outcome.js';
+import { landedUrl, refusedSubmission, submissionRefused } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { withEvidence } from './evidence.js';
 import { proofWatch } from './proofs.js';
-import { CallRegistry } from './calls.js';
+import { CallRegistry, approvalCall } from './calls.js';
 import { chargeUsage } from './meter.js';
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -32,9 +32,13 @@ const text = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value)
 // relecture : a structured mark, no longer a reading of the message). Kept beside the result,
 // never sent to the agent.
 const notDoneResults = new WeakSet();
+// Audit du 10/11, second tour : the HTTP status of an approved submission the site refused, kept
+// beside the failed result for the platform's Bilan (« refusé par le site (HTTP nnn) »).
+const siteStatusOf = new WeakMap();
 const failure = (e) => {
   const result = { isError: true, content: [{ type: 'text', text: String(e.message ?? e) }] };
   if (e?.actionDone === false) notDoneResults.add(result);
+  if (Number.isInteger(e?.httpStatus)) siteStatusOf.set(result, e.httpStatus);
   return result;
 };
 
@@ -44,10 +48,11 @@ const currentCall = () => calls.current();
 // Revue Opus du 06/11 : a write already granted (`trace`, owner mode) is only recorded ; the
 // request leaves anyway, so its trace never dies with a cancelled call and waits 10 s at most.
 const TRACE_MS = 10000;
-async function approve(request, { trace = false } = {}) {
+async function approve(request, { trace = false, origin } = {}) {
   const url = process.env.RELAY_APPROVAL_URL;
   if (!url || !process.env.RELAY_APPROVAL_TOKEN) return false; // no bridge → deny
-  const call = currentCall();
+  // Audit du 10/11 (constat 16) : a card asked from a network route names the click's call.
+  const { call, signal } = approvalCall(origin, currentCall());
   // E64 : no deadline of the gateway's own beyond the platform's (see approval.js). E66 : the
   // approval names its call, so the platform reads that very call's outcome.
   return requestDecision(
@@ -58,7 +63,7 @@ async function approve(request, { trace = false } = {}) {
       ? { timeoutMs: TRACE_MS }
       : {
           timeoutMs: Number(process.env.RELAY_APPROVAL_TIMEOUT_MS) || undefined,
-          signal: call?.signal,
+          signal,
         },
   );
 }
@@ -117,7 +122,26 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
       // call cancelled, approval expired, charge refused) says so ; any other failure leaves the
       // outcome open.
       ...(status === 'failed' && notDoneResults.has(result) ? { actionDone: false } : {}),
+      ...(status === 'failed' && siteStatusOf.has(result)
+        ? { httpStatus: siteStatusOf.get(result) }
+        : {}),
     }),
+    signal: AbortSignal.timeout(5000),
+  });
+}
+// Audit du 10/11, second tour : the HTTP status (null : no answer) of an approved submission that
+// arrived after its call returned, for the platform's send line.
+async function reportLateSubmission(toolCallId, status) {
+  const url = process.env.RELAY_TOOL_OUTCOME_URL;
+  if (!url || !process.env.RELAY_APPROVAL_TOKEN || !toolCallId) return;
+  await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-platform-request': '1',
+      'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+    },
+    body: JSON.stringify({ late: true, toolCallId, httpStatus: status }),
     signal: AbortSignal.timeout(5000),
   });
 }
@@ -219,6 +243,11 @@ if (mode === 'fixture') {
     onAutoSend,
     // Seconde relecture de nuit : the agent's call, checked again once the owner has decided.
     callSignal: () => currentCall()?.signal,
+    // Audit du 10/11, second tour : the call a submission belongs to, and its HTTP status when
+    // it arrives after that call returned (reported to that very call, never to the next one).
+    currentCall,
+    onLateSubmission: ({ toolCallId, status }) =>
+      reportLateSubmission(toolCallId, status).catch(() => {}),
   });
   browserGateway = gateway;
   let fallbackReported = false;
@@ -243,6 +272,26 @@ if (mode === 'fixture') {
       },
     );
     if (response.ok) fallbackReported = true;
+  };
+  // Audit du 10/11 (constat 17) : a relay lost during the mission is said in the Bilan too.
+  let relayLostReported = 0;
+  const reportRelayLost = async () => {
+    if (!provider.relayLost || provider.relayLost === relayLostReported) return;
+    if (!process.env.RELAY_EVIDENCE_URL) return;
+    const response = await fetch(
+      process.env.RELAY_EVIDENCE_URL.replace('/evidence/', '/browser-fallback/'),
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-platform-request': '1',
+          'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+        },
+        body: JSON.stringify({ relayLost: true }),
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.ok) relayLostReported = provider.relayLost;
   };
   for (const cap of describeCapabilities('browser')) {
     if (!policy.capabilities.has(cap.id)) continue; // only granted capabilities are even listed
@@ -272,12 +321,16 @@ if (mode === 'fixture') {
             );
           // Audit du 10/11 (constat 7) : a submission the site refused (HTTP 4xx/5xx) is no success.
           const refused = submissionRefused(output);
-          if (refused) return failure(new Error(refused));
+          if (refused)
+            return failure(
+              Object.assign(new Error(refused), { httpStatus: refusedSubmission(output).status }),
+            );
           return text(output);
         } catch (e) {
           return failure(e);
         } finally {
           await reportFallback().catch(() => {});
+          await reportRelayLost().catch(() => {});
         }
       },
     );

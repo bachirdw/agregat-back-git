@@ -20,6 +20,7 @@ const BROWSER = new Set([
   'audit-nav-carte-envoi.test.js',
   'audit-nav-iframe.test.js',
   'audit-nav-onglet.test.js',
+  'audit-nav-tour2.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

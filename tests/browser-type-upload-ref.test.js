@@ -17,13 +17,15 @@ test('contrats FICTIFS : saisie, touche, upload et téléchargement par ref seul
     ['browser.type', { selector: '#x', text: 'a' }, /Unrecognized key/],
     ['browser.upload', { selector: '#x', path: 'a' }, /Unrecognized key/],
     ['browser.download', { selector: '#x' }, /Unrecognized key/],
-    ['browser.press', { ref: 'e1', key: 'Enter' }, /Touche non autorisée/],
     ['browser.press', { ref: 'e1', key: ' ' }, /Touche non autorisée/],
     ['browser.extract', { ref: 'e1', limit: 3 }, /limit > 1 exige un sélecteur/],
   ])
     assert.throws(() => getCapability(id).schema.parse(args), message);
   assert.ok(getCapability('browser.extract').schema.parse({ selector: 'h3', limit: 3 }));
   assert.equal(getCapability('browser.press').effect, 'write');
+  // Audit du 10/11 (constat 14) : Tab et Entrée valident les autocomplétions.
+  for (const key of ['Tab', 'Enter'])
+    assert.ok(getCapability('browser.press').schema.parse({ ref: 'e1', key }));
 });
 
 test('refs FICTIVES : seules les refs de la structure du snapshot sont retenues', () => {

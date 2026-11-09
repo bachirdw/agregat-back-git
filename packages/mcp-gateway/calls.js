@@ -42,3 +42,14 @@ export class CallRegistry {
     }
   }
 }
+
+// Audit du 10/11 (constat 16) : an approval asked from a network route (a write the page sends
+// after the agent's click) belongs to the gateway call that opened the send — `origin`, the
+// browser's token of that call ({ call, done }) — not to the call in progress when the request
+// leaves. A call that has already returned lends no signal : cancelling the next call never takes
+// that card back. Without an origin, the call in progress, as before.
+export function approvalCall(origin, current) {
+  if (origin?.call)
+    return { call: origin.call, signal: origin.done ? undefined : origin.call.signal };
+  return { call: current, signal: current?.signal };
+}

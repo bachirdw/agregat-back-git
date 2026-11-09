@@ -193,7 +193,10 @@ test('Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn aut
   await clickRef(gateway, '#apply');
   assert.equal(provider.actions.filter((x) => x.id === 'browser.click').length, 1);
   assert.equal(decisions, 2);
-  provider.submissionPreview = async () => ({ fields: [randomUUID()] });
+  // Audit du 10/11 (constat 9) : seul un champ saisi par l'agent (ou la cible) qui change compte.
+  provider.submissionPreview = async () => ({
+    fields: [{ name: 'nom', type: 'text', agent: true, value: randomUUID() }],
+  });
   await assert.rejects(clickRef(gateway, '#apply'), /modifié/);
   provider.url = 'https://www.linkedin.com/in/fictif/';
   provider.pages[provider.url] = provider.pages[url];

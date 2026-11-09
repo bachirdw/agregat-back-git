@@ -1191,34 +1191,66 @@ export class CdpBrowser {
     const handle = await this.targetLocator(target);
     return handle.evaluate(describeElement);
   }
-  // Audit du 10/11 (constat 14) : what Enter in this field would do to its form, by the browser's
-  // implicit submission : null when it submits nothing, else the description of the form's default
-  // button ({ implicit: true } for a lone field without one).
-  async enterSubmitter(target) {
+  // Audit du 10/11 (constat 14), relecture fix5 (constat 1) : what Enter on this element may do.
+  // - { kind: 'control' } : Enter activates the element itself (a button, a link, an ARIA control) ;
+  // - { kind: 'form', submitter, implicit, method, autocomplete, multiline } : a field of a form ;
+  //   `submitter` describes the form's default button (null when there is none or it is disabled),
+  //   `implicit` a lone text field that submits its form without a button ;
+  // - { kind: 'message', autocomplete } : a textarea or a contenteditable outside any form ;
+  // - { kind: 'field', autocomplete } : any other field outside a form.
+  async enterContext(target) {
     if (!this.page) return null;
-    const handle = await (
-      await this.targetLocator(target)
-    ).evaluateHandle((el) => {
-      const blocking =
+    const locator = await this.targetLocator(target);
+    const context = await locator.evaluate((el) => {
+      const textLike =
         /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
-      if (!(el instanceof HTMLInputElement) || !blocking.test(el.type) || !el.form) return null;
-      const elements = Array.from(el.form.elements);
-      const button = elements.find(
+      const submitControl = (f) =>
+        (f instanceof HTMLButtonElement && f.type === 'submit') ||
+        (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type));
+      const role = (el.getAttribute('role') ?? '').toLowerCase();
+      const popup = el.getAttribute('aria-haspopup');
+      const autocomplete =
+        ['combobox', 'searchbox', 'listbox', 'spinbutton'].includes(role) ||
+        (!!el.getAttribute('aria-autocomplete') &&
+          el.getAttribute('aria-autocomplete') !== 'none') ||
+        (el instanceof HTMLInputElement && !!el.getAttribute('list')) ||
+        el.hasAttribute('aria-expanded') ||
+        (!!popup && popup !== 'false');
+      const multiline = el instanceof HTMLTextAreaElement || el.isContentEditable;
+      const field =
+        (el instanceof HTMLInputElement &&
+          !['submit', 'image', 'button', 'reset'].includes(el.type)) ||
+        el instanceof HTMLSelectElement ||
+        multiline;
+      if (!field) return { kind: 'control' };
+      const form = el.form ?? el.closest('form');
+      if (!form) return { kind: multiline ? 'message' : 'field', autocomplete };
+      const elements = Array.from(form.elements);
+      const button = elements.find(submitControl);
+      const implicit =
+        !button &&
+        el instanceof HTMLInputElement &&
+        textLike.test(el.type) &&
+        elements.filter((f) => f instanceof HTMLInputElement && textLike.test(f.type)).length === 1;
+      return {
+        kind: 'form',
+        autocomplete,
+        multiline,
+        implicit,
+        method: String(form.method || 'get').toLowerCase(),
+        hasButton: !!button && !button.disabled,
+      };
+    });
+    if (context.kind !== 'form' || !context.hasButton) return context;
+    const handle = await locator.evaluateHandle((el) =>
+      Array.from((el.form ?? el.closest('form')).elements).find(
         (f) =>
           (f instanceof HTMLButtonElement && f.type === 'submit') ||
           (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
-      );
-      if (button) return button.disabled ? null : button;
-      const fields = elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type));
-      return fields.length === 1 ? el.form : null;
-    });
+      ),
+    );
     try {
-      const kind = await handle.evaluate((node) =>
-        node instanceof HTMLFormElement ? 'form' : node ? 'button' : null,
-      );
-      if (!kind) return null;
-      if (kind === 'form') return { implicit: true, tag: 'form', inForm: true, text: '' };
-      return await handle.evaluate(describeElement);
+      return { ...context, submitter: await handle.evaluate(describeElement) };
     } finally {
       await handle.dispose().catch(() => {});
     }
@@ -1315,11 +1347,24 @@ export class CdpBrowser {
         }
         const blocking =
           /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
+        // Relecture fix5 (constat 1) : Enter on a native button or link is a click on it, as a
+        // visible tab would do (the gateway classified it as that click) ; on a box of a form, the
+        // form's default button submits it, as Chrome does.
         if (
           !down.defaultPrevented &&
           key === 'Enter' &&
+          !keep &&
+          (el instanceof HTMLButtonElement ||
+            (el instanceof HTMLAnchorElement && el.hasAttribute('href')) ||
+            (el instanceof HTMLInputElement &&
+              ['submit', 'image', 'button', 'reset'].includes(el.type)))
+        )
+          el.click();
+        else if (
+          !down.defaultPrevented &&
+          key === 'Enter' &&
           el instanceof HTMLInputElement &&
-          blocking.test(el.type) &&
+          (blocking.test(el.type) || ['checkbox', 'radio'].includes(el.type)) &&
           el.form
         ) {
           const elements = Array.from(el.form.elements);
@@ -1329,6 +1374,7 @@ export class CdpBrowser {
               (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
           );
           const lone =
+            blocking.test(el.type) &&
             elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type))
               .length === 1;
           if ((button && !button.disabled) || (!button && lone)) {
@@ -2002,10 +2048,13 @@ export class CdpBrowser {
         let guard = null;
         if (enter) {
           this.sendGrant = args.sendApproved === true;
+          // Relecture fix5 (constat 1) : an Enter the gateway did not classify is a doubt : any
+          // write it triggers from the page waits for the owner's card.
+          const kind = args.sendApproved === true ? null : (args.clickKind ?? 'candidate');
           this.sendClick =
-            args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
+            args.sendApproved === true || args.formStep === true || kind === 'candidate';
           this.formStep = args.formStep === true;
-          this.clickKind = args.clickKind ?? 'plain';
+          this.clickKind = kind;
           this.clickPage = pageKey(page.url());
           this.clickApproved = args.sendApproved === true;
           this.clickToken = this.callToken;

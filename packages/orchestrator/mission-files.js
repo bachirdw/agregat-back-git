@@ -40,3 +40,8 @@ export function copyMissionFiles(career, ids, cwd) {
 
 export const MISSION_FILES_RULE =
   'Pièces jointes de la mission (champ attachments) : chaque fichier est dans le dossier de mission, à son chemin relatif `path` (texte extrait dans `textPath` pour un PDF ou un DOCX). Pour joindre un fichier à un formulaire, appelle browser_upload avec ce `path` tel quel.';
+
+// Audit EN du 10/11 : l'agent avait écrit /tmp/apply-answers-005.json (nom, e-mail) par son outil
+// natif. Une consigne seulement, aucune interdiction : le mode propriétaire n'ajoute pas de restriction.
+export const WORK_FILES_RULE =
+  'Fichiers de travail (brouillons, JSON intermédiaires) : dans le dossier de la mission ou sous `output/` de l’espace career-ops, jamais dans /tmp.';

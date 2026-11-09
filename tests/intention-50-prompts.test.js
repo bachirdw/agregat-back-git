@@ -9,8 +9,8 @@ import { getPack } from '../packages/orchestrator/packs.js';
 // (« Postule », « Candidate à », « Apply to », « envoie ma candidature ») fait gagner apply ; à
 // l'infinitif après « je veux / je vais / pour », à l'indicatif (« je postule ») ou comme adjectif
 // (« je suis candidate »), il ne passe pas devant une demande de CV, de lettre, de LinkedIn ou d'e-mail.
-// Les cas anglais déjà en écart avant la nuit (« Write a cover letter for this job » → search,
-// « … before I apply » → apply) ne sont pas traités ici.
+// Audit EN du 10/11 : les écarts anglais d'avant la nuit (« Write a cover letter for this job » →
+// search, « … before I apply » → apply) sont corrigés ; voir aussi intention-anglais.test.js.
 const PROMPTS = [
   ['Postule à cette offre https://acme.com/jobs/1 avec mon CV', 'apply', 'apply', 'apply'],
   ['Postule chez Acme et joins mon CV adapté, clique sur Envoyer', 'documents', 'apply', 'apply'],
@@ -60,13 +60,23 @@ const PROMPTS = [
   ['Génère mon CV en PDF', null, null, null],
   ['Apply to this job https://acme.com/jobs/3', 'apply', 'apply', 'apply'],
   ['Apply for the backend role at Acme with my resume', 'apply', 'apply', 'apply'],
-  ['Tailor my CV to apply for this role https://acme.com/jobs/3', 'apply', 'apply', 'apply'],
-  ['Write a cover letter to apply for this job https://acme.com/jobs/3', 'apply', 'apply', 'apply'],
-  ['Write a cover letter for this job https://acme.com/jobs/3', 'search', 'search', 'search'],
-  ['Evaluate this offer before I apply https://acme.com/jobs/3', 'apply', 'apply', 'apply'],
-  ['Should I apply to this job? https://acme.com/jobs/3', 'apply', 'apply', 'apply'],
-  ['Draft a LinkedIn message to the recruiter before I apply to Acme', 'apply', 'apply', 'apply'],
-  ['Send an email to the recruiter to apply for the job', 'apply', 'apply', 'apply'],
+  ['Tailor my CV to apply for this role https://acme.com/jobs/3', 'apply', 'apply', 'documents'],
+  [
+    'Write a cover letter to apply for this job https://acme.com/jobs/3',
+    'apply',
+    'apply',
+    'documents',
+  ],
+  ['Write a cover letter for this job https://acme.com/jobs/3', 'search', 'search', 'documents'],
+  ['Evaluate this offer before I apply https://acme.com/jobs/3', 'apply', 'apply', 'evaluate'],
+  ['Should I apply to this job? https://acme.com/jobs/3', 'apply', 'apply', 'evaluate'],
+  [
+    'Draft a LinkedIn message to the recruiter before I apply to Acme',
+    'apply',
+    'apply',
+    'linkedin',
+  ],
+  ['Send an email to the recruiter to apply for the job', 'apply', 'apply', 'email'],
   ['Send my application by email to jobs@acme.com', 'search', 'apply', 'apply'],
   ['Submit my application on Workday https://acme.wd1.myworkdayjobs.com/x', null, 'apply', 'apply'],
   ['Je suis candidate au poste de data analyst, adapte mon CV', 'documents', 'apply', 'documents'],
@@ -76,8 +86,8 @@ const PROMPTS = [
   ['Prépare un e-mail de candidature pour Acme', 'email', 'email', 'email'],
   ['Rédige un message LinkedIn pour postuler chez Acme', 'linkedin', 'linkedin', 'linkedin'],
   ['Candidate chez Acme avec mon CV', null, 'apply', 'apply'],
-  ['Score this job and if good apply for it https://acme.com/jobs/5', 'apply', 'apply', 'apply'],
-  ["Write a cover letter showing I'm the ideal candidate for Acme", null, 'apply', null],
+  ['Score this job and if good apply for it https://acme.com/jobs/5', 'apply', 'apply', 'evaluate'],
+  ["Write a cover letter showing I'm the ideal candidate for Acme", null, 'apply', 'documents'],
   ['Rédige un e-mail au recruteur pour dire que je suis candidate', null, 'apply', null],
   [
     'Adapte mon CV : je candidate chez Acme la semaine prochaine',
@@ -91,10 +101,10 @@ const PROMPTS = [
     'Find the recruiter on LinkedIn and message them that I want to apply to Acme',
     'apply',
     'apply',
-    'apply',
+    'linkedin',
   ],
-  ['Write an email to the hiring manager, I plan to apply for the role', 'apply', 'apply', 'apply'],
-  ['Tailor my resume, I will apply on Monday', 'apply', 'apply', 'apply'],
+  ['Write an email to the hiring manager, I plan to apply for the role', 'apply', 'apply', 'email'],
+  ['Tailor my resume, I will apply on Monday', 'apply', 'apply', 'documents'],
   ['Envoie un message LinkedIn : je postule chez vous', 'linkedin', 'apply', 'linkedin'],
   [
     "Rédige un brouillon d'e-mail : je souhaite postuler au poste de data engineer",
@@ -118,5 +128,6 @@ test('relecture 10/11 : les dix régressions de la nuit reviennent à leur inten
     ([, before, night, now]) => night === 'apply' && before !== 'apply' && now !== 'apply',
   );
   assert.equal(regressions.length, 9);
-  for (const [prompt, before, , now] of regressions) assert.equal(now, before, prompt);
+  // Avant la nuit sans intention (null) : le manifeste anglais en donne une (audit EN), sans régression.
+  for (const [prompt, before, , now] of regressions) if (before) assert.equal(now, before, prompt);
 });

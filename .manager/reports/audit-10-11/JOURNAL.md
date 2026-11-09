@@ -115,3 +115,12 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   postule » qui écrit deux fois → une carte, iframe d'un autre site → écriture tracée, accord limité au site de la
   cible (deux POST vers un autre site cartés). Reste signalé : envoi par WebSocket non intercepté en mode propriétaire
   (défaut antérieur à la nuit) ; `target=_blank` sur le vrai relais non vérifié.
+- 04:03-04:14 — **démos finales** (code fusionné) : career-ops abd7b126 `completed` en 5 min (une question, une carte,
+  CV adapté reçu) ; sans Skill `completed` en 60 s ; sans Skill + CV FICTIF `completed` en 55 s (CV reçu par la page).
+- 04:12 — correctif du manager 84babfb (vu dans abd7b126) : `application-answers.mjs` (nom avec extension) refusé
+  « non autorisée » en mode propriétaire → admis ; `find` sans résultat (code 1, `[]`) levait une erreur → rendu avec
+  son code, verdict au Bilan. Outil de démo : mode `libre-cv`, CV FICTIF fourni (3a181d5).
+- 04:17 — API 4312, front 5175 et page FICTIVE 4321 relancés dans des onglets du terminal (survivent à la session) ;
+  copie career-ops remise à neuf. Worktrees et branches temporaires des correcteurs retirés (tous fusionnés).
+- 04:24 — **suite complète finale verte** sur le commit final : 1003 unitaires (1001 ✔, 2 ignorés), 193/193 Chrome,
+  contrôle et format. Synthèse du matin : `SYNTHESE.md`.

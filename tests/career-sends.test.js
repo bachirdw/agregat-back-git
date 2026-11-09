@@ -336,3 +336,34 @@ test('email_send : destinataire absent des sources refusé hors mode propriétai
   assert.equal(result.sent, false);
   assert.equal(result.draft, draft.id);
 });
+
+test('linkedin_draft : les sous-domaines de pays (fr.linkedin.com) sont admis, les faux domaines refusés', () => {
+  const text = 'Bonjour FICTIF';
+  assert.equal(
+    linkedInDraft({ url: 'https://fr.linkedin.com/in/fictif', text }).manualSendOnly,
+    true,
+  );
+  assert.equal(
+    linkedInDraft({ url: 'https://www.linkedin.com/in/fictif', text }).manualSendOnly,
+    true,
+  );
+  for (const url of [
+    'https://linkedin.com.example.test/in/fictif',
+    'https://evil-linkedin.com/in/fictif',
+    'https://a.b.linkedin.com/in/fictif',
+  ])
+    assert.throws(() => linkedInDraft({ url, text }), /LinkedIn/, url);
+});
+
+test('EmailGateway : un CAREER_SMTP_HOST sans CAREER_SMTP_FROM ne casse pas la construction, seul l’envoi échoue', async (t) => {
+  const career = fixture(t);
+  const saved = { ...process.env };
+  t.after(() => {
+    for (const key of ['CAREER_SMTP_HOST', 'CAREER_SMTP_FROM'])
+      saved[key] === undefined ? delete process.env[key] : (process.env[key] = saved[key]);
+  });
+  process.env.CAREER_SMTP_HOST = '127.0.0.1';
+  delete process.env.CAREER_SMTP_FROM;
+  const gateway = new EmailGateway({ career });
+  await assert.rejects(gateway.send(email()), /Configuration SMTP invalide/);
+});

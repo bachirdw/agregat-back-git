@@ -240,7 +240,14 @@ export function gatewayProgress(name, status, args, result) {
   // from « the tool failed » (spawn error, timeout, cancel : no exit code, the gateway raised).
   const exitCode =
     name === 'career_script' && status === 'failed' ? scriptExitCode(result) : undefined;
-  return exitCode === undefined ? withArgs : { ...withArgs, exitCode };
+  if (exitCode === undefined) return withArgs;
+  return VERDICT_SCRIPTS.has(withArgs.argument)
+    ? {
+        ...withArgs,
+        exitCode,
+        verdictOutput: scriptVerdictOutput(withArgs.argument, scriptText(result?.content)),
+      }
+    : { ...withArgs, exitCode };
 }
 function scriptExitCode(result) {
   try {
@@ -255,6 +262,55 @@ function scriptExitCode(result) {
 // and 128+ (killed by a signal) are the tool's breakdown, never a verdict.
 const scriptAnswered = (exitCode) =>
   Number.isInteger(exitCode) && exitCode >= 1 && exitCode <= 125 && exitCode !== TIMEOUT_EXIT;
+// Relecture du 10/11 (constat 4) : an exit code 1-125 is also what a usage error or a crash of the
+// script gives (precheck-duplicate without --company, check-liveness without a tracker, find with
+// an unknown flag, verify-cv-facts on a missing file). A verdict needs the script's own verdict
+// output as well (messages read in the Skill's scripts, never modified); otherwise it is a breakdown.
+const STACK_TRACE = /^\s+at\s.+(?::\d+:\d+\)?|\(native\))\s*$/m;
+const VERDICT_OUTPUT = {
+  // check-liveness.mjs : « Results: N active  N expired  N uncertain » with an expired or uncertain one.
+  'check-liveness': (text) => {
+    const m = text.match(/^Results:\s+\d+\s+active\s+(\d+)\s+expired\s+(\d+)\s+uncertain/m);
+    return !!m && Number(m[1]) + Number(m[2]) > 0 && !/^Fatal:/m.test(text);
+  },
+  // precheck-duplicate.mjs : « Possible duplicate(s) in the tracker », or its --json candidates.
+  'precheck-duplicate': (text) => {
+    if (/^Possible duplicate\(s\) in the tracker/m.test(text)) return true;
+    try {
+      const value = JSON.parse(text);
+      return Array.isArray(value?.candidates) && value.candidates.length > 0;
+    } catch {
+      return false;
+    }
+  },
+  // verify-cv-facts.mjs : « CV fact check failed: … », or its --json verdict « block » without errors.
+  [FACT_GATE]: (text) => {
+    if (/^CV fact check failed: /m.test(text)) return true;
+    try {
+      const value = JSON.parse(text);
+      return (
+        value?.verdict === 'block' && !(Array.isArray(value.errors) && value.errors.length > 0)
+      );
+    } catch {
+      return false;
+    }
+  },
+  // find.mjs : « No application matches "…" », or `[]` with --json.
+  find: (text) => {
+    if (/^No application matches "/m.test(text)) return true;
+    try {
+      const value = JSON.parse(text);
+      return Array.isArray(value) && value.length === 0;
+    } catch {
+      return false;
+    }
+  },
+};
+export function scriptVerdictOutput(argument, text) {
+  const output = String(text ?? '').trim();
+  const looks = VERDICT_OUTPUT[argument];
+  return !!looks && !!output && !STACK_TRACE.test(output) && looks(output);
+}
 function callProgress(name, status, args, result) {
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
@@ -582,6 +638,7 @@ export function createTurnTruth({ root, seed } = {}) {
         facts,
         scan: scanRows,
         contactSaved,
+        verdictOutput,
       } = {},
     ) {
       if (
@@ -597,7 +654,8 @@ export function createTurnTruth({ root, seed } = {}) {
         status === 'failed' &&
         name === 'career_script' &&
         VERDICT_SCRIPTS.has(argument) &&
-        scriptAnswered(exitCode);
+        scriptAnswered(exitCode) &&
+        verdictOutput === true;
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),
         name,

@@ -526,6 +526,8 @@ export function createApp({
               typeof body.scoredUrl === 'string' ? body.scoredUrl.slice(0, 2048) : undefined,
             argument: typeof body.argument === 'string' ? body.argument.slice(0, 60) : undefined,
             exitCode: Number.isInteger(body.exitCode) ? body.exitCode : undefined,
+            // Relecture du 10/11 (constat 4) : the script printed its own verdict (gatewayProgress).
+            verdictOutput: body.verdictOutput === true,
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,

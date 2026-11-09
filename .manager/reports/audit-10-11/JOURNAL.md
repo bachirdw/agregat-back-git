@@ -83,3 +83,12 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   quitter le formulaire. **À trancher par le propriétaire** : une grosse écriture réseau (> 100 ko) qu'aucun accord ne
   couvre demande maintenant une carte (avant : annulée sans trace) — à observer sur Gmail (brouillon avec pièce jointe).
   Suite complète relancée.
+- 02:23 — **suite complète verte sur a992379** (tout fusionné) : 986 unitaires (984 ✔, 2 ignorés), **177/177 Chrome**,
+  contrôle et format.
+- 02:23-02:28 — **Démo 1 (career-ops)**, mission d37620d2 : `completed` en 4 min 30 s, une carte, CV adapté reçu ;
+  Bilan sans aucune action échouée ni écart d'ordre. Noté : l'agent a écrit `/tmp/apply-answers-005.json` (réponses du
+  formulaire avec nom et e-mail) par son outil natif ; le Bilan le dit (« 1 écriture hors du dossier de la mission »).
+- 02:28-02:29 — **Démo 2 (sans Skill)**, `completed` en 60 s, une carte, HTTP 200 vu.
+- 02:30-02:31 — **Démo 3 (sans Skill, CV FICTIF joint)**, mission 24331394 : CV téléversé par `/api/files`, mission
+  restée en pack `core`, la page fictive a reçu `cv-alex-martin-FICTIF.pdf`, `completed`, envoi approuvé au Bilan.
+- 02:36 — relecture indépendante du diff complet de la nuit lancée (deux relecteurs, lecture seule).

@@ -39,6 +39,9 @@ export class Store extends EventEmitter {
         this.update(run.id, {
           state: 'interrupted',
           error: 'Serveur arrêté pendant l’exécution ; relancer explicitement.',
+          // E75 : an open question had set `resumable: false` ; « relancer explicitement » holds only
+          // if the run can be resumed, which its agent session decides (as when a question closes).
+          resumable: !!run.sessionId,
           // The agent's turn is gone with the process: the open question is closed, but stays quoted.
           ...(run.pendingQuestion
             ? {

@@ -621,3 +621,38 @@ test('redémarrage pendant une question : interrupted, question citée dans le r
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// E75 (constaté le 09/11, mission bbfd6929 : question « enregistrer le contact ? » ouverte au
+// redémarrage) : une question ouverte met `resumable: false` (openNext) ; au redémarrage la mission
+// passait `interrupted` avec « relancer explicitement », sans rétablir le drapeau : la reprise
+// répondait « Session non reprenable », et la réponse du propriétaire ne pouvait plus être portée.
+// Comme à la fermeture normale d'une question (`resumable: !!sessionId`), une mission interrompue
+// est reprenable dès qu'elle a une session d'agent ; sans session, elle ne l'est pas.
+test('E75 FICTIF : interrompue pendant une question, une mission avec session reste reprenable', () => {
+  const root = mkdtempSync(join(tmpdir(), 'elicitation-FICTIF-'));
+  try {
+    const file = join(root, 'db.sqlite');
+    const first = new Store(file);
+    const asked = randomUUID();
+    first.create({
+      id: asked,
+      state: 'awaiting_owner',
+      sessionId: 'session-fictive',
+      resumable: false,
+      pendingQuestion: { id: 'q', kind: 'form', message: 'Enregistrer le contact FICTIF ?' },
+      prompt: 'FICTIF',
+    });
+    const fresh = randomUUID();
+    first.create({ id: fresh, state: 'running', resumable: false, prompt: 'FICTIF' });
+    first.db.close();
+    const second = new Store(file);
+    assert.equal(second.get(asked).state, 'interrupted');
+    assert.equal(second.get(asked).resumable, true);
+    // Jamais de session (arrêt avant l'ouverture de l'agent) : rien à reprendre.
+    assert.equal(second.get(fresh).state, 'interrupted');
+    assert.equal(second.get(fresh).resumable, false);
+    second.db.close();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

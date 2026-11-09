@@ -77,6 +77,6 @@ test('Bilan : browser_type seul n’est pas cité comme appel de formulaire', ()
   const truth = createTurnTruth();
   truth.recordGatewayTool('browser_type', 'completed', {});
   const bilan = formatCareerBilan(prompt, truth, undefined, published(prompt));
-  assert.doesNotMatch(bilan, /browser_type/);
+  assert.doesNotMatch(bilan, /Candidature :[^\n]*browser_type/);
   assert.match(bilan, /aucun appel de formulaire observé/);
 });

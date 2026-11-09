@@ -95,8 +95,11 @@ export function missionDocumentHint(workspace, max = 12) {
 // usage and marks every page-derived output as untrusted content (prompt-injection boundary).
 // Audit du 10/11 (constat 9) : what must not change while the owner decides on a send : where it
 // goes (action, method, encoding), the fields the agent filled (their value) and the attached
-// files. The page's title, a token it renews, a counter, a field it adds are not the owner's
-// decision : comparing them refused the approval, and could loop.
+// files. Relecture fix5 (constat 10) : and the rest of the form the owner approves : the list of
+// its fields (name, type), the value of the visible fields the agent did not fill, a digest of the
+// hidden ones. Only the tokens a page renews by itself (anti-robot, CSRF, nonce) and the page's
+// title are left out : comparing them refused approvals, and could loop.
+const RENEWED_FIELD = /token|csrf|xsrf|captcha|nonce|turnstile|g-recaptcha|h-captcha/i;
 export function formFingerprint(preview) {
   if (!preview) return preview ?? null;
   return {
@@ -104,12 +107,14 @@ export function formFingerprint(preview) {
     method: preview.method ?? null,
     enctype: preview.enctype ?? null,
     fields: (preview.fields ?? [])
-      .filter((field) => field.agent || field.files?.length)
+      .filter((field) => field.agent || !RENEWED_FIELD.test(String(field.name ?? '')))
       .map((field) => ({
         name: field.name,
         type: field.type,
-        value: field.agent ? field.value : undefined,
-        checked: field.agent ? field.checked : undefined,
+        value:
+          field.agent || (!field.hidden && field.type !== 'password') ? field.value : undefined,
+        digest: field.agent ? undefined : field.digest,
+        checked: field.checked,
         files: (field.files ?? []).map((file) => [file.name, file.size]),
       })),
   };

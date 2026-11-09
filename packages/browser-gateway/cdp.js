@@ -1456,6 +1456,22 @@ export class CdpBrowser {
               type: x.type,
             })),
             ...(agentFields.includes(f.name || f.id) ? { agent: true } : {}),
+            // Relecture fix5 (constat 10) : what the check after the owner's decision compares
+            // for a field the agent did not fill : shown or not, and a short digest of a hidden
+            // value (never the value itself).
+            ...(f.type === 'hidden' ||
+            f.hidden ||
+            !(f.offsetWidth || f.offsetHeight || f.getClientRects().length)
+              ? { hidden: true }
+              : {}),
+            ...(f.type === 'hidden' || (f.type !== 'password' && f.hidden)
+              ? {
+                  digest: Array.from(String(f.value)).reduce(
+                    (h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0,
+                    7,
+                  ),
+                }
+              : {}),
           })),
         };
       },

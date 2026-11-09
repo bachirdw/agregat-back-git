@@ -573,6 +573,57 @@ test(
   },
 );
 
+const changingForm = `<form action="/candidature" method="post">
+  <input id="nom" name="nom" aria-label="Nom">
+  <input id="dest" name="destinataire" aria-label="Destinataire" value="recruteur@example.test">
+  <textarea id="jeton" name="g-recaptcha-response" hidden>jeton-1</textarea>
+  <button type="submit">Envoyer ma candidature</button>
+</form>`;
+
+test(
+  'Relecture 10 : un champ que l’agent n’a pas saisi, modifié ou ajouté pendant l’accord, fait refuser l’envoi',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(t, changingForm);
+    let during = async () => {};
+    const { gateway, provider } = await owner(t, origin, async () => {
+      await during();
+      return true;
+    });
+    const fill = async () => {
+      await gateway.call('browser.navigate', { url: origin });
+      await gateway.call('browser.type', { ref: await refFor(gateway, '#nom'), text: 'FICTIF' });
+    };
+    await fill();
+    during = () =>
+      provider.page.evaluate(() => (document.getElementById('dest').value = 'autre@example.test'));
+    await assert.rejects(
+      gateway.call('browser.click', { ref: await refFor(gateway, 'button') }),
+      /Formulaire modifié/,
+    );
+    await fill();
+    during = () =>
+      provider.page.evaluate(() => {
+        const extra = document.createElement('input');
+        extra.type = 'hidden';
+        extra.name = 'transmettre_a';
+        extra.value = 'tiers@example.test';
+        document.querySelector('form').append(extra);
+      });
+    await assert.rejects(
+      gateway.call('browser.click', { ref: await refFor(gateway, 'button') }),
+      /Formulaire modifié/,
+    );
+    // Un jeton anti-robot renouvelé ne fait pas refuser.
+    await fill();
+    during = () =>
+      provider.page.evaluate(() => (document.getElementById('jeton').value = 'jeton-2'));
+    await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    await settle(lines);
+    assert.deepEqual(lines(), ['POST /candidature']);
+  },
+);
+
 test(
   'Relecture 11 : l’écouteur « submit » posé pour Entrée d’autocomplétion est retiré même si la touche échoue',
   { skip },

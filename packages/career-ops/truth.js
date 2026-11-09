@@ -709,7 +709,7 @@ const FIELD_MAIL = new RegExp(
 );
 const SEND_WORD = /\b(?:envoi|envoie[sz]?|envoyer|envoyez|expédie[rz]?|send)\b/iu;
 const EMAIL_OF_APPLICATION = new RegExp(
-  String.raw`\b${MAIL}\s+(?:de\s+)?candidature\b|\bapplication\s+${MAIL}\b`,
+  String.raw`\b${MAIL}\s+(?:de\s+)?candidatures?\b|\b(?:job\s+)?applications?\s+${MAIL}\b`,
   'giu',
 );
 const MAIL_WORD = new RegExp(String.raw`\b${MAIL}\b`, 'iu');
@@ -723,8 +723,15 @@ function emailSendRequested(text) {
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,
 // optional, exempt): a step neither optional nor waived that never ran is said as missing.
 export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), skillSteps = []) {
+  // A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
+  // « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
+  // mais envoie l'email » keeps « envoie l'email ».
+  const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
   const requested = prompt.replace(
-    /(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu,
+    new RegExp(
+      String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
+      'giu',
+    ),
     ' ',
   );
   const outcomes = truth.toolOutcomes();
@@ -775,7 +782,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
     }
   }
   const missing = [];
-  const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(requested);
+  const offerContext =
+    /\b(?:offres?|annonces?|postes?|emplois?|jobs?|offers?|postings?|listings?)\b/iu.test(
+      requested,
+    );
   // Essai ae98fa16 (09/11) : « l'e-mail de candidature » (modes/email.md) asks for no form.
   const formRequest = requested.replace(EMAIL_OF_APPLICATION, ' ');
   // Essai 25d47b55 (09/11), as bilan-06 (E48) did for the inbox : with an intent selected, an
@@ -785,7 +795,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const due = (label) => !skillSteps.length || declares(label);
   if (
     due(APPLICATION_PREPARED) &&
-    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(formRequest) &&
+    /\b(?:postul(?:e|er|ez|ons)|candidatur(?:es?|er)|apply|submit)\b/i.test(formRequest) &&
     ![...done].some((name) =>
       /^(?:browser_fillForm|browser_type|browser_check|browser_select|browser_upload)$/i.test(name),
     )
@@ -794,8 +804,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const evaluationRequested =
     due(EVALUATION_SAVED) &&
     offerContext &&
-    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(requested) &&
-    !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(
+    /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement|evaluate|score|rate|rank)(?=$|[^\p{L}])/iu.test(
+      requested,
+    ) &&
+    !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b|\b(?:don['’]?t|do not|without)\s+(?:save|saving|record|recording)\b)/iu.test(
       prompt,
     );
   if (evaluationRequested && !proved(manifest, truth, EVALUATION_SAVED))

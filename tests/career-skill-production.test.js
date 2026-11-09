@@ -60,7 +60,7 @@ test('career_write : data/pdf-index.tsv et data/applications.md ne s’écrivent
   ])
     assert.throws(() => tools.write(path, 'FICTIF'), /périmètre|reports\//, path);
   // Lecture de l'index PDF toujours possible (couche utilisateur du Skill).
-  assert.throws(() => tools.read('data/pdf-index.tsv'), /ENOENT/);
+  assert.equal(tools.read('data/pdf-index.tsv').absent, true);
 });
 
 // Point 4 : le Bilan lit « CV produit » et « lettre produite » dans le manifeste (proves) ; un

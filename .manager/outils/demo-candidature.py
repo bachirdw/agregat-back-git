@@ -4,6 +4,7 @@
 # toute autre carte est laissée en attente et le script s'arrête. Affiche le Bilan final.
 #
 #   python3 -I .manager/outils/demo-candidature.py <port> skill|libre [délai_s]
+#   python3 -I .manager/outils/demo-candidature.py <port> libre-cv <délai_s> <cv.pdf>   (sans Skill, CV joint)
 import json, sys, time, urllib.request
 
 port = sys.argv[1]
@@ -21,6 +22,9 @@ PROMPTS = {
     "disponibilité immédiate, motivation : deux phrases sur mon intérêt pour un poste d'ingénieur IA. "
     "Pas de CV à joindre. Va jusqu'au bout et clique sur Envoyer.",
 }
+PROMPTS['libre-cv'] = PROMPTS['libre'].replace(
+    'Pas de CV à joindre.', 'Joins le CV fourni en pièce jointe.'
+)
 
 
 def call(path, body=None):
@@ -35,6 +39,16 @@ def call(path, body=None):
 
 
 body = {'prompt': PROMPTS[mode], 'agent': 'claude', 'model': 'sonnet', 'browser': 'isolated'}
+if mode == 'libre-cv':
+    cv = sys.argv[4]
+    req = urllib.request.Request(
+        API + '/api/files',
+        method='POST',
+        headers={'x-platform-request': '1', 'x-file-name': cv.split('/')[-1], 'content-type': 'application/pdf'},
+        data=open(cv, 'rb').read(),
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        body['attachments'] = [json.loads(r.read())['id']]
 body.update({'pack': 'career-ops', 'workspace': 'career-ops'} if mode == 'skill' else {'pack': 'core'})
 run = call('/api/runs', body)
 rid = run.get('id') or run['run']['id']

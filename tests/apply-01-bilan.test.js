@@ -148,6 +148,30 @@ test('Bilan : CV adapté produit par generate-pdf puis joint → « CV joint : a
   assert.doesNotMatch(bilan, /cv-tailored|cv-fictif/, 'jamais le nom du fichier dans le Bilan');
 });
 
+test('Bilan : seule la lettre (cover) jointe dans le champ CV → pas « CV joint : adapté », « Lettre jointe » dit à part', async (t) => {
+  const { root, tools } = workspace(t);
+  const truth = trackAttachments(createTurnTruth({ root }), { root });
+  const args = ['--out', 'output/cover-fictif.pdf'];
+  call(
+    truth,
+    'c1',
+    'career_script',
+    { command: 'generate-cover-letter', args },
+    await tools.script({ command: 'generate-cover-letter', args }).catch(() => ({})),
+  );
+  call(
+    truth,
+    'c2',
+    'browser_upload',
+    { ref: 'e7', path: 'output/cover-fictif.pdf' },
+    { uploaded: 'cover-fictif.pdf' },
+  );
+  const bilan = formatCareerBilan('Postule à cette offre FICTIVE', truth);
+  assert.doesNotMatch(bilan, /CV joint : adapté/);
+  assert.match(bilan, /^- CV joint : aucun\.$/m);
+  assert.match(bilan, /^- Lettre jointe : oui\.$/m);
+});
+
 test('Bilan : PDF rendu par career_document depuis cv.md puis joint → « CV joint : brut »', async (t) => {
   const { root, career } = workspace(t);
   const truth = trackAttachments(createTurnTruth({ root }), { root });

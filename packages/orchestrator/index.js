@@ -1295,8 +1295,15 @@ export class Orchestrator {
           (previous || !/https?:\/\//i.test(run.prompt)) &&
           !browserToolObserved &&
           observed.length === 0;
-        if (!answeredWithoutNavigation && !observed.some(readableBrowserObservation))
-          throw new Error(browserObservationFailure(observed));
+        // Audit du 10/11 (constat 3) : checked once the agent has finished, an unproven navigation
+        // no longer throws the work away (a resumed « oui, envoie » may be one approved click and no
+        // capture) : the Bilan says it next to the agent's answer, which is kept.
+        const unproven = !answeredWithoutNavigation && !observed.some(readableBrowserObservation);
+        if (unproven) {
+          const warning = browserObservationFailure(observed);
+          this.store.event(run.id, 'browser_unproven', { message: warning.slice(0, 300) });
+          value.summary += `\nAvertissement — ${warning} Réponse de l’agent gardée : à vérifier.`;
+        }
         if (answeredWithoutNavigation) {
           const label = previous ? 'Réponse sans nouvelle navigation' : 'Réponse sans navigation';
           value.summary = `${label}. ${value.summary}`;
@@ -1304,8 +1311,9 @@ export class Orchestrator {
           value.evidence = [];
         } else {
           value.evidence = observed;
-          value.provenance.data =
-            plan.simulated || plan.dataMode === 'fixture' || run.browser === 'fixture'
+          value.provenance.data = unproven
+            ? 'navigation non prouvée'
+            : plan.simulated || plan.dataMode === 'fixture' || run.browser === 'fixture'
               ? 'navigateur simulé'
               : 'navigateur réel';
         }

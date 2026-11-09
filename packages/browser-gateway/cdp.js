@@ -405,6 +405,38 @@ async function prepareCapture(page, args) {
   };
 }
 
+// What the gateway and the policy read of an element (its action control : a field, or the
+// button or link around the node). Runs in the page.
+const describeElement = (el) => {
+  const field = el.matches('input, select, textarea, option, label');
+  const control = field ? el : (el.closest('button, a, [role="button"]') ?? el);
+  const form = control.form ?? control.closest('form');
+  return {
+    tag: control.tagName.toLowerCase(),
+    role: control.getAttribute('role'),
+    inputType: control.tagName === 'INPUT' ? control.type : null,
+    buttonType: control.tagName === 'BUTTON' ? control.type : null,
+    inForm: !!form,
+    formAction: form?.getAttribute('action') ?? null,
+    // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
+    // is its value, never a secret.
+    text: (
+      (control.tagName === 'INPUT' && ['submit', 'button', 'reset', 'image'].includes(control.type)
+        ? control.value || control.getAttribute('alt')
+        : control.innerText) ?? ''
+    ).slice(0, 200),
+    ariaLabel: control.getAttribute('aria-label'),
+    // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
+    ariaHasPopup: control.getAttribute('aria-haspopup'),
+    ariaExpanded: control.getAttribute('aria-expanded'),
+    // Values may contain passwords, card numbers or private data even on text inputs.
+    value: null,
+    href: control.getAttribute('href'),
+    target: control.getAttribute('target'),
+    autocomplete: control.getAttribute('autocomplete'),
+  };
+};
+
 export class CdpBrowser {
   #authorization = null;
   #boundPolicy = null;
@@ -1140,36 +1172,39 @@ export class CdpBrowser {
       return null;
     }
     const handle = await this.targetLocator(target);
-    return handle.evaluate((el) => {
-      const field = el.matches('input, select, textarea, option, label');
-      const control = field ? el : (el.closest('button, a, [role="button"]') ?? el);
-      const form = control.form ?? control.closest('form');
-      return {
-        tag: control.tagName.toLowerCase(),
-        role: control.getAttribute('role'),
-        inputType: control.tagName === 'INPUT' ? control.type : null,
-        buttonType: control.tagName === 'BUTTON' ? control.type : null,
-        inForm: !!form,
-        formAction: form?.getAttribute('action') ?? null,
-        // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
-        // is its value, never a secret.
-        text: (
-          (control.tagName === 'INPUT' &&
-          ['submit', 'button', 'reset', 'image'].includes(control.type)
-            ? control.value || control.getAttribute('alt')
-            : control.innerText) ?? ''
-        ).slice(0, 200),
-        ariaLabel: control.getAttribute('aria-label'),
-        // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
-        ariaHasPopup: control.getAttribute('aria-haspopup'),
-        ariaExpanded: control.getAttribute('aria-expanded'),
-        // Values may contain passwords, card numbers or private data even on text inputs.
-        value: null,
-        href: control.getAttribute('href'),
-        target: control.getAttribute('target'),
-        autocomplete: control.getAttribute('autocomplete'),
-      };
+    return handle.evaluate(describeElement);
+  }
+  // Audit du 10/11 (constat 14) : what Enter in this field would do to its form, by the browser's
+  // implicit submission : null when it submits nothing, else the description of the form's default
+  // button ({ implicit: true } for a lone field without one).
+  async enterSubmitter(target) {
+    if (!this.page) return null;
+    const handle = await (
+      await this.targetLocator(target)
+    ).evaluateHandle((el) => {
+      const blocking =
+        /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
+      if (!(el instanceof HTMLInputElement) || !blocking.test(el.type) || !el.form) return null;
+      const elements = Array.from(el.form.elements);
+      const button = elements.find(
+        (f) =>
+          (f instanceof HTMLButtonElement && f.type === 'submit') ||
+          (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
+      );
+      if (button) return button.disabled ? null : button;
+      const fields = elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type));
+      return fields.length === 1 ? el.form : null;
     });
+    try {
+      const kind = await handle.evaluate((node) =>
+        node instanceof HTMLFormElement ? 'form' : node ? 'button' : null,
+      );
+      if (!kind) return null;
+      if (kind === 'form') return { implicit: true, tag: 'form', inForm: true, text: '' };
+      return await handle.evaluate(describeElement);
+    } finally {
+      await handle.dispose().catch(() => {});
+    }
   }
   async submissionPreview(target) {
     if (!this.page) return null;
@@ -1195,6 +1230,82 @@ export class CdpBrowser {
       };
     });
     return { page: this.page.url(), title: await this.page.title(), ...fields };
+  }
+  // A key to an element : real keyboard input in a visible tab ; in a hidden tab (CDP keyboard
+  // input is dropped silently) DOM events for page scripts, and the browser's default action for
+  // Tab (focus the next field) and Enter (implicit submission of the form, unless `keep`) when the
+  // page did not prevent it.
+  async #press(target, key, hidden, keep) {
+    if (!hidden) {
+      await target.press(key, { timeout: Math.min(3000, this.navigationTimeoutMs) });
+      return { mode: 'keyboard' };
+    }
+    const done = await target.evaluate(
+      (el, { key, keep }) => {
+        el.focus();
+        const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
+        // Older widgets (jQuery UI autocomplete) still read keyCode/which.
+        const code = {
+          ArrowLeft: 37,
+          ArrowUp: 38,
+          ArrowRight: 39,
+          ArrowDown: 40,
+          Escape: 27,
+          Home: 36,
+          End: 35,
+          Tab: 9,
+          Enter: 13,
+        }[key];
+        const event = (type) => {
+          const e = new KeyboardEvent(type, init);
+          for (const name of ['keyCode', 'which'])
+            Object.defineProperty(e, name, { get: () => code });
+          return e;
+        };
+        const down = event('keydown');
+        el.dispatchEvent(down);
+        el.dispatchEvent(event('keyup'));
+        let submitBlocked = false;
+        if (!down.defaultPrevented && key === 'Tab') {
+          const focusable = Array.from(
+            document.querySelectorAll(
+              'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+            ),
+          );
+          focusable[focusable.indexOf(el) + 1]?.focus();
+        }
+        const blocking =
+          /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
+        if (
+          !down.defaultPrevented &&
+          key === 'Enter' &&
+          el instanceof HTMLInputElement &&
+          blocking.test(el.type) &&
+          el.form
+        ) {
+          const elements = Array.from(el.form.elements);
+          const button = elements.find(
+            (f) =>
+              (f instanceof HTMLButtonElement && f.type === 'submit') ||
+              (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
+          );
+          const lone =
+            elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type))
+              .length === 1;
+          if ((button && !button.disabled) || (!button && lone)) {
+            if (keep) submitBlocked = true;
+            else el.form.requestSubmit(button ?? undefined);
+          }
+        }
+        return { handled: down.defaultPrevented, submitBlocked };
+      },
+      { key, keep },
+    );
+    return {
+      mode: 'dom',
+      handled: done.handled,
+      ...(done.submitBlocked ? { submitBlocked: true } : {}),
+    };
   }
   #isHidden(page) {
     return page.evaluate(() => document.visibilityState === 'hidden');
@@ -1823,38 +1934,73 @@ export class CdpBrowser {
       case 'browser.press': {
         const target = await this.targetLocator({ ref: args.ref });
         const hidden = await this.#isHidden(page);
-        if (!hidden) {
-          await target.press(args.key, { timeout: Math.min(3000, this.navigationTimeoutMs) });
-          return { url: page.url(), key: args.key, mode: 'keyboard', hidden };
+        // Audit du 10/11 (constat 14) : Enter that submits a form is a click on its default
+        // button : the same send window (approved send, step, ordinary click). From an
+        // autocompletion (`guardSubmit`), a submission of the final send is retained and told.
+        const enter = args.key === 'Enter';
+        let guard = null;
+        if (enter) {
+          this.sendGrant = args.sendApproved === true;
+          this.sendClick =
+            args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
+          this.formStep = args.formStep === true;
+          this.clickKind = args.clickKind ?? 'plain';
+          this.clickPage = pageKey(page.url());
+          this.clickApproved = args.sendApproved === true;
+          this.clickToken = this.callToken;
+          this.blockedThirdParty = new Set();
+          this.writeInProgress = true;
+          if (args.guardSubmit === true)
+            guard = await target.evaluateHandle(() => {
+              let fired = false;
+              const stop = (event) => {
+                fired = true;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              };
+              window.addEventListener('submit', stop, true);
+              return {
+                fired: () => fired,
+                stop: () => window.removeEventListener('submit', stop, true),
+              };
+            });
         }
-        // A hidden tab drops CDP keyboard input silently: dispatch DOM events for page scripts.
-        // Browser default actions (text edit, focus move, implicit submission) are not reproduced,
-        // which is why the registry allows no Enter, Space or Tab.
-        const handled = await target.evaluate((el, key) => {
-          el.focus();
-          const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
-          // Older widgets (jQuery UI autocomplete) still read keyCode/which.
-          const code = {
-            ArrowLeft: 37,
-            ArrowUp: 38,
-            ArrowRight: 39,
-            ArrowDown: 40,
-            Escape: 27,
-            Home: 36,
-            End: 35,
-          }[key];
-          const event = (type) => {
-            const e = new KeyboardEvent(type, init);
-            for (const name of ['keyCode', 'which'])
-              Object.defineProperty(e, name, { get: () => code });
-            return e;
-          };
-          const down = event('keydown');
-          el.dispatchEvent(down);
-          el.dispatchEvent(event('keyup'));
-          return down.defaultPrevented;
-        }, args.key);
-        return { url: page.url(), key: args.key, mode: 'dom', hidden, handled };
+        let pressed;
+        try {
+          pressed = await this.#press(target, args.key, hidden, args.guardSubmit === true);
+        } finally {
+          if (enter) {
+            this.writeInProgress = false;
+            this.sendGrant = false;
+            this.lastClickEnd = Date.now();
+          }
+        }
+        let blocked = false;
+        if (guard) {
+          blocked = await guard.evaluate((value) => value.fired()).catch(() => false);
+          await guard.evaluate((value) => value.stop()).catch(() => {});
+          await guard.dispose().catch(() => {});
+        }
+        if (enter && args.sendApproved === true)
+          for (
+            let i = 0;
+            i < 30 && !this.submissions?.some((entry) => entry.origin === this.callToken);
+            i++
+          )
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        if (enter) await this.assertLanded(policy);
+        return {
+          url: page.url(),
+          key: args.key,
+          ...pressed,
+          hidden,
+          ...(blocked || pressed.submitBlocked
+            ? {
+                submitBlocked:
+                  'Entrée allait soumettre le formulaire d’envoi final depuis une liste : soumission retenue, rien n’a été envoyé. Pour envoyer, clique le bouton d’envoi (browser_click) : l’accord du propriétaire sera demandé.',
+              }
+            : {}),
+        };
       }
       case 'browser.upload': {
         const target = await this.targetLocator({ ref: args.ref });

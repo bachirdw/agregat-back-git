@@ -206,14 +206,28 @@ export const capabilities = [
     effect: 'write',
     meter: 'browser_action',
     description:
-      'Envoyer une touche de navigation (flèches, Échap, Début, Fin) à l’élément ref, par exemple dans une liste d’autocomplétion. En onglet caché, seuls les scripts de la page réagissent (pas d’action par défaut du navigateur) : pour un select natif, utilise browser_select ; pour valider, clique le bouton ; pour écrire, utilise browser_type.',
+      'Envoyer une touche à l’élément ref : flèches, Échap, Début, Fin, Tab (champ suivant) ou Entrée (valider une autocomplétion, une étape). Entrée qui soumettrait le formulaire d’envoi final est traitée comme le clic sur son bouton d’envoi (accord du propriétaire) ; depuis une liste d’autocomplétion, cette soumission est retenue et signalée (submitBlocked). Pour un select natif, utilise browser_select ; pour écrire, utilise browser_type.',
     schema: z
       .object({
         ref,
-        key: z.enum(['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Escape', 'Home', 'End'], {
-          error:
-            'Touche non autorisée : ArrowDown, ArrowUp, ArrowLeft, ArrowRight, Escape, Home ou End',
-        }),
+        // Audit du 10/11 (constat 14) : Tab and Enter validate autocompletions.
+        key: z.enum(
+          [
+            'ArrowDown',
+            'ArrowUp',
+            'ArrowLeft',
+            'ArrowRight',
+            'Escape',
+            'Home',
+            'End',
+            'Tab',
+            'Enter',
+          ],
+          {
+            error:
+              'Touche non autorisée : ArrowDown, ArrowUp, ArrowLeft, ArrowRight, Escape, Home, End, Tab ou Enter',
+          },
+        ),
       })
       .strict(),
   },

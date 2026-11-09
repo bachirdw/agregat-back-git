@@ -93,6 +93,9 @@ export function missionDocumentHint(workspace, max = 12) {
 // The gateway is the only path from agents to the browser. It validates arguments against the
 // capability contract, enforces the run policy, asks a human for write/sensitive actions, meters
 // usage and marks every page-derived output as untrusted content (prompt-injection boundary).
+// Roles of a field that opens a list (an autocompletion) : Enter there validates a suggestion.
+const WIDGET_INPUT_ROLES = new Set(['combobox', 'searchbox', 'listbox', 'spinbutton']);
+
 export class BrowserGateway {
   constructor({
     provider,
@@ -250,14 +253,40 @@ export class BrowserGateway {
       !element.inForm &&
       !element.formAction;
     if (ownerLink) sensitive = false;
-    const sending = clickKind
-      ? clickKind === 'submit'
-      : ['browser.click', 'browser.download'].includes(capabilityId) &&
-        !!element &&
-        !step &&
-        !ownerLink &&
-        (element.inForm ||
-          this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
+    // Audit du 10/11 (constat 14) : Enter in a field that would submit its form is a click on the
+    // form's default button, with the same classification : a card for the final send only. From
+    // an autocompletion (a list the key may only validate), no card : a submission of the final
+    // send it would cause is retained and told (cdp.js).
+    const submitter =
+      capabilityId === 'browser.press' && args.key === 'Enter' && element
+        ? await this.provider.enterSubmitter?.(target)
+        : null;
+    const pressKind = submitter
+      ? this.policy.ownerMode
+        ? submitter.implicit
+          ? 'plain'
+          : this.policy.ownerClickKind(submitter)
+        : this.policy.isFormStep(submitter)
+          ? 'step'
+          : 'submit'
+      : null;
+    const fromList =
+      !!element &&
+      (WIDGET_INPUT_ROLES.has(String(element.role ?? '').toLowerCase()) ||
+        (element.ariaExpanded !== null && element.ariaExpanded !== undefined) ||
+        (!!element.ariaHasPopup && element.ariaHasPopup !== 'false'));
+    const guardSubmit = pressKind === 'submit' && fromList;
+    const pressSends = pressKind === 'submit' && !fromList;
+    const sending = pressSends
+      ? true
+      : clickKind
+        ? clickKind === 'submit'
+        : ['browser.click', 'browser.download'].includes(capabilityId) &&
+          !!element &&
+          !step &&
+          !ownerLink &&
+          (element.inForm ||
+            this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     // apply-01 (E42, E26): a step click that still asks (outside owner mode) carries the same form
     // summary as a send, so the card can say « Suivant » with its action, multipart and attachment.
     const preview =
@@ -277,11 +306,16 @@ export class BrowserGateway {
           ...(sending || preview
             ? {
                 preview: preview
-                  ? { ...preview, submission: summarizeSubmission(preview, element) }
+                  ? {
+                      ...preview,
+                      submission: summarizeSubmission(preview, pressSends ? submitter : element),
+                    }
                   : preview,
               }
             : {}),
           element,
+          // Enter that sends : the card names the send button it stands for.
+          ...(pressSends ? { submitter } : {}),
           // Typed text of secret fields is never shown or stored.
           args:
             capabilityId === 'browser.type'
@@ -374,8 +408,10 @@ export class BrowserGateway {
         : {
             ...args,
             ...(sending ? { sendApproved: true } : {}),
-            ...(step ? { formStep: true } : {}),
+            ...(step || pressKind === 'step' ? { formStep: true } : {}),
             ...(clickKind ? { clickKind } : {}),
+            ...(pressKind && pressKind !== 'submit' ? { clickKind: pressKind } : {}),
+            ...(guardSubmit ? { guardSubmit: true } : {}),
           },
       this.policy,
     );

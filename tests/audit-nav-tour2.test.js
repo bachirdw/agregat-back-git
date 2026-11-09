@@ -224,3 +224,79 @@ test(
     ]);
   },
 );
+
+// Formulaire FICTIF d'envoi final, avec deux autocomplétions : l'une valide sur Entrée (et empêche
+// la soumission), l'autre laisse Entrée remonter au formulaire.
+const finalForm = `<form onsubmit="event.preventDefault(); fetch('/api/candidatures', { method: 'POST', body: '{}' })">
+  <input id="nom" name="nom" aria-label="Nom">
+  <input id="ville" name="ville" aria-label="Ville" role="combobox" aria-expanded="false">
+  <input id="ecole" name="ecole" aria-label="École" role="combobox" aria-expanded="true"
+    onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.value = 'École FICTIVE'; }">
+  <button type="submit">Envoyer ma candidature</button>
+</form>`;
+
+test(
+  'Constat 14 : Tab, Échap et Entrée d’autocomplétion passent sans carte ; Entrée qui soumettrait l’envoi final attend la carte',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, lines } = await site(t, finalForm);
+    let answer = false;
+    const { gateway, provider, sends } = await owner(t, origin, () => answer);
+    await gateway.call('browser.navigate', { url: origin });
+    const tab = await gateway.call('browser.press', {
+      ref: await refFor(gateway, '#nom'),
+      key: 'Tab',
+    });
+    assert.equal(tab.key, 'Tab');
+    assert.equal(await provider.page.evaluate(() => document.activeElement.id), 'ville');
+    await gateway.call('browser.press', { ref: await refFor(gateway, '#ville'), key: 'Escape' });
+    // L'autocomplétion valide sur Entrée : aucune carte, aucun envoi.
+    await gateway.call('browser.press', { ref: await refFor(gateway, '#ecole'), key: 'Enter' });
+    assert.equal(await provider.page.locator('#ecole').inputValue(), 'École FICTIVE');
+    // L'autocomplétion laisse Entrée soumettre : la soumission est retenue et dite, sans carte.
+    const kept = await gateway.call('browser.press', {
+      ref: await refFor(gateway, '#ville'),
+      key: 'Enter',
+    });
+    assert.match(kept.submitBlocked ?? '', /rien n’a été envoyé/);
+    await sleep(500);
+    assert.deepEqual(sends(), [], 'aucune carte pour Tab, Échap ou une autocomplétion');
+    assert.deepEqual(lines(), [], 'rien n’est parti');
+    // Entrée dans un champ du formulaire d'envoi final : c'est l'envoi, il attend la carte.
+    await assert.rejects(
+      gateway.call('browser.press', { ref: await refFor(gateway, '#nom'), key: 'Enter' }),
+      /Action refusée/,
+    );
+    assert.deepEqual(lines(), []);
+    answer = true;
+    await gateway.call('browser.press', { ref: await refFor(gateway, '#nom'), key: 'Enter' });
+    for (let i = 0; i < 100 && !lines().length; i++) await sleep(30);
+    assert.deepEqual(lines(), ['POST /api/candidatures']);
+    assert.deepEqual(
+      sends().map((r) => [r.capability, r.submitter?.text]),
+      [
+        ['browser.press', 'Envoyer ma candidature'],
+        ['browser.press', 'Envoyer ma candidature'],
+      ],
+      'une carte par Entrée d’envoi, au nom du bouton d’envoi',
+    );
+  },
+);
+
+test(
+  'Constat 14 : Entrée dans une étape (« Suivant ») passe sans carte, comme le clic sur « Suivant »',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      `<form onsubmit="event.preventDefault(); fetch('/api/etape', { method: 'POST', body: '{}' })">
+        <input id="nom" name="nom" aria-label="Nom"><button type="submit">Suivant</button></form>`,
+    );
+    const { gateway, sends } = await owner(t, origin, () => false);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.press', { ref: await refFor(gateway, '#nom'), key: 'Enter' });
+    for (let i = 0; i < 100 && !lines().length; i++) await sleep(30);
+    assert.deepEqual(lines(), ['POST /api/etape']);
+    assert.deepEqual(sends(), []);
+  },
+);

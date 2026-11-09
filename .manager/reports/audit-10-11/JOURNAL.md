@@ -109,3 +109,9 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   finit **`failed`** (réponse de l'agent gardée, Bilan « navigation non prouvée : aucun envoi constaté »), car
   `completed` affirmerait un envoi que la plateforme n'a pas vu. Intentions : 50 prompts de la sonde en test ; le prompt
   réel du soir et la démo sans Skill restent `apply`. Budget calculé sur les lignes revérifiées du run.
+- 03:53 — `audit-fix5` rendu (14 commits, Chrome 228/228) et fusionné (13d299d). Contrôle du manager : les sondes du
+  relecteur rejouées sur le code fusionné — Entrée dans une zone de message demande la carte (rien ne part si refusée),
+  « Publier »/icône/libellé inconnu qui écrit → carte, télémétrie en 404 ne fait plus « refusé par le site », « Je
+  postule » qui écrit deux fois → une carte, iframe d'un autre site → écriture tracée, accord limité au site de la
+  cible (deux POST vers un autre site cartés). Reste signalé : envoi par WebSocket non intercepté en mode propriétaire
+  (défaut antérieur à la nuit) ; `target=_blank` sur le vrai relais non vérifié.

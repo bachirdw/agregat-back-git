@@ -97,3 +97,59 @@ test('audit 10/11 FICTIF : une vraie question finale attend toujours', () => {
       text,
     );
 });
+
+// Constat 2 de la relecture du 10/11 : le filtre de courtoisie avalait de vraies questions de
+// décision (envoi final compris). Une phrase qui propose une action ou un choix reste une question ;
+// seules les formules vides sont ignorées.
+const last = (text) =>
+  text
+    .split(/\n[ \t]*\n/)
+    .at(-1)
+    .trim();
+test('relecture 10/11 FICTIF : formules vides ignorées (FR/EN)', () => {
+  for (const text of [
+    'Formulaire FICTIF rempli. Dis-moi si tu as besoin d’autre chose.',
+    'Formulaire FICTIF rempli. Dis-moi si tu veux autre chose.',
+    'C’est fait. N’hésite pas si tu as besoin d’aide.',
+    'C’est fait. N’hésitez pas à revenir vers moi.',
+    'Rapport FICTIF écrit. Je reste à ta disposition.',
+    'Rapport FICTIF écrit. Dites-moi si vous avez besoin d’autre chose.',
+    'Rapport FICTIF écrit. Veux-tu autre chose ?',
+    'Rapport FICTIF écrit. Souhaites-tu autre chose ?',
+    'Rapport FICTIF écrit. As-tu besoin d’autre chose ?',
+    'Rapport FICTIF écrit. Puis-je t’aider pour autre chose ?',
+    'Rapport FICTIF écrit. Veux-tu que je l’enregistre aussi ?',
+    'Done. Would you like anything else?',
+    'Done. Let me know if you need anything else.',
+    'Done. Feel free to ask.',
+    'Done. Is there anything else I can help with?',
+    'Done. Let me know if you have any questions.',
+    'Done. Would you like me to also save the offer?',
+    'Done. Do you need anything else?',
+  ])
+    assert.equal(decisionRequest(text), null, text);
+});
+
+test('relecture 10/11 FICTIF : une question qui propose une action ou un choix attend (FR/EN)', () => {
+  for (const text of [
+    'Lettre FICTIVE prête. Veux-tu que je soumette aussi la candidature ?',
+    'Formulaire FICTIF rempli. Dis-moi si tu veux que je clique sur Envoyer.',
+    'Offre FICTIVE lue. Préfères-tu postuler à Acme ou chercher autre chose ?',
+    'Formulaire FICTIF rempli. Dis-moi si je dois cliquer sur Envoyer.',
+    'Brouillon FICTIF prêt. Veux-tu que j’envoie aussi l’e-mail ?',
+    'CV FICTIF prêt. Dis-moi si tu veux que je joigne aussi la lettre.',
+    'Aucune offre FICTIVE retenue. Veux-tu que je cherche autre chose ?',
+    'Candidature FICTIVE envoyée. Souhaites-tu que je postule aussi chez Beta ?',
+    'Deux offres FICTIVES. Dis-moi si tu veux Acme ou Beta.',
+    'Formulaire FICTIF rempli. N’hésite pas à me dire si je dois envoyer la candidature.',
+    'Cover letter FICTIVE ready. Would you like me to also submit the application?',
+    'Draft FICTIF ready. Do you want me to send it as well?',
+    'Form FICTIF filled. Would you like me to click Send?',
+    'Offer FICTIVE read. Should I apply to Acme or keep searching?',
+    'Form FICTIF filled. Let me know if you want me to submit the form.',
+    'Two offers FICTIVES. Would you prefer Acme or Beta?',
+    'Letter FICTIVE ready. Do you also want me to attach the cover letter?',
+    'Two offers FICTIVES. Would you like anything else, or should I apply to Acme?',
+  ])
+    assert.equal(decisionRequest(text)?.message, last(text), text);
+});

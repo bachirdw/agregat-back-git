@@ -507,3 +507,26 @@ test(
     assert.equal(lines().filter((l) => l === 'POST /api/telemetry').length, 3);
   },
 );
+
+test(
+  'Constat 7 : « Je postule » hors formulaire qui écrit deux fois : une carte, une soumission',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      `<button id="jp" onclick="${post('/api/applications')}.then(() => ${post('/api/applications/1/track')})">Je postule</button>`,
+    );
+    const { gateway, sends } = await owner(t, origin, () => true);
+    await gateway.call('browser.navigate', { url: origin });
+    const result = await gateway.call('browser.click', { ref: await refFor(gateway, '#jp') });
+    await settle(lines, 2);
+    await sleep(300);
+    assert.deepEqual(lines(), ['POST /api/applications', 'POST /api/applications/1/track']);
+    assert.deepEqual(
+      sends().map((r) => r.capability),
+      ['browser.send'],
+      'une seule carte',
+    );
+    assert.equal(result.submissions?.length, 1, 'un seul envoi');
+  },
+);

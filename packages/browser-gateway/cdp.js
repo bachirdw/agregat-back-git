@@ -1117,9 +1117,11 @@ export class CdpBrowser {
           return route.continue();
         }
         // A page can fire a burst of requests after one click: they share a single question, and a
-        // refused or expired answer blocks them all. An approval only ever frees the request it showed.
+        // refused or expired answer blocks them all. An approval frees the request it showed, and
+        // what its cover allows (relecture fix5, constat 7).
         while (this.sendDecision) {
           if ((await this.sendDecision) !== true) return route.abort('blockedbyclient');
+          if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();
         }
         {
           const decision = Promise.resolve(
@@ -1143,7 +1145,17 @@ export class CdpBrowser {
           if (this.sendDecision === decision) this.sendDecision = null;
           if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         }
-        this.#recordSubmission(request, origin);
+        const entry = this.#recordSubmission(request, origin);
+        // Relecture fix5 (constat 7) : the card of a click's write (« Je postule » that posts
+        // twice) covers that click's next write to the same site, once : one card, one send.
+        if (!forceCard && clickWindow && origin && origin === this.clickToken)
+          this.cover = {
+            target: request.url(),
+            left: 1,
+            until: Date.now() + CLICK_SEND_WINDOW_MS,
+            token: origin,
+            primary: { entry, strong: true, url: request.url() },
+          };
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);

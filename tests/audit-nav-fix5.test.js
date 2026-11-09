@@ -530,3 +530,33 @@ test(
     assert.equal(result.submissions?.length, 1, 'un seul envoi');
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Constats moyens (relecture 8 à 11) et tests manquants (relecture 12)
+// ---------------------------------------------------------------------------------------------
+
+test(
+  'Relecture 11 : l’écouteur « submit » posé pour Entrée d’autocomplétion est retiré même si la touche échoue',
+  { skip },
+  async (t) => {
+    const { origin } = await site(
+      t,
+      `<form onsubmit="event.preventDefault(); document.body.dataset.soumis = '1'">
+         <input id="ville" name="ville" aria-label="Ville" role="combobox" aria-expanded="false"
+           onkeydown="const t0 = Date.now(); while (Date.now() - t0 < 4500);">
+         <button type="submit">Envoyer ma candidature</button></form>`,
+    );
+    const { gateway, provider } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway
+      .call('browser.press', { ref: await refFor(gateway, '#ville'), key: 'Enter' })
+      .catch(() => {});
+    await sleep(1500);
+    await provider.page.evaluate(() => document.querySelector('form').requestSubmit());
+    assert.equal(
+      await provider.page.evaluate(() => document.body.dataset.soumis),
+      '1',
+      'une soumission ultérieure n’est pas avalée',
+    );
+  },
+);

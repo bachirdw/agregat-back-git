@@ -2228,6 +2228,7 @@ export class CdpBrowser {
             });
         }
         let pressed;
+        let blocked = false;
         try {
           pressed = await this.#press(target, args.key, hidden, args.guardSubmit === true);
         } finally {
@@ -2237,12 +2238,14 @@ export class CdpBrowser {
             if (this.cover?.until === Infinity)
               this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
           }
-        }
-        let blocked = false;
-        if (guard) {
-          blocked = await guard.evaluate((value) => value.fired()).catch(() => false);
-          await guard.evaluate((value) => value.stop()).catch(() => {});
-          await guard.dispose().catch(() => {});
+          // Relecture fix5 (constat 11) : the submit listener never outlives the key, even when
+          // the key fails (delay, detached element, navigation) ; it would swallow every later
+          // submission of the page, the approved one included.
+          if (guard) {
+            blocked = await guard.evaluate((value) => value.fired()).catch(() => false);
+            await guard.evaluate((value) => value.stop()).catch(() => {});
+            await guard.dispose().catch(() => {});
+          }
         }
         if (enter && args.sendApproved === true)
           for (

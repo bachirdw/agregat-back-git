@@ -185,6 +185,15 @@ export function isSensitiveRequest(url, body) {
     return false;
   }
 }
+// The page a click was made on, without query or fragment (audit du 10/11).
+function pageKey(url) {
+  try {
+    const u = new URL(url);
+    return u.origin + u.pathname;
+  } catch {
+    return null;
+  }
+}
 // Same registrable site (au.seek.com ~ www.seek.com ; example.com.au keeps three labels).
 export const registrableSite = (host) => {
   if (isIP(host.replace(/^\[|\]$/g, ''))) return host.toLowerCase();
@@ -824,6 +833,9 @@ export class CdpBrowser {
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.
         const afterSendClick =
           this.sendClick === true &&
+          // A candidate click that led to another page (« Postuler » opening the form) : the new
+          // page's own writes are no send of that click.
+          (this.clickKind !== 'candidate' || pageKey(pageUrl) === this.clickPage) &&
           (this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS);
         if (this.sendGrant !== true && !afterSendClick && !request.isNavigationRequest()) {
           if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
@@ -1031,8 +1043,18 @@ export class CdpBrowser {
         buttonType: control.tagName === 'BUTTON' ? control.type : null,
         inForm: !!form,
         formAction: form?.getAttribute('action') ?? null,
-        text: (control.innerText ?? '').slice(0, 200),
+        // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
+        // is its value, never a secret.
+        text: (
+          (control.tagName === 'INPUT' &&
+          ['submit', 'button', 'reset', 'image'].includes(control.type)
+            ? control.value || control.getAttribute('alt')
+            : control.innerText) ?? ''
+        ).slice(0, 200),
         ariaLabel: control.getAttribute('aria-label'),
+        // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
+        ariaHasPopup: control.getAttribute('aria-haspopup'),
+        ariaExpanded: control.getAttribute('aria-expanded'),
         // Values may contain passwords, card numbers or private data even on text inputs.
         value: null,
         href: control.getAttribute('href'),
@@ -1509,9 +1531,14 @@ export class CdpBrowser {
         const target = await this.targetLocator({ ref: args.ref });
         this.ownerConnection?.takeOpenedWindow();
         this.sendGrant = args.sendApproved === true;
-        // A click inside a form is a submission even when its label says "Continue".
-        this.sendClick = args.sendApproved === true || args.formStep === true;
+        // A click inside a form is a submission even when its label says "Continue". Audit du
+        // 10/11 (constat 1) : a send-worded control outside a form (`candidate`) asks nothing
+        // before the click ; a write it triggers from the same page waits for the owner's card.
+        this.sendClick =
+          args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
         this.formStep = args.formStep === true;
+        this.clickKind = args.clickKind ?? null;
+        this.clickPage = pageKey(page.url());
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -1882,6 +1909,7 @@ export class CdpBrowser {
           this.sendGrant = args.sendApproved === true;
           this.sendClick = args.sendApproved === true;
           this.formStep = false;
+          this.clickKind = null;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);

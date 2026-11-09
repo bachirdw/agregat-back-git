@@ -539,7 +539,7 @@ test(
       }
       res.setHeader('content-type', 'text/html');
       res.end(
-        `<button id="go" onclick="fetch('/ok', {method:'POST', body:'FICTIF'}).catch(() => {}); fetch('/send?access_token=FICTIF-url-secret', {method:'POST', body:'name=FICTIF&password=FICTIF-body-secret'}).catch(() => {})">Apply now</button>`,
+        `<button id="go" onclick="fetch('/send?access_token=FICTIF-url-secret', {method:'POST', body:'name=FICTIF&password=FICTIF-body-secret'}).catch(() => {})">Apply now</button>`,
       );
     });
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -561,18 +561,18 @@ test(
       }),
       approve: async (request) => {
         approvals.push(request);
-        // The click on the send button is approved; the burst's second request is refused.
-        return request.capability === 'browser.click';
+        return true;
       },
     });
     await gateway.call('browser.navigate', { url: origin });
+    // Audit du 10/11 (constat 1) : « Apply now » hors formulaire ne demande rien avant le clic ;
+    // la requête qu'il déclenche porte la carte, avec l'URL et le corps masqués.
     await clickRef(gateway, '#go');
     const deadline = Date.now() + 2000;
-    while (approvals.length < 2 && Date.now() < deadline)
+    while (approvals.length < 1 && Date.now() < deadline)
       await new Promise((r) => setTimeout(r, 20));
-    assert.equal(approvals.length, 2);
-    assert.equal(approvals[0].capability, 'browser.click');
-    const network = approvals[1];
+    assert.equal(approvals.length, 1);
+    const network = approvals[0];
     assert.equal(network.capability, 'browser.send');
     assert.match(network.args.url, /\/send\?/);
     assert.match(network.args.body, /name=FICTIF/);

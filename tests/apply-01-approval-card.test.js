@@ -154,8 +154,9 @@ test(
   'Propriétaire FICTIF (E42 + E43) : un bouton d’étape non reconnu, cliqué avant la pièce, est présenté « champ fichier vide », distinct de « Envoyer » ; 0 envoi',
   { skip: !existsSync(CHROME) },
   async (t) => {
-    // Étape 2 : « Suivant → » n'est pas un mot d'étape connu, la passerelle le classe en soumission.
-    const ctx = await setup(t, { nextLabels: ['Suivant', 'Suivant →'] });
+    // Étape 2 : « OK » n'est pas un mot d'étape connu, la passerelle classe ce bouton de soumission
+    // du formulaire en envoi (audit du 10/11 : « Suivant → » est désormais reconnu comme étape).
+    const ctx = await setup(t, { nextLabels: ['Suivant', 'OK'] });
     const { site, app, run, gateway, calls } = ctx;
     await gateway.call('browser.navigate', { url: site.origin });
     await fillIdentity(gateway);
@@ -165,7 +166,7 @@ test(
     const early = gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
     early.catch(() => {});
     const pendingEarly = await waitPending(app, run);
-    assert.match(pendingEarly.preview, /browser\.click « Suivant → »/);
+    assert.match(pendingEarly.preview, /browser\.click « OK »/);
     assert.match(pendingEarly.preview, /\/step3 · POST multipart · champ fichier vide/);
     assert.doesNotMatch(pendingEarly.preview, /« Envoyer »/);
     assert.equal(lastAsk(calls).preview.submission.attachment, 'champ fichier vide');
@@ -185,11 +186,11 @@ test(
     const next = gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
     next.catch(() => {});
     const pendingNext = await waitPending(app, run);
-    assert.match(pendingNext.preview, /« Suivant → ».*pièce jointe : cv-FICTIF\.pdf/);
+    assert.match(pendingNext.preview, /« OK ».*pièce jointe : cv-FICTIF\.pdf/);
     assert.equal(lastAsk(calls).preview.submission.attachment, 'cv-FICTIF.pdf');
     app.engine.decide(pendingNext.id, 'allow');
     assert.match((await next).url, /\/step3$/);
-    assert.equal((await site.count()).sends, 0, 'approuver « Suivant → » n’est pas un envoi');
+    assert.equal((await site.count()).sends, 0, 'approuver « OK » n’est pas un envoi');
     assert.equal((await site.count()).cv, 'cv-FICTIF.pdf');
     // Étape 3 : « Envoyer » demande son propre accord, distinct ; sans réponse favorable, 0 envoi.
     await fillQuestions(gateway);
@@ -202,7 +203,7 @@ test(
     );
     assert.deepEqual(
       sendAsks(calls).map((c) => c.preview.submission.label),
-      ['Suivant →', 'Suivant →', 'Envoyer'],
+      ['OK', 'OK', 'Envoyer'],
     );
     assert.equal((await site.count()).sends, 0);
     app.engine.decide(pendingSend.id, 'deny');

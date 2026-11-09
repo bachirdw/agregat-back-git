@@ -171,6 +171,23 @@ export class BrowserGateway {
     }
     const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
     if (step && this.policy.ownerMode) sensitive = false;
+    // Audit du 10/11 (constats 1 et 2) : in owner mode, only the final send waits for the owner. A
+    // list, an option, a toggle or a button that is no submission trigger and says no send passes
+    // without a card ; a send-worded control outside a form gets its card from the write it
+    // triggers (cdp.js), so a « Postuler » that only opens the form asks nothing.
+    const clickKind =
+      capabilityId === 'browser.click' && this.policy.ownerMode && element
+        ? this.policy.ownerClickKind(element)
+        : null;
+    const secretField =
+      !!element &&
+      !fields &&
+      this.policy.isSensitiveElement({
+        tag: element.tag,
+        inputType: element.inputType,
+        autocomplete: element.autocomplete,
+      });
+    if (['widget', 'candidate', 'plain'].includes(clickKind) && !secretField) sensitive = false;
     // A plain link only opens a page, whatever its label says: any POST it triggers still meets the
     // network send guard, so "Apply" on a job ad does not ask before the form is even open.
     const ownerLink =
@@ -180,13 +197,14 @@ export class BrowserGateway {
       !element.inForm &&
       !element.formAction;
     if (ownerLink) sensitive = false;
-    const sending =
-      ['browser.click', 'browser.download'].includes(capabilityId) &&
-      !!element &&
-      !step &&
-      !ownerLink &&
-      (element.inForm ||
-        this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
+    const sending = clickKind
+      ? clickKind === 'submit'
+      : ['browser.click', 'browser.download'].includes(capabilityId) &&
+        !!element &&
+        !step &&
+        !ownerLink &&
+        (element.inForm ||
+          this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     // apply-01 (E42, E26): a step click that still asks (outside owner mode) carries the same form
     // summary as a send, so the card can say « Suivant » with its action, multipart and attachment.
     const preview =
@@ -304,6 +322,7 @@ export class BrowserGateway {
             ...args,
             ...(sending ? { sendApproved: true } : {}),
             ...(step ? { formStep: true } : {}),
+            ...(clickKind ? { clickKind } : {}),
           },
       this.policy,
     );

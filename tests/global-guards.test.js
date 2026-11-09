@@ -39,3 +39,30 @@ test('exception non rattrapée : moteur fermé puis sortie, même si la fermetur
   await new Promise((r) => setTimeout(r, 200));
   assert.deepEqual(codes, [1]);
 });
+
+test('délais : la garde attend plus longtemps que le nettoyage forcé de l’orchestrateur (constat 10)', async () => {
+  const { guardCloseTimeoutMs } = await import('../packages/agent-runtime/guards.js');
+  const { createApp } = await import('../apps/api/server.js');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const saved = process.env.AGENT_PLATFORM_CLOSE_MS;
+  try {
+    for (const value of [undefined, '30000']) {
+      if (value === undefined) delete process.env.AGENT_PLATFORM_CLOSE_MS;
+      else process.env.AGENT_PLATFORM_CLOSE_MS = value;
+      const app = createApp({ dataDir: mkdtempSync(join(tmpdir(), 'relay-guards-')) });
+      try {
+        assert.ok(
+          guardCloseTimeoutMs(process.env) >= app.engine.closeTimeoutMs + 2000,
+          `garde ${guardCloseTimeoutMs(process.env)} ms, moteur ${app.engine.closeTimeoutMs} ms`,
+        );
+      } finally {
+        await app.close();
+      }
+    }
+  } finally {
+    if (saved === undefined) delete process.env.AGENT_PLATFORM_CLOSE_MS;
+    else process.env.AGENT_PLATFORM_CLOSE_MS = saved;
+  }
+});

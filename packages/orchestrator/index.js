@@ -73,6 +73,7 @@ import { scriptLimits } from '../career-ops/tools.js';
 import { NativeActions } from './native-actions.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
+import { engineCloseTimeoutMs } from '../agent-runtime/guards.js';
 import {
   AnswerError,
   decisionRequest,
@@ -241,10 +242,7 @@ export class Orchestrator {
     this.questions = [];
     this.expiredOutcomes = new WeakSet();
     this.permissionTimeoutMs = 60000;
-    this.closeTimeoutMs =
-      Number(process.env.AGENT_PLATFORM_CLOSE_MS) > 0
-        ? Number(process.env.AGENT_PLATFORM_CLOSE_MS)
-        : 10000;
+    this.closeTimeoutMs = engineCloseTimeoutMs(process.env);
     // Final send in owner mode: waits for the owner's click, no ceiling unless configured.
     this.sendTimeoutMs =
       Number(process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS) > 0

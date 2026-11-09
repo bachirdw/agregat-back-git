@@ -341,3 +341,29 @@ test('monnaie : un ledger non vide ne change pas de devise implicitement', () =>
     store.close();
   }
 });
+
+test('ledger : charge ne vérifie que la queue, falsification ancienne détectée au démarrage et à la vérification complète', () => {
+  const file = join(temporary(), 'db');
+  let store = new Store(file);
+  store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  for (let i = 0; i < 5; i++) store.charge('FICTIF', 'tool_call', 1, 1);
+  // Falsification ancienne en cours de vie : la charge (queue seule) continue, la vérification complète voit.
+  store.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=2');
+  assert.equal(store.verifyLedgerTail().ok, true);
+  assert.doesNotThrow(() => store.charge('FICTIF', 'tool_call', 1, 1));
+  assert.equal(store.verifyLedger().ok, false);
+  store.close();
+  // Au démarrage suivant la vérification complète refuse toute écriture.
+  store = new Store(file);
+  assert.equal(store.startupLedger.ok, false);
+  assert.throws(() => store.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
+  store.close();
+  // Falsification de la queue : détectée à la charge, sans réouverture.
+  const s2 = new Store(join(temporary(), 'db'));
+  s2.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  for (let i = 0; i < 3; i++) s2.charge('FICTIF', 'tool_call', 1, 1);
+  s2.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=3');
+  assert.equal(s2.verifyLedgerTail().ok, false);
+  assert.throws(() => s2.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
+  s2.close();
+});

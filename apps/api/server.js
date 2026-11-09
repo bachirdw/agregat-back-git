@@ -248,7 +248,10 @@ export function createApp({
               ...store.usage(id),
               byDimension: summarize(store.usage(id).entries),
             },
-            ledger: store.verifyLedger(),
+            ledger:
+              url.searchParams.get('ledger') === 'full'
+                ? store.verifyLedger()
+                : store.verifyLedgerTail(),
             steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
             pendingPermission: engine.pendingPermission(id),
             permissions: [...engine.permissions.values()]

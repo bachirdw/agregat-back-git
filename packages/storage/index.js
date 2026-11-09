@@ -33,6 +33,8 @@ export class Store extends EventEmitter {
       .prepare('INSERT OR IGNORE INTO ledger_meta VALUES (?,?)')
       .run('anchor', JSON.stringify(this.ledgerHead()));
     this.limits = { monthlyCapCents: null };
+    // Full chain check once at startup (cost linear, paid once); each charge then only checks the tail.
+    this.startupLedger = this.verifyLedger();
     for (const { data } of this.db.prepare('SELECT data FROM runs').all()) {
       const run = JSON.parse(data);
       if (!terminal.has(run.state))
@@ -172,10 +174,12 @@ export class Store extends EventEmitter {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       if (currency) this.bindCurrency(currency);
-      if (!this.verifyLedger().ok) throw new Error('Intégrité du ledger invalide');
+      if (!this.verifyLedgerTail().ok) throw new Error('Intégrité du ledger invalide');
       const budget = this.get(id)?.budgetCents;
       if (!Number.isSafeInteger(budget) || budget < 0) throw new Error('Budget invalide');
-      const spent = this.usage(id).platformCents;
+      const { spent } = this.db
+        .prepare('SELECT COALESCE(SUM(platform_cents),0) AS spent FROM ledger WHERE run_id=?')
+        .get(id);
       if (spent + cents > budget) throw new Error('Budget plateforme dépassé');
       if (this.limits.monthlyCapCents !== null && cents > 0) {
         const month = new Date().toISOString().slice(0, 7);
@@ -215,6 +219,36 @@ export class Store extends EventEmitter {
       throw e;
     }
   }
+  // Constant-time check used on every charge/poll: the last row against its predecessor, and the
+  // anchor. An old edit is caught by the startup check or by verifyLedger() (full), not here.
+  verifyLedgerTail() {
+    if (!this.startupLedger.ok) return this.startupLedger;
+    const rows = this.db.prepare('SELECT * FROM ledger ORDER BY id DESC LIMIT 2').all();
+    const [tip, before] = rows;
+    if (tip) {
+      if (![1, 2].includes(tip.hash_version)) return { ok: false, brokenAt: tip.id };
+      if (tip.hash === null) {
+        if (tip.hash_version !== 1) return { ok: false, brokenAt: tip.id };
+      } else {
+        const prev = before?.hash ?? null;
+        if (tip.prev_hash !== prev || Store.entryHash(prev, tip) !== tip.hash)
+          return { ok: false, brokenAt: tip.id };
+      }
+    }
+    return this.anchorMatches();
+  }
+  anchorMatches() {
+    try {
+      const anchor = JSON.parse(
+        this.db.prepare('SELECT value FROM ledger_meta WHERE key=?').get('anchor')?.value ?? 'null',
+      );
+      if (!anchor || JSON.stringify(anchor) !== JSON.stringify(this.ledgerHead()))
+        return { ok: false, brokenAt: anchor?.tipId ?? 0 };
+    } catch {
+      return { ok: false, brokenAt: 0 };
+    }
+    return { ok: true };
+  }
   // Recomputes the whole chain; returns the first broken entry id, if any.
   verifyLedger() {
     let prev = null;
@@ -231,16 +265,7 @@ export class Store extends EventEmitter {
         return { ok: false, brokenAt: e.id };
       prev = e.hash;
     }
-    try {
-      const anchor = JSON.parse(
-        this.db.prepare('SELECT value FROM ledger_meta WHERE key=?').get('anchor')?.value ?? 'null',
-      );
-      if (!anchor || JSON.stringify(anchor) !== JSON.stringify(this.ledgerHead()))
-        return { ok: false, brokenAt: anchor?.tipId ?? 0 };
-    } catch {
-      return { ok: false, brokenAt: 0 };
-    }
-    return { ok: true };
+    return this.anchorMatches();
   }
   usage(id) {
     const entries = this.db

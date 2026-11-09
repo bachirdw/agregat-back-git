@@ -84,8 +84,14 @@ test('E59 FICTIF : en mode propriétaire, un script de la racine hors liste est 
     script: 'verify-portals',
     args: ['--json'],
   });
-  for (const command of ['absent-fictif', 'verify-portals.mjs', '../verify-portals', 'node'])
+  for (const command of ['absent-fictif', '../verify-portals', 'node', 'absent-fictif.mjs'])
     await assert.rejects(tools.script({ command }), /non autorisée|absent/, command);
+  // Audit du 10/11 (essai abd7b126) : l'agent nomme le fichier avec son extension
+  // (« application-answers.mjs ») ; c'est le même script de la racine du Skill.
+  assert.deepEqual(await run(tools, 'verify-portals.mjs', ['--json']), {
+    script: 'verify-portals',
+    args: ['--json'],
+  });
 });
 
 test('E59 FICTIF : seuls les chemins hors de l’espace et les valeurs malformées restent refusés', async (t) => {

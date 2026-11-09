@@ -42,6 +42,18 @@ test('E47 FICTIF : find à code 2 → le code et l’extrait de stderr remontent
   });
 });
 
+// Audit du 10/11 (essai abd7b126) : find.mjs sort en 1 quand rien ne correspond (`[]` en --json) ;
+// c'est une réponse, rendue avec son code de sortie (le Bilan la compte comme verdict), pas une erreur.
+test('find FICTIF sans correspondance : code 1 et `[]` rendus, pas une erreur', async (t) => {
+  const root = workspace(t, 'console.log("[]"); process.exitCode = 1;');
+  const result = await new CareerTools({ path: () => root }).script({
+    command: 'find',
+    query: 'FICTIF',
+  });
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.text.trim(), '[]');
+});
+
 test('E47 FICTIF : extrait borné à 300 caractères, sur une ligne', async (t) => {
   const root = workspace(
     t,

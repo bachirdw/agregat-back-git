@@ -1079,6 +1079,14 @@ export class CareerTools {
   // read-only and isolated from network/filesystem writes. User .env is refused here.
   async script({ command, query = '', path = '', args: scriptArgs = [] }, signal) {
     const root = this.career.path();
+    // Audit du 10/11 (essai abd7b126) : in owner mode the agent may name a root script with its
+    // extension (« application-answers.mjs ») ; it is the same script of the reviewed clone.
+    if (
+      this.ownerMode &&
+      typeof command === 'string' &&
+      /^[a-z0-9][a-z0-9-]{0,60}\.mjs$/.test(command)
+    )
+      command = command.slice(0, -'.mjs'.length);
     if (this.ownerMode && /^scripts\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(?:mjs|js|sh)$/.test(command)) {
       if (
         query ||
@@ -1266,6 +1274,15 @@ export class CareerTools {
         };
       if (controls[command] && Number.isInteger(error.code) && !signal?.aborted)
         return { text: error.stdout || error.stderr || '', exitCode: error.code, untrusted: true };
+      // Audit du 10/11 : find.mjs exits 1 when nothing matches (`[]` with --json) ; that is an
+      // answer, given back with its exit code (the Bilan counts it as a verdict), not an error.
+      if (
+        command === 'find' &&
+        error.code === 1 &&
+        !signal?.aborted &&
+        /^\s*(?:\[\s*\]|No application matches ")/.test(String(error.stdout ?? ''))
+      )
+        return { text: String(error.stdout), exitCode: 1, untrusted: true };
       // E47: scan and find that ran and exited non-zero tell the agent why, bounded.
       if (Number.isInteger(error.code) && !signal?.aborted)
         throw new Error(

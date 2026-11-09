@@ -30,3 +30,14 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   le journal réel de f2c6d66b (`career_write reports/005…` réécrit à note inchangée). Fusionné (a7da851).
 - 00:32 — correcteur `audit-socle` (Sonnet) lancé depuis a7da851 (ledger, agents orphelins, onEvent, routage, workflow,
   budget). Reste signalé par career : le code de sortie des scripts n'arrive pas jusqu'au Bilan (passe par l'API).
+- 00:40 — `audit-orch` rendu (10 commits, unitaires 884 ✔ / 0 échec) ; fusionné (8c9d8fe). Vérifié : le prompt réel du
+  soir choisit `apply` ; « Adapte mon CV pour ma candidature » reste `documents` ; « Candidate à cette offre » → `apply`.
+- 00:41 — correctif du manager b0295b1 : reprise courte « oui, envoie » / « soumets » / « candidate » reconnue (signalé
+  par audit-orch, hors de son périmètre).
+- 00:41-00:45 — **Démo 1 rejouée sur le code fusionné** (copie career-ops remise à neuf), mission 8e562ac5 : intention
+  `apply` suivie (open/fill/upload/verify/review faites, cv-pdf ignorée car CV adapté existant), question « postuler
+  malgré 3,4/5 ? » (réponse : malgré tout), carte d'envoi accordée (FICTIF), **`completed` en 4 min**, page fictive :
+  envoi n° 3 avec le CV adapté. Bilan cohérent. Restent au Bilan : « career_script 1 échoué » (un `find` sans argument
+  de l'agent : exact), « 1 commande native » (`echo noop` de l'agent : exact), « Écart d'ordre : constaté » sans dire
+  lequel (probablement verify de la page 1 avant l'upload de la page 2 : ordre naturel d'un formulaire multi-pages ;
+  mineur, à décider : nommer l'écart ou ne pas l'exiger pour `apply`).

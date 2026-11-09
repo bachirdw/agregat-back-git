@@ -77,13 +77,15 @@ export class EmailGateway {
     meter = () => {},
     config = smtpConfig(),
     transportFactory = nodemailer.createTransport,
+    ownerMode = false,
   }) {
-    Object.assign(this, { career, approve, meter, config, transportFactory });
+    Object.assign(this, { career, approve, meter, config, transportFactory, ownerMode });
   }
   async send(raw, signal) {
     const email = emailSchema.parse(raw);
     const root = this.career.path();
-    if (!recipientInCareerSources(root, email.to))
+    // Owner mode adds no restriction: any address is accepted, the final approval card shows it.
+    if (!this.ownerMode && !recipientInCareerSources(root, email.to))
       throw new Error('Adresse du destinataire absente de l’offre, du CV et des fichiers sources');
     const files = this.career.attachments(email.attachments).map((f) => ({
       filename: f.name,

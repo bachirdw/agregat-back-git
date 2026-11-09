@@ -324,3 +324,15 @@ test('API propriétaire → deux MCP → SMTP FICTIF : refus puis course interpr
   assert.equal((await clients[0].callTool({ name: 'email_send', arguments: draft })).isError, true);
   assert.equal(messages.length, 1);
 });
+
+test('email_send : destinataire absent des sources refusé hors mode propriétaire, accepté en mode propriétaire', async (t) => {
+  const career = fixture(t);
+  const draft = { ...email(), to: 'inconnu@example.test' };
+  await assert.rejects(
+    new EmailGateway({ career, config: null }).send(draft),
+    /absente de l’offre/,
+  );
+  const result = await new EmailGateway({ career, config: null, ownerMode: true }).send(draft);
+  assert.equal(result.sent, false);
+  assert.equal(result.draft, draft.id);
+});

@@ -1244,6 +1244,7 @@ export function registerCareerTools(
     career,
     approve,
     meter,
+    ownerMode,
     ...(config !== undefined ? { config } : {}),
   });
   const register = (name, description, schema, handler) =>

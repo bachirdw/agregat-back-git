@@ -15,7 +15,24 @@ export function loadProbes(dataDir) {
     return {};
   }
 }
-export function saveProbe(dataDir, id, probe) {
+// Only a precise authentication refusal may mark an agent as unusable. "author", "authorized", a
+// quoted login page or a one-off network failure must not (they used to, through a loose regex).
+export const AUTH_REFUSAL =
+  /\b(?:auth[_ ]required|authentication (?:is )?(?:required|failed|error)|authentification (?:api )?(?:refus|requise|échou)\w*|failed to authenticate|unauthenticated|unauthori[sz]ed|\b401\b|login required|not logged in|(?:invalid|incorrect|missing|expired) (?:api[ _-]?key|credentials?|token)|api[ _-]?key (?:is )?(?:missing|invalid|not valid))\b/i;
+const TRANSIENT_NETWORK =
+  /ECONN|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|socket hang up|fetch failed|network|réseau|Délai dépassé|timed? ?out|503|502|504/i;
+export function saveProbe(dataDir, id, rawProbe) {
+  const probe = { ...rawProbe };
+  // A false inference needs a real authentication error; a transient network failure never writes session:false.
+  if (probe.inference === false && !AUTH_REFUSAL.test(String(probe.inferenceError ?? ''))) {
+    delete probe.inference;
+    delete probe.inferenceError;
+  }
+  if (probe.session === false && TRANSIENT_NETWORK.test(String(probe.error ?? ''))) {
+    delete probe.session;
+    delete probe.error;
+  }
+  if (!Object.keys(probe).length) return loadProbes(dataDir)[id] ?? null; // nothing left to record
   const file = probesFile(dataDir);
   mkdirSync(dirname(file), { recursive: true });
   const all = loadProbes(dataDir);

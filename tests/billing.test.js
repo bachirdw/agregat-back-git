@@ -341,3 +341,66 @@ test('monnaie : un ledger non vide ne change pas de devise implicitement', () =>
     store.close();
   }
 });
+
+test('ledger : charge ne vérifie que la queue, falsification ancienne détectée au démarrage et à la vérification complète', () => {
+  const file = join(temporary(), 'db');
+  let store = new Store(file);
+  store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  for (let i = 0; i < 5; i++) store.charge('FICTIF', 'tool_call', 1, 1);
+  // Falsification ancienne en cours de vie : la charge (queue seule) continue, la vérification complète voit.
+  store.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=2');
+  assert.equal(store.verifyLedgerTail().ok, true);
+  assert.doesNotThrow(() => store.charge('FICTIF', 'tool_call', 1, 1));
+  assert.equal(store.verifyLedger().ok, false);
+  store.close();
+  // Au démarrage suivant la vérification complète refuse toute écriture.
+  store = new Store(file);
+  assert.equal(store.startupLedger.ok, false);
+  assert.throws(() => store.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
+  store.close();
+  // Falsification de la queue : détectée à la charge, sans réouverture.
+  const s2 = new Store(join(temporary(), 'db'));
+  s2.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
+  for (let i = 0; i < 3; i++) s2.charge('FICTIF', 'tool_call', 1, 1);
+  s2.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=3');
+  assert.equal(s2.verifyLedgerTail().ok, false);
+  assert.throws(() => s2.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
+  s2.close();
+});
+
+test('budget : 0 ou absent = illimité par run, plafond positif respecté, valeur illisible distincte du dépassement', () => {
+  const store = new Store(join(temporary(), 'db'));
+  try {
+    store.create({ id: 'zero', state: 'running', budgetCents: 0 });
+    assert.doesNotThrow(() => store.charge('zero', 'tool_call', 1, 5));
+    store.create({ id: 'absent', state: 'running' });
+    assert.doesNotThrow(() => store.charge('absent', 'tool_call', 1, 5));
+    store.create({ id: 'plafond', state: 'running', budgetCents: 5 });
+    store.charge('plafond', 'tool_call', 1, 5);
+    assert.throws(() => store.charge('plafond', 'tool_call', 1, 1), /Budget plateforme dépassé/);
+    store.create({ id: 'abime', state: 'running', budgetCents: -3 });
+    assert.throws(
+      () => store.charge('abime', 'tool_call', 1, 0),
+      (e) => /illisible/.test(e.message) && !/Budget|Plafond/.test(e.message),
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('stockage : écouteur qui lève, ligne de run illisible, base partagée sans SQLITE_BUSY immédiat', () => {
+  const file = join(temporary(), 'db');
+  let store = new Store(file);
+  store.create({ id: 'r1', state: 'running', budgetCents: 1 });
+  store.on('r1', () => {
+    throw new Error('socket détruite');
+  });
+  assert.doesNotThrow(() => store.event('r1', 'note', { x: 1 }));
+  assert.equal(store.events('r1').filter((e) => e.type === 'note').length, 1);
+  assert.equal(store.db.prepare('PRAGMA busy_timeout').get().timeout, 5000);
+  store.db.exec("INSERT INTO runs VALUES ('abime', '{pas du json')");
+  store.close();
+  store = new Store(file); // ne doit pas lever
+  assert.equal(store.get('r1').state, 'interrupted');
+  store.close();
+});

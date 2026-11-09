@@ -129,13 +129,13 @@ export class DataGateway {
         }
         if (
           entry &&
+          entry.bytes <= maxBytes && // an entry above the limit is a miss, not an error
           Object.hasOwn(result, 'body') &&
           (as !== 'text' || typeof result.body === 'string') &&
           typeof result.fetchedAt === 'string' &&
           Number.isFinite(Date.parse(result.fetchedAt)) &&
           entry.bodyHash === createHash('sha256').update(JSON.stringify(result.body)).digest('hex')
         ) {
-          if (entry.bytes > maxBytes) throw new Error('Réponse trop volumineuse');
           return { ...result, cached: true };
         }
       }
@@ -218,11 +218,18 @@ export class DataGateway {
         result,
         bodyHash: createHash('sha256').update(JSON.stringify(body)).digest('hex'),
       };
-      writeConfined(
-        this.cacheDir,
-        createHash('sha256').update(url).digest('hex') + '.json',
-        JSON.stringify(entry),
-      );
+      try {
+        writeConfined(
+          this.cacheDir,
+          createHash('sha256').update(url).digest('hex') + '.json',
+          JSON.stringify(entry),
+        );
+      } catch (e) {
+        // The cache is an optimisation: a full or read-only disk must not fail (and re-bill) a
+        // successful fetch. Policy refusals (symbolic link...) carry no errno code and stay errors.
+        if (!['ENOSPC', 'EACCES', 'EPERM', 'EROFS', 'EDQUOT', 'EIO', 'EMFILE'].includes(e?.code))
+          throw e;
+      }
     }
     return result;
   }

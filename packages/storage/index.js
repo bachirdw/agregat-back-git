@@ -11,7 +11,7 @@ export class Store extends EventEmitter {
     this.setMaxListeners(100);
     mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(file);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
+    this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL REFERENCES runs(id), type TEXT NOT NULL, data TEXT NOT NULL, at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS skills(id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -33,8 +33,15 @@ export class Store extends EventEmitter {
       .prepare('INSERT OR IGNORE INTO ledger_meta VALUES (?,?)')
       .run('anchor', JSON.stringify(this.ledgerHead()));
     this.limits = { monthlyCapCents: null };
+    // Full chain check once at startup (cost linear, paid once); each charge then only checks the tail.
+    this.startupLedger = this.verifyLedger();
     for (const { data } of this.db.prepare('SELECT data FROM runs').all()) {
-      const run = JSON.parse(data);
+      let run;
+      try {
+        run = JSON.parse(data);
+      } catch {
+        continue; // one unreadable row must not prevent the platform from starting
+      }
       if (!terminal.has(run.state))
         this.update(run.id, {
           state: 'interrupted',
@@ -93,7 +100,11 @@ export class Store extends EventEmitter {
       .prepare('INSERT INTO events(run_id,type,data,at) VALUES (?,?,?,?)')
       .run(id, type, encoded, at);
     const event = { seq: Number(row.lastInsertRowid), runId: id, type, data, at };
-    this.emit(id, event);
+    try {
+      this.emit(id, event);
+    } catch {
+      // A failing listener (e.g. an SSE socket destroyed meanwhile) must not fail the mission.
+    }
     return event;
   }
   events(id, after = 0) {
@@ -172,11 +183,18 @@ export class Store extends EventEmitter {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       if (currency) this.bindCurrency(currency);
-      if (!this.verifyLedger().ok) throw new Error('Intégrité du ledger invalide');
-      const budget = this.get(id)?.budgetCents;
-      if (!Number.isSafeInteger(budget) || budget < 0) throw new Error('Budget invalide');
-      const spent = this.usage(id).platformCents;
-      if (spent + cents > budget) throw new Error('Budget plateforme dépassé');
+      if (!this.verifyLedgerTail().ok) throw new Error('Intégrité du ledger invalide');
+      // 0 or absent = no per-run cap (the monthly cap still applies); only a positive budget is a ceiling.
+      // A malformed value is an integrity problem, reported apart from a real overrun.
+      const budget = this.get(id)?.budgetCents ?? 0;
+      if (!Number.isSafeInteger(budget) || budget < 0)
+        throw new Error('Valeur illisible : budgetCents du run');
+      if (budget > 0) {
+        const { spent } = this.db
+          .prepare('SELECT COALESCE(SUM(platform_cents),0) AS spent FROM ledger WHERE run_id=?')
+          .get(id);
+        if (spent + cents > budget) throw new Error('Budget plateforme dépassé');
+      }
       if (this.limits.monthlyCapCents !== null && cents > 0) {
         const month = new Date().toISOString().slice(0, 7);
         const { total } = this.db
@@ -215,6 +233,36 @@ export class Store extends EventEmitter {
       throw e;
     }
   }
+  // Constant-time check used on every charge/poll: the last row against its predecessor, and the
+  // anchor. An old edit is caught by the startup check or by verifyLedger() (full), not here.
+  verifyLedgerTail() {
+    if (!this.startupLedger.ok) return this.startupLedger;
+    const rows = this.db.prepare('SELECT * FROM ledger ORDER BY id DESC LIMIT 2').all();
+    const [tip, before] = rows;
+    if (tip) {
+      if (![1, 2].includes(tip.hash_version)) return { ok: false, brokenAt: tip.id };
+      if (tip.hash === null) {
+        if (tip.hash_version !== 1) return { ok: false, brokenAt: tip.id };
+      } else {
+        const prev = before?.hash ?? null;
+        if (tip.prev_hash !== prev || Store.entryHash(prev, tip) !== tip.hash)
+          return { ok: false, brokenAt: tip.id };
+      }
+    }
+    return this.anchorMatches();
+  }
+  anchorMatches() {
+    try {
+      const anchor = JSON.parse(
+        this.db.prepare('SELECT value FROM ledger_meta WHERE key=?').get('anchor')?.value ?? 'null',
+      );
+      if (!anchor || JSON.stringify(anchor) !== JSON.stringify(this.ledgerHead()))
+        return { ok: false, brokenAt: anchor?.tipId ?? 0 };
+    } catch {
+      return { ok: false, brokenAt: 0 };
+    }
+    return { ok: true };
+  }
   // Recomputes the whole chain; returns the first broken entry id, if any.
   verifyLedger() {
     let prev = null;
@@ -231,16 +279,7 @@ export class Store extends EventEmitter {
         return { ok: false, brokenAt: e.id };
       prev = e.hash;
     }
-    try {
-      const anchor = JSON.parse(
-        this.db.prepare('SELECT value FROM ledger_meta WHERE key=?').get('anchor')?.value ?? 'null',
-      );
-      if (!anchor || JSON.stringify(anchor) !== JSON.stringify(this.ledgerHead()))
-        return { ok: false, brokenAt: anchor?.tipId ?? 0 };
-    } catch {
-      return { ok: false, brokenAt: 0 };
-    }
-    return { ok: true };
+    return this.anchorMatches();
   }
   usage(id) {
     const entries = this.db

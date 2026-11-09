@@ -30,8 +30,18 @@ export class StepTimeoutError extends Error {
 }
 
 export class WorkflowEngine {
-  constructor({ store, executors = {}, now = () => new Date().toISOString() }) {
-    Object.assign(this, { store, executors, now });
+  // An `agent` step that fails cannot be replayed blindly, so it waits as `uncertain` for the owner.
+  // Nobody may be there: after `humanWaitMs` (or at once when `unsupervised`) it becomes a terminal
+  // failure carrying its cause, so the mission ends instead of waiting for ever.
+  constructor({
+    store,
+    executors = {},
+    now = () => new Date().toISOString(),
+    unsupervised = false,
+    humanWaitMs = 30 * 60 * 1000,
+    clock = () => Date.now(),
+  }) {
+    Object.assign(this, { store, executors, now, unsupervised, humanWaitMs, clock });
     this.db = store.db;
     this.db.exec(`CREATE TABLE IF NOT EXISTS workflow_steps(
       run_id TEXT NOT NULL REFERENCES runs(id), step_id TEXT NOT NULL, state TEXT NOT NULL,
@@ -167,6 +177,7 @@ export class WorkflowEngine {
         this.wakers.set(runId, r);
       });
     let wakePromise = newWake();
+    const uncertainSince = new Map();
     const onAbort = () => wakeResolve?.();
     signal?.addEventListener('abort', onAbort, { once: true });
     try {
@@ -202,6 +213,30 @@ export class WorkflowEngine {
             changed = true;
           }
         }
+        // Agent steps left `uncertain` with nobody to answer end as a terminal failure with their cause.
+        let nextExpiry = Infinity;
+        for (const s of wf.steps) {
+          const r = rows.get(s.id);
+          if (r.state !== 'uncertain' || s.kind !== 'agent') {
+            uncertainSince.delete(s.id);
+            continue;
+          }
+          if (!uncertainSince.has(s.id)) uncertainSince.set(s.id, this.clock());
+          const due = uncertainSince.get(s.id) + this.humanWaitMs;
+          if (this.unsupervised || due <= this.clock()) {
+            this.set(runId, s.id, {
+              state: 'failed',
+              error:
+                `Échec de l’agent, sans réponse humaine${this.unsupervised ? ' (mode non supervisé)' : ` après ${Math.round(this.humanWaitMs / 1000)} s`} : ${r.error ?? 'cause inconnue'}`.slice(
+                  0,
+                  1000,
+                ),
+              finished_at: this.now(),
+            });
+            uncertainSince.delete(s.id);
+            changed = true;
+          } else nextExpiry = Math.min(nextExpiry, due);
+        }
         if (changed) continue;
         const ready = wf.steps.filter(
           (s) =>
@@ -230,7 +265,14 @@ export class WorkflowEngine {
           return this.outcome(runId, wf, false);
         if (!running.size && !waiting && !ready.length && states.includes('pending'))
           throw new Error('Workflow bloqué : aucune étape exécutable');
-        await wakePromise;
+        let timer;
+        await Promise.race([
+          wakePromise,
+          ...(nextExpiry < Infinity
+            ? [new Promise((r) => (timer = setTimeout(r, Math.max(1, nextExpiry - this.clock()))))]
+            : []),
+        ]);
+        clearTimeout(timer);
         wakePromise = newWake();
       }
     } finally {

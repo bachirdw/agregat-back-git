@@ -439,3 +439,49 @@ test(
     assert.equal(again.provider, 'playwriter-owner');
   },
 );
+
+test(
+  'Constat 11 : une fenêtre ouverte par le site ne fait pas quitter le formulaire que l’agent remplit',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin, lines } = await site(t, (path) =>
+      path === '/confidentialite'
+        ? '<h1>Politique FICTIVE</h1>'
+        : `<form action="/candidature" method="post"><input id="nom" name="nom" aria-label="Nom">
+             <a id="politique" href="/confidentialite" target="_blank">Politique de confidentialité</a>
+             <button type="submit">Envoyer ma candidature</button></form>`,
+    );
+    const chrome = await jetable(t);
+    const provider = new CdpBrowser({
+      endpoint: `http://127.0.0.1:${chrome.port}`,
+      startupTimeoutMs: 8000,
+    });
+    const folder = mkdtempSync(join(tmpdir(), 'audit-nav2-fenetre-FICTIF-'));
+    t.after(async () => {
+      await provider.close().catch(() => {});
+      rmSync(folder, { recursive: true, force: true });
+    });
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-fenetre',
+        workspace: folder,
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+        allowSharedContext: true,
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.type', { ref: await refFor(gateway, '#nom'), text: 'FICTIF' });
+    const opened = await gateway.call('browser.click', {
+      ref: await refFor(gateway, '#politique'),
+    });
+    assert.equal(new URL(opened.url).pathname, '/', 'l’onglet reste sur le formulaire');
+    assert.equal(opened.followedWindow, undefined);
+    assert.equal(opened.openedWindow?.url, `${origin}/confidentialite`);
+    assert.equal(await provider.page.locator('#nom').inputValue(), 'FICTIF', 'saisie conservée');
+    assert.deepEqual(lines(), []);
+  },
+);

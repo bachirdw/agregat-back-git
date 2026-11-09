@@ -1236,6 +1236,7 @@ export class CdpBrowser {
         return field.name || field.id || null;
       });
       if (key) (this.agentFields ??= new Set()).add(key);
+      if (key) this.agentFieldsPage = pageKey(this.page.url());
     } catch {
       /* the action itself reports a missing ref */
     }
@@ -1723,6 +1724,23 @@ export class CdpBrowser {
         windowNotFollowed: 'Le site a ouvert un onglet que Relay n’a pas pu charger ici.',
       };
       if (!/^https?:/i.test(url)) return notFollowed;
+      // Audit du 10/11 (constat 11) : a form the agent has started filling is never left for a
+      // window the site opened (a policy link, a chat, an OAuth popup) : the tab stays, and the
+      // agent learns where that window goes (address masked) to decide.
+      if (this.agentFields?.size && this.agentFieldsPage === pageKey(page.url())) {
+        let host = '';
+        try {
+          host = new URL(url).host;
+          await policy.assertUrl(url);
+        } catch {
+          return { ...notFollowed, openedWindow: { host } };
+        }
+        return {
+          openedWindow: { host, url: previewUrl(url) },
+          windowNotFollowed:
+            'Le site a ouvert une autre fenêtre ; l’onglet de mission reste sur le formulaire en cours (saisie conservée). Pour l’ouvrir, browser_navigate vers openedWindow.url fera quitter ce formulaire.',
+        };
+      }
       try {
         await policy.assertUrl(url);
         await goto(url);

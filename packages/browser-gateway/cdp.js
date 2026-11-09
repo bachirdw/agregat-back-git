@@ -512,8 +512,14 @@ export class CdpBrowser {
     if (this.page) return this.page;
     this.#opening = outsideCalls(() => this.open(policy)).catch(async (error) => {
       // Startup is transactional: never leave a partially guarded context available for reuse.
-      this.#closed = true;
-      await this.release();
+      // Audit du 10/11 (constat 6) : in owner mode, a failed (re)opening only drops the
+      // connection ; the next call opens a new tab on a new connection. Only close() ends the
+      // browser of the mission.
+      if (policy.ownerMode && !this.#closed) await this.dropConnection();
+      else {
+        this.#closed = true;
+        await this.release();
+      }
       throw error;
     });
     try {
@@ -566,6 +572,9 @@ export class CdpBrowser {
         clearTimeout(timer);
       }
     };
+    // Audit du 10/11 (constat 6) : the owner connection serves only the tab it created ; once that
+    // tab is closed, a new tab needs a new connection (newPage over it fails).
+    if (this.context && this.ownerConnection) await this.dropConnection();
     if (this.context) {
       try {
         return await step(() => this.newPage(policy));

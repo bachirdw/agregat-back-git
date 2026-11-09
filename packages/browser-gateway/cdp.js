@@ -125,6 +125,55 @@ export function sendsFile(request, file) {
     }
   return !EMAIL.test(rest);
 }
+// Relecture fix5 (constat 4) : whether a write carries something the agent gave the page — a value
+// it typed (3 characters or more), raw, URL-encoded, JSON-escaped or in base64, in the body or the
+// address ; or a file it attached (its multipart name, its first bytes, its base64, a slice of it).
+export function carriesAgentData(request, { values = [], files = [] } = {}) {
+  let body;
+  try {
+    body = request.postDataBuffer();
+  } catch {
+    body = null;
+  }
+  const texts = [request.url()];
+  if (body?.length) texts.push(body.toString('utf8'), body.toString('latin1'));
+  for (const text of [...texts])
+    try {
+      texts.push(decodeURIComponent(text.replace(/\+/g, ' ')));
+    } catch {
+      /* malformed escapes : read as they are */
+    }
+  const found = (variant) => variant.length >= 3 && texts.some((text) => text.includes(variant));
+  for (const value of values)
+    if (
+      [
+        value,
+        JSON.stringify(value).slice(1, -1),
+        encodeURIComponent(value),
+        Buffer.from(value).toString('base64').replace(/=+$/, ''),
+      ].some(found)
+    )
+      return true;
+  if (!body?.length) return false;
+  const raw = body.toString('latin1');
+  for (const file of files) {
+    if (!file) continue;
+    const name = Buffer.from(file.name.replace(/"/g, '%22'), 'utf8').toString('latin1');
+    if (raw.includes(`filename="${name}"`)) return true;
+    const head = file.head.subarray(0, 64);
+    if (head.length >= 16 && raw.includes(head.toString('latin1'))) return true;
+    const base64 = file.base64.slice(0, 88);
+    if (
+      base64.length >= 24 &&
+      [base64, base64.replace(/\+/g, '-').replace(/\//g, '_'), encodeURIComponent(base64)].some(
+        (variant) => raw.includes(variant),
+      )
+    )
+      return true;
+    if (body.length >= 64 && file.bytes?.includes(body)) return true;
+  }
+  return false;
+}
 export function isGraphqlRead(body) {
   try {
     const value = JSON.parse(body);
@@ -912,13 +961,29 @@ export class CdpBrowser {
         } catch {
           /* no page: treated as third party */
         }
-        // Audit du 10/11 (constat 4) : an iframe of another site writing to its own origin (the
-        // token of an anti-bot widget, an embedded ATS) is that frame's own site, judged by the
-        // frame that posts, not by the tab. A script of the tab posting to another site stays third
-        // party, and the agent's file still only leaves through the upload rule below.
-        const firstParty =
-          sameSite(request.url(), pageUrl) ||
-          (/^https?:/.test(frameUrl) && sameSite(request.url(), frameUrl));
+        // Audit du 10/11 (constat 4), relecture fix5 : an iframe of another site writing to its own
+        // origin is that frame's own site only when the agent acts in that frame (an embedded ATS).
+        // Any other such write (an anti-bot token, a widget, a page script relaying data to the
+        // iframe) is third party : traced, and free only without anything the agent typed or
+        // attached ; otherwise the owner's card.
+        const tabSite = sameSite(request.url(), pageUrl);
+        const frameOwn = !tabSite && /^https?:/.test(frameUrl) && sameSite(request.url(), frameUrl);
+        const actionFrame =
+          frameOwn && !!this.actionFrameUrl && sameSite(request.url(), this.actionFrameUrl);
+        const firstParty = tabSite || actionFrame;
+        let forceCard = false;
+        if (frameOwn && !actionFrame) {
+          if (
+            !carriesAgentData(request, {
+              values: this.agentValues ?? [],
+              files: this.agentFiles ?? [],
+            })
+          ) {
+            this.#traceAutoSend(request.url());
+            return route.continue();
+          }
+          forceCard = true;
+        }
         // Reads and session upkeep are automatic only for this site's own endpoints.
         // Chrome/Playwright classify navigator.sendBeacon as "ping". A beacon cannot
         // wait for an application response, even if its endpoint says "send".
@@ -940,6 +1005,7 @@ export class CdpBrowser {
             (this.lastUploadEnd ?? 0) >= (this.lastClickEnd ?? 0) &&
             !this.writeInProgress);
         if (
+          !forceCard &&
           uploadWindow &&
           !request.isNavigationRequest() &&
           sendsFile(request, this.uploadedFile)
@@ -950,6 +1016,7 @@ export class CdpBrowser {
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
         if (
+          !forceCard &&
           !sensitive &&
           !this.writeInProgress &&
           Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS
@@ -957,7 +1024,7 @@ export class CdpBrowser {
           return firstParty ? route.continue() : route.abort('blockedbyclient');
         // After a click, background third-party fetches stay silent and never consume the grant;
         // only a navigation (form posted to another site) can be a cross-site send.
-        if (!firstParty && !request.isNavigationRequest()) {
+        if (!forceCard && !firstParty && !request.isNavigationRequest()) {
           this.blockedThirdParty?.add(new URL(request.url()).host);
           return route.abort('blockedbyclient');
         }
@@ -988,10 +1055,11 @@ export class CdpBrowser {
         // a submission that awaits a check or a token before its fetch asks nothing more, and the
         // send is counted once.
         const covered =
+          !forceCard &&
           this.clickApproved === true &&
           clickWindow &&
           (firstParty || request.isNavigationRequest());
-        const granted = this.sendGrant === true || covered;
+        const granted = (!forceCard && this.sendGrant === true) || covered;
         // Second tour (constats 7 et 16) : a write of a click's window belongs to that click's
         // gateway call (its card and its HTTP status), not to the call in progress when it leaves.
         const origin = clickWindow ? (this.clickToken ?? this.callToken) : this.callToken;
@@ -999,11 +1067,11 @@ export class CdpBrowser {
         // posted with the application) was cancelled without a trace. It is now asked like a send :
         // the owner's click decides, and a refusal is said to the agent and in the Bilan.
         const large = Buffer.byteLength(body) > 100000;
-        if (!granted && !afterSendClick && !large && !request.isNavigationRequest()) {
+        if (!forceCard && !granted && !afterSendClick && !large && !request.isNavigationRequest()) {
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        this.sendGrant = false;
+        if (!forceCard) this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
         // refused or expired answer blocks them all. An approval only ever frees the request it showed.
         while (!granted && this.sendDecision)
@@ -1266,19 +1334,34 @@ export class CdpBrowser {
   // the owner's approval compares them, and not what the page renews by itself (a token, a title).
   async #markAgentField(ref) {
     try {
-      const key = await (
+      let key = await (
         await this.targetLocator({ ref })
       ).evaluate((el) => {
         const field = el.matches('input, select, textarea')
           ? el
           : (el.control ?? el.querySelector('input, select, textarea') ?? el);
-        return field.name || field.id || null;
+        return { name: field.name || field.id || null, frame: location.href };
       });
+      // Relecture fix5 (constat 4) : the frame the agent acts in.
+      this.actionFrameUrl = key.frame;
+      key = key.name;
       if (key) (this.agentFields ??= new Set()).add(key);
       if (key) this.agentFieldsPage = pageKey(this.page.url());
     } catch {
       /* the action itself reports a missing ref */
     }
+  }
+  // Relecture fix5 (constat 4) : the frame of the agent's last action (an iframe of another site
+  // the agent works in is that frame's own site for its writes ; any other is third party).
+  async #noteActionFrame(locator) {
+    this.actionFrameUrl = await locator.evaluate(() => location.href).catch(() => null);
+  }
+  // A value the agent typed : a third-party frame must not carry it out without a card.
+  #rememberAgentValue(text) {
+    if (typeof text !== 'string' || text.trim().length < 3) return;
+    this.agentValues = [...(this.agentValues ?? []).filter((value) => value !== text), text].slice(
+      -40,
+    );
   }
   async submissionPreview(target) {
     if (!this.page) return null;
@@ -1617,6 +1700,7 @@ export class CdpBrowser {
   }
   async #fillText(ref, text) {
     await this.#markAgentField(ref);
+    this.#rememberAgentValue(text);
     // Filling a field is not a send; same-site autosave stays automatic.
     // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
     const target = await this.targetLocator({ ref: ref });
@@ -1864,6 +1948,7 @@ export class CdpBrowser {
       case 'browser.click':
         // Resolve first: a stale ref must not open the post-click send window.
         const target = await this.targetLocator({ ref: args.ref });
+        await this.#noteActionFrame(target);
         this.ownerConnection?.takeOpenedWindow();
         this.sendGrant = args.sendApproved === true;
         // A click inside a form is a submission even when its label says "Continue". Audit du
@@ -2047,6 +2132,7 @@ export class CdpBrowser {
       }
       case 'browser.press': {
         const target = await this.targetLocator({ ref: args.ref });
+        await this.#noteActionFrame(target);
         const hidden = await this.#isHidden(page);
         // Audit du 10/11 (constat 14) : Enter that submits a form is a click on its default
         // button : the same send window (approved send, step, ordinary click). From an
@@ -2121,6 +2207,7 @@ export class CdpBrowser {
       }
       case 'browser.upload': {
         const target = await this.targetLocator({ ref: args.ref });
+        await this.#noteActionFrame(target);
         const files = args.filePayload ?? args.path;
         const expected = typeof files === 'string' ? basename(files) : files.name;
         // Same activation target as describe(): a ref on a child node acts through its button.
@@ -2202,8 +2289,11 @@ export class CdpBrowser {
         } finally {
           // The window stays open after the call only for a file the page really received ; a
           // failed upload closes it and forgets the file (septième relecture).
-          if (attached) this.lastUploadEnd = Date.now();
-          else {
+          if (attached) {
+            this.lastUploadEnd = Date.now();
+            // Relecture fix5 (constat 4) : kept for the mission, beyond the upload's window.
+            this.agentFiles = [...(this.agentFiles ?? []), this.uploadedFile].slice(-3);
+          } else {
             this.lastUploadEnd = 0;
             this.uploadedFile = null;
           }
@@ -2385,5 +2475,8 @@ export class CdpBrowser {
     this.page = null;
     this.lastUploadEnd = 0;
     this.uploadedFile = null;
+    this.agentFiles = null;
+    this.agentValues = null;
+    this.actionFrameUrl = null;
   }
 }

@@ -104,3 +104,8 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   origine (constat 4 du premier tour, **accepté trop vite par le manager à 01:08**), accord qui couvre 8 s de
   navigations vers tout site, faux « refusé par le site » (télémétrie en 404). Correcteur `audit-fix5` (Opus) lancé
   à 02:54 avec la priorité explicite : « l'envoi final ne part jamais sans carte ; dans le doute, une carte ».
+- 03:25 — `audit-fix4` rendu (13 commits, unitaires 966 ✔) et fusionné (79c6319) : les 12 constats de la relecture
+  corrigés. Choix notable : une action demandée (envoi, candidature, formulaire) sans page prouvée ni envoi approuvé
+  finit **`failed`** (réponse de l'agent gardée, Bilan « navigation non prouvée : aucun envoi constaté »), car
+  `completed` affirmerait un envoi que la plateforme n'a pas vu. Intentions : 50 prompts de la sonde en test ; le prompt
+  réel du soir et la démo sans Skill restent `apply`. Budget calculé sur les lignes revérifiées du run.

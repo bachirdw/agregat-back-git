@@ -508,6 +508,20 @@ const describeElement = (el) => {
         : control.innerText) ?? ''
     ).slice(0, 200),
     ariaLabel: control.getAttribute('aria-label'),
+    // Audit WebSocket (ws2) : what an icon button says without a label (tooltip, test id, icon
+    // name), to tell a messenger's send icon from any other icon. Never a value of a field.
+    hint:
+      [
+        control.getAttribute('title'),
+        control.getAttribute('data-tooltip'),
+        control.getAttribute('data-testid'),
+        control.getAttribute('data-icon'),
+        control.querySelector?.('[data-icon]')?.getAttribute('data-icon'),
+        control.querySelector?.('svg title')?.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .slice(0, 200) || null,
     // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
     ariaHasPopup: control.getAttribute('aria-haspopup'),
     ariaExpanded: control.getAttribute('aria-expanded'),
@@ -530,6 +544,8 @@ export class CdpBrowser {
   // never accepted or dismissed silently. A dialog blocks the page, so the action that opened it
   // returns at once with dialog: {type, message} and finishes after the answer.
   #dialogPages = new WeakSet();
+  // Audit WebSocket (ws2) : the sockets each tab of the mission has open (seen, never relayed).
+  #socketPages = new WeakMap();
   #dialog = null;
   #dialogNotify = null;
   #dialogAction = null;
@@ -1043,18 +1059,36 @@ export class CdpBrowser {
     }
     const seen = new Set();
     let held = Promise.resolve();
+    // ws2 (relecture, constat 4) : whether the socket is still open, so that an approval given
+    // after its closure counts no send. With onClose handlers, the closure is forwarded here.
+    const state = { open: true };
+    const closeOther = (side, code, reason) => {
+      state.open = false;
+      // Only the codes a page may give itself (1000, 3000-4999) are passed on.
+      const valid = code === 1000 || (code >= 3000 && code <= 4999);
+      try {
+        Promise.resolve(side.close(valid ? { code, reason } : {})).catch(() => {});
+      } catch {
+        /* already closed */
+      }
+    };
+    socket.onClose((code, reason) => closeOther(server, code, reason));
+    server.onClose((code, reason) => closeOther(socket, code, reason));
     const forward = (message) => {
+      if (!state.open) return false;
       try {
         server.send(message);
+        return true;
       } catch {
         /* the server side is gone : the page sees its socket closed */
+        return false;
       }
     };
     socket.onMessage((message) => {
       const origin = this.#socketHold(message, seen);
       if (!origin) return forward(message);
       held = held
-        .then(() => this.#decideSocketFrame(url, message, origin))
+        .then(() => this.#decideSocketFrame(url, message, origin, state))
         .then((approved) => approved && forward(message))
         .catch(() => {});
     });
@@ -1071,27 +1105,46 @@ export class CdpBrowser {
     if (this.#closed) return null;
     const key = typeof message === 'string' ? message : Buffer.from(message).toString('latin1');
     const action = this.#socketWindow();
+    // ws2 (relecture, constat 3) : a heartbeat with a timestamp or a counter is still a repeat.
+    const shape = key.length <= 4096 ? key.replace(/\d+/g, '#') : null;
     if (!action) {
-      if (key.length <= 4096 && seen.size < 500) seen.add(key);
+      if (shape !== null && seen.size < 500) seen.add(shape);
       return null;
     }
-    if (seen.has(key)) return null;
+    if (shape !== null && seen.has(shape)) return null;
+    // A step of a form (« Suivant », a field) saves the form, as its HTTP writes do.
+    if (action.id === 'browser.click' && this.formStep === true && this.clickToken === action.token)
+      return null;
+    const token = action.token ?? this.callToken ?? true;
     if (
-      !socketCarriesAgentData(message, {
+      socketCarriesAgentData(message, {
         values: this.agentValues ?? [],
         files: this.agentFiles ?? [],
       })
     )
-      return null;
-    // A step of a form (« Suivant », a field) saves the form, as its HTTP writes do.
-    if (action.id === 'browser.click' && this.formStep === true && this.clickToken === action.token)
-      return null;
-    return action.token ?? this.callToken ?? true;
+      return token;
+    // ws2 (relecture, constat 1) : after a send-worded click or Enter that asked no card, on the
+    // same page, the first new frame waits for the card even without the agent's text (an
+    // encrypted message, an attachment, a quick reply). Only one per action.
+    if (
+      this.clickKind === 'candidate' &&
+      this.sendClick === true &&
+      this.clickToken === action.token &&
+      !action.heldFirst &&
+      this.page &&
+      pageKey(this.page.url()) === this.clickPage
+    ) {
+      action.heldFirst = true;
+      return token;
+    }
+    return null;
   }
-  #takeSocketCover(url) {
+  #takeSocketCover(url, state) {
     const cover = this.cover;
     if (!cover || cover.left <= 0 || Date.now() > cover.until || !sameSite(url, cover.target))
       return false;
+    // ws2 (constat 4) : a closed socket sends nothing : nothing is counted.
+    if (state && !state.open) return false;
     cover.left -= 1;
     if (cover.primary) this.#traceAutoSend(url);
     else cover.primary = { entry: this.#recordSocketSend(url, cover.token), strong: true, url };
@@ -1109,15 +1162,15 @@ export class CdpBrowser {
     this.submissions = [...(this.submissions ?? []), entry].slice(-10);
     return entry;
   }
-  async #decideSocketFrame(url, message, held) {
+  async #decideSocketFrame(url, message, held, state = { open: true }) {
     const origin = held === true ? null : held;
-    if (this.#takeSocketCover(url)) return true;
+    if (this.#takeSocketCover(url, state)) return true;
     // A burst (the page's POST and its frame, two frames of one message) shares one question.
     while (this.sendDecision) {
       if ((await this.sendDecision) !== true) return false;
-      if (this.#takeSocketCover(url)) return true;
+      if (this.#takeSocketCover(url, state)) return true;
     }
-    if (this.#closed) return false;
+    if (this.#closed || !state.open) return false;
     const text = typeof message === 'string' ? message : Buffer.from(message).toString('utf8');
     const decision = Promise.resolve(
       this.approve?.(
@@ -1134,6 +1187,9 @@ export class CdpBrowser {
     const approved = await decision;
     if (this.sendDecision === decision) this.sendDecision = null;
     if (approved !== true || this.#closed) return false;
+    // ws2 (constat 4) : approved after the socket closed (the page reconnected, changed address) :
+    // nothing leaves, nothing is counted.
+    if (!state.open) return false;
     const entry = this.#recordSocketSend(url, origin);
     // The card covers the next frame of the same message to the same site, once.
     this.cover = {
@@ -1331,12 +1387,15 @@ export class CdpBrowser {
       // without one. Each socket of the mission's tabs is relayed (the real connection is made
       // from the page), and the frames it sends are read by #socketVerdict. If the transport
       // cannot route WebSockets, the gateway asks the card before a send-worded click instead.
+      // Audit WebSocket (ws2, décision du manager) : the relay of sockets held or reordered ordinary
+      // traffic (binary frames after text frames, heartbeats held) and could break a site in the
+      // owner's own Chrome. It is OPTIONAL, off by default, on only with AGENT_PLATFORM_WS_GUARD=1.
+      // Off, the fallback protects : the owner's card comes BEFORE a click or a key that may send a
+      // message on a page with an open WebSocket (index.js), and the page's sockets stay native.
       this.socketGuardFailed = null;
-      // Audit du 10/11 (manager) : AGENT_PLATFORM_WS_GUARD=0 turns the relay of sockets off (should
-      // it disturb a site in the owner's own Chrome) ; the fallback then asks the card before a
-      // send-worded click, as when the transport cannot route WebSockets.
-      if (process.env.AGENT_PLATFORM_WS_GUARD === '0')
-        this.socketGuardFailed = 'désactivée par AGENT_PLATFORM_WS_GUARD=0';
+      if (process.env.AGENT_PLATFORM_WS_GUARD !== '1')
+        this.socketGuardFailed =
+          'relais WebSocket non activé (AGENT_PLATFORM_WS_GUARD=1 pour l’activer) : carte avant l’action d’envoi';
       else
         try {
           await this.context.routeWebSocket('**/*', (socket) => this.#guardSocket(socket));
@@ -1989,6 +2048,46 @@ export class CdpBrowser {
       ...(after.value !== text && !after.secret ? { value: after.value.slice(0, 200) } : {}),
     };
   }
+  // Audit WebSocket (ws2) : which tabs have an open WebSocket, read from the browser's own events
+  // (the sockets stay native : nothing is held or relayed). A tab first seen after its load may
+  // already have one : that is a doubt until its next document.
+  #watchSockets(page) {
+    if (this.#socketPages.has(page) || typeof page.on !== 'function') return;
+    const entry = { open: new Set(), complete: page.url() === 'about:blank' };
+    this.#socketPages.set(page, entry);
+    page.on('websocket', (socket) => {
+      entry.open.add(socket);
+      socket.on('close', () => entry.open.delete(socket));
+      // Without the relay (the default), a frame the page sent after an approved click or key is
+      // the send it approved : counted once at the Bilan (observed, never held). A frame shaped
+      // like one sent outside any action (a heartbeat, digits aside) is no send.
+      const seen = new Set();
+      socket.on('framesent', ({ payload }) => {
+        if (!this.socketGuardFailed || this.#closed) return;
+        const key = typeof payload === 'string' ? payload : Buffer.from(payload).toString('latin1');
+        const shape = key.length <= 4096 ? key.replace(/\d+/g, '#') : null;
+        if (!this.#socketWindow()) {
+          if (shape !== null && seen.size < 500) seen.add(shape);
+          return;
+        }
+        if (shape !== null && seen.has(shape)) return;
+        this.#takeSocketCover(socket.url());
+      });
+    });
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) entry.complete = true;
+    });
+  }
+  // Whether the current tab may send by WebSocket : an open socket, or a tab not watched since its
+  // load (in doubt, yes).
+  socketOpen() {
+    const page = this.page;
+    if (!page) return false;
+    const entry = this.#socketPages.get(page);
+    if (!entry || !entry.complete) return true;
+    for (const socket of entry.open) if (socket.isClosed?.()) entry.open.delete(socket);
+    return entry.open.size > 0;
+  }
   #watchDialogs(page) {
     // Test doubles of a page may have no event emitter: nothing to watch there.
     if (this.#dialogPages.has(page) || typeof page.on !== 'function') return;
@@ -2054,6 +2153,7 @@ export class CdpBrowser {
   async perform(id, args, policy) {
     const page = await this.ensure(policy);
     this.#watchDialogs(page);
+    this.#watchSockets(page);
     if (id === 'browser.dialog') return this.#answerDialog(page, args, policy);
     if (this.#dialog?.page === page)
       throw new Error(

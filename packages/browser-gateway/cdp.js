@@ -1332,11 +1332,17 @@ export class CdpBrowser {
       // from the page), and the frames it sends are read by #socketVerdict. If the transport
       // cannot route WebSockets, the gateway asks the card before a send-worded click instead.
       this.socketGuardFailed = null;
-      try {
-        await this.context.routeWebSocket('**/*', (socket) => this.#guardSocket(socket));
-      } catch (error) {
-        this.socketGuardFailed = error.message || 'routeWebSocket indisponible';
-      }
+      // Audit du 10/11 (manager) : AGENT_PLATFORM_WS_GUARD=0 turns the relay of sockets off (should
+      // it disturb a site in the owner's own Chrome) ; the fallback then asks the card before a
+      // send-worded click, as when the transport cannot route WebSockets.
+      if (process.env.AGENT_PLATFORM_WS_GUARD === '0')
+        this.socketGuardFailed = 'désactivée par AGENT_PLATFORM_WS_GUARD=0';
+      else
+        try {
+          await this.context.routeWebSocket('**/*', (socket) => this.#guardSocket(socket));
+        } catch (error) {
+          this.socketGuardFailed = error.message || 'routeWebSocket indisponible';
+        }
       return;
     }
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is

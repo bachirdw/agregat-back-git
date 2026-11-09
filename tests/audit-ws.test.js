@@ -286,6 +286,32 @@ test(
   },
 );
 
+// Audit du 10/11 (manager) : interrupteur AGENT_PLATFORM_WS_GUARD=0, si la route WebSocket gênait un
+// site dans le vrai Chrome du propriétaire : le repli (carte avant le clic d'envoi) s'applique.
+test(
+  'WebSocket : AGENT_PLATFORM_WS_GUARD=0 → pas de route, carte avant le clic « Envoyer »',
+  { skip },
+  async (t) => {
+    const previous = process.env.AGENT_PLATFORM_WS_GUARD;
+    process.env.AGENT_PLATFORM_WS_GUARD = '0';
+    t.after(() => {
+      if (previous === undefined) delete process.env.AGENT_PLATFORM_WS_GUARD;
+      else process.env.AGENT_PLATFORM_WS_GUARD = previous;
+    });
+    const s = await site(t);
+    const { gateway, provider, asked } = await owner(t, s.origin);
+    await ready(gateway, provider, s);
+    assert.match(String(provider.socketGuardFailed), /AGENT_PLATFORM_WS_GUARD/);
+    await assert.rejects(
+      gateway.call('browser.click', { ref: await refFor(gateway, '#send') }),
+      /refusée/,
+    );
+    assert.equal(asked.at(-1).capability, 'browser.click', 'la carte vient avant le clic');
+    await sleep(300);
+    assert.deepEqual(s.messages(), [], 'refus : le clic n’a pas eu lieu');
+  },
+);
+
 test(
   'WebSocket (transport propriétaire, Chrome jetable par CDP) : message retenu jusqu’à la carte, présence libre',
   { skip },

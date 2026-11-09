@@ -59,8 +59,12 @@ test('E64 : expiration, refus HTTP, coupure et plafond configuré', async (t) =>
   t.after(() => server.closeAllConnections());
   const url = `http://127.0.0.1:${server.address().port}/api/internal/approvals/FICTIF`;
   assert.equal(await requestDecision(url, 'JETON', {}), 'expired');
+  // Audit du 10/11 (constat 15) : une erreur HTTP du pont n'est pas un refus du propriétaire.
   mode = 'refused';
-  assert.equal(await requestDecision(url, 'JETON', {}), false);
+  await assert.rejects(
+    requestDecision(url, 'JETON', {}),
+    (error) => /réponse HTTP 403/.test(error.message) && error.actionDone === false,
+  );
   mode = 'cut';
   await assert.rejects(requestDecision(url, 'JETON', {}), /ne la refais pas par une autre voie/);
   mode = 'silent';

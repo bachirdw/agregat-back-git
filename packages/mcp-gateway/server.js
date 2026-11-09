@@ -1,8 +1,9 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
-import { landedUrl } from './outcome.js';
+import { landedUrl, submissionRefused } from './outcome.js';
 import { requestDecision } from './approval.js';
+import { withEvidence } from './evidence.js';
 import { proofWatch } from './proofs.js';
 import { CallRegistry } from './calls.js';
 import { chargeUsage } from './meter.js';
@@ -253,20 +254,25 @@ if (mode === 'fixture') {
       },
       async (args) => {
         try {
-          const output = await gateway.call(cap.id, args);
-          if (policy.ownerMode && process.env.RELAY_EVIDENCE_URL) {
-            const response = await fetch(process.env.RELAY_EVIDENCE_URL, {
-              method: 'POST',
-              headers: {
-                'content-type': 'application/json',
-                'x-platform-request': '1',
-                'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
-              },
-              body: JSON.stringify(output),
-              signal: AbortSignal.timeout(15000),
-            });
-            if (!response.ok) throw new Error('Journal de navigation indisponible');
-          }
+          let output = await gateway.call(cap.id, args);
+          // Audit du 10/11 (constat 8) : a journal failure after the action never turns it into
+          // an error (see evidence.js).
+          if (policy.ownerMode && process.env.RELAY_EVIDENCE_URL)
+            output = await withEvidence(output, (value) =>
+              fetch(process.env.RELAY_EVIDENCE_URL, {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                  'x-platform-request': '1',
+                  'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+                },
+                body: JSON.stringify(value),
+                signal: AbortSignal.timeout(15000),
+              }),
+            );
+          // Audit du 10/11 (constat 7) : a submission the site refused (HTTP 4xx/5xx) is no success.
+          const refused = submissionRefused(output);
+          if (refused) return failure(new Error(refused));
           return text(output);
         } catch (e) {
           return failure(e);

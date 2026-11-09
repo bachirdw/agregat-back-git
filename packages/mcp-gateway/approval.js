@@ -11,7 +11,8 @@ import { notDone } from '../policy-engine/not-done.js';
 // `signal` is the agent's call itself : when the agent gives up its tool call (MCP cancellation,
 // connection closed), the request is cut, the platform takes the card back and a later
 // « Approuver » never sends anything.
-// Resolves to true (approved), false (refused) or 'expired'; rejects when no decision came back.
+// Resolves to true (approved), false (refused) or 'expired'; rejects when no decision came back
+// (bridge unreachable, HTTP error, unreadable answer, call cancelled).
 export function requestDecision(url, token, payload, { timeoutMs, signal } = {}) {
   const lost = (why) =>
     notDone(
@@ -44,8 +45,10 @@ export function requestDecision(url, token, payload, { timeoutMs, signal } = {})
         res.on('data', (chunk) => chunks.push(chunk));
         res.on('error', () => reject(lost('réponse interrompue')));
         res.on('end', () => {
+          // Audit du 10/11 (constat 15) : an HTTP error of the bridge (401, 500, platform
+          // restarting) is no refusal of the owner ; « refusée » is kept for `approved: false`.
           if (res.statusCode !== 200) {
-            resolve(false);
+            reject(lost(`réponse HTTP ${res.statusCode}`));
             return;
           }
           try {

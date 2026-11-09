@@ -356,3 +356,42 @@ test('propriétaire : étapes de formulaire automatiques, envoi final toujours s
   ])
     assert.equal(policy.isFormStep(d), false, JSON.stringify(d));
 });
+
+test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi en mode propriétaire', () => {
+  const policy = new RunPolicy({ ownerMode: true, capabilities: capabilityIds });
+  const kind = (d) => policy.ownerClickKind(d);
+  // Étapes reconnues où qu'elles soient dans le libellé.
+  for (const text of ['Étape suivante', 'Suivant →', 'Save & continue', 'Continuer vers l’étape 3'])
+    assert.equal(kind({ tag: 'button', buttonType: 'submit', inForm: true, text }), 'step', text);
+  assert.equal(
+    kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Ajouter une expérience' }),
+    'step',
+  );
+  // Listes, options, bascules, menus : jamais un envoi.
+  for (const d of [
+    { tag: 'div', role: 'combobox', inForm: true, text: 'Pays' },
+    { tag: 'div', role: 'option', inForm: true, text: 'Envoyer par courrier' },
+    { tag: 'button', buttonType: 'button', inForm: true, text: 'Ville', ariaHasPopup: 'listbox' },
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Plus', ariaExpanded: 'false' },
+    { tag: 'div', role: 'switch', inForm: true, text: 'Oui' },
+  ])
+    assert.equal(kind(d), 'widget', JSON.stringify(d));
+  // Un bouton qui ne soumet rien et ne dit pas d'envoi.
+  assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Oui' }), 'plain');
+  assert.equal(kind({ tag: 'div', inForm: true, text: 'Continue' }), 'plain');
+  // « Postuler » hors formulaire : carte seulement si le clic déclenche une écriture.
+  assert.equal(
+    kind({ tag: 'button', buttonType: 'submit', inForm: false, text: 'Postuler' }),
+    'candidate',
+  );
+  assert.equal(kind({ tag: 'a', inForm: false, text: 'Apply now' }), 'candidate');
+  // Envoi final : carte avant le clic.
+  for (const d of [
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Envoyer' },
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'OK' },
+    { tag: 'input', inputType: 'submit', inForm: true, text: '' },
+    { tag: 'button', buttonType: 'button', inForm: true, text: 'Envoyer ma candidature' },
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Continue to submit' },
+  ])
+    assert.equal(kind(d), 'submit', JSON.stringify(d));
+});

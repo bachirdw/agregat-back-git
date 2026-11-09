@@ -54,6 +54,11 @@ async function closeThrough(url, ids, ms) {
 
 // A local CDP view containing ONLY targets created by this connection. In particular never
 // forward root auto-attach or browser-wide settings to the user's existing tabs.
+// Audit du 10/11 (constat 10) : a command of the page relayed for Playwright (navigation, a click
+// held by a confirm() dialog until the agent answers it) is not cut at the startup delay : Playwright
+// has its own timeouts ; this bound only keeps a command the relay never answers from waiting
+// forever (a closed connection rejects them all at once).
+export const RELAYED_COMMAND_MS = 10 * 60 * 1000;
 export async function ownerTransport(endpoint, timeoutMs = 10000) {
   const base = new URL(endpoint);
   if (
@@ -221,14 +226,25 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
             if (m.method.startsWith('Browser.')) throw new Error('Commande globale refusée');
             if (m.params?.targetId && !targets.has(m.params.targetId))
               throw new Error('Cible hors périmètre');
-            result = await rpc(m.method, m.params, m.sessionId);
+            result = await rpc(
+              m.method,
+              m.params,
+              m.sessionId,
+              Math.max(timeoutMs, RELAYED_COMMAND_MS),
+            );
           } else if (m.method === 'Target.setAutoAttach') {
-            if (!m.sessionId)
+            if (!m.sessionId) {
               send({
                 method: 'Target.attachedToTarget',
                 params: { sessionId: targetSession, targetInfo, waitingForDebugger: false },
               });
-            result = {};
+              result = {};
+            } else
+              // Audit du 10/11 (constat 3) : on a session of the mission, auto-attach reaches only
+              // that page's own children (out-of-process iframes of another site, its workers) ;
+              // their sessions are accepted as children of ours. A relay that refuses it leaves the
+              // page as before (iframes of another site unreadable), never broken.
+              result = await rpc(m.method, m.params, m.sessionId).catch(() => ({}));
           } else if (m.method === 'Target.getTargets') result = { targetInfos: [targetInfo] };
           else if (m.method === 'Target.getTargetInfo') {
             if (m.params?.targetId && !targets.has(m.params.targetId))

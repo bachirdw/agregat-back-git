@@ -43,6 +43,11 @@ async function relay(t, options = {}) {
       const emit = (message) => socket.send(JSON.stringify(message));
       // E70 : a relay (or a frozen tab) that never answers the closing of a tab.
       if (m.method === 'Target.closeTarget' && options.silentClose) return;
+      // Audit du 10/11 (constat 10) : a page command answered late (dialog, slow navigation).
+      if (options.slowSession && m.sessionId === 'own-session') {
+        setTimeout(() => emit({ id: m.id, result: { late: true } }), options.slowSession);
+        return;
+      }
       let result = {};
       if (m.method === 'Target.createTarget') {
         if (options.mute) return;
@@ -313,4 +318,29 @@ test('pilote propriétaire FICTIF : les onglets se ferment tôt, chaque étape e
   assert.deepEqual(order, ['page', 'onglets', 'session', 'routes', 'navigateur']);
   assert.ok(elapsed < 6000, `fermeture trop longue : ${elapsed} ms`);
   assert.equal(provider.ownerConnection, null);
+});
+
+test('Audit 10/11 (constat 10) : une commande de page lente n’est pas coupée au délai de démarrage', async (t) => {
+  const fake = await relay(t, { slowSession: 900 });
+  const transport = await ownerTransport(fake.endpoint, 300);
+  t.after(() => transport.close());
+  const socket = new WebSocket(transport.endpoint);
+  t.after(() => socket.terminate());
+  const received = [];
+  socket.on('message', (raw) => received.push(JSON.parse(raw.toString())));
+  await new Promise((r) => socket.once('open', r));
+  socket.send(
+    JSON.stringify({
+      id: 1,
+      method: 'Page.navigate',
+      params: { url: 'about:blank' },
+      sessionId: 'own-session',
+    }),
+  );
+  const until = Date.now() + 3000;
+  while (!received.some((m) => m.id === 1) && Date.now() < until)
+    await new Promise((r) => setTimeout(r, 10));
+  const answer = received.find((m) => m.id === 1);
+  assert.equal(answer?.error, undefined, JSON.stringify(answer));
+  assert.deepEqual(answer.result, { late: true });
 });

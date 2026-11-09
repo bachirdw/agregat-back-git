@@ -11,6 +11,21 @@ const LANDING_TOOLS = new Set([
   'browser_click',
 ]);
 
+// Audit du 10/11 (constat 7) : an approved submission the site answered with an HTTP error is no
+// success : the call fails (the Bilan then says « issue incertaine »), and the agent is told not to
+// click again blindly. Returns the message, or null.
+export function submissionRefused(output) {
+  const refused = (output?.submissions ?? []).find(
+    (s) => Number.isInteger(s?.status) && s.status >= 400,
+  );
+  if (!refused) return null;
+  return (
+    `Envoi approuvé parti, mais ${refused.host || 'le site'} a répondu HTTP ${refused.status} : ` +
+    'candidature ou message probablement non reçu. Relire la page (browser_snapshot) pour voir ' +
+    'l’erreur ; ne pas recliquer à l’aveugle.'
+  );
+}
+
 export function landedUrl(name, status, result) {
   if (!LANDING_TOOLS.has(name) || status !== 'completed') return undefined;
   try {

@@ -165,6 +165,20 @@ function hasSensitiveWord(value) {
     .split(/[^\p{L}\p{N}]+/u)
     .some((word) => word && SENSITIVE_WORDS.test(word));
 }
+// Audit du 10/11 (constat 2) : a path that names the submission itself (…/submit, /postuler,
+// /send…), not the many paths that merely contain « apply » or « order » (autosaves, applyFlow).
+const SUBMIT_PATH_WORD =
+  /^(submit\p{L}*|send|envoyer|postuler|soumettre|candidater|transmettre|finali[sz]e)$/iu;
+export function isSubmitPath(url) {
+  try {
+    return decodeURIComponent(new URL(url).pathname)
+      .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+      .split(/[^\p{L}\p{N}]+/u)
+      .some((word) => word && SUBMIT_PATH_WORD.test(word));
+  } catch {
+    return false;
+  }
+}
 export function isSensitiveRequest(url, body) {
   // A GraphQL read stays a read even when its operation name contains an action word.
   if (isGraphqlRead(body)) return false;
@@ -183,6 +197,15 @@ export function isSensitiveRequest(url, body) {
     );
   } catch {
     return false;
+  }
+}
+// The page a click was made on, without query or fragment (audit du 10/11).
+function pageKey(url) {
+  try {
+    const u = new URL(url);
+    return u.origin + u.pathname;
+  } catch {
+    return null;
   }
 }
 // Same registrable site (au.seek.com ~ www.seek.com ; example.com.au keeps three labels).
@@ -489,8 +512,14 @@ export class CdpBrowser {
     if (this.page) return this.page;
     this.#opening = outsideCalls(() => this.open(policy)).catch(async (error) => {
       // Startup is transactional: never leave a partially guarded context available for reuse.
-      this.#closed = true;
-      await this.release();
+      // Audit du 10/11 (constat 6) : in owner mode, a failed (re)opening only drops the
+      // connection ; the next call opens a new tab on a new connection. Only close() ends the
+      // browser of the mission.
+      if (policy.ownerMode && !this.#closed) await this.dropConnection();
+      else {
+        this.#closed = true;
+        await this.release();
+      }
       throw error;
     });
     try {
@@ -543,6 +572,9 @@ export class CdpBrowser {
         clearTimeout(timer);
       }
     };
+    // Audit du 10/11 (constat 6) : the owner connection serves only the tab it created ; once that
+    // tab is closed, a new tab needs a new connection (newPage over it fails).
+    if (this.context && this.ownerConnection) await this.dropConnection();
     if (this.context) {
       try {
         return await step(() => this.newPage(policy));
@@ -748,6 +780,41 @@ export class CdpBrowser {
       .finally(() => this.pendingAutoSends?.delete(pending));
     (this.pendingAutoSends ??= new Set()).add(pending);
   }
+  // Audit du 10/11 (constat 7) : a write the owner approved (or that an approved click covers) is a
+  // submission ; its HTTP status tells whether the site took it. Host and status only.
+  #recordSubmission(request) {
+    if (request.resourceType() === 'ping') return;
+    let host = '';
+    try {
+      host = new URL(request.url()).host;
+    } catch {
+      /* unparsable URL: recorded without a host */
+    }
+    const entry = { host, status: null };
+    entry.settled = request.response().then(
+      (response) => {
+        entry.status = response ? response.status() : null;
+      },
+      () => {},
+    );
+    this.submissions = [...(this.submissions ?? []), entry].slice(-10);
+  }
+  // Called after each tool call : the submissions since the previous call, with their status once
+  // answered (5 s at most ; a submission still unanswered keeps a null status).
+  async takeSubmissions(ms = 5000) {
+    const list = this.submissions ?? [];
+    this.submissions = [];
+    if (!list.length) return [];
+    let timer;
+    await Promise.race([
+      Promise.all(list.map((entry) => entry.settled)),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, ms);
+      }),
+    ]);
+    clearTimeout(timer);
+    return list.map(({ host, status }) => ({ host, status }));
+  }
   // Called after each tool call: waits for the traces already started, then returns and resets the
   // count of network writes granted automatically since the previous call.
   async takeAutoSends() {
@@ -770,12 +837,20 @@ export class CdpBrowser {
         if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
         const body = request.postData() ?? '';
         let pageUrl = '';
+        let frameUrl = '';
         try {
           pageUrl = request.frame().page().url();
+          frameUrl = request.frame().url();
         } catch {
           /* no page: treated as third party */
         }
-        const firstParty = sameSite(request.url(), pageUrl);
+        // Audit du 10/11 (constat 4) : an iframe of another site writing to its own origin (the
+        // token of an anti-bot widget, an embedded ATS) is that frame's own site, judged by the
+        // frame that posts, not by the tab. A script of the tab posting to another site stays third
+        // party, and the agent's file still only leaves through the upload rule below.
+        const firstParty =
+          sameSite(request.url(), pageUrl) ||
+          (/^https?:/.test(frameUrl) && sameSite(request.url(), frameUrl));
         // Reads and session upkeep are automatic only for this site's own endpoints.
         // Chrome/Playwright classify navigator.sendBeacon as "ping". A beacon cannot
         // wait for an application response, even if its endpoint says "send".
@@ -822,15 +897,31 @@ export class CdpBrowser {
         // Owner decision (05/11): only the agent's click on a send button waits for the owner. Any
         // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.
+        const samePage = pageKey(pageUrl) === this.clickPage;
+        const clickWindow =
+          this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS;
         const afterSendClick =
-          this.sendClick === true &&
-          (this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS);
-        if (this.sendGrant !== true && !afterSendClick && !request.isNavigationRequest()) {
+          clickWindow &&
+          // A candidate click that led to another page (« Postuler » opening the form) : the new
+          // page's own writes are no send of that click.
+          ((this.sendClick === true && (this.clickKind !== 'candidate' || samePage)) ||
+            // Audit du 10/11 (constat 2) : an ordinary click (icon button, unknown label) whose
+            // page then writes to a submission path of its own site is a send too.
+            (this.clickKind === 'plain' && firstParty && samePage && isSubmitPath(request.url())));
+        // Audit du 10/11 (constat 5) : the owner's approval of a send click covers the writes that
+        // click triggers on its site (or the form it posts elsewhere) during the click's window :
+        // a submission that awaits a check or a token before its fetch asks nothing more, and the
+        // send is counted once.
+        const covered =
+          this.clickApproved === true &&
+          clickWindow &&
+          (firstParty || request.isNavigationRequest());
+        const granted = this.sendGrant === true || covered;
+        if (!granted && !afterSendClick && !request.isNavigationRequest()) {
           if (Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        const granted = this.sendGrant === true;
         if (!granted && Buffer.byteLength(body) > 100000) return route.abort('blockedbyclient');
         this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
@@ -856,6 +947,7 @@ export class CdpBrowser {
           if (this.sendDecision === decision) this.sendDecision = null;
         }
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
+        this.#recordSubmission(request);
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);
@@ -1031,8 +1123,18 @@ export class CdpBrowser {
         buttonType: control.tagName === 'BUTTON' ? control.type : null,
         inForm: !!form,
         formAction: form?.getAttribute('action') ?? null,
-        text: (control.innerText ?? '').slice(0, 200),
+        // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
+        // is its value, never a secret.
+        text: (
+          (control.tagName === 'INPUT' &&
+          ['submit', 'button', 'reset', 'image'].includes(control.type)
+            ? control.value || control.getAttribute('alt')
+            : control.innerText) ?? ''
+        ).slice(0, 200),
         ariaLabel: control.getAttribute('aria-label'),
+        // Audit du 10/11 (constat 1) : a list, menu or disclosure button is never a send.
+        ariaHasPopup: control.getAttribute('aria-haspopup'),
+        ariaExpanded: control.getAttribute('aria-expanded'),
         // Values may contain passwords, card numbers or private data even on text inputs.
         value: null,
         href: control.getAttribute('href'),
@@ -1408,8 +1510,10 @@ export class CdpBrowser {
     this.redirectLanding = null;
     const goto = async (url, landing = false) => {
       this.snapshotRefs = null;
-      // E43 : a navigation of the agent ends the moment of an upload, and frees the file.
+      // E43 : a navigation of the agent ends the moment of an upload, and frees the file. It also
+      // ends what an approved send click covered (audit du 10/11, constat 5).
       this.lastUploadEnd = 0;
+      this.clickApproved = false;
       this.uploadedFile = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
@@ -1509,9 +1613,15 @@ export class CdpBrowser {
         const target = await this.targetLocator({ ref: args.ref });
         this.ownerConnection?.takeOpenedWindow();
         this.sendGrant = args.sendApproved === true;
-        // A click inside a form is a submission even when its label says "Continue".
-        this.sendClick = args.sendApproved === true || args.formStep === true;
+        // A click inside a form is a submission even when its label says "Continue". Audit du
+        // 10/11 (constat 1) : a send-worded control outside a form (`candidate`) asks nothing
+        // before the click ; a write it triggers from the same page waits for the owner's card.
+        this.sendClick =
+          args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
         this.formStep = args.formStep === true;
+        this.clickKind = args.clickKind ?? null;
+        this.clickPage = pageKey(page.url());
+        this.clickApproved = args.sendApproved === true;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -1558,6 +1668,12 @@ export class CdpBrowser {
           await this.reset();
           throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
         }
+        // Audit du 10/11 (constat 7) : an approved send may post after the click (validation,
+        // token) : wait 1.5 s at most for its request, so that its status comes with this result
+        // (a later one comes with the next call's result).
+        if (args.sendApproved === true)
+          for (let i = 0; i < 30 && !this.submissions?.length; i++)
+            await new Promise((resolve) => setTimeout(resolve, 50));
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);
         await this.ownerConnection?.waitOpenedWindow(1000);
@@ -1882,6 +1998,8 @@ export class CdpBrowser {
           this.sendGrant = args.sendApproved === true;
           this.sendClick = args.sendApproved === true;
           this.formStep = false;
+          this.clickKind = null;
+          this.clickApproved = args.sendApproved === true;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);

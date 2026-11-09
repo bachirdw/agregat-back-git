@@ -6,9 +6,31 @@ import { relative, resolve, isAbsolute, sep } from 'node:path';
 export const SENSITIVE_WORDS =
   /\b(submit|apply|send|pay|buy|purchase|order|checkout|confirm|delete|sign ?up|register|postuler|candidater|envoyer|payer|acheter|commander|confirmer|valider|supprimer|s['’]inscrire)\b/i;
 
-// Moving between the steps of a multi-step form, or filling it, is not a send.
+// Audit du 10/11 (constat 2) : labels of a final send that SENSITIVE_WORDS misses (conjugated
+// verbs, other phrasings). Used for the agent's clicks only, never for request paths.
+export const SEND_LABEL_WORDS =
+  /\b(postul\p{L}*|candidate[rz]|soumet\p{L}*|soumis|soumission|transmet\p{L}*|envoi\p{L}*|termin(?:er|ez)|finalis\p{L}*|finaliz\p{L}*|finish|submit\p{L}*|send\p{L}*)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
+// Moving between the steps of a multi-step form, or filling it, is not a send. Audit du 10/11
+// (constat 1) : found anywhere in the label (« Étape suivante », « Suivant → », « Save & continue »),
+// a send word in the same label still wins (« Continue to submit »).
 export const STEP_WORDS =
-  /^\s*(continue|continuer|next|suivant|previous|précédent|back|retour|save and continue)\s*$/i;
+  /(?:^|[^\p{L}])(continue|continuer|next|suivant|suivante|previous|précédent|précédente|back|retour|save (?:and|&) continue|enregistrer et continuer|ajouter|add)(?:$|[^\p{L}])/iu;
+// Owner mode : controls that open, choose or toggle something in the page, never a send.
+const WIDGET_ROLES = new Set([
+  'combobox',
+  'listbox',
+  'option',
+  'radio',
+  'checkbox',
+  'switch',
+  'tab',
+  'menuitem',
+  'menuitemradio',
+  'menuitemcheckbox',
+  'treeitem',
+  'spinbutton',
+  'slider',
+]);
 const FIELD_INPUTS = new Set([
   'radio',
   'checkbox',
@@ -176,10 +198,37 @@ export class RunPolicy {
   }
   isFormStep(d = {}) {
     const label = [d.text, d.ariaLabel].filter(Boolean).join(' ');
-    if (SENSITIVE_WORDS.test(`${label} ${d.formAction ?? ''}`)) return false;
+    if (SENSITIVE_WORDS.test(`${label} ${d.formAction ?? ''}`) || SEND_LABEL_WORDS.test(label))
+      return false;
     if (['label', 'select', 'option', 'textarea'].includes(d.tag)) return true;
-    if (d.tag === 'input') return FIELD_INPUTS.has(d.inputType);
-    return (['button', 'a'].includes(d.tag) || d.role === 'button') && STEP_WORDS.test(label);
+    if (d.tag === 'input' && !['submit', 'button', 'image'].includes(d.inputType))
+      return FIELD_INPUTS.has(d.inputType);
+    return (
+      (['button', 'a', 'input'].includes(d.tag) || d.role === 'button') && STEP_WORDS.test(label)
+    );
+  }
+  // Audit du 10/11 (constats 1 et 2), owner mode : what an agent's click may send.
+  // - 'step' : a step of a multi-step form or a field (no card) ;
+  // - 'widget' : a list, an option, a toggle, a tab, a menu button (no card) ;
+  // - 'submit' : a real submission trigger (submit button of a form, input submit or image) or a
+  //   send-worded control inside a form : the owner's card before the click ;
+  // - 'candidate' : a send-worded control outside a form (« Je postule », « Postuler » that may only
+  //   open the form) : no card before the click, but a write the click triggers waits for one ;
+  // - 'plain' : anything else (no card ; its writes are granted and traced).
+  ownerClickKind(d = {}) {
+    if (this.isFormStep(d)) return 'step';
+    const label = [d.text, d.ariaLabel, d.value].filter(Boolean).join(' ');
+    const sendLabel = SENSITIVE_WORDS.test(label) || SEND_LABEL_WORDS.test(label);
+    if (
+      WIDGET_ROLES.has(String(d.role ?? '').toLowerCase()) ||
+      (d.ariaHasPopup && d.ariaHasPopup !== 'false') ||
+      (d.ariaExpanded !== null && d.ariaExpanded !== undefined)
+    )
+      return 'widget';
+    if (d.tag === 'input' && ['submit', 'image'].includes(d.inputType)) return 'submit';
+    if (d.tag === 'button' && d.buttonType === 'submit' && d.inForm) return 'submit';
+    if (!sendLabel) return 'plain';
+    return d.inForm && d.tag !== 'a' ? 'submit' : 'candidate';
   }
   workspacePath(p) {
     if (!this.workspace) throw new Error('Aucun dossier de run pour les fichiers');

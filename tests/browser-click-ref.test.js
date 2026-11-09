@@ -201,7 +201,12 @@ test(
     const formStart = Date.now();
     assert.equal((await click('Formulaire annulé')).clickMode, 'dom');
     assert.equal(await provider.page.locator('body').getAttribute('data-form-canceled'), '1');
-    assert.ok(Date.now() - formStart < 900, 'formulaire annulé sans attente de navigation fixe');
+    // Audit du 10/11 (constat 7) : un envoi approuvé attend jusqu'à 1,5 s la requête qu'il
+    // déclenche (son code HTTP) ; aucune autre attente fixe.
+    assert.ok(
+      Date.now() - formStart < 900 + 1500,
+      'formulaire annulé sans attente de navigation fixe',
+    );
     const linked = await click('Lien');
     assert.equal(linked.clickMode, 'dom');
     assert.equal(linked.hidden, true);

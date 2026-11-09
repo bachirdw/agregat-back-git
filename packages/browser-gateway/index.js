@@ -44,6 +44,24 @@ export function redactPageText(text, max = MAX_TEXT) {
   return out.length > max ? out.slice(0, max) + '\n[tronqué]' : out;
 }
 
+// Audit du 10/11 (constat 12) : the type a page sees for an uploaded file (file.type, the part of a
+// multipart body, a presigned upload) comes from its extension, as a person's browser would give it.
+const MIME_TYPES = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  odt: 'application/vnd.oasis.opendocument.text',
+  rtf: 'application/rtf',
+  txt: 'text/plain',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+};
+export function mimeTypeFor(name) {
+  const extension = /\.([a-z0-9]+)$/i.exec(String(name))?.[1]?.toLowerCase();
+  return MIME_TYPES[extension] ?? 'application/octet-stream';
+}
+
 // Documents an upload could mean (PDF, DOCX, images) at the root of the mission folder and one
 // level below, as relative paths the agent can pass back. relay/ (platform files), hidden folders
 // and node_modules are never listed; the list is a hint, not a page of the folder.
@@ -97,13 +115,19 @@ export class BrowserGateway {
       const output = await this.execute(capabilityId, rawArgs);
       // Network writes granted without a question since the previous call (owner mode).
       const hosts = (await this.provider.takeAutoSends?.()) ?? [];
-      return hosts.length
-        ? {
-            ...output,
-            networkSends: hosts.length,
-            networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
-          }
-        : output;
+      // Audit du 10/11 (constat 7) : approved submissions since the previous call, with their
+      // HTTP status (host and status only).
+      const submissions = (await this.provider.takeSubmissions?.()) ?? [];
+      return {
+        ...output,
+        ...(hosts.length
+          ? {
+              networkSends: hosts.length,
+              networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
+            }
+          : {}),
+        ...(submissions.length ? { submissions } : {}),
+      };
     });
     this.pending = task.catch(() => {});
     return task;
@@ -171,6 +195,23 @@ export class BrowserGateway {
     }
     const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
     if (step && this.policy.ownerMode) sensitive = false;
+    // Audit du 10/11 (constats 1 et 2) : in owner mode, only the final send waits for the owner. A
+    // list, an option, a toggle or a button that is no submission trigger and says no send passes
+    // without a card ; a send-worded control outside a form gets its card from the write it
+    // triggers (cdp.js), so a « Postuler » that only opens the form asks nothing.
+    const clickKind =
+      capabilityId === 'browser.click' && this.policy.ownerMode && element
+        ? this.policy.ownerClickKind(element)
+        : null;
+    const secretField =
+      !!element &&
+      !fields &&
+      this.policy.isSensitiveElement({
+        tag: element.tag,
+        inputType: element.inputType,
+        autocomplete: element.autocomplete,
+      });
+    if (['widget', 'candidate', 'plain'].includes(clickKind) && !secretField) sensitive = false;
     // A plain link only opens a page, whatever its label says: any POST it triggers still meets the
     // network send guard, so "Apply" on a job ad does not ask before the form is even open.
     const ownerLink =
@@ -180,13 +221,14 @@ export class BrowserGateway {
       !element.inForm &&
       !element.formAction;
     if (ownerLink) sensitive = false;
-    const sending =
-      ['browser.click', 'browser.download'].includes(capabilityId) &&
-      !!element &&
-      !step &&
-      !ownerLink &&
-      (element.inForm ||
-        this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
+    const sending = clickKind
+      ? clickKind === 'submit'
+      : ['browser.click', 'browser.download'].includes(capabilityId) &&
+        !!element &&
+        !step &&
+        !ownerLink &&
+        (element.inForm ||
+          this.policy.isSensitiveElement({ ...element, inputType: null, autocomplete: null }));
     // apply-01 (E42, E26): a step click that still asks (outside owner mode) carries the same form
     // summary as a send, so the card can say « Suivant » with its action, multipart and attachment.
     const preview =
@@ -286,7 +328,7 @@ export class BrowserGateway {
         throw notDone('Fichier modifié pendant l’approbation');
       const buffer = readFileSync(real);
       if (buffer.length > this.policy.maxDownloadBytes) throw notDone('Fichier trop volumineux');
-      args.filePayload = { name: basename(real), mimeType: 'application/octet-stream', buffer };
+      args.filePayload = { name: basename(real), mimeType: mimeTypeFor(real), buffer };
     }
     await this.meter(cap.meter, 1, capabilityId);
     const output = await this.provider.perform(
@@ -304,6 +346,7 @@ export class BrowserGateway {
             ...args,
             ...(sending ? { sendApproved: true } : {}),
             ...(step ? { formStep: true } : {}),
+            ...(clickKind ? { clickKind } : {}),
           },
       this.policy,
     );

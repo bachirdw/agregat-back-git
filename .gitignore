@@ -9,3 +9,10 @@ node_modules/
 .manager/secrets.env
 
 exports/
+
+# Secrets locaux (jamais lus ni commités) ; les exemples restent suivis
+.env*
+*.env
+!.env.example
+!.env.*.example
+!*.env.example

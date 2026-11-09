@@ -23,6 +23,9 @@ test('reprise rapide fictive : demande d’action sans navigateur signalée, cas
     shortResumeWithoutBrowser({ ...input, prompt: 'Quels postes viser ?', browserObserved: false }),
     false,
   );
+  // Audit du 10/11 : « oui, envoie » (impératif), « soumets » et « candidate » étaient ignorés.
+  for (const prompt of ['Oui, envoie.', 'OK envoie-la', 'Soumets le formulaire', 'Candidate'])
+    assert.equal(shortResumeWithoutBrowser({ ...input, prompt, browserObserved: false }), true);
 });
 
 test('email fictif : destinataire absent des sources refusé avant brouillon et approbation', async (t) => {

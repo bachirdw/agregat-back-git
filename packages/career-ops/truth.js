@@ -298,7 +298,8 @@ export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browse
     !!previous &&
     durationMs < 15000 &&
     !browserObserved &&
-    /\b(?:postul(?:e|er|ez|ons)|envoy(?:e|er|ez|ons)|soumet(?:s|tre|tez)|submit|apply)\b/i.test(
+    // Audit du 10/11 : the imperative « envoie », « soumets » and « candidate » were missed.
+    /\b(?:postul(?:e|er|ez|ons)|envoi(?:e|es)?|envoy(?:e|er|ez|ons)|soumet(?:s|tre|tez)?|candidat(?:e|er|ez)|submit|apply)\b/i.test(
       prompt,
     )
   );

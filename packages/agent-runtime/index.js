@@ -231,7 +231,7 @@ export class AcpRuntime {
       )
       .connect(
         ndJsonStream(Writable.toWeb(this.child.stdin), Readable.toWeb(this.child.stdout), {
-          maxMessageBytes: 1048576,
+          maxMessageBytes: 16 * 1024 * 1024,
         }),
       );
     this.info = await this.request(

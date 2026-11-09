@@ -68,3 +68,29 @@ test('onEvent qui lève : pas de trace brute du SDK, mise à jour signalée, tou
     r.close();
   }
 });
+
+test('message ACP de 3 Mio (capture base64) : la connexion reste ouverte', async () => {
+  const nativeTools = [
+    {
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 't1',
+      status: 'completed',
+      padBytes: 3 * 1024 * 1024,
+    },
+  ];
+  let received = 0;
+  const r = runtimeWith(
+    (u) => {
+      if (u.sessionUpdate === 'tool_call_update') received = JSON.stringify(u).length;
+    },
+    { nativeTools },
+  );
+  try {
+    await r.start();
+    await r.session([]);
+    await r.prompt('x');
+    assert.ok(received > 3 * 1024 * 1024);
+  } finally {
+    r.close();
+  }
+});

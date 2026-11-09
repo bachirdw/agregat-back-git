@@ -5,6 +5,7 @@ import { client, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientpro
 import { buildChildEnv, redact, redactValue, secretValues } from './env.js';
 import { agentCapabilities, sessionModels, sessionModes } from './capabilities.js';
 import { processGroupState } from './process-liveness.js';
+export { AgentRegistry, reapOrphanAgents } from './orphans.js';
 export { detectAgents, loadAgentConfig, findCli } from './discovery.js';
 export { profiles, getProfile, agentIds } from './profiles.js';
 export { chooseAgent, requirementsFor } from './router.js';
@@ -63,6 +64,7 @@ function pausableDeadline(ms, onExpire) {
 }
 
 export class AcpRuntime {
+  static registry = null; // AgentRegistry of the running API (set by apps/api/server.js)
   constructor({
     definition,
     cwd,
@@ -192,6 +194,24 @@ export class AcpRuntime {
       env: this.childEnv(),
     });
     this.child.stdin.on('error', () => {});
+    // Recorded so that a later start can stop this group if the API dies without close().
+    const registry = AcpRuntime.registry;
+    const pid = this.child.pid;
+    this.child.once('spawn', () => {
+      try {
+        registry?.add({ pid, command: d.command, args: d.args });
+      } catch {
+        /* the registry is best effort */
+      }
+    });
+    this.child.once('exit', () => {
+      try {
+        // Left recorded while descendants keep the group alive: close() removes it once empty.
+        if (processGroupState(pid) === 'dead') registry?.remove(pid);
+      } catch {
+        /* best effort */
+      }
+    });
     this.child.stderr.on('data', (chunk) => {
       // Diagnostics stay server-side, redacted and bounded; never streamed raw to the browser.
       this.diagnostic = redact(this.diagnostic + chunk.toString(), this.secrets).slice(-4000);
@@ -448,7 +468,15 @@ export class AcpRuntime {
     this.ready = false;
     this.lifecycle.abort();
     this.connection?.close();
-    this.closing = this.groupGone ? Promise.resolve('dead') : stopProcessGroup(this.child);
+    this.closing = (
+      this.groupGone ? Promise.resolve('dead') : stopProcessGroup(this.child)
+    ).finally(() => {
+      try {
+        if (this.child?.pid) AcpRuntime.registry?.remove(this.child.pid);
+      } catch {
+        /* best effort */
+      }
+    });
     return this.closing;
   }
 }

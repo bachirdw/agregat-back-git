@@ -13,7 +13,14 @@ import { Orchestrator } from '../../packages/orchestrator/index.js';
 import { startRelay } from '../../packages/browser-gateway/relay-start.js';
 import { compactBrowserEvidence } from '../../packages/orchestrator/browser-proof.js';
 import { ROOT, packs, skillDefinitions } from '../../packages/orchestrator/packs.js';
-import { detectAgents, loadProbes } from '../../packages/agent-runtime/index.js';
+import {
+  AcpRuntime,
+  AgentRegistry,
+  detectAgents,
+  loadProbes,
+  reapOrphanAgents,
+} from '../../packages/agent-runtime/index.js';
+import { installGlobalGuards } from '../../packages/agent-runtime/guards.js';
 import { summarize, meters } from '../../packages/billing/index.js';
 import { missionTitle } from '../../packages/orchestrator/title.js';
 // Local skill imports are limited to configured roots (never an arbitrary path from the browser).
@@ -678,6 +685,13 @@ export function createApp({
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const app = createApp();
+  // Agents are detached: record them, and stop the groups left by a previous API that died.
+  const agentRegistry = new AgentRegistry(resolve(ROOT, '.data', 'agent-pids.json'));
+  await reapOrphanAgents(agentRegistry, { log: (m) => console.error(`[orphelins] ${m}`) }).catch(
+    () => {},
+  );
+  AcpRuntime.registry = agentRegistry;
+  installGlobalGuards({ close: () => app.close() });
   app.engine.startRelay = () => startRelay().catch(() => {});
   const port = Number(process.env.PORT ?? 4310);
   app.server.listen(port, '127.0.0.1', () =>

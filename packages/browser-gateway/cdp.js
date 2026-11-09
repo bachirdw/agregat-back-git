@@ -1669,9 +1669,10 @@ export class CdpBrowser {
           throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
         }
         // Audit du 10/11 (constat 7) : an approved send may post after the click (validation,
-        // token) : wait a little for its request, so that its status comes with this result.
+        // token) : wait 1.5 s at most for its request, so that its status comes with this result
+        // (a later one comes with the next call's result).
         if (args.sendApproved === true)
-          for (let i = 0; i < 60 && !this.submissions?.length; i++)
+          for (let i = 0; i < 30 && !this.submissions?.length; i++)
             await new Promise((resolve) => setTimeout(resolve, 50));
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);

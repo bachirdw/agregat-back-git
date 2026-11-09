@@ -75,3 +75,28 @@ test('routage : un test négatif expire, un succès réhabilite, le seul agent r
   saveProbe(d, 'claude', { inference: true, inferenceError: null });
   assert.equal(loadProbes(d).claude.inference, true);
 });
+
+test('sonde : expiration OAuth, authentication_error, GEMINI_API_KEY absent marquent l’agent (constat 9)', () => {
+  for (const msg of [
+    'OAuth token has expired. Please obtain a new token or refresh your existing token.',
+    '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
+    'When using Gemini API, you must specify the GEMINI_API_KEY environment variable.',
+    'Please set an Auth method in your settings.json',
+    'Error authenticating: Failed to login. Message: Request had invalid authentication credentials.',
+    'Invalid API key · Please run /login',
+  ]) {
+    const d = dir();
+    saveProbe(d, 'claude', { inference: false, inferenceError: msg });
+    assert.equal(loadProbes(d).claude?.inference, false, msg);
+  }
+  for (const msg of [
+    'The author of this page asked to login first',
+    'Le jeton de la page a expiré côté site, rechargement',
+    'authorship metadata missing',
+    'Gemini answered: GEMINI_API_KEY is documented in the README',
+  ]) {
+    const d = dir();
+    saveProbe(d, 'claude', { inference: false, inferenceError: msg });
+    assert.equal(loadProbes(d).claude, undefined, msg);
+  }
+});

@@ -186,7 +186,8 @@ export class Orchestrator {
       // reste la valeur commune quand aucune variable propre n'est donnée.
       careerTimeoutMs = positiveEnv('AGENT_PLATFORM_CAREER_TIMEOUT_MS'),
       browserTimeoutMs = positiveEnv('AGENT_PLATFORM_BROWSER_TIMEOUT_MS'),
-      toolIdleMs = 120000,
+      // Audit du 10/11 (constat 10) : the tool guard's ceiling, AGENT_PLATFORM_TOOL_IDLE_MS.
+      toolIdleMs = positiveEnv('AGENT_PLATFORM_TOOL_IDLE_MS') ?? 120000,
       // A long report or CV is generated without any visible event until the tool call is
       // emitted: the owner may raise this ceiling (AGENT_PLATFORM_SILENT_MS) rather than lose it.
       silentMs = Number(process.env.AGENT_PLATFORM_SILENT_MS) > 0

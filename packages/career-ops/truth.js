@@ -333,11 +333,36 @@ function readInbox(root) {
     return e.code === 'ENOENT' ? [] : null;
   }
 }
+// What the reports/ folder said before the turn: URL -> score of every report header, so that a
+// report only re-saved or re-read this mission is not counted as an offer scored this mission.
+// Names stay out of it (company in the file name). Unreadable or no workspace: null.
+function readReportScores(root) {
+  if (typeof root !== 'string' || !root) return null;
+  const scores = new Map();
+  try {
+    for (const file of readdirSync(resolve(root, 'reports')).slice(0, 2000)) {
+      if (!/\.md$/i.test(file)) continue;
+      try {
+        const head = reportScore(
+          readConfined(root, `reports/${file}`, 10 * 1024 * 1024).toString('utf8'),
+        );
+        if (head) scores.set(head.url, head.score);
+      } catch {
+        /* unreadable report: ignored */
+      }
+    }
+  } catch (e) {
+    return e.code === 'ENOENT' ? scores : null;
+  }
+  return scores;
+}
 // ACP can replay old tool updates on session/load. One tracker per execution of a mission: it
 // spans every answer turn of that execution. `seed` carries what an earlier execution of the same
 // mission proved (reprise from its checkpoint): today, that a job description was read.
 export function createTurnTruth({ root, seed } = {}) {
   const inboxBefore = readInbox(root);
+  const reportsBefore = readReportScores(root);
+  const viaReport = new Set();
   const names = new Map();
   const paths = new Map();
   const failed = new Map();
@@ -442,7 +467,10 @@ export function createTurnTruth({ root, seed } = {}) {
           if (name === 'career_write' && argument === 'reports/') {
             offerSaved = true;
             const header = reportScore(input.text);
-            if (header) scored.set(update.toolCallId, header.url);
+            if (header) {
+              scored.set(update.toolCallId, header.url);
+              viaReport.add(update.toolCallId);
+            }
           }
           if (name === 'career_script' && argument === 'merge-tracker')
             addTracker(
@@ -513,7 +541,10 @@ export function createTurnTruth({ root, seed } = {}) {
         const report = name === 'career_write' && safeArgument === 'reports/';
         if (name === 'career_offer_save' || report) {
           offerSaved = true;
-          if (typeof scoredUrl === 'string' && scoredUrl) scored.set(key, scoredUrl);
+          if (typeof scoredUrl === 'string' && scoredUrl) {
+            scored.set(key, scoredUrl);
+            if (report) viaReport.add(key);
+          }
         }
         if (
           name === 'career_script' &&
@@ -599,10 +630,17 @@ export function createTurnTruth({ root, seed } = {}) {
     },
     // Offers saved with a score, by the ACP update or by the gateway: one entry per tool call
     // (the same call seen by both channels counts once, the gateway uses its own id).
+    // A report written again with the score it already had before the turn is no new rating (a
+    // status change of the tracker, an applied note): only new or re-scored reports count.
     scoredOffers() {
       const seen = new Set();
+      const after = reportsBefore ? readReportScores(root) : null;
+      const unchanged = (toolCallId, url) =>
+        viaReport.has(toolCallId) &&
+        reportsBefore?.has(url) &&
+        after?.get(url) === reportsBefore.get(url);
       return [...scored].flatMap(([toolCallId, url]) =>
-        seen.has(url) ? [] : (seen.add(url), [{ url, toolCallId }]),
+        seen.has(url) || unchanged(toolCallId, url) ? [] : (seen.add(url), [{ url, toolCallId }]),
       );
     },
   };

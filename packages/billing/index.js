@@ -58,7 +58,18 @@ export function validatePricing(raw) {
 export function loadPricing(dataDir) {
   const file = resolve(dataDir, 'pricing.json');
   if (!existsSync(file)) return defaultPricing();
-  return validatePricing(JSON.parse(readFileSync(file, 'utf8')));
+  let raw;
+  try {
+    raw = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    console.error(`pricing.json illisible (${e.message}) : tarif par défaut utilisé`);
+    return defaultPricing();
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    console.error('pricing.json invalide (objet attendu) : tarif par défaut utilisé');
+    return defaultPricing();
+  }
+  return validatePricing(raw);
 }
 export function priceOf(dimension, units, pricing) {
   const meter = meters[dimension];

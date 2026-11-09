@@ -62,7 +62,13 @@ import {
   readsBeforeScore,
 } from './skill-router.js';
 import { withDoubtRule } from './doubt-rule.js';
-import { ToolGuard, TERMINAL_TOOL_STATUS, isPlatformToolCall } from './tool-guard.js';
+import {
+  ToolGuard,
+  TERMINAL_TOOL_STATUS,
+  isPlatformToolCall,
+  careerScriptDelay,
+} from './tool-guard.js';
+import { scriptLimits } from '../career-ops/tools.js';
 import { NativeActions } from './native-actions.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
@@ -1014,11 +1020,15 @@ export class Orchestrator {
       timers: this.timers,
       deferred: (update) => isPlatformToolCall(update, gatewayServers),
       onArm: (toolCallId, via) => this.store.event(run.id, 'tool_armed', { toolCallId, via }),
+      // Audit du 10/11 : a long script of the Skill (scan 600 s, generate-pdf 300 s…) keeps its own
+      // timeout, with a margin for the gateway to answer, instead of the common 120 s.
+      idleFor: (update) => careerScriptDelay(update, scriptLimits),
       onStall: (id) => {
-        this.store.event(run.id, 'tool_stalled', { toolCallId: id, afterMs: this.toolIdleMs });
+        const afterMs = toolGuard.delayOf(id);
+        this.store.event(run.id, 'tool_stalled', { toolCallId: id, afterMs });
         const error = new Error('Outil sans mise à jour');
         error.code = 'tool_stalled';
-        error.afterMs = this.toolIdleMs;
+        error.afterMs = afterMs;
         error.toolTitle = toolTitles.get(id);
         control.abort.abort(error);
       },

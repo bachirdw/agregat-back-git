@@ -16,9 +16,12 @@ export class ToolGuard {
     deferred = () => false,
     onArm = () => {},
     onStall,
+    // Audit du 10/11 : a call may carry its own, longer delay (a long script of the Skill, whose
+    // own timeout goes past the common one); null keeps the common delay.
+    idleFor = () => null,
   }) {
-    Object.assign(this, { idleMs, timers, deferred, onArm, onStall });
-    this.calls = new Map(); // toolCallId -> { deferred, armed, timer }
+    Object.assign(this, { idleMs, timers, deferred, onArm, onStall, idleFor });
+    this.calls = new Map(); // toolCallId -> { deferred, armed, timer, idleMs }
     this.paused = false;
   }
   get pending() {
@@ -35,9 +38,12 @@ export class ToolGuard {
     if (TERMINAL_TOOL_STATUS.has(update.status)) return this.forget(id);
     let call = this.calls.get(id);
     if (!call) {
-      call = { deferred: this.deferred(update) === true, armed: false, timer: null };
+      call = { deferred: this.deferred(update) === true, armed: false, timer: null, idleMs: null };
       this.calls.set(id, call);
     }
+    // The input often arrives with a later update of the call (Claude's adapter).
+    const own = this.idleFor(update);
+    if (Number.isFinite(own) && own > (call.idleMs ?? 0)) call.idleMs = own;
     if (call.armed) return this.arm(id, call);
     if (update.status === 'in_progress') return this.arm(id, call, 'in_progress');
     if (!call.deferred) this.arm(id, call, 'tool_call');
@@ -57,10 +63,17 @@ export class ToolGuard {
       this.onArm(id, via);
     }
     if (this.paused) return;
-    call.timer = this.timers.setTimeout(() => {
-      call.timer = null;
-      this.onStall(id);
-    }, this.idleMs);
+    call.timer = this.timers.setTimeout(
+      () => {
+        call.timer = null;
+        this.onStall(id);
+      },
+      Math.max(this.idleMs, call.idleMs ?? 0),
+    );
+  }
+  // The delay that applies to a call (for the stall message).
+  delayOf(id) {
+    return Math.max(this.idleMs, this.calls.get(id)?.idleMs ?? 0);
   }
   forget(id) {
     const call = this.calls.get(id);
@@ -100,4 +113,15 @@ export function toolCallName(update) {
 export function isPlatformToolCall(update, servers) {
   const name = toolCallName(update);
   return servers.some((server) => name.startsWith(`mcp__${server.name}__`));
+}
+
+// Audit du 10/11 : the delay a career_script call may stay silent, from the script's own timeout
+// (`limitsOf`, scriptLimits of the career tools) plus a margin for the gateway to answer; null for
+// any other call. Claude's adapter names the tool only in `_meta` on the update carrying the input.
+export function careerScriptDelay(update, limitsOf) {
+  const command = update?.rawInput?.command;
+  const name = toolCallName(update) || update?._meta?.claudeCode?.toolName || '';
+  return /career_script$/.test(name) && typeof command === 'string'
+    ? limitsOf(command).timeout + 15000
+    : null;
 }

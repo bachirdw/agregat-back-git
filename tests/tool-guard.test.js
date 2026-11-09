@@ -176,3 +176,45 @@ test('nom de l’appel et outils de la plateforme : name, puis title, puis rawIn
   assert.equal(isPlatformToolCall({ title: 'Searching the web' }, SERVERS), false);
   assert.equal(isPlatformToolCall({ title: 'mcp__platform__x' }, []), false);
 });
+
+// Audit du 10/11 : un script long du Skill (scan, 600 s) ne doit pas être coupé à 120 s par la garde.
+test('garde FICTIVE : un appel peut porter un délai propre plus long que le délai commun', () => {
+  const timers = clock();
+  const stalled = [];
+  const guard = new ToolGuard({
+    idleMs: 120000,
+    timers,
+    idleFor: (update) => (update.rawInput?.command === 'scan' ? 615000 : null),
+    onStall: (id) => stalled.push(id),
+  });
+  const call = (id, rawInput) => ({ sessionUpdate: 'tool_call', toolCallId: id, rawInput });
+  guard.observe(call('scan', {}));
+  guard.observe({ ...call('scan', { command: 'scan' }), sessionUpdate: 'tool_call_update' });
+  guard.observe(call('autre', { command: 'doctor' }));
+  timers.tick(121000);
+  assert.deepEqual(stalled, ['autre']);
+  timers.tick(500000);
+  assert.deepEqual(stalled, ['autre', 'scan']);
+});
+
+test('garde FICTIVE : délai propre d’un career_script, nom porté par _meta (adaptateur Claude)', async () => {
+  const { careerScriptDelay } = await import('../packages/orchestrator/tool-guard.js');
+  const { scriptLimits } = await import('../packages/career-ops/tools.js');
+  const meta = { claudeCode: { toolName: 'mcp__platform__career_script' } };
+  const update = (command) => ({
+    sessionUpdate: 'tool_call_update',
+    toolCallId: 'x',
+    rawInput: { command },
+    _meta: meta,
+  });
+  assert.equal(careerScriptDelay(update('scan'), scriptLimits), 615000);
+  assert.equal(careerScriptDelay(update('find'), scriptLimits), 75000);
+  assert.equal(
+    careerScriptDelay(
+      { ...update('scan'), _meta: { claudeCode: { toolName: 'Bash' } } },
+      scriptLimits,
+    ),
+    null,
+  );
+  assert.equal(careerScriptDelay({ title: 'mcp__platform__career_script' }, scriptLimits), null);
+});

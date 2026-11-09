@@ -229,3 +229,4 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
   et enregistrement du brouillon). Effet sur les données du propriétaire : un brouillon dans ses Brouillons Gmail.
   Défauts de Bilan **E76** (préparation par lien non vue) et **E77** (« e-mail de candidature » pris pour un formulaire),
   corrigés (commit suivant), à vérifier en réel par un nouvel essai Gmail.
+- 19:52 : suite complète verte sur 2573d9b : 896 unitaires (894 ✔, 2 ignorés), 157/157 Chrome, contrôle et format ; API 4311 relancée sur ce code. Aucune mission en cours. Reste : rejouer l'essai Gmail pour vérifier E76/E77 en réel ; E73 ; décision « Bilan cumulé en reprise ».

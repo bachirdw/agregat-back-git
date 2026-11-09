@@ -167,6 +167,10 @@ function permissionToolName(p, observedTool) {
   return redact(String(name || p.toolCall?.kind || observedTool?.kind || 'outil')).slice(0, 80);
 }
 
+function positiveEnv(name) {
+  const value = Number(process.env[name]);
+  return value > 0 ? value : undefined;
+}
 export class Orchestrator {
   constructor(
     store,
@@ -175,6 +179,12 @@ export class Orchestrator {
       dataDir = resolve(ROOT, '.data'),
       live = false,
       timeoutMs,
+      // Audit du 10/11 (constat 1) : career-ops et la navigation libre du propriétaire (browser-agent)
+      // ont chacune leur réglage ; sans réglage propre, la navigation libre prend celui de career-ops
+      // (15 min) et non plus les 3 min des autres missions. AGENT_PLATFORM_TIMEOUT_MS (timeoutMs)
+      // reste la valeur commune quand aucune variable propre n'est donnée.
+      careerTimeoutMs = positiveEnv('AGENT_PLATFORM_CAREER_TIMEOUT_MS'),
+      browserTimeoutMs = positiveEnv('AGENT_PLATFORM_BROWSER_TIMEOUT_MS'),
       toolIdleMs = 120000,
       // A long report or CV is generated without any visible event until the tool call is
       // emitted: the owner may raise this ceiling (AGENT_PLATFORM_SILENT_MS) rather than lose it.
@@ -195,7 +205,8 @@ export class Orchestrator {
       dataDir,
       live: ownerMode || live,
       timeoutMs: timeoutMs ?? 180000,
-      careerTimeoutMs: timeoutMs ?? 900000,
+      careerTimeoutMs: careerTimeoutMs ?? timeoutMs ?? 900000,
+      browserTimeoutMs: browserTimeoutMs ?? careerTimeoutMs ?? timeoutMs ?? 900000,
       toolIdleMs,
       silentMs,
       questionTimeoutMs,
@@ -228,7 +239,11 @@ export class Orchestrator {
     // and advance it without waiting.
     this.timers = { setTimeout, clearTimeout };
   }
-  timeoutFor(packId) {
+  // `target` is a pack id or a plan: a plan of the owner's free browsing (browser-agent) gets the
+  // browsing deadline.
+  timeoutFor(target) {
+    if (typeof target === 'object' && target?.browserWorkflow) return this.browserTimeoutMs;
+    const packId = typeof target === 'object' ? target?.pack?.id : target;
     return packId === 'career-ops' ? this.careerTimeoutMs : this.timeoutMs;
   }
   // Single metering point: prices the usage, writes the chained ledger and stops the run when a
@@ -960,7 +975,7 @@ export class Orchestrator {
     control.toolDelivered = (toolCallId, via) => {
       if (promptStarted) toolGuard.deliver(toolCallId, via);
     };
-    let missionLeft = this.timeoutFor(plan.pack.id);
+    let missionLeft = this.timeoutFor(plan);
     let missionSince = 0;
     let timer;
     const armMission = () => {
@@ -1017,7 +1032,7 @@ export class Orchestrator {
       const runtime = new AcpRuntime({
         ...(plan.pack.id === 'career-ops' ? { systemPromptAppend: CAREER_OWNER_FRAME } : {}),
         // The run owns the deadline: the runtime default was cutting long missions short.
-        timeouts: { prompt: this.timeoutFor(plan.pack.id) },
+        timeouts: { prompt: this.timeoutFor(plan) },
         definition:
           plan.pack.id === 'career-ops'
             ? {

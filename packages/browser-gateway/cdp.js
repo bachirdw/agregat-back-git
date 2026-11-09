@@ -625,7 +625,24 @@ export class CdpBrowser {
           () => ownerTransport(this.endpoint, Math.min(this.startupTimeoutMs, 10000)),
           (connection) => connection.close(),
         );
+        this.ownerReached = true;
       } catch (error) {
+        // Audit du 10/11 (constat 17) : the relay lost in the middle of a mission (a form half
+        // filled in the owner's tab) never switches to an invisible isolated Chrome : the call
+        // fails and says so, and the next one tries the relay again.
+        if (this.ownerReached && !this.#closed) {
+          this.relayLost = (this.relayLost ?? 0) + 1;
+          throw new Error(
+            'Relais Playwriter perdu en cours de mission : l’onglet du propriétaire n’est plus joignable (' +
+              String(error.message ?? error)
+                .split('\n')[0]
+                .slice(0, 160) +
+              '). Aucune bascule vers un autre navigateur, action non effectuée. Le formulaire en cours ' +
+              'est peut-être à reprendre : demande au propriétaire de rouvrir Chrome avec l’extension ; ' +
+              'l’appel suivant réessaie le relais.',
+            { cause: error },
+          );
+        }
         if (!this.fallbackLaunch || this.#closed) throw error;
         this.fallbackReason =
           `Extension Playwriter indisponible : ${error.message}. Bascule sur Chrome isolé : ` +

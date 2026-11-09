@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BrowserGateway, CdpBrowser } from '../packages/browser-gateway/index.js';
@@ -350,5 +351,91 @@ test(
     );
     await sleep(300);
     assert.deepEqual(lines(), ['POST /candidature']);
+  },
+);
+
+// Chrome headless jetable joint par CDP sur un port choisi par Chrome (jamais 19988), comme le relais.
+async function jetable(t, port = 0) {
+  const profile = mkdtempSync(join(tmpdir(), 'audit-nav2-cdp-FICTIF-'));
+  const chrome = spawn(
+    CHROME,
+    [
+      '--headless=new',
+      `--remote-debugging-port=${port}`,
+      `--user-data-dir=${profile}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      'about:blank',
+    ],
+    { stdio: 'ignore' },
+  );
+  const stop = async () => {
+    chrome.kill('SIGKILL');
+    await sleep(500);
+    rmSync(profile, { recursive: true, force: true });
+  };
+  t.after(stop);
+  let found = null;
+  for (let i = 0; i < 100 && !found; i++) {
+    try {
+      found = Number(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]);
+    } catch {
+      await sleep(100);
+    }
+  }
+  if (!found && port) {
+    // Relance sur un port imposé : DevToolsActivePort peut manquer ; l'écoute fait foi.
+    for (let i = 0; i < 100 && !found; i++)
+      found = await fetch(`http://127.0.0.1:${port}/json/version`)
+        .then((r) => (r.ok ? port : null))
+        .catch(() => sleep(100).then(() => null));
+  }
+  assert.ok(found && found !== 19988, 'port CDP jetable');
+  return { port: found, stop };
+}
+
+test(
+  'Constat 17 : relais perdu en pleine mission, aucune bascule silencieuse en Chrome isolé ; l’appel suivant réessaie',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin } = await site(t, '<h1>Offre FICTIVE</h1>');
+    const first = await jetable(t);
+    const provider = new CdpBrowser({
+      endpoint: `http://127.0.0.1:${first.port}`,
+      startupTimeoutMs: 8000,
+      // Comme la plateforme : un Chrome isolé de repli, permis à la première ouverture seulement.
+      fallbackLaunch: { executablePath: CHROME },
+    });
+    const folder = mkdtempSync(join(tmpdir(), 'audit-nav2-relais-FICTIF-'));
+    t.after(async () => {
+      await provider.close().catch(() => {});
+      rmSync(folder, { recursive: true, force: true });
+    });
+    const gateway = new BrowserGateway({
+      provider,
+      policy: new RunPolicy({
+        ownerMode: true,
+        runId: 'FICTIF-relais',
+        workspace: folder,
+        capabilities: capabilityIds,
+        allowLocalOrigins: [origin],
+        allowSharedContext: true,
+      }),
+      approve: async () => true,
+    });
+    await gateway.call('browser.navigate', { url: origin });
+    assert.equal(provider.name, 'playwriter-owner');
+    await first.stop();
+    await assert.rejects(
+      gateway.call('browser.navigate', { url: origin }),
+      /Relais Playwriter perdu en cours de mission/,
+    );
+    assert.notEqual(provider.name, 'cdp-isolated-fallback', 'aucune bascule en Chrome isolé');
+    assert.equal(provider.fallbackReason, undefined);
+    assert.equal(provider.relayLost, 1);
+    // Le relais revient sur le même port : l'appel suivant le retrouve.
+    await jetable(t, first.port);
+    const again = await gateway.call('browser.navigate', { url: origin });
+    assert.equal(again.provider, 'playwriter-owner');
   },
 );

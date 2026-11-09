@@ -607,6 +607,16 @@ export function createApp({
         const id = browserFallback[1];
         if (!ownerMode || !engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? '')))
           throw new Error('Journal navigateur non autorisé');
+        // Audit du 10/11 (constat 17) : the relay lost during the mission (no switch to another
+        // browser), said once in the Bilan.
+        if (body.relayLost === true) {
+          if (!store.events(id).some((event) => event.type === 'browser_relay_lost'))
+            store.event(id, 'browser_relay_lost', {
+              run: id,
+              reason: 'Relais Playwriter perdu en cours de mission ; aucune bascule.',
+            });
+          return json(res, 200, { ok: true });
+        }
         if (!store.events(id).some((event) => event.type === 'browser_fallback'))
           store.event(id, 'browser_fallback', {
             run: id,

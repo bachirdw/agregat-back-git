@@ -1492,6 +1492,10 @@ export class Orchestrator {
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible). Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer.';
+      // Audit du 10/11 (constat 17).
+      if (this.store.events(run.id).some((event) => event.type === 'browser_relay_lost'))
+        value.summary +=
+          '\nNavigateur : relais Playwriter perdu en cours de mission. Aucune bascule vers un Chrome isolé : les actions tentées sans relais n’ont pas été faites. Vérifier sur le site l’état du formulaire en cours.';
       // E60 : every question of the mission counts — a form asked during the turn (ACP
       // elicitation) as well as a question that ends a turn (structured or in prose).
       const missionEvents = this.store.events(run.id);

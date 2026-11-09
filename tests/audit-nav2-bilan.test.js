@@ -122,3 +122,35 @@ test('Code HTTP tardif : rattaché à l’envoi qui l’a déclenché (déjà ra
     '\nEnvoi par la plateforme : 3 approuvé(s) par le propriétaire, dont 2 refusé(s) par le site (HTTP 422, 503).',
   );
 });
+
+test('Constat 17 : la perte du relais en cours de mission est consignée pour le Bilan, sans « Chrome isolé »', async (t) => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'audit-nav2-relais-FICTIF-'));
+  const app = createApp({ dataDir, ownerMode: true });
+  await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
+  const run = { id: crypto.randomUUID(), state: 'running', budgetCents: 0 };
+  app.store.create(run);
+  app.engine.active.set(run.id, { abort: new AbortController(), promptStarted: true });
+  app.engine.approvalTokens.set(run.id, 'JETON_FICTIF');
+  t.after(async () => {
+    app.engine.active.delete(run.id);
+    await app.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+  const post = () =>
+    fetch(`http://127.0.0.1:${app.server.address().port}/api/internal/browser-fallback/${run.id}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-platform-request': '1',
+        'x-relay-token': 'JETON_FICTIF',
+      },
+      body: JSON.stringify({ relayLost: true }),
+    });
+  assert.equal((await post()).status, 200);
+  assert.equal((await post()).status, 200);
+  const types = app.store.events(run.id).map((event) => event.type);
+  assert.deepEqual(
+    types.filter((type) => type.startsWith('browser_')),
+    ['browser_relay_lost'],
+  );
+});

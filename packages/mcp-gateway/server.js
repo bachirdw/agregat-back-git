@@ -273,6 +273,26 @@ if (mode === 'fixture') {
     );
     if (response.ok) fallbackReported = true;
   };
+  // Audit du 10/11 (constat 17) : a relay lost during the mission is said in the Bilan too.
+  let relayLostReported = 0;
+  const reportRelayLost = async () => {
+    if (!provider.relayLost || provider.relayLost === relayLostReported) return;
+    if (!process.env.RELAY_EVIDENCE_URL) return;
+    const response = await fetch(
+      process.env.RELAY_EVIDENCE_URL.replace('/evidence/', '/browser-fallback/'),
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-platform-request': '1',
+          'x-relay-token': process.env.RELAY_APPROVAL_TOKEN,
+        },
+        body: JSON.stringify({ relayLost: true }),
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.ok) relayLostReported = provider.relayLost;
+  };
   for (const cap of describeCapabilities('browser')) {
     if (!policy.capabilities.has(cap.id)) continue; // only granted capabilities are even listed
     server.registerTool(
@@ -310,6 +330,7 @@ if (mode === 'fixture') {
           return failure(e);
         } finally {
           await reportFallback().catch(() => {});
+          await reportRelayLost().catch(() => {});
         }
       },
     );

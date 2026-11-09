@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BrowserGateway, CdpBrowser } from '../packages/browser-gateway/index.js';
@@ -235,5 +235,24 @@ test(
     assert.match(submissionRefused(result), /HTTP 422/);
     assert.equal(submissionRefused({ submissions: [{ host, status: 200 }] }), null);
     assert.equal(submissionRefused({ url: origin }), null);
+  },
+);
+
+test(
+  'Constat 12 : le CV téléversé porte le type MIME de son extension',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin } = await site(
+      t,
+      `<form><input type="file" name="cv" onchange="document.body.dataset.type=this.files[0].type"></form>`,
+    );
+    const { gateway, provider } = await owner(t, origin, () => true);
+    writeFileSync(join(gateway.policy.workspace, 'cv-FICTIF.pdf'), '%PDF-1.4\n%%EOF\n');
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.upload', {
+      ref: await refFor(gateway, 'input[type=file]'),
+      path: 'cv-FICTIF.pdf',
+    });
+    assert.equal(await provider.page.evaluate(() => document.body.dataset.type), 'application/pdf');
   },
 );

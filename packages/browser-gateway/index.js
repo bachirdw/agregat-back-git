@@ -44,6 +44,24 @@ export function redactPageText(text, max = MAX_TEXT) {
   return out.length > max ? out.slice(0, max) + '\n[tronqué]' : out;
 }
 
+// Audit du 10/11 (constat 12) : the type a page sees for an uploaded file (file.type, the part of a
+// multipart body, a presigned upload) comes from its extension, as a person's browser would give it.
+const MIME_TYPES = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  odt: 'application/vnd.oasis.opendocument.text',
+  rtf: 'application/rtf',
+  txt: 'text/plain',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+};
+export function mimeTypeFor(name) {
+  const extension = /\.([a-z0-9]+)$/i.exec(String(name))?.[1]?.toLowerCase();
+  return MIME_TYPES[extension] ?? 'application/octet-stream';
+}
+
 // Documents an upload could mean (PDF, DOCX, images) at the root of the mission folder and one
 // level below, as relative paths the agent can pass back. relay/ (platform files), hidden folders
 // and node_modules are never listed; the list is a hint, not a page of the folder.
@@ -310,7 +328,7 @@ export class BrowserGateway {
         throw notDone('Fichier modifié pendant l’approbation');
       const buffer = readFileSync(real);
       if (buffer.length > this.policy.maxDownloadBytes) throw notDone('Fichier trop volumineux');
-      args.filePayload = { name: basename(real), mimeType: 'application/octet-stream', buffer };
+      args.filePayload = { name: basename(real), mimeType: mimeTypeFor(real), buffer };
     }
     await this.meter(cap.meter, 1, capabilityId);
     const output = await this.provider.perform(

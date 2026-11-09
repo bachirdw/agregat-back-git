@@ -64,3 +64,6 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   HTTP 200 de la soumission vu par l'agent, envoi approuvé au Bilan.
 - 01:24 — usage : 16 % de la fenêtre de 5 h, 35 % de la semaine. Troisième tour lancé : `audit-nav2` (Opus) et
   `audit-misc3` (Sonnet).
+- 01:26 — front de test **5175** lancé (`~/Downloads/agregat-front`, `AGENT_PLATFORM_API_URL=http://127.0.0.1:4312`) :
+  missions de la nuit et leurs Bilans visibles sur http://127.0.0.1:5175. Vos 4310/4311/5173/5174 et le relais
+  19988 n'ont pas été touchés.

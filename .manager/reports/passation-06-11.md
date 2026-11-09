@@ -194,3 +194,22 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
   mon navigateur, jusqu'au bouton Envoyer. N'envoie rien. »
 - À vérifier en réel : le Bilan de bbfd6929 (lignes Contacts / Message LinkedIn) ; Gmail ; sur LinkedIn, un bouton
   « Se connecter » qui enverrait l'invitation sans fenêtre de note (mot hors de la liste des envois : à observer).
+
+## 11. Soir du 09/11 (09/11 19:17) : reprise après arrêt nocturne, essais contacto et Gmail
+
+- L'API 4311, le front 5174 et le relais s'étaient arrêtés dans la nuit (onglets de terminal disparus) ; relancés à 19:05.
+  La mission bbfd6929 était passée `interrupted` : question « enregistrer le contact ? » close sans réponse.
+- **E75** (constaté) : la reprise d'une mission interrompue pendant une question répondait « Session non reprenable »
+  (drapeau `resumable: false` de la question jamais rétabli). Corrigé (fadaed4, registre 2ad7403) ; drapeau de bbfd6929
+  rétabli à la main dans la base de test de la branche (copie avant : scratchpad `platform-avant-E75.sqlite`).
+- Reprise b6f869fb avec la réponse du propriétaire (« non ») : rien écrit dans `data/contacts.tsv` (absent), brouillon
+  LinkedIn intact (194 caractères, envoi manuel), rien envoyé ; `completed`. Deux constats de Bilan : lignes Contacts et
+  Message LinkedIn absentes quand le prompt interdit l'enregistrement (corrigé, dc3894a, E74 suite) ; « étape non
+  exécutée : consulter le carnet » alors que la mission parente l'avait fait : le suivi du Skill repart à zéro à la
+  reprise (décision « Bilan cumulé en reprise » de la passation du 05/11, **à trancher par le propriétaire**). Observé
+  aussi : un appel ACP « Asking for your input » à liste de questions vide, refusé par l'adaptateur (côté agent, sans
+  effet sur la mission).
+- Essai Gmail d851b345 (mode email, rapport 005, Chrome du propriétaire) : modes/email.md, rapport, profil, cv.md lus ;
+  **E71 vérifié en réel** (`career_read reports/` nomme les fichiers lisibles) ; question formulaire au propriétaire :
+  note 3,4/5 sous le seuil 4,0 → e-mail de clarification (recommandé par le rapport), candidature complète, ou annuler.
+  **En attente de sa réponse** (front 5174). Rien saisi dans Gmail pour l'instant.

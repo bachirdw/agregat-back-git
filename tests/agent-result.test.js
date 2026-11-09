@@ -172,3 +172,34 @@ test('audit 10/11 FICTIF : un objet question seul est une réponse au contrat', 
   assert.equal(parseAgentResult('{"question":{"message":""}}').ok, false);
   assert.equal(parseAgentResult('{"foo":1}').ok, false);
 });
+
+// Audit du 10/11 (constat 6) : le texte du tour cumule les messages écrits entre deux outils. Un
+// bloc ```json de charge utile avant la réponse finale la masquait (« hors contrat »), et une
+// accolade jamais refermée avalait la suite (« JSON invalide »). Le dernier objet conforme au
+// contrat est désormais la réponse ; une réponse finale tronquée reste refusée.
+test('audit 10/11 FICTIF : le dernier objet conforme au contrat est la réponse', () => {
+  const final = { simulated: false, summary: 'Formulaire FICTIF envoyé.', evidence: ['étape 3'] };
+  const payload =
+    'J’écris le payload du CV :\n```json\n{"name":"FICTIF","skills":["SQL"]}\n```\nPuis je remplis.\n';
+  const afterPayload = parseAgentResult(payload + JSON.stringify(final));
+  assert.equal(afterPayload.ok, true, JSON.stringify(afterPayload));
+  assert.deepEqual(afterPayload.value, final);
+  const unclosed = parseAgentResult(
+    'Je vérifie la page {en cours de chargement…\nC’est bon.\n' + JSON.stringify(final),
+  );
+  assert.equal(unclosed.ok, true, JSON.stringify(unclosed));
+  assert.deepEqual(unclosed.value, final);
+  const fencedFinal = parseAgentResult(
+    'Note {brouillon\n```json\n' + JSON.stringify(final) + '\n```\nFin du tour.',
+  );
+  assert.equal(fencedFinal.ok, true, JSON.stringify(fencedFinal));
+  assert.deepEqual(fencedFinal.value, final);
+  // Un objet au contrat imbriqué (preuve) ne remplace pas la réponse qui le contient.
+  const nested = { ...final, evidence: [{ simulated: true, summary: 'ancien', evidence: [] }] };
+  assert.deepEqual(parseAgentResult(JSON.stringify(nested)).value, nested);
+  // Un objet hors contrat écrit APRÈS la réponse la rend douteuse : refusée.
+  assert.match(
+    parseAgentResult(JSON.stringify(final) + '\n{"name":"FICTIF"}').reason,
+    /hors contrat/,
+  );
+});

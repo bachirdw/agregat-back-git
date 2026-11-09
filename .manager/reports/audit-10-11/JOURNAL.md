@@ -49,3 +49,8 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
 - 00:50 — second lot orchestrateur `audit-orch2` (Sonnet) : regex d'authentification restantes, workflow non supervisé,
   arrêt borné, « Navigation non prouvée » en mode DAG, code de sortie des scripts jusqu'au Bilan, écart d'ordre nommé.
   Phase unitaire lancée sur la branche fusionnée.
+- 01:04-01:08 — `audit-nav` rendu (13 commits ; Chrome en série 199/199) et `audit-orch2` rendu (7 commits ; unitaires
+  923 ✔). Contrôle du manager sur le constat 4 (une iframe d'un autre site peut poster vers sa propre origine) : accepté,
+  c'est le comportement d'un navigateur normal (jeton anti-robot réel, ATS intégré) ; le fichier de l'agent ne sort
+  toujours que par la règle d'upload et l'envoi final dans l'iframe garde sa carte. Fusionnés (928116f, c9e7737).
+  Suite complète lancée sur c9e7737.

@@ -602,6 +602,21 @@ intents:
         ]
       # En tête de la demande ou d'une phrase seulement : « Postuler à cette offre avec mon CV ».
       leadPhrases: [postuler, candidater, apply, submit]
+      # Audit EN2 : « Use my tailored CV to apply for this job » est une candidature (le CV est un
+      # moyen) ; « Tailor my CV to apply for … » reste des documents (le document est demandé).
+      headPhrases:
+        [
+          use my cv to apply,
+          use my resume to apply,
+          use my tailored cv to apply,
+          use my tailored resume to apply,
+          use the tailored cv to apply,
+          use the tailored resume to apply,
+          using my cv to apply,
+          using my tailored cv to apply,
+          utilise mon cv pour postuler,
+          utilise mon cv adapté pour postuler,
+        ]
       unlessPhrases:
         [
           before i apply,

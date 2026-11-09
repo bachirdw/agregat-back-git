@@ -67,3 +67,11 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
 - 01:26 — front de test **5175** lancé (`~/Downloads/agregat-front`, `AGENT_PLATFORM_API_URL=http://127.0.0.1:4312`) :
   missions de la nuit et leurs Bilans visibles sur http://127.0.0.1:5175. Vos 4310/4311/5173/5174 et le relais
   19988 n'ont pas été touchés.
+- 01:40 — `audit-misc3` rendu (8 commits : délais par script du Skill, PDF en sous-dossier et `CVAcme.pdf`, un brouillon
+  LinkedIn par cible, plafond d'événements 20 000 réglable, en-tête de rapport tolérant, reçu corrompu, ancêtre
+  symbolique de l'espace) ; fusionné (a48a330).
+- 01:43 — correctif du manager 2e6fc3a : la garde « outil sans mise à jour » (120 s) coupait les scripts longs que
+  misc3 autorise (scan 600 s) ; un `career_script` garde maintenant son propre délai + 15 s. Vérifié sur le journal
+  réel : l'adaptateur Claude ne nomme l'outil que dans `_meta` sur la mise à jour qui porte les arguments.
+- 01:45 — faux constat écarté : « un script `scripts/…` demande un clic en mode propriétaire » ; l'accord `execute`
+  est accordé automatiquement (`orchestrator/index.js`, seul `send` attend le propriétaire).

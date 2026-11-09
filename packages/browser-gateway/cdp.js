@@ -174,6 +174,29 @@ export function carriesAgentData(request, { values = [], files = [] } = {}) {
   }
   return false;
 }
+// Audit du 10/11 (audit-ws) : whether a WebSocket frame the page sends carries something the agent
+// typed or attached. The variants of an HTTP body, plus JSON with non-ASCII characters escaped
+// (é) and each line of a typed text of 8 characters or more (a rich editor may send a message
+// line by line, or as several operations).
+export function socketCarriesAgentData(message, { values = [], files = [] } = {}) {
+  const body = Buffer.isBuffer(message) ? message : Buffer.from(String(message ?? ''));
+  if (!body.length) return false;
+  const expanded = [];
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    expanded.push(value);
+    const ascii = JSON.stringify(value)
+      .slice(1, -1)
+      .replace(/[\u007f-￿]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+    if (ascii !== value) expanded.push(ascii);
+    for (const line of value.split(/\r?\n/))
+      if (line.trim().length >= 8 && line !== value) expanded.push(line.trim());
+  }
+  return carriesAgentData(
+    { url: () => '', postDataBuffer: () => body },
+    { values: expanded, files },
+  );
+}
 export function isGraphqlRead(body) {
   try {
     const value = JSON.parse(body);
@@ -1002,6 +1025,126 @@ export class CdpBrowser {
     this.autoSends = [];
     return hosts;
   }
+  // Audit du 10/11 (audit-ws) : the WebSocket frames a page of the mission sends, in owner mode.
+  // A frame is held for the owner's card only when (1) it leaves in the window of an agent's click
+  // or key (during it and 8 s after, until the agent's next action), (2) that action asked no card
+  // and is no step of a form, (3) it carries something the agent typed or attached, and (4) the
+  // socket did not already send the very same frame outside any action (a heartbeat that repeats).
+  // Everything else (presence, typing indicator, read receipts, subscriptions) passes at once, even
+  // while a held frame waits : held frames keep their order among themselves only. A frame an
+  // approved click or key covers (same site, bounded count, fix5) passes and is counted once.
+  #guardSocket(socket) {
+    const url = socket.url();
+    let server;
+    try {
+      server = socket.connectToServer();
+    } catch {
+      return;
+    }
+    const seen = new Set();
+    let held = Promise.resolve();
+    const forward = (message) => {
+      try {
+        server.send(message);
+      } catch {
+        /* the server side is gone : the page sees its socket closed */
+      }
+    };
+    socket.onMessage((message) => {
+      const origin = this.#socketHold(message, seen);
+      if (!origin) return forward(message);
+      held = held
+        .then(() => this.#decideSocketFrame(url, message, origin))
+        .then((approved) => approved && forward(message))
+        .catch(() => {});
+    });
+  }
+  // The open window of the agent's last click or key, if it may send.
+  #socketWindow() {
+    const action = this.socketAction;
+    if (!action || !['browser.click', 'browser.press'].includes(action.id)) return null;
+    if (Date.now() - action.end > CLICK_SEND_WINDOW_MS) return null;
+    return action;
+  }
+  // Null when the frame passes ; otherwise the gateway call (token) its card belongs to.
+  #socketHold(message, seen) {
+    if (this.#closed) return null;
+    const key = typeof message === 'string' ? message : Buffer.from(message).toString('latin1');
+    const action = this.#socketWindow();
+    if (!action) {
+      if (key.length <= 4096 && seen.size < 500) seen.add(key);
+      return null;
+    }
+    if (seen.has(key)) return null;
+    if (
+      !socketCarriesAgentData(message, {
+        values: this.agentValues ?? [],
+        files: this.agentFiles ?? [],
+      })
+    )
+      return null;
+    // A step of a form (« Suivant », a field) saves the form, as its HTTP writes do.
+    if (action.id === 'browser.click' && this.formStep === true && this.clickToken === action.token)
+      return null;
+    return action.token ?? this.callToken ?? true;
+  }
+  #takeSocketCover(url) {
+    const cover = this.cover;
+    if (!cover || cover.left <= 0 || Date.now() > cover.until || !sameSite(url, cover.target))
+      return false;
+    cover.left -= 1;
+    if (cover.primary) this.#traceAutoSend(url);
+    else cover.primary = { entry: this.#recordSocketSend(url, cover.token), strong: true, url };
+    return true;
+  }
+  // An approved WebSocket send : one submission of its gateway call, host only, no HTTP status.
+  #recordSocketSend(url, origin) {
+    let host = '';
+    try {
+      host = new URL(url).host;
+    } catch {
+      /* unparsable URL: recorded without a host */
+    }
+    const entry = { host, status: null, origin, done: true, settled: Promise.resolve() };
+    this.submissions = [...(this.submissions ?? []), entry].slice(-10);
+    return entry;
+  }
+  async #decideSocketFrame(url, message, held) {
+    const origin = held === true ? null : held;
+    if (this.#takeSocketCover(url)) return true;
+    // A burst (the page's POST and its frame, two frames of one message) shares one question.
+    while (this.sendDecision) {
+      if ((await this.sendDecision) !== true) return false;
+      if (this.#takeSocketCover(url)) return true;
+    }
+    if (this.#closed) return false;
+    const text = typeof message === 'string' ? message : Buffer.from(message).toString('utf8');
+    const decision = Promise.resolve(
+      this.approve?.(
+        {
+          capability: 'browser.send',
+          sensitive: true,
+          actionClass: 'send',
+          args: { url: previewUrl(url), method: 'WEBSOCKET', body: previewBody(text) },
+        },
+        { origin },
+      ),
+    ).catch(() => false);
+    this.sendDecision = decision;
+    const approved = await decision;
+    if (this.sendDecision === decision) this.sendDecision = null;
+    if (approved !== true || this.#closed) return false;
+    const entry = this.#recordSocketSend(url, origin);
+    // The card covers the next frame of the same message to the same site, once.
+    this.cover = {
+      target: url,
+      left: 1,
+      until: Date.now() + CLICK_SEND_WINDOW_MS,
+      token: origin,
+      primary: { entry, strong: true, url },
+    };
+    return true;
+  }
   async guard(policy) {
     if (policy.ownerMode) {
       // Owner mode keeps ordinary browsing automatic. Each outbound write still needs a
@@ -1183,6 +1326,17 @@ export class CdpBrowser {
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);
+      // Audit du 10/11 (audit-ws) : WebSocket frames never meet the route above. A message the
+      // agent composed, sent by WebSocket after a click or a key that asked no card, would leave
+      // without one. Each socket of the mission's tabs is relayed (the real connection is made
+      // from the page), and the frames it sends are read by #socketVerdict. If the transport
+      // cannot route WebSockets, the gateway asks the card before a send-worded click instead.
+      this.socketGuardFailed = null;
+      try {
+        await this.context.routeWebSocket('**/*', (socket) => this.#guardSocket(socket));
+      } catch (error) {
+        this.socketGuardFailed = error.message || 'routeWebSocket indisponible';
+      }
       return;
     }
     // Fail closed on every resource, frame and new target. JavaScript/worker execution is
@@ -1902,6 +2056,13 @@ export class CdpBrowser {
     this.#dialog = null;
     const appeared = new Promise((resolve) => (this.#dialogNotify = resolve));
     const action = this.#perform(page, id, args, policy);
+    // Audit du 10/11 (audit-ws) : the window of a click or a key runs 8 s after it ends.
+    const socketAction = this.socketAction;
+    action
+      .finally(() => {
+        if (socketAction && socketAction.end === Infinity) socketAction.end = Date.now();
+      })
+      .catch(() => {});
     const first = await Promise.race([
       action.then((value) => ({ value })),
       appeared.then(() => null),
@@ -1921,8 +2082,11 @@ export class CdpBrowser {
   async #perform(page, id, args, policy) {
     page.setDefaultTimeout(this.navigationTimeoutMs);
     // Relecture fix5 (constat 5) : any other action of the agent closes what an approval covered.
-    if (!['browser.snapshot', 'browser.extract', 'browser.verify', 'browser.dialog'].includes(id))
+    if (!['browser.snapshot', 'browser.extract', 'browser.verify', 'browser.dialog'].includes(id)) {
       this.cover = null;
+      // Audit du 10/11 (audit-ws) : the action whose window a WebSocket frame may belong to.
+      this.socketAction = { id, token: this.callToken, end: Infinity };
+    }
     await this.assertLanded(policy);
     this.blocked = null;
     this.redirectLanding = null;

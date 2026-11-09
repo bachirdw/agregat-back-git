@@ -18,9 +18,10 @@ const resultSchema = z
   .passthrough()
   .refine((value) => value.summary.length > 0 || value.question !== undefined);
 
-function lastJsonObject(text) {
+// Top-level `{…}` spans of the text, in order; `incomplete` when the text ends inside an object.
+function jsonObjects(text) {
+  const spans = [];
   let start = -1;
-  let end = -1;
   let depth = 0;
   let quoted = false;
   let escaped = false;
@@ -39,9 +40,34 @@ function lastJsonObject(text) {
       else if (char === '"') quoted = false;
     } else if (char === '"') quoted = true;
     else if (char === '{') depth++;
-    else if (char === '}' && --depth === 0) end = i + 1;
+    else if (char === '}' && --depth === 0) spans.push({ start, end: i + 1 });
   }
-  return { start, end, incomplete: depth > 0 };
+  return { spans, incomplete: depth > 0 };
+}
+function lastJsonObject(text) {
+  const { spans, incomplete } = jsonObjects(text);
+  const last = spans.at(-1);
+  return { start: last?.start ?? (incomplete ? 0 : -1), end: last?.end ?? -1, incomplete, spans };
+}
+const parseJson = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+};
+// Audit du 10/11 (constat 2) : the browser instructions ask an agent without a form to end its
+// answer with a lone {"question":{…}} object. It is an answer of the contract: merged into the
+// contract answer just before it, else its summary is the prose around it.
+const CONTRACT_KEYS = ['simulated', 'summary', 'evidence'];
+function questionOnly(json) {
+  return (
+    json &&
+    typeof json === 'object' &&
+    !Array.isArray(json) &&
+    CONTRACT_KEYS.every((key) => !(key in json)) &&
+    questionSchema.safeParse(json.question).success
+  );
 }
 
 // Agents answer in free text; only a JSON object matching the contract is accepted. Refusals and
@@ -52,7 +78,7 @@ export function parseAgentResult(text) {
   // A resumed session replays earlier turns before the new answer: the LAST fenced block wins.
   const fenced = [...raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].at(-1);
   const candidate = fenced ? fenced[1].trim() : raw;
-  const { start, end, incomplete } = lastJsonObject(candidate);
+  const { start, end, incomplete, spans } = lastJsonObject(candidate);
   if (start < 0)
     return {
       ok: false,
@@ -61,11 +87,16 @@ export function parseAgentResult(text) {
     };
   if (incomplete || end <= start)
     return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
-  let json;
-  try {
-    json = JSON.parse(candidate.slice(start, end));
-  } catch {
+  let json = parseJson(candidate.slice(start, end));
+  if (json === undefined)
     return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
+  if (questionOnly(json)) {
+    const before = spans.at(-2);
+    const answer = before && parseJson(candidate.slice(before.start, before.end));
+    json =
+      answer && typeof answer === 'object' && CONTRACT_KEYS.every((key) => key in answer)
+        ? { ...answer, question: json.question }
+        : { simulated: false, summary: '', evidence: [], question: json.question };
   }
   if (json && typeof json === 'object' && json.summary === '') {
     const prose = fenced ? raw.replace(fenced[0], ' ') : raw.slice(0, start) + raw.slice(end);

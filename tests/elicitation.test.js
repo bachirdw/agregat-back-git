@@ -455,6 +455,29 @@ test('question en JSON : réponse acceptée → nouveau tour dans la même sessi
   }
 });
 
+// Audit du 10/11 (constat 2) : la consigne sans Skill dit « termine ta réponse par un objet JSON
+// {"question":…} » ; cet objet seul était « hors contrat » et la mission échouait sans poser la question.
+test('audit 10/11 FICTIF : objet {"question"} seul après de la prose → question posée, puis completed', async () => {
+  const m = await proseMission({ bare: true });
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.pendingQuestion.kind, 'prose');
+    assert.equal(row.pendingQuestion.message, 'Dois-je continuer FICTIF ?');
+    const res = await m.api(`/api/runs/${m.run.id}/answer`, {
+      action: 'accept',
+      content: { reponse: 'oui' },
+    });
+    assert.equal(res.status, 200);
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'completed', JSON.stringify(done));
+    assert.match(done.result.summary, /Réponse reçue : oui/);
+  } finally {
+    await m.finish();
+  }
+});
+
 test('question en JSON : le second tour reçoit la réponse et la consigne courte, sans gabarit complet', async () => {
   const m = await proseMission(true, undefined, { promptFile: 'prompt.json' });
   try {

@@ -146,3 +146,29 @@ test('question hors contrat refusée : 9 options, message vide, option trop long
   // Sans question, un summary vide reste hors contrat.
   assert.equal(parseAgentResult(JSON.stringify({ ...base, summary: '' })).ok, false);
 });
+
+// Audit du 10/11 (constat 2) : l'objet {"question":…} que la consigne sans Skill demande est accepté
+// seul (résumé = prose qui le précède) ou fusionné avec la réponse au contrat qui le précède.
+test('audit 10/11 FICTIF : un objet question seul est une réponse au contrat', () => {
+  const alone = parseAgentResult(
+    'J’ai ouvert le formulaire FICTIF.\n{"question":{"message":"Quelle adresse e-mail utiliser ?","options":["perso","pro"]}}',
+  );
+  assert.equal(alone.ok, true, JSON.stringify(alone));
+  assert.equal(alone.value.question.message, 'Quelle adresse e-mail utiliser ?');
+  assert.deepEqual(alone.value.question.options, ['perso', 'pro']);
+  assert.equal(alone.value.summary, 'J’ai ouvert le formulaire FICTIF.');
+  assert.deepEqual(alone.value.evidence, []);
+  const bare = parseAgentResult('{"question":{"message":"Laquelle des deux offres ?"}}');
+  assert.equal(bare.ok, true);
+  assert.equal(bare.value.summary, '');
+  const merged = parseAgentResult(
+    '{"simulated":false,"summary":"Formulaire FICTIF rempli.","evidence":["étape 1"]}\n{"question":{"message":"J’envoie ?"}}',
+  );
+  assert.equal(merged.ok, true);
+  assert.equal(merged.value.summary, 'Formulaire FICTIF rempli.');
+  assert.deepEqual(merged.value.evidence, ['étape 1']);
+  assert.equal(merged.value.question.message, 'J’envoie ?');
+  // Un objet sans question ni contrat reste hors contrat.
+  assert.equal(parseAgentResult('{"question":{"message":""}}').ok, false);
+  assert.equal(parseAgentResult('{"foo":1}').ok, false);
+});

@@ -6,7 +6,7 @@
 // elicitation after the prompt ({message?, requestedSchema?, toolBefore?} or true); answerFile: its response.
 // proseQuestion: the first turn ends with a structured `question` in its JSON answer (no form); the
 // owner's answer turn ({"platform":{"turnKind":"answer"}}) is quoted back ({message?, options?,
-// always?: ask again on every turn}). callsFile: ACP methods received so far, written at each prompt.
+// always?: ask again on every turn, bare?: the lone {"question"} object after prose}). callsFile: ACP methods received so far, written at each prompt.
 // composeTool: a call the agent composes for minutes before handing it over (stall-01, E49):
 // {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true, doneFile?}; see the prompt
 // handler. doneFile: written once the hand-over is complete (decision received, MCP call answered).
@@ -377,7 +377,15 @@ const app = agent({ name: 'fake-acp' })
         sessionId: ctx.params.sessionId,
         update: {
           sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: JSON.stringify(reply) },
+          // bare: the asking turn ends with the lone {"question":…} object the browser instructions
+          // describe, after a sentence of prose (audit du 10/11, constat 2).
+          content: {
+            type: 'text',
+            text:
+              cfg.proseQuestion.bare && reply.question
+                ? `Il me manque une précision FICTIVE.\n${JSON.stringify({ question: reply.question })}`
+                : JSON.stringify(reply),
+          },
         },
       });
       return { stopReason: 'end_turn' };

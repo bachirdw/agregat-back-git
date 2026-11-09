@@ -6,6 +6,11 @@ import { notDone } from '../policy-engine/not-done.js';
 import { getCapability } from '../capability-registry/index.js';
 import { paginateText } from './paginate.js';
 import { summarizeSubmission } from './submission.js';
+
+// Audit WebSocket (ws2) : an icon button whose tooltip, test id or icon names a send (« Envoyer »,
+// « Send », data-icon="send", "send-button"). Narrow on purpose : no class names, no « post ».
+const SEND_HINT = /\b(?:send\p{L}*|envoy\p{L}*|envoi\p{L}*|submit\p{L}*|soumet\p{L}*)\b/iu;
+const sendHint = (element) => SEND_HINT.test(String(element?.hint ?? '').replace(/[_-]+/g, ' '));
 export { CdpBrowser } from './cdp.js';
 
 // Legacy fixture provider (no network, no browser) kept for the reproducible demo.
@@ -144,6 +149,16 @@ export class BrowserGateway {
     if (onAutoSend && policy.ownerMode) provider.onAutoSend = onAutoSend;
     this.autoApprove = new Set(autoApprove); // write (never sensitive) capabilities pre-approved by the user
   }
+  // Audit WebSocket (ws2) : whether the current tab may send by WebSocket. A provider that cannot
+  // tell is a doubt : yes.
+  async socketRisk() {
+    if (typeof this.provider.socketOpen !== 'function') return true;
+    try {
+      return (await this.provider.socketOpen()) !== false;
+    } catch {
+      return true;
+    }
+  }
   call(capabilityId, rawArgs = {}) {
     // Audit du 10/11, second tour : the gateway call a submission belongs to (calls run one at a
     // time) ; `done` once it has returned, so that a later status is reported apart.
@@ -265,10 +280,15 @@ export class BrowserGateway {
       capabilityId === 'browser.click' && this.policy.ownerMode && element
         ? this.policy.ownerClickKind(element)
         : null;
-    // Audit du 10/11 (audit-ws) : a transport that cannot hold the page's WebSocket frames cannot
-    // hold a message a send-worded control sends that way : its card comes before the click.
+    // Audit WebSocket (ws2) : an icon button that names a send only by its tooltip or its icon is
+    // a send-worded control (a write it triggers waits for the card).
+    if (clickKind === 'plain' && sendHint(element)) clickKind = 'candidate';
+    // Audit du 10/11 (audit-ws), ws2 : without the optional relay of sockets (the default), nothing
+    // can hold a message a page sends by WebSocket. On a tab with an open WebSocket (or in doubt),
+    // a send-worded control's card comes before the click ; elsewhere its HTTP writes still wait.
     const socketBlind = this.policy.ownerMode && !!this.provider.socketGuardFailed;
-    if (socketBlind && clickKind === 'candidate' && element?.tag !== 'a') clickKind = 'submit';
+    const socketRisk = socketBlind && (await this.socketRisk());
+    if (socketRisk && clickKind === 'candidate' && element?.tag !== 'a') clickKind = 'submit';
     const secretField =
       !!element &&
       !fields &&
@@ -303,6 +323,9 @@ export class BrowserGateway {
     if (enterContext && this.policy.ownerMode) {
       if (enterContext.kind === 'control') {
         pressKind = this.policy.ownerClickKind(element);
+        if (pressKind === 'plain' && sendHint(element)) pressKind = 'candidate';
+        // ws2 (relecture, constat 5) : Enter on a send button, socket open : the card before.
+        if (socketRisk && pressKind === 'candidate' && element?.tag !== 'a') pressKind = 'submit';
         if (pressKind === 'plain') pressKind = 'candidate';
       } else if (enterContext.kind === 'form') {
         pressKind = submitter
@@ -315,12 +338,22 @@ export class BrowserGateway {
               ? 'submit'
               : 'candidate';
         if (pressKind === 'plain' || pressKind === 'widget') pressKind = 'candidate';
+        // ws2 (constat 5) : Enter in a form without a send button, socket open, no autocompletion :
+        // a script may send what the field holds by WebSocket : the card before.
+        if (
+          socketRisk &&
+          pressKind === 'candidate' &&
+          !submitter &&
+          !enterContext.implicit &&
+          !enterContext.autocomplete
+        )
+          pressKind = 'submit';
         if (pressKind === 'submit' && enterContext.autocomplete && !enterContext.multiline) {
           pressKind = 'candidate';
           guardSubmit = true;
         }
       } else if (enterContext.kind === 'message') pressKind = 'submit';
-      else if (enterContext.kind === 'field') pressKind = socketBlind ? 'submit' : 'candidate';
+      else if (enterContext.kind === 'field') pressKind = socketRisk ? 'submit' : 'candidate';
       // Unknown (a provider that cannot tell) : in doubt, the owner's card.
       else pressKind = 'submit';
     } else if (enterContext)

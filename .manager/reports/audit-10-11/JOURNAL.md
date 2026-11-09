@@ -124,3 +124,5 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   copie career-ops remise à neuf. Worktrees et branches temporaires des correcteurs retirés (tous fusionnés).
 - 04:24 — **suite complète finale verte** sur le commit final : 1003 unitaires (1001 ✔, 2 ignorés), 193/193 Chrome,
   contrôle et format. Synthèse du matin : `SYNTHESE.md`.
+- 04:26 — usage : 51 % de la fenêtre de 5 h, 39 % de la semaine. Dernier tour : `audit-ws` (Opus, envois par
+  WebSocket sous carte) et `audit-en` (Sonnet, prompts anglais, fichiers de travail de l'agent hors /tmp).

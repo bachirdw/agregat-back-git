@@ -488,6 +488,7 @@ export function createApp({
       }
       const evidence = path.match(/^\/api\/internal\/evidence\/([a-f0-9-]{36})$/);
       const toolOutcome = path.match(/^\/api\/internal\/tool-outcome\/([a-f0-9-]{36})$/);
+      const siteRefusal = (status) => Number.isInteger(status) && status >= 400 && status <= 599;
       if (toolOutcome) {
         const id = toolOutcome[1];
         const control = engine.bridgeControl(id, String(req.headers['x-relay-token'] ?? ''));
@@ -525,10 +526,15 @@ export function createApp({
         // E66 : the outcome of the very call an approval of a send was asked for (same gateway
         // identifier). A failure the gateway raised before acting (`actionDone: false`) sent
         // nothing ; any other failure after the approval leaves the outcome open.
+        // Audit du 10/11, second tour : a failure the site itself answered (HTTP 4xx/5xx on the
+        // approved submission) is a refusal by the site, not an uncertain outcome.
         if (control.sendCalls?.has(body.toolCallId)) {
           control.sendCalls.delete(body.toolCallId);
           if (body.status === 'failed') {
-            if (body.actionDone === false) control.sendsFailed = (control.sendsFailed ?? 0) + 1;
+            if (siteRefusal(body.httpStatus))
+              control.sendsRefused = [...(control.sendsRefused ?? []), body.httpStatus];
+            else if (body.actionDone === false)
+              control.sendsFailed = (control.sendsFailed ?? 0) + 1;
             else control.sendsUncertain = (control.sendsUncertain ?? 0) + 1;
           }
         }

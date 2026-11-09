@@ -117,10 +117,14 @@ export function formatAutoSendLine(events) {
 // E66 : the owner's approvals of a send, and what became of the approved actions : an approval is
 // not a send. `failed` : the gateway stopped before acting (nothing sent) ; `uncertain` : the
 // action failed after it started (something may have left : to check on the site). `unknown`
-// (revue Opus du 06/11) : approved calls whose outcome the gateway never reported.
-export function formatSendLine(approved, failed = 0, uncertain = 0, unknown = 0) {
+// (revue Opus du 06/11) : approved calls whose outcome the gateway never reported. `refused`
+// (audit du 10/11, second tour) : the HTTP statuses of approved submissions the site refused.
+export function formatSendLine(approved, failed = 0, uncertain = 0, unknown = 0, refused = []) {
   if (!approved) return '\nEnvoi par la plateforme : aucun approuvé.';
   const notes = [
+    ...(refused.length
+      ? [`${refused.length} refusé(s) par le site (HTTP ${[...new Set(refused)].join(', ')})`]
+      : []),
     ...(failed
       ? [`${failed} sans effet (arrêtée avant d’agir après l’accord : rien n’a été envoyé)`]
       : []),
@@ -1470,6 +1474,7 @@ export class Orchestrator {
           control.sendsFailed ?? 0,
           control.sendsUncertain ?? 0,
           control.sendCalls?.size ?? 0,
+          control.sendsRefused ?? [],
         );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));

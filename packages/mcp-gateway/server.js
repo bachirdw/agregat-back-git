@@ -1,7 +1,7 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
-import { landedUrl, submissionRefused } from './outcome.js';
+import { landedUrl, refusedSubmission, submissionRefused } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { withEvidence } from './evidence.js';
 import { proofWatch } from './proofs.js';
@@ -32,9 +32,13 @@ const text = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value)
 // relecture : a structured mark, no longer a reading of the message). Kept beside the result,
 // never sent to the agent.
 const notDoneResults = new WeakSet();
+// Audit du 10/11, second tour : the HTTP status of an approved submission the site refused, kept
+// beside the failed result for the platform's Bilan (« refusé par le site (HTTP nnn) »).
+const siteStatusOf = new WeakMap();
 const failure = (e) => {
   const result = { isError: true, content: [{ type: 'text', text: String(e.message ?? e) }] };
   if (e?.actionDone === false) notDoneResults.add(result);
+  if (Number.isInteger(e?.httpStatus)) siteStatusOf.set(result, e.httpStatus);
   return result;
 };
 
@@ -117,6 +121,9 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
       // call cancelled, approval expired, charge refused) says so ; any other failure leaves the
       // outcome open.
       ...(status === 'failed' && notDoneResults.has(result) ? { actionDone: false } : {}),
+      ...(status === 'failed' && siteStatusOf.has(result)
+        ? { httpStatus: siteStatusOf.get(result) }
+        : {}),
     }),
     signal: AbortSignal.timeout(5000),
   });
@@ -272,7 +279,10 @@ if (mode === 'fixture') {
             );
           // Audit du 10/11 (constat 7) : a submission the site refused (HTTP 4xx/5xx) is no success.
           const refused = submissionRefused(output);
-          if (refused) return failure(new Error(refused));
+          if (refused)
+            return failure(
+              Object.assign(new Error(refused), { httpStatus: refusedSubmission(output).status }),
+            );
           return text(output);
         } catch (e) {
           return failure(e);

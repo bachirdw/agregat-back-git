@@ -12,12 +12,15 @@ const LANDING_TOOLS = new Set([
 ]);
 
 // Audit du 10/11 (constat 7) : an approved submission the site answered with an HTTP error is no
-// success : the call fails (the Bilan then says « issue incertaine »), and the agent is told not to
-// click again blindly. Returns the message, or null.
-export function submissionRefused(output) {
-  const refused = (output?.submissions ?? []).find(
-    (s) => Number.isInteger(s?.status) && s.status >= 400,
+// success : the call fails (the Bilan says « refusé par le site (HTTP nnn) », second tour), and the
+// agent is told not to click again blindly. Returns the message, or null.
+export function refusedSubmission(output) {
+  return (
+    (output?.submissions ?? []).find((s) => Number.isInteger(s?.status) && s.status >= 400) ?? null
   );
+}
+export function submissionRefused(output) {
+  const refused = refusedSubmission(output);
   if (!refused) return null;
   return (
     `Envoi approuvé parti, mais ${refused.host || 'le site'} a répondu HTTP ${refused.status} : ` +

@@ -334,3 +334,42 @@ test('Bilan FICTIF : e-mail préparé dans le navigateur ou en brouillon, sans e
     /\n- E-mail du Skill : texte seulement dans la réponse \(aucune préparation observée\)\./,
   );
 });
+
+// Essai réel 25d47b55 (09/11) : le prompt disait « la note est 3,4/5 » et « la candidature complète » ;
+// le Bilan y lisait une évaluation et une candidature par formulaire demandées (« Non exécuté :
+// candidature ; évaluation enregistrée ; suivi du Skill non écrit »). Comme pour la boîte d'entrée
+// (bilan-06, E48) : avec une intention choisie, une candidature ou une évaluation n'est due que si une
+// étape de l'intention la déclare (`proves`) ; sans intention, les mots du prompt décident comme avant.
+test('Bilan FICTIF : avec l’intention email, « la note » et « candidature complète » ne réclament rien', () => {
+  const prompt =
+    "Rédige l'e-mail de candidature pour l'offre du rapport 005 (mode email) et prépare-le dans Gmail. Je sais que la note est 3,4/5 : je veux la candidature complète malgré la note. N'envoie rien.";
+  const intent = intentOf(prompt);
+  assert.equal(intent?.id, 'email');
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('career_read', 'completed', { argument: 'reports/' });
+  truth.recordGatewayTool('email_send', 'completed', { sent: false });
+  const published = steps(intent).map((step) =>
+    step.title.startsWith('Lire le rapport') ? { ...step, state: 'done' } : step,
+  );
+  const bilan = formatCareerBilan(prompt, truth, undefined, published);
+  assert.doesNotMatch(bilan, /candidature \(aucun appel de formulaire\)/);
+  assert.doesNotMatch(bilan, /Non exécuté :[^\n]*évaluation enregistrée/);
+  assert.doesNotMatch(bilan, /suivi du Skill non écrit/);
+  assert.match(bilan, /Non exécuté : aucune action demandée identifiable comme manquante/);
+  // Sans intention publiée : les mots du prompt décident, comme avant.
+  const lexical = formatCareerBilan('Évalue cette offre FICTIVE et postule.', createTurnTruth());
+  assert.match(lexical, /candidature \(aucun appel de formulaire\)/);
+  assert.match(lexical, /évaluation enregistrée/);
+  // Avec l'intention apply : la candidature reste due (son étape de remplissage la déclare).
+  const apply = intentOf('Postule à cette offre FICTIVE : https://emplois.example.test/job/1');
+  assert.equal(apply?.id, 'apply');
+  assert.match(
+    formatCareerBilan(
+      'Postule à cette offre FICTIVE : https://emplois.example.test/job/1',
+      createTurnTruth(),
+      undefined,
+      steps(apply),
+    ),
+    /candidature \(aucun appel de formulaire\)/,
+  );
+});

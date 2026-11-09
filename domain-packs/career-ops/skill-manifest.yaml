@@ -545,6 +545,9 @@ intents:
         precondition: Formulaire visible
         done: Champs remplis ; « Suivant » passe sans accord ; un dialogue de page se règle avec browser_dialog
         optional: false
+        # Essai 25d47b55 (09/11) : le Bilan ne réclame une candidature par formulaire que si l'intention
+        # choisie la déclare ; les mots du prompt seuls décident sans intention.
+        proves: candidature préparée
       # apply-01 (E40) : le CV joint est le CV adapté de la chaîne du Skill (mode apply, étape 4b
       # TAILORED : build-cv-html → verify-cv-facts → generate-pdf), produit dans la mission ou déjà présent
       # (intent documents) ; career_documents et la réponse de generate-pdf en donnent le chemin.

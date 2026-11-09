@@ -10,6 +10,8 @@ import { capabilities } from '../capability-registry/index.js';
 // The outcomes the career Bilan checks. Which tool calls prove them is declared by the pack's
 // manifest (step field `proves`), never by a tool name written here.
 const EVALUATION_SAVED = 'évaluation enregistrée';
+// Essai 25d47b55 (09/11) : the form filling of modes/apply.md, declared by the pack.
+const APPLICATION_PREPARED = 'candidature préparée';
 const TRACKER_WRITTEN = 'suivi écrit';
 const CV_PRODUCED = 'CV produit';
 const COVER_PRODUCED = 'lettre produite';
@@ -709,7 +711,13 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const offerContext = /\b(?:offres?|annonces?|postes?|emplois?|jobs?)\b/iu.test(requested);
   // Essai ae98fa16 (09/11) : « l'e-mail de candidature » (modes/email.md) asks for no form.
   const formRequest = requested.replace(EMAIL_OF_APPLICATION, ' ');
+  // Essai 25d47b55 (09/11), as bilan-06 (E48) did for the inbox : with an intent selected, an
+  // application or an evaluation is due only when one of its steps declares it (`proves`) ; the
+  // words of the prompt (« la note est 3,4/5 », « la candidature complète ») decide only without one.
+  const declares = (...labels) => skillSteps.some((step) => labels.includes(step.proves));
+  const due = (label) => !skillSteps.length || declares(label);
   if (
+    due(APPLICATION_PREPARED) &&
     /\b(?:postul(?:e|er|ez|ons)|candidatur(?:e|er)|apply|submit)\b/i.test(formRequest) &&
     ![...done].some((name) =>
       /^(?:browser_fillForm|browser_type|browser_check|browser_select|browser_upload)$/i.test(name),
@@ -717,6 +725,7 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   )
     missing.push('candidature (aucun appel de formulaire)');
   const evaluationRequested =
+    due(EVALUATION_SAVED) &&
     offerContext &&
     /(?:^|[^\p{L}])(?:évalu(?:e|er|ez)|note|classement)(?=$|[^\p{L}])/iu.test(requested) &&
     !/(?:\bn['’]enregistre\b|\bne\s+(?:pas\s+)?(?:enregistre|sauvegarde)\b|\bsans\s+(?:enregistrer|sauvegarder)\b)/iu.test(
@@ -811,7 +820,6 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const contactWrites = truth.contactWrites?.() ?? [];
   // Reprise b6f869fb (09/11) : « n'enregistre pas » removes the saving steps from the follow-up ;
   // the mode is still contacto, declared by its book and draft steps.
-  const declares = (...labels) => skillSteps.some((step) => labels.includes(step.proves));
   const contactDue = declares(CONTACT_SAVED, BOOK_CHECKED, LINKEDIN_DRAFTED);
   const contactLines = [];
   if (contactDue || called('career_script', 'contact-lookup') || contactWrites.length)

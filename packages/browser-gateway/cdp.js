@@ -1063,8 +1063,13 @@ export class CdpBrowser {
           !request.isNavigationRequest() &&
           sendsFile(request, this.uploadedFile)
         ) {
-          this.#traceAutoSend(request.url());
-          return route.continue();
+          // Relecture fix5 (constat 9) : unless it goes to a submission path : a final send that
+          // carries the CV alone (the contact known by the session) waits for the owner's card.
+          if (!isSubmitPath(request.url())) {
+            this.#traceAutoSend(request.url());
+            return route.continue();
+          }
+          forceCard = true;
         }
         // Relecture fix5 (constat 5) : a write the owner's approval covers.
         if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();

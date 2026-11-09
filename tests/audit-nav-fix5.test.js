@@ -536,6 +536,44 @@ test(
 // ---------------------------------------------------------------------------------------------
 
 test(
+  'Relecture 9 : juste après le téléversement, un envoi final qui ne porte que le CV attend la carte ; la pièce seule passe',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      `<form><input type="file" id="cv" name="cv" onchange="
+         const one = new FormData(); one.append('cv', this.files[0]);
+         fetch('/apply/123/resume', { method: 'POST', body: one }).then(() => {
+           const two = new FormData(); two.append('cv', this.files[0]);
+           return fetch('/apply/123/submit', { method: 'POST', body: two });
+         });"></form>`,
+    );
+    const { gateway, folder, sends } = await owner(
+      t,
+      origin,
+      (r) => r.capability === 'browser.upload',
+    );
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(
+      join(folder, 'cv-FICTIF.pdf'),
+      `%PDF-1.4\n% CV FICTIF\n${'y'.repeat(600)}\n%%EOF\n`,
+    );
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.upload', {
+      ref: await refFor(gateway, '#cv'),
+      path: 'cv-FICTIF.pdf',
+    });
+    for (let i = 0; i < 80 && !sends().length; i++) await sleep(25);
+    await sleep(300);
+    assert.deepEqual(lines(), ['POST /apply/123/resume'], 'la pièce part, l’envoi final non');
+    assert.deepEqual(
+      sends().map((r) => r.capability),
+      ['browser.send'],
+    );
+  },
+);
+
+test(
   'Relecture 11 : l’écouteur « submit » posé pour Entrée d’autocomplétion est retiré même si la touche échoue',
   { skip },
   async (t) => {

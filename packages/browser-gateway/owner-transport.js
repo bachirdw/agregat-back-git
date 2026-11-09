@@ -54,6 +54,11 @@ async function closeThrough(url, ids, ms) {
 
 // A local CDP view containing ONLY targets created by this connection. In particular never
 // forward root auto-attach or browser-wide settings to the user's existing tabs.
+// Audit du 10/11 (constat 10) : a command of the page relayed for Playwright (navigation, a click
+// held by a confirm() dialog until the agent answers it) is not cut at the startup delay : Playwright
+// has its own timeouts ; this bound only keeps a command the relay never answers from waiting
+// forever (a closed connection rejects them all at once).
+export const RELAYED_COMMAND_MS = 10 * 60 * 1000;
 export async function ownerTransport(endpoint, timeoutMs = 10000) {
   const base = new URL(endpoint);
   if (
@@ -221,7 +226,12 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
             if (m.method.startsWith('Browser.')) throw new Error('Commande globale refusée');
             if (m.params?.targetId && !targets.has(m.params.targetId))
               throw new Error('Cible hors périmètre');
-            result = await rpc(m.method, m.params, m.sessionId);
+            result = await rpc(
+              m.method,
+              m.params,
+              m.sessionId,
+              Math.max(timeoutMs, RELAYED_COMMAND_MS),
+            );
           } else if (m.method === 'Target.setAutoAttach') {
             if (!m.sessionId)
               send({

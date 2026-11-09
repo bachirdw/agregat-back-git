@@ -240,3 +240,4 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
   les Brouillons Gmail du propriétaire, un brouillon Relay dans `drafts/`. Observé sans effet : `career_offer_save` sans
   arguments (refusé), appel natif « Report findings » de l'adaptateur. **E76 vérifié en réel** ; **E78** constaté et
   corrigé (commit suivant) ; E77 corrigé mais non vérifié (le mot « candidature complète » déclenchait aussi).
+- 20:18 : suite complète verte sur 241aaac : 897 unitaires (895 ✔, 2 ignorés), 157/157 Chrome, contrôle et format ; API 4311 relancée sur ce code. Branche : 106 commits depuis dev, ni fusionnée ni poussée. Reste : vérifier E77 et E78 en réel (un essai email sans « note » ni « candidature complète » dans le prompt suffit), E73 ; décision « Bilan cumulé en reprise » ; navigations expirées dans Gmail à surveiller.

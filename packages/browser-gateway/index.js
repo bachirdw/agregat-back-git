@@ -261,10 +261,14 @@ export class BrowserGateway {
     // list, an option, a toggle or a button that is no submission trigger and says no send passes
     // without a card ; a send-worded control outside a form gets its card from the write it
     // triggers (cdp.js), so a « Postuler » that only opens the form asks nothing.
-    const clickKind =
+    let clickKind =
       capabilityId === 'browser.click' && this.policy.ownerMode && element
         ? this.policy.ownerClickKind(element)
         : null;
+    // Audit du 10/11 (audit-ws) : a transport that cannot hold the page's WebSocket frames cannot
+    // hold a message a send-worded control sends that way : its card comes before the click.
+    const socketBlind = this.policy.ownerMode && !!this.provider.socketGuardFailed;
+    if (socketBlind && clickKind === 'candidate' && element?.tag !== 'a') clickKind = 'submit';
     const secretField =
       !!element &&
       !fields &&
@@ -316,7 +320,7 @@ export class BrowserGateway {
           guardSubmit = true;
         }
       } else if (enterContext.kind === 'message') pressKind = 'submit';
-      else if (enterContext.kind === 'field') pressKind = 'candidate';
+      else if (enterContext.kind === 'field') pressKind = socketBlind ? 'submit' : 'candidate';
       // Unknown (a provider that cannot tell) : in doubt, the owner's card.
       else pressKind = 'submit';
     } else if (enterContext)

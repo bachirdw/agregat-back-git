@@ -780,6 +780,41 @@ export class CdpBrowser {
       .finally(() => this.pendingAutoSends?.delete(pending));
     (this.pendingAutoSends ??= new Set()).add(pending);
   }
+  // Audit du 10/11 (constat 7) : a write the owner approved (or that an approved click covers) is a
+  // submission ; its HTTP status tells whether the site took it. Host and status only.
+  #recordSubmission(request) {
+    if (request.resourceType() === 'ping') return;
+    let host = '';
+    try {
+      host = new URL(request.url()).host;
+    } catch {
+      /* unparsable URL: recorded without a host */
+    }
+    const entry = { host, status: null };
+    entry.settled = request.response().then(
+      (response) => {
+        entry.status = response ? response.status() : null;
+      },
+      () => {},
+    );
+    this.submissions = [...(this.submissions ?? []), entry].slice(-10);
+  }
+  // Called after each tool call : the submissions since the previous call, with their status once
+  // answered (5 s at most ; a submission still unanswered keeps a null status).
+  async takeSubmissions(ms = 5000) {
+    const list = this.submissions ?? [];
+    this.submissions = [];
+    if (!list.length) return [];
+    let timer;
+    await Promise.race([
+      Promise.all(list.map((entry) => entry.settled)),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, ms);
+      }),
+    ]);
+    clearTimeout(timer);
+    return list.map(({ host, status }) => ({ host, status }));
+  }
   // Called after each tool call: waits for the traces already started, then returns and resets the
   // count of network writes granted automatically since the previous call.
   async takeAutoSends() {
@@ -904,6 +939,7 @@ export class CdpBrowser {
           if (this.sendDecision === decision) this.sendDecision = null;
         }
         if (approved !== true || this.#closed) return route.abort('blockedbyclient');
+        this.#recordSubmission(request);
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);
@@ -1624,6 +1660,11 @@ export class CdpBrowser {
           await this.reset();
           throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
         }
+        // Audit du 10/11 (constat 7) : an approved send may post after the click (validation,
+        // token) : wait a little for its request, so that its status comes with this result.
+        if (args.sendApproved === true)
+          for (let i = 0; i < 60 && !this.submissions?.length; i++)
+            await new Promise((resolve) => setTimeout(resolve, 50));
         await this.assertLanded(policy);
         if (this.redirectLanding) await goto(this.redirectLanding.url, true);
         await this.ownerConnection?.waitOpenedWindow(1000);

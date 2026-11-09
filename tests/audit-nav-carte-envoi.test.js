@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { BrowserGateway, CdpBrowser } from '../packages/browser-gateway/index.js';
 import { RunPolicy } from '../packages/policy-engine/run-policy.js';
 import { capabilityIds } from '../packages/capability-registry/index.js';
+import { submissionRefused } from '../packages/mcp-gateway/outcome.js';
 import { refFor } from './support/click-ref.js';
 
 const CHROME =
@@ -216,5 +217,23 @@ test(
       'une seule carte, celle du clic',
     );
     assert.equal(asked.length, 1);
+  },
+);
+
+test(
+  'Constat 7 : le code HTTP de la soumission approuvée est relevé ; un 422 n’est pas un succès',
+  { skip: !existsSync(CHROME) },
+  async (t) => {
+    const { origin } = await site(t, asyncForm, {
+      status: (req) => (req.url === '/api/candidatures' ? 422 : 200),
+    });
+    const { gateway } = await owner(t, origin, () => true);
+    await gateway.call('browser.navigate', { url: origin });
+    const result = await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    const host = origin.replace('http://', '');
+    assert.deepEqual(result.submissions?.[0], { host, status: 422 });
+    assert.match(submissionRefused(result), /HTTP 422/);
+    assert.equal(submissionRefused({ submissions: [{ host, status: 200 }] }), null);
+    assert.equal(submissionRefused({ url: origin }), null);
   },
 );

@@ -97,13 +97,19 @@ export class BrowserGateway {
       const output = await this.execute(capabilityId, rawArgs);
       // Network writes granted without a question since the previous call (owner mode).
       const hosts = (await this.provider.takeAutoSends?.()) ?? [];
-      return hosts.length
-        ? {
-            ...output,
-            networkSends: hosts.length,
-            networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
-          }
-        : output;
+      // Audit du 10/11 (constat 7) : approved submissions since the previous call, with their
+      // HTTP status (host and status only).
+      const submissions = (await this.provider.takeSubmissions?.()) ?? [];
+      return {
+        ...output,
+        ...(hosts.length
+          ? {
+              networkSends: hosts.length,
+              networkSendHosts: [...new Set(hosts.filter(Boolean))].slice(0, 10),
+            }
+          : {}),
+        ...(submissions.length ? { submissions } : {}),
+      };
     });
     this.pending = task.catch(() => {});
     return task;

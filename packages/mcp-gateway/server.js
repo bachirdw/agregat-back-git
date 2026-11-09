@@ -1,7 +1,7 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
-import { landedUrl } from './outcome.js';
+import { landedUrl, submissionRefused } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { proofWatch } from './proofs.js';
 import { CallRegistry } from './calls.js';
@@ -267,6 +267,9 @@ if (mode === 'fixture') {
             });
             if (!response.ok) throw new Error('Journal de navigation indisponible');
           }
+          // Audit du 10/11 (constat 7) : a submission the site refused (HTTP 4xx/5xx) is no success.
+          const refused = submissionRefused(output);
+          if (refused) return failure(new Error(refused));
           return text(output);
         } catch (e) {
           return failure(e);

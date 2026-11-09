@@ -221,3 +221,11 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
   vérifier (contact-extract non appelé). Effet sur les données du propriétaire : `data/contacts.tsv` créé (un contact,
   données d'un tiers, hors Git), `relay/linkedin.json` réécrit. Reste : l'essai Gmail (mode email) et la décision
   « Bilan cumulé en reprise ».
+- 09/11 19:45 : essai Gmail **ae98fa16** (mode email, rapport 005, Chrome du propriétaire) : question « clarification ou
+  candidature complète » (note 3,4/5 sous le seuil 4,0), réponse du propriétaire « candidature complète » portée par
+  `/answer` ; l'agent a ouvert le brouillon dans Gmail par un lien de composition prérempli, l'a relu par extraction
+  (destinataire tiré de l'annonce archivée, objet, corps en anglais), s'est arrêté avant Envoyer ; `completed` en 4 min ;
+  **rien envoyé** (aucun accord d'envoi demandé ; 29 requêtes réseau de Gmail accordées automatiquement : trafic propre
+  et enregistrement du brouillon). Effet sur les données du propriétaire : un brouillon dans ses Brouillons Gmail.
+  Défauts de Bilan **E76** (préparation par lien non vue) et **E77** (« e-mail de candidature » pris pour un formulaire),
+  corrigés (commit suivant), à vérifier en réel par un nouvel essai Gmail.

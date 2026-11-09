@@ -219,14 +219,23 @@ export class RunPolicy {
     if (this.isFormStep(d)) return 'step';
     const label = [d.text, d.ariaLabel, d.value].filter(Boolean).join(' ');
     const sendLabel = SENSITIVE_WORDS.test(label) || SEND_LABEL_WORDS.test(label);
+    // Relecture fix5 (constat 2) : a submission trigger of a form stays one whatever its ARIA
+    // attributes say (a submit button with aria-haspopup="dialog" is still the send).
+    const submitControl =
+      (d.tag === 'input' && ['submit', 'image'].includes(d.inputType)) ||
+      (d.tag === 'button' && d.buttonType === 'submit' && d.inForm);
+    if (submitControl) return 'submit';
+    const role = String(d.role ?? '').toLowerCase();
+    // Choosing an option, a box, a tab is never a send.
+    if (WIDGET_ROLES.has(role) && role !== 'menuitem') return 'widget';
     if (
-      WIDGET_ROLES.has(String(d.role ?? '').toLowerCase()) ||
+      role === 'menuitem' ||
       (d.ariaHasPopup && d.ariaHasPopup !== 'false') ||
       (d.ariaExpanded !== null && d.ariaExpanded !== undefined)
     )
-      return 'widget';
-    if (d.tag === 'input' && ['submit', 'image'].includes(d.inputType)) return 'submit';
-    if (d.tag === 'button' && d.buttonType === 'submit' && d.inForm) return 'submit';
+      // A menu entry or a disclosure button that says a send (« Envoyer » opening a confirmation)
+      // : any write it triggers waits for the card.
+      return sendLabel ? 'candidate' : 'widget';
     if (!sendLabel) return 'plain';
     return d.inForm && d.tag !== 'a' ? 'submit' : 'candidate';
   }

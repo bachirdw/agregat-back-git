@@ -239,3 +239,46 @@ test(
     assert.deepEqual(sends(), []);
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Constat 2 : aria-haspopup / aria-expanded ne font pas d'un bouton d'envoi un « widget »
+// ---------------------------------------------------------------------------------------------
+
+test(
+  'Constat 2 : un bouton d’envoi qui porte aria-haspopup ou aria-expanded garde sa carte ; un vrai menu passe',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      `<form onsubmit="event.preventDefault(); fetch('/api/candidature/submit', { method: 'POST', body: '{}' })">
+         <input name="nom" aria-label="Nom">
+         <button type="submit" id="popup" aria-haspopup="dialog">Envoyer</button>
+         <button type="submit" id="plie" aria-expanded="false">OK</button>
+       </form>
+       <button type="button" id="menu" aria-haspopup="menu" aria-expanded="false"
+         onclick="fetch('/api/candidature/submit', { method: 'POST', body: '{}' })">Plus d’options</button>
+       <button type="button" id="liste" aria-haspopup="listbox" onclick="this.dataset.o = 1">Ville</button>`,
+    );
+    const { gateway, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    for (const id of ['#popup', '#plie'])
+      await assert.rejects(
+        gateway.call('browser.click', { ref: await refFor(gateway, id) }),
+        /Action refusée/,
+        id,
+      );
+    assert.deepEqual(
+      sends().map((r) => r.capability),
+      ['browser.click', 'browser.click'],
+    );
+    // Un vrai menu qui ne fait qu'ouvrir une liste : aucune carte.
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#liste') });
+    assert.equal(sends().length, 2);
+    // Un « menu » dont le clic écrit vers un point de soumission : le garde réseau demande la carte.
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#menu') });
+    for (let i = 0; i < 60 && sends().length < 3; i++) await sleep(25);
+    assert.equal(sends().at(-1)?.capability, 'browser.send');
+    await sleep(300);
+    assert.deepEqual(lines(), [], 'rien n’est parti sans accord');
+  },
+);

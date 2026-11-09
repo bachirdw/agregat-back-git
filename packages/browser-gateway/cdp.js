@@ -975,7 +975,11 @@ export class CdpBrowser {
           ((this.sendClick === true && (this.clickKind !== 'candidate' || samePage)) ||
             // Audit du 10/11 (constat 2) : an ordinary click (icon button, unknown label) whose
             // page then writes to a submission path of its own site is a send too.
-            (this.clickKind === 'plain' && firstParty && samePage && isSubmitPath(request.url())));
+            // Relecture fix5 (constat 2) : a list or menu button too.
+            (['plain', 'widget'].includes(this.clickKind) &&
+              firstParty &&
+              samePage &&
+              isSubmitPath(request.url())));
         // Audit du 10/11 (constat 5) : the owner's approval of a send click covers the writes that
         // click triggers on its site (or the form it posts elsewhere) during the click's window :
         // a submission that awaits a check or a token before its fetch asks nothing more, and the

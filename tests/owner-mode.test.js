@@ -372,7 +372,6 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     { tag: 'div', role: 'combobox', inForm: true, text: 'Pays' },
     { tag: 'div', role: 'option', inForm: true, text: 'Envoyer par courrier' },
     { tag: 'button', buttonType: 'button', inForm: true, text: 'Ville', ariaHasPopup: 'listbox' },
-    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Plus', ariaExpanded: 'false' },
     { tag: 'div', role: 'switch', inForm: true, text: 'Oui' },
   ])
     assert.equal(kind(d), 'widget', JSON.stringify(d));
@@ -392,6 +391,16 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     { tag: 'input', inputType: 'submit', inForm: true, text: '' },
     { tag: 'button', buttonType: 'button', inForm: true, text: 'Envoyer ma candidature' },
     { tag: 'button', buttonType: 'submit', inForm: true, text: 'Continue to submit' },
+    // Relecture fix5 (constat 2) : un bouton de soumission n'est jamais un widget par ses attributs ARIA.
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Plus', ariaExpanded: 'false' },
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Envoyer', ariaHasPopup: 'dialog' },
+    { tag: 'input', inputType: 'submit', inForm: true, text: 'OK', role: 'menuitem' },
   ])
     assert.equal(kind(d), 'submit', JSON.stringify(d));
+  // Un menu qui dit un envoi : ses écritures attendent la carte.
+  for (const d of [
+    { tag: 'button', buttonType: 'button', text: 'Envoyer', ariaHasPopup: 'menu' },
+    { tag: 'div', role: 'menuitem', text: 'Envoyer le message' },
+  ])
+    assert.equal(kind(d), 'candidate', JSON.stringify(d));
 });

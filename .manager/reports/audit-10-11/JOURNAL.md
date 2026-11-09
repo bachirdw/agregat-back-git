@@ -41,3 +41,5 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   de l'agent : exact), « 1 commande native » (`echo noop` de l'agent : exact), « Écart d'ordre : constaté » sans dire
   lequel (probablement verify de la page 1 avant l'upload de la page 2 : ordre naturel d'un formulaire multi-pages ;
   mineur, à décider : nommer l'écart ou ne pas l'exiger pour `apply`).
+- 00:47-00:48 — **Démo 2 rejouée** (sans Skill), mission 47f75fb6 : `completed` en 1 min, envoi fictif n° 4, et le Bilan
+  porte maintenant « Envoi par la plateforme : 1 approuvé(s) par le propriétaire ».

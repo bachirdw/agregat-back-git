@@ -126,3 +126,8 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   contrôle et format. Synthèse du matin : `SYNTHESE.md`.
 - 04:26 — usage : 51 % de la fenêtre de 5 h, 39 % de la semaine. Dernier tour : `audit-ws` (Opus, envois par
   WebSocket sous carte) et `audit-en` (Sonnet, prompts anglais, fichiers de travail de l'agent hors /tmp).
+- 04:36 — `audit-en` rendu (3 commits) et fusionné (554b5b3) : 56 prompts anglais en test (31 faux avant ; « Write a
+  cover letter for this job » → `documents`) ; 11 attentes du test des 50 prompts changées, toutes vers l'intention
+  explicite (CV, lettre, LinkedIn, e-mail, évaluation avant « to apply ») — contrôlées par le manager, cohérentes avec
+  la règle française ; consigne « fichiers de travail dans le dossier de mission ou output/, jamais /tmp » envoyée à
+  l'agent (avec et sans Skill) ; « évalue … et postule si > 4/5 » : ligne de Bilan sur la candidature hors suivi.

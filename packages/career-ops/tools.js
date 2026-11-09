@@ -1094,7 +1094,7 @@ export class CareerTools {
         lstatSync(resolve(root, command)).isSymbolicLink()
       )
         throw new Error('Script absent ou lien symbolique');
-      const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
+      const review = readSourceReview(root);
       assertSourceReview(review, sourceSnapshot(root));
       if (signal?.aborted) throw new Error('Script annulé');
       const approved = await this.approve({
@@ -1191,7 +1191,7 @@ export class CareerTools {
     }
     if (existsSync(resolve(root, '.env')))
       throw new Error('Scripts isolés : déplacer la configuration secrète vers le lanceur Relay');
-    const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
+    const review = readSourceReview(root);
     const snapshot = sourceSnapshot(root);
     assertSourceReview(review, snapshot);
     if (command === 'scan') {
@@ -1330,6 +1330,15 @@ export function sourceSnapshot(root) {
 
 // Version the measurement itself: extending its scope is a review migration, not
 // a claim that upstream bytes changed. Never silently approve or rewrite a receipt.
+// The review receipt, parsed: a corrupted file gets a plain message, not a raw SyntaxError.
+export function readSourceReview(root, path = 'relay/source-review.json') {
+  const bytes = readConfined(root, path, 200000);
+  try {
+    return JSON.parse(bytes);
+  } catch {
+    throw new Error('Reçu de revue illisible (JSON invalide) ; nouvelle revue nécessaire');
+  }
+}
 export function assertSourceReview(review, snapshot) {
   const legacy =
     review &&

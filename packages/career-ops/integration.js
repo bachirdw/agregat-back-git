@@ -2,13 +2,13 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { scanSkillDir } from '../skill-registry/scan.js';
 import { readConfined, writeConfined } from '../policy-engine/files.js';
-import { assertSourceReview, sourceSnapshot } from './tools.js';
+import { assertSourceReview, readSourceReview, sourceSnapshot } from './tools.js';
 
 const RECEIPT = 'relay/source-review.json';
 // An existing receipt is compared, never rewritten: writing over it would approve whatever changed.
 export function keepExistingReceipt(root) {
   if (!existsSync(resolve(root, RECEIPT))) return false;
-  assertSourceReview(JSON.parse(readConfined(root, RECEIPT, 200000)), sourceSnapshot(root));
+  assertSourceReview(readSourceReview(root, RECEIPT), sourceSnapshot(root));
   return true;
 }
 

@@ -62,8 +62,13 @@ test('DAG : sortie ACP cumulée trop volumineuse arrêtée même si le JSON fina
 
 test('DAG : excès de notifications ACP arrête le run au lieu de perdre silencieusement la suite', async (t) => {
   const { app, run, plan, control } = await fixture(t, { chunkSize: 1, chunkCount: 4001 });
+  // Relecture du 10/11 (constat 11) : le plafond est celui du mode agent (AGENT_PLATFORM_MAX_EVENTS).
+  app.engine.maxEvents = 4000;
   await assert.rejects(executeWorkflow(app.engine, run, plan, control), /annulé/i);
-  assert.match(control.abort.signal.reason.message, /Trop d’événements/);
+  assert.match(
+    control.abort.signal.reason.message,
+    /Trop de mises à jour de l’agent \(plafond 4000\).*AGENT_PLATFORM_MAX_EVENTS/,
+  );
 });
 
 test('DAG : fragments proches des limites restent acceptés et donnent un résultat vérifié', async (t) => {

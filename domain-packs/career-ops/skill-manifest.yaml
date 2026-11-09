@@ -26,8 +26,7 @@ intents:
   - id: evaluate
     title: Évaluer une annonce
     priority: 90
-    phrases:
-      [
+    phrases: [
         évalue cette offre,
         evalue cette offre,
         évaluer une annonce,
@@ -36,6 +35,23 @@ intents:
         lis l'annonce,
         ouvre cette annonce,
         mode oferta,
+        évalue cette annonce,
+        evalue cette annonce,
+        est-ce une bonne offre,
+        # Audit EN du 10/11 : demandes d'évaluation en anglais (sinon « job » menait à la recherche).
+        evaluate this job,
+        evaluate this offer,
+        evaluate this posting,
+        evaluate this role,
+        score this offer,
+        score this job,
+        rate this job,
+        rate this offer,
+        assess this job,
+        review this job offer,
+        is this a good fit,
+        is this job a good fit,
+        should i apply,
       ]
     # Ordre du Skill (modes/auto-pipeline.md, modes/oferta.md « Post-evaluation », AGENTS.md
     # « TSV Format for Tracker Additions » et « Pipeline Integrity », DATA_CONTRACT.md) :
@@ -192,8 +208,7 @@ intents:
     priority: 100
     # E68 (cinquième relecture) : « jobs » et « emplois » nomment aussi la recherche ; sans ces
     # phrases, « Cherche des jobs et prépare un CV adapté » suivait documents.
-    phrases:
-      [
+    phrases: [
         trouve des offres,
         recherche des offres,
         cherche des offres,
@@ -203,8 +218,14 @@ intents:
         recherche des jobs,
         trouve des emplois,
         cherche des emplois,
+        # Audit EN du 10/11.
+        job openings,
+        look for jobs,
+        look for roles,
+        find roles,
+        search for roles,
       ]
-    keywords: [offres, jobs, job, emploi]
+    keywords: [offres, jobs, job, emploi, roles, openings, postes]
     # bilan-06 (E48) : « scan » / « scanner les portails » sans « traite(r) » : la recherche passe devant
     # la boîte d'entrée (110), même si le prompt la nomme (« ajoute les nouvelles offres à la boîte
     # d'entrée »). Avec « traite(r) » ou « process », la boîte d'entrée garde la main et crédite le scan
@@ -289,6 +310,11 @@ intents:
         evalue ma pipeline,
         évalue la pipeline,
         evalue la pipeline,
+        process my pipeline,
+        process my inbox,
+        work through my pipeline,
+        evaluate my pipeline,
+        pending offers in my inbox,
         traite les offres de ma pipeline,
         traite les offres de la pipeline,
         évalue les offres de ma pipeline,
@@ -435,8 +461,7 @@ intents:
   - id: documents
     title: Préparer des documents
     priority: 70
-    phrases:
-      [
+    phrases: [
         rédige mon cv,
         redige mon cv,
         rédige une lettre,
@@ -450,6 +475,20 @@ intents:
         mode pdf,
         mode cover,
         génère le pdf,
+        # Audit EN du 10/11 : « cover letter » / « tailor my CV » nomment les documents, pas la recherche.
+        write a cover letter,
+        draft a cover letter,
+        generate a cover letter,
+        cover letter for,
+        tailor my cv,
+        tailor my resume,
+        tailored cv,
+        tailored resume,
+        update my resume,
+        update my cv,
+        pdf resume,
+        generate a pdf,
+        adapte mon cv à,
       ]
     keywords: []
     # Chaîne du Skill (modes/pdf.md étapes 17b–21 et fin de mode, modes/cover.md étape 9) : le CV adapté et la
@@ -565,6 +604,9 @@ intents:
       leadPhrases: [postuler, candidater, apply, submit]
       unlessPhrases:
         [
+          before i apply,
+          before applying,
+          to apply for,
           pour postuler,
           pour candidater,
           avant de postuler,
@@ -643,8 +685,7 @@ intents:
     priority: 66
     # Quatrième relecture de nuit (E68) : « linkedin » nu n'est qu'un mot-clé (« cherche des jobs sur
     # LinkedIn » est une recherche) ; les phrases nomment l'objet de l'intention.
-    phrases:
-      [
+    phrases: [
         profil linkedin,
         message linkedin,
         brouillon linkedin,
@@ -655,6 +696,20 @@ intents:
         prends contact,
         demande de connexion,
         message de connexion,
+        # Audit EN du 10/11.
+        linkedin message,
+        linkedin connection,
+        connection request,
+        find the hiring manager,
+        message the hiring manager,
+        contact the hiring manager,
+        who is the hiring manager,
+        message to the recruiter,
+        reach out to the recruiter,
+        contact the recruiter,
+        find the recruiter,
+        trouve le recruteur,
+        message au recruteur,
       ]
     keywords: [linkedin]
     # Ordre du Skill (modes/contacto.md, « LinkedIn power move ») : 0. carnet data/contacts.tsv par
@@ -713,8 +768,7 @@ intents:
   - id: email
     title: Rédiger l'e-mail de candidature ou de relance (mode email)
     priority: 65
-    phrases:
-      [
+    phrases: [
         mode email,
         e-mail de candidature,
         email de candidature,
@@ -726,6 +780,13 @@ intents:
         courriel de relance,
         brouillon gmail,
         dans gmail,
+        # Audit EN du 10/11.
+        application email,
+        follow-up email,
+        follow up email,
+        draft an email,
+        write an email,
+        email to the recruiter,
       ]
     keywords: [gmail]
     # Ordre du Skill (modes/email.md) : contexte (rapport, CV adapté de data/pdf-index.tsv), type

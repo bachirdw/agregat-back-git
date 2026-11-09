@@ -356,6 +356,25 @@ const app = agent({ name: 'career-FICTIF' })
         );
         return { stopReason: 'end_turn' };
       }
+      // Audit du 10/11 (constat 12) : the Claude adapter names the gateway tools
+      // mcp__platform__browser_* ; a quick resume that clicked « Envoyer » did act.
+      if (request.objective.includes('FICTIF_REPRISE_CLIC_CLAUDE')) {
+        for (const [sessionUpdate, status] of [
+          ['tool_call', 'in_progress'],
+          ['tool_call_update', 'completed'],
+        ])
+          await connection.client.notify(methods.client.session.update, {
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate,
+              toolCallId: 'FICTIF-click-claude',
+              ...(sessionUpdate === 'tool_call' ? { title: 'mcp__platform__browser_click' } : {}),
+              status,
+            },
+          });
+        await send('Candidature FICTIVE envoyée par un clic.');
+        return { stopReason: 'end_turn' };
+      }
       if (request.objective.includes('FICTIF_REPRISE_RAPIDE')) {
         await send('Candidature FICTIVE prétendument envoyée sans outil navigateur.');
         return { stopReason: 'end_turn' };

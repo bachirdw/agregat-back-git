@@ -210,3 +210,9 @@ export function browserObservationFailure(evidence) {
     return 'Navigation non prouvée : la page était encore en chargement ; reprenez une capture ou une extraction avant de conclure.';
   return 'Navigation non prouvée : aucune page HTTP(S) lisible observée pendant ce tour. Un appel d’outil ou un historique ACP ne prouve pas que la page a été lue.';
 }
+
+// Audit du 10/11 (constat 12) : a browser tool's name, plain (browser_click, browser.navigate) or
+// as the Claude adapter names the gateway's tools (mcp__platform__browser_click). `\bbrowser` missed
+// the latter : « _ » then « b » is no word boundary.
+export const isBrowserToolName = (name) =>
+  /(?:^|[^a-z0-9])browser[_.][a-z]/i.test(String(name ?? ''));

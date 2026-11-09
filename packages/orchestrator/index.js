@@ -28,6 +28,7 @@ import { terminal } from '../storage/index.js';
 import { executionResult, parseAgentResult } from './result.js';
 import {
   browserObservationFailure,
+  isBrowserToolName,
   readableBrowserObservation,
   verifiedBrowserVisit,
   assessBrowserClaims,
@@ -1122,9 +1123,7 @@ export class Orchestrator {
           if (
             promptStarted &&
             update.sessionUpdate === 'tool_call' &&
-            /\bbrowser[_\.][a-z]/i.test(
-              String(update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? ''),
-            )
+            isBrowserToolName(update.title ?? update.rawInput?.name ?? update.rawInput?.tool)
           )
             browserToolObserved = true;
           if (++events > 4000) {
@@ -1395,6 +1394,7 @@ export class Orchestrator {
             durationMs: Date.now() - new Date(run.createdAt).getTime(),
             browserObserved:
               browserToolObserved ||
+              (control.browserEvidence?.length ?? 0) > 0 ||
               this.store.events(run.id).some((event) => event.type === 'browser_evidence'),
           })
         ) {

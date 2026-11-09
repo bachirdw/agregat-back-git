@@ -613,6 +613,7 @@ intents:
         optional: false
         # Variante Greeting du mode : aucune recherche de contact.
         unlessPhrases: [greeting, cold opener, 打招呼]
+        proves: carnet consulté
       - id: find
         title: Trouver et confirmer une cible
         tool: browser_snapshot
@@ -626,6 +627,7 @@ intents:
         precondition: Cible choisie ; limite de caractères du compte (200 sans Premium)
         done: Message rédigé (lien du profil + texte), envoi à la main
         optional: true
+        proves: message LinkedIn rédigé
       - id: save
         title: Enregistrer le contact (data/contacts.tsv)
         tool: career_write

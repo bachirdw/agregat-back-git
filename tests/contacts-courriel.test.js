@@ -237,6 +237,19 @@ test('contacto FICTIF : la passerelle lit « Saved. » dans la sortie de contact
   );
 });
 
+// Reprise b6f869fb (09/11) : « NON, n'enregistre pas » retire les étapes d'enregistrement du suivi
+// (forbidSave) ; les lignes Contacts et Message LinkedIn disparaissaient avec elles.
+test('Bilan FICTIF : une mission contacto sans enregistrement garde ses lignes de contacts', () => {
+  const prompt =
+    "Reprise contacto pour le rapport 005 : NON, n'enregistre pas le contact dans data/contacts.tsv. Termine la mission.";
+  const intent = intentOf(prompt);
+  assert.equal(intent?.id, 'linkedin');
+  assert.ok(!intent.steps.some((step) => step.persists), 'étapes d’enregistrement retirées');
+  const bilan = formatCareerBilan(prompt, createTurnTruth(), undefined, steps(intent));
+  assert.match(bilan, /\n- Contacts du Skill : carnet non consulté ; aucun contact enregistré\./);
+  assert.match(bilan, /\n- Message LinkedIn : aucun brouillon enregistré par linkedin_draft/);
+});
+
 test('Bilan FICTIF : e-mail préparé dans le navigateur ou en brouillon, sans envoi', () => {
   const prompt = EMAIL[1];
   const intent = intentOf(prompt);

@@ -20,6 +20,8 @@ const FACT_GATE = 'verify-cv-facts';
 const INBOX_PROCESSED = 'boîte d’entrée traitée';
 // 08/11 : modes/contacto.md (contact book) and modes/email.md (draft), declared by the pack.
 const CONTACT_SAVED = 'contact enregistré';
+const BOOK_CHECKED = 'carnet consulté';
+const LINKEDIN_DRAFTED = 'message LinkedIn rédigé';
 const EMAIL_PREPARED = 'e-mail préparé';
 let careerManifest;
 const defaultManifest = () => (careerManifest ??= loadSkillManifest('career-ops'));
@@ -801,7 +803,10 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
   const called = (name, argument) =>
     calls.some((call) => call.name === name && (!argument || call.argument === argument));
   const contactWrites = truth.contactWrites?.() ?? [];
-  const contactDue = skillSteps.some((step) => step.proves === CONTACT_SAVED);
+  // Reprise b6f869fb (09/11) : « n'enregistre pas » removes the saving steps from the follow-up ;
+  // the mode is still contacto, declared by its book and draft steps.
+  const declares = (...labels) => skillSteps.some((step) => labels.includes(step.proves));
+  const contactDue = declares(CONTACT_SAVED, BOOK_CHECKED, LINKEDIN_DRAFTED);
   const contactLines = [];
   if (contactDue || called('career_script', 'contact-lookup') || contactWrites.length)
     contactLines.push(

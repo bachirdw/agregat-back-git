@@ -6,7 +6,7 @@ import {
   tailoredCv,
   UPLOAD_NOTE,
 } from './produced-documents.js';
-import { readdirSync, lstatSync, existsSync, realpathSync, statSync } from 'node:fs';
+import { readdirSync, rmSync, lstatSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { resolve, extname, sep, relative, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
@@ -757,6 +757,7 @@ function cutShort(error, limits, signal) {
   return null;
 }
 
+const MAX_LINKEDIN_DRAFTS = 50;
 export class CareerTools {
   constructor(
     career,
@@ -1005,10 +1006,63 @@ export class CareerTools {
       return { ...draft, state };
     });
   }
+  // Un brouillon par cible (relay/linkedin/<empreinte de l'URL>.json, au plus 50, les plus anciens
+  // écartés) ; relay/linkedin.json garde le dernier, pour les lecteurs historiques.
   linkedIn(raw) {
     const draft = linkedInDraft(raw);
-    writeConfined(this.career.path(), 'relay/linkedin.json', JSON.stringify(draft));
+    const root = this.career.path();
+    const body = JSON.stringify(draft);
+    const key = createHash('sha256').update(draft.url).digest('hex').slice(0, 16);
+    writeConfined(root, `relay/linkedin/${key}.json`, body);
+    writeConfined(root, 'relay/linkedin.json', body);
+    const files = this.#linkedInFiles(root);
+    for (const old of files.slice(MAX_LINKEDIN_DRAFTS))
+      rmSync(resolve(root, old.path), { force: true });
     return draft;
+  }
+  #linkedInFiles(root) {
+    let names;
+    try {
+      names = readdirSync(resolve(root, 'relay/linkedin'));
+    } catch {
+      return [];
+    }
+    return names
+      .filter((name) => /^[0-9a-f]{16}\.json$/.test(name))
+      .map((name) => {
+        const path = `relay/linkedin/${name}`;
+        try {
+          const stat = lstatSync(resolve(root, path));
+          return stat.isFile() ? { path, mtimeMs: stat.mtimeMs } : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+  }
+  // The drafts kept, newest first (unreadable or invalid files are skipped).
+  linkedInDrafts() {
+    const root = this.career.path();
+    const drafts = [];
+    for (const file of this.#linkedInFiles(root))
+      try {
+        drafts.push(linkedInDraft(JSON.parse(readConfined(root, file.path, 100000))));
+      } catch {
+        /* skipped */
+      }
+    return drafts;
+  }
+  // The latest draft: relay/linkedin.json, or null when none was ever written.
+  linkedInLatest() {
+    try {
+      return linkedInDraft(
+        JSON.parse(readConfined(this.career.path(), 'relay/linkedin.json', 100000)),
+      );
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      return null;
+    }
   }
   // apply-01 (E40): the documents this mission produced under output/, with paths browser_upload
   // takes as they are; cvTailored is the CV the Skill's chain produced, never a career_document rendering.

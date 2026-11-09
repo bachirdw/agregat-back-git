@@ -1,5 +1,4 @@
 import { readConfined } from '../../packages/policy-engine/files.js';
-import { linkedInDraft } from '../../packages/career-ops/sends.js';
 import http from 'node:http';
 import { CareerTools } from '../../packages/career-ops/tools.js';
 import { scriptTokens } from '../../packages/career-ops/truth.js';
@@ -315,15 +314,9 @@ export function createApp({
       if (req.method === 'GET' && path === '/api/career/drafts')
         return json(res, 200, { drafts: new CareerTools(career).drafts() });
       if (req.method === 'GET' && path === '/api/career/linkedin') {
-        let draft = null;
-        try {
-          draft = linkedInDraft(
-            JSON.parse(readConfined(career.path(), 'relay/linkedin.json', 100000)),
-          );
-        } catch (e) {
-          if (e.code !== 'ENOENT') throw e;
-        }
-        return json(res, 200, { draft });
+        // `draft` : the latest (as before) ; `drafts` : one per target, newest first.
+        const tools = new CareerTools(career);
+        return json(res, 200, { draft: tools.linkedInLatest(), drafts: tools.linkedInDrafts() });
       }
       if (req.method === 'GET' && path === '/api/career/profile')
         return json(res, 200, { profile: career.profile() });

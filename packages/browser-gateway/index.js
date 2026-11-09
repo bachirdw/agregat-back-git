@@ -95,8 +95,11 @@ export function missionDocumentHint(workspace, max = 12) {
 // usage and marks every page-derived output as untrusted content (prompt-injection boundary).
 // Audit du 10/11 (constat 9) : what must not change while the owner decides on a send : where it
 // goes (action, method, encoding), the fields the agent filled (their value) and the attached
-// files. The page's title, a token it renews, a counter, a field it adds are not the owner's
-// decision : comparing them refused the approval, and could loop.
+// files. Relecture fix5 (constat 10) : and the rest of the form the owner approves : the list of
+// its fields (name, type), the value of the visible fields the agent did not fill, a digest of the
+// hidden ones. Only the tokens a page renews by itself (anti-robot, CSRF, nonce) and the page's
+// title are left out : comparing them refused approvals, and could loop.
+const RENEWED_FIELD = /token|csrf|xsrf|captcha|nonce|turnstile|g-recaptcha|h-captcha/i;
 export function formFingerprint(preview) {
   if (!preview) return preview ?? null;
   return {
@@ -104,19 +107,18 @@ export function formFingerprint(preview) {
     method: preview.method ?? null,
     enctype: preview.enctype ?? null,
     fields: (preview.fields ?? [])
-      .filter((field) => field.agent || field.files?.length)
+      .filter((field) => field.agent || !RENEWED_FIELD.test(String(field.name ?? '')))
       .map((field) => ({
         name: field.name,
         type: field.type,
-        value: field.agent ? field.value : undefined,
-        checked: field.agent ? field.checked : undefined,
+        value:
+          field.agent || (!field.hidden && field.type !== 'password') ? field.value : undefined,
+        digest: field.agent ? undefined : field.digest,
+        checked: field.checked,
         files: (field.files ?? []).map((file) => [file.name, file.size]),
       })),
   };
 }
-
-// Roles of a field that opens a list (an autocompletion) : Enter there validates a suggestion.
-const WIDGET_INPUT_ROLES = new Set(['combobox', 'searchbox', 'listbox', 'spinbutton']);
 
 export class BrowserGateway {
   constructor({
@@ -247,7 +249,13 @@ export class BrowserGateway {
         throw new Error('Fichier trop volumineux');
       args.path = real;
     }
-    const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
+    // Relecture fix5 (constat 8) : in owner mode, the click's kind says whether it is a step.
+    const step =
+      capabilityId === 'browser.click' &&
+      !!element &&
+      (this.policy.ownerMode
+        ? this.policy.ownerClickKind(element) === 'step'
+        : this.policy.isFormStep(element));
     if (step && this.policy.ownerMode) sensitive = false;
     // Audit du 10/11 (constats 1 et 2) : in owner mode, only the final send waits for the owner. A
     // list, an option, a toggle or a button that is no submission trigger and says no send passes
@@ -275,30 +283,54 @@ export class BrowserGateway {
       !element.inForm &&
       !element.formAction;
     if (ownerLink) sensitive = false;
-    // Audit du 10/11 (constat 14) : Enter in a field that would submit its form is a click on the
-    // form's default button, with the same classification : a card for the final send only. From
-    // an autocompletion (a list the key may only validate), no card : a submission of the final
-    // send it would cause is retained and told (cdp.js).
-    const submitter =
+    // Audit du 10/11 (constat 14), relecture fix5 (constat 1) : Enter is classified as the click it
+    // stands for. On a button or a link, it is a click on it ; in a field of a form, a click on the
+    // form's default button (a card for the final send only) ; in a textarea or a contenteditable
+    // outside a form, a message send (a card) ; in any other field, any write it triggers waits for
+    // the card. Only an autocompletion may take Enter freely : a submission of the final send it
+    // would cause is retained and told (cdp.js), and a write it triggers waits for the card.
+    const enterContext =
       capabilityId === 'browser.press' && args.key === 'Enter' && element
-        ? await this.provider.enterSubmitter?.(target)
+        ? ((await this.provider.enterContext?.(target)) ?? { kind: 'unknown' })
         : null;
-    const pressKind = submitter
-      ? this.policy.ownerMode
-        ? submitter.implicit
-          ? 'plain'
-          : this.policy.ownerClickKind(submitter)
-        : this.policy.isFormStep(submitter)
+    const submitter = enterContext?.submitter ?? null;
+    let pressKind = null;
+    let guardSubmit = false;
+    if (enterContext && this.policy.ownerMode) {
+      if (enterContext.kind === 'control') {
+        pressKind = this.policy.ownerClickKind(element);
+        if (pressKind === 'plain') pressKind = 'candidate';
+      } else if (enterContext.kind === 'form') {
+        pressKind = submitter
+          ? this.policy.ownerClickKind(submitter)
+          : enterContext.implicit
+            ? enterContext.method === 'get'
+              ? 'candidate'
+              : 'submit'
+            : enterContext.multiline
+              ? 'submit'
+              : 'candidate';
+        if (pressKind === 'plain' || pressKind === 'widget') pressKind = 'candidate';
+        if (pressKind === 'submit' && enterContext.autocomplete && !enterContext.multiline) {
+          pressKind = 'candidate';
+          guardSubmit = true;
+        }
+      } else if (enterContext.kind === 'message') pressKind = 'submit';
+      else if (enterContext.kind === 'field') pressKind = 'candidate';
+      // Unknown (a provider that cannot tell) : in doubt, the owner's card.
+      else pressKind = 'submit';
+    } else if (enterContext)
+      pressKind = submitter
+        ? this.policy.isFormStep(submitter)
           ? 'step'
           : 'submit'
-      : null;
-    const fromList =
-      !!element &&
-      (WIDGET_INPUT_ROLES.has(String(element.role ?? '').toLowerCase()) ||
-        (element.ariaExpanded !== null && element.ariaExpanded !== undefined) ||
-        (!!element.ariaHasPopup && element.ariaHasPopup !== 'false'));
-    const guardSubmit = pressKind === 'submit' && fromList;
-    const pressSends = pressKind === 'submit' && !fromList;
+        : ['message', 'unknown'].includes(enterContext.kind) ||
+            (enterContext.kind === 'form' && (enterContext.implicit || enterContext.multiline))
+          ? 'submit'
+          : null;
+    if (['widget', 'candidate', 'plain', 'step'].includes(pressKind) && !secretField)
+      sensitive = false;
+    const pressSends = pressKind === 'submit';
     const sending = pressSends
       ? true
       : clickKind
@@ -330,14 +362,17 @@ export class BrowserGateway {
                 preview: preview
                   ? {
                       ...preview,
-                      submission: summarizeSubmission(preview, pressSends ? submitter : element),
+                      submission: summarizeSubmission(
+                        preview,
+                        (pressSends && submitter) || element,
+                      ),
                     }
                   : preview,
               }
             : {}),
           element,
           // Enter that sends : the card names the send button it stands for.
-          ...(pressSends ? { submitter } : {}),
+          ...(pressSends && submitter ? { submitter } : {}),
           // Typed text of secret fields is never shown or stored.
           args:
             capabilityId === 'browser.type'

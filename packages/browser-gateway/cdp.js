@@ -125,6 +125,55 @@ export function sendsFile(request, file) {
     }
   return !EMAIL.test(rest);
 }
+// Relecture fix5 (constat 4) : whether a write carries something the agent gave the page — a value
+// it typed (3 characters or more), raw, URL-encoded, JSON-escaped or in base64, in the body or the
+// address ; or a file it attached (its multipart name, its first bytes, its base64, a slice of it).
+export function carriesAgentData(request, { values = [], files = [] } = {}) {
+  let body;
+  try {
+    body = request.postDataBuffer();
+  } catch {
+    body = null;
+  }
+  const texts = [request.url()];
+  if (body?.length) texts.push(body.toString('utf8'), body.toString('latin1'));
+  for (const text of [...texts])
+    try {
+      texts.push(decodeURIComponent(text.replace(/\+/g, ' ')));
+    } catch {
+      /* malformed escapes : read as they are */
+    }
+  const found = (variant) => variant.length >= 3 && texts.some((text) => text.includes(variant));
+  for (const value of values)
+    if (
+      [
+        value,
+        JSON.stringify(value).slice(1, -1),
+        encodeURIComponent(value),
+        Buffer.from(value).toString('base64').replace(/=+$/, ''),
+      ].some(found)
+    )
+      return true;
+  if (!body?.length) return false;
+  const raw = body.toString('latin1');
+  for (const file of files) {
+    if (!file) continue;
+    const name = Buffer.from(file.name.replace(/"/g, '%22'), 'utf8').toString('latin1');
+    if (raw.includes(`filename="${name}"`)) return true;
+    const head = file.head.subarray(0, 64);
+    if (head.length >= 16 && raw.includes(head.toString('latin1'))) return true;
+    const base64 = file.base64.slice(0, 88);
+    if (
+      base64.length >= 24 &&
+      [base64, base64.replace(/\+/g, '-').replace(/\//g, '_'), encodeURIComponent(base64)].some(
+        (variant) => raw.includes(variant),
+      )
+    )
+      return true;
+    if (body.length >= 64 && file.bytes?.includes(body)) return true;
+  }
+  return false;
+}
 export function isGraphqlRead(body) {
   try {
     const value = JSON.parse(body);
@@ -167,8 +216,9 @@ function hasSensitiveWord(value) {
 }
 // Audit du 10/11 (constat 2) : a path that names the submission itself (…/submit, /postuler,
 // /send…), not the many paths that merely contain « apply » or « order » (autosaves, applyFlow).
+// Relecture fix5 (constat 3) : a message, a comment, a reply or a publication too.
 const SUBMIT_PATH_WORD =
-  /^(submit\p{L}*|send|envoyer|postuler|soumettre|candidater|transmettre|finali[sz]e)$/iu;
+  /^(submit\p{L}*|send|envoyer|postuler|soumettre|candidater|transmettre|finali[sz]e|publish\p{L}*|publier|reply|replies|r[ée]pondre|messag\p{L}*|comments?|commentaires?)$/iu;
 export function isSubmitPath(url) {
   try {
     return decodeURIComponent(new URL(url).pathname)
@@ -418,6 +468,15 @@ const describeElement = (el) => {
     buttonType: control.tagName === 'BUTTON' ? control.type : null,
     inForm: !!form,
     formAction: form?.getAttribute('action') ?? null,
+    // Relecture fix5 (constat 8) : what tells a search or a login form from a send.
+    // The method the form states (a form without one, often a script's form, states nothing).
+    formMethod: form?.getAttribute('method')?.trim().toLowerCase() || null,
+    formHasFile: !!form?.querySelector('input[type=file]'),
+    formHasPassword: !!form?.querySelector('input[type=password]'),
+    formCrossSite: form
+      ? new URL(form.getAttribute('action') || location.href, document.baseURI).hostname !==
+        location.hostname
+      : null,
     // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
     // is its value, never a secret.
     text: (
@@ -834,7 +893,7 @@ export class CdpBrowser {
   // Second tour : `origin` is the gateway call that opened the send (the click) ; a status that
   // arrives once that call has returned is reported to it (onLateSubmission), never to the next call.
   #recordSubmission(request, origin = this.callToken) {
-    if (request.resourceType() === 'ping') return;
+    if (request.resourceType() === 'ping') return null;
     let host = '';
     try {
       host = new URL(request.url()).host;
@@ -852,7 +911,7 @@ export class CdpBrowser {
       )
       .finally(() => {
         entry.done = true;
-        if (origin?.done && origin.call?.toolCallId)
+        if (!entry.dropped && origin?.done && origin.call?.toolCallId)
           this.onLateSubmission?.({
             toolCallId: origin.call.toolCallId,
             host,
@@ -860,6 +919,59 @@ export class CdpBrowser {
           });
       });
     this.submissions = [...(this.submissions ?? []), entry].slice(-10);
+    return entry;
+  }
+  // Relecture fix5 (constats 5 et 6) : what the owner's approval of a send covers. Only writes to
+  // the site of the target shown on the card (the form's action, the request's host), at most
+  // `left` of them, while the click runs and for a short window after it ; any other action of the
+  // agent closes it. Of the covered writes, one only is the submission whose HTTP status counts :
+  // the first, unless a later one names the send (a navigation of the form, a submission or
+  // sensitive path) while the first did not. The others are traced as automatic writes.
+  #takeCover(request, sensitive) {
+    const cover = this.cover;
+    if (!cover || cover.left <= 0 || Date.now() > cover.until) return false;
+    const url = request.url();
+    if (!sameSite(url, cover.target)) return false;
+    cover.left -= 1;
+    if (request.resourceType() === 'ping') {
+      this.#traceAutoSend(url);
+      return true;
+    }
+    const strong = request.isNavigationRequest() || sensitive || isSubmitPath(url);
+    const primary = cover.primary;
+    const replace =
+      !!primary?.entry &&
+      !primary.strong &&
+      strong &&
+      (this.submissions ?? []).includes(primary.entry);
+    if (primary && !replace) {
+      this.#traceAutoSend(url);
+      return true;
+    }
+    if (replace) {
+      primary.entry.dropped = true;
+      this.submissions = this.submissions.filter((entry) => entry !== primary.entry);
+      this.#traceAutoSend(primary.url);
+    }
+    cover.primary = { entry: this.#recordSubmission(request, cover.token), strong, url };
+    return true;
+  }
+  // The cover of an approved click on `locator` : the site of its form's action (or of its page).
+  async #coverFor(locator) {
+    const target = await locator
+      .evaluate((el) => {
+        const form = el.form ?? el.closest('form');
+        const action = el.getAttribute?.('formaction') || form?.getAttribute('action') || '';
+        return new URL(action || location.href, document.baseURI).href;
+      })
+      .catch(() => null);
+    return {
+      target: target || this.page?.url() || '',
+      left: 2,
+      until: Infinity,
+      token: this.callToken,
+      primary: null,
+    };
   }
   // Called after each tool call : this call's submissions, with their status once answered (5 s at
   // most ; a submission still unanswered keeps a null status, reported later), and those of an
@@ -911,13 +1023,29 @@ export class CdpBrowser {
         } catch {
           /* no page: treated as third party */
         }
-        // Audit du 10/11 (constat 4) : an iframe of another site writing to its own origin (the
-        // token of an anti-bot widget, an embedded ATS) is that frame's own site, judged by the
-        // frame that posts, not by the tab. A script of the tab posting to another site stays third
-        // party, and the agent's file still only leaves through the upload rule below.
-        const firstParty =
-          sameSite(request.url(), pageUrl) ||
-          (/^https?:/.test(frameUrl) && sameSite(request.url(), frameUrl));
+        // Audit du 10/11 (constat 4), relecture fix5 : an iframe of another site writing to its own
+        // origin is that frame's own site only when the agent acts in that frame (an embedded ATS).
+        // Any other such write (an anti-bot token, a widget, a page script relaying data to the
+        // iframe) is third party : traced, and free only without anything the agent typed or
+        // attached ; otherwise the owner's card.
+        const tabSite = sameSite(request.url(), pageUrl);
+        const frameOwn = !tabSite && /^https?:/.test(frameUrl) && sameSite(request.url(), frameUrl);
+        const actionFrame =
+          frameOwn && !!this.actionFrameUrl && sameSite(request.url(), this.actionFrameUrl);
+        const firstParty = tabSite || actionFrame;
+        let forceCard = false;
+        if (frameOwn && !actionFrame) {
+          if (
+            !carriesAgentData(request, {
+              values: this.agentValues ?? [],
+              files: this.agentFiles ?? [],
+            })
+          ) {
+            this.#traceAutoSend(request.url());
+            return route.continue();
+          }
+          forceCard = true;
+        }
         // Reads and session upkeep are automatic only for this site's own endpoints.
         // Chrome/Playwright classify navigator.sendBeacon as "ping". A beacon cannot
         // wait for an application response, even if its endpoint says "send".
@@ -939,16 +1067,29 @@ export class CdpBrowser {
             (this.lastUploadEnd ?? 0) >= (this.lastClickEnd ?? 0) &&
             !this.writeInProgress);
         if (
+          !forceCard &&
           uploadWindow &&
           !request.isNavigationRequest() &&
           sendsFile(request, this.uploadedFile)
         ) {
-          this.#traceAutoSend(request.url());
-          return route.continue();
+          // Relecture fix5 (constat 9) : unless it goes to a submission path : a final send that
+          // carries the CV alone (the contact known by the session) waits for the owner's card.
+          if (!isSubmitPath(request.url())) {
+            this.#traceAutoSend(request.url());
+            return route.continue();
+          }
+          forceCard = true;
         }
+        // Relecture fix5 (constat 5) : a write the owner's approval covers.
+        if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();
         // Outside an agent click, the page's own API calls load the page (allowed);
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
+        // Relecture fix5 (constat 12) : a write of more than 100 kB (a CV with the application)
+        // waits for the card outside a click's window too.
+        const large = Buffer.byteLength(body) > 100000;
         if (
+          !forceCard &&
+          !large &&
           !sensitive &&
           !this.writeInProgress &&
           Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS
@@ -956,18 +1097,27 @@ export class CdpBrowser {
           return firstParty ? route.continue() : route.abort('blockedbyclient');
         // After a click, background third-party fetches stay silent and never consume the grant;
         // only a navigation (form posted to another site) can be a cross-site send.
-        if (!firstParty && !request.isNavigationRequest()) {
+        if (!forceCard && !firstParty && !request.isNavigationRequest()) {
           this.blockedThirdParty?.add(new URL(request.url()).host);
           return route.abort('blockedbyclient');
         }
         // Continue/Next or choosing an option: the page saves its own step (no approval).
-        if (firstParty && this.formStep && !sensitive) return route.continue();
+        // Relecture fix5 (constat 3) : unless it goes to a submission target.
+        // Relecture fix5 (constat 12) : a step of a past click no longer frees anything.
+        const clickWindow =
+          this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS;
+        if (
+          clickWindow &&
+          firstParty &&
+          this.formStep &&
+          !sensitive &&
+          !isSubmitPath(request.url())
+        )
+          return route.continue();
         // Owner decision (05/11): only the agent's click on a send button waits for the owner. Any
         // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.
         const samePage = pageKey(pageUrl) === this.clickPage;
-        const clickWindow =
-          this.writeInProgress || Date.now() - (this.lastClickEnd ?? 0) <= CLICK_SEND_WINDOW_MS;
         const afterSendClick =
           clickWindow &&
           // A candidate click that led to another page (« Postuler » opening the form) : the new
@@ -975,34 +1125,29 @@ export class CdpBrowser {
           ((this.sendClick === true && (this.clickKind !== 'candidate' || samePage)) ||
             // Audit du 10/11 (constat 2) : an ordinary click (icon button, unknown label) whose
             // page then writes to a submission path of its own site is a send too.
-            (this.clickKind === 'plain' && firstParty && samePage && isSubmitPath(request.url())));
-        // Audit du 10/11 (constat 5) : the owner's approval of a send click covers the writes that
-        // click triggers on its site (or the form it posts elsewhere) during the click's window :
-        // a submission that awaits a check or a token before its fetch asks nothing more, and the
-        // send is counted once.
-        const covered =
-          this.clickApproved === true &&
-          clickWindow &&
-          (firstParty || request.isNavigationRequest());
-        const granted = this.sendGrant === true || covered;
+            // Relecture fix5 (constat 2) : a list or menu button too.
+            (['plain', 'widget'].includes(this.clickKind) &&
+              firstParty &&
+              samePage &&
+              isSubmitPath(request.url())));
         // Second tour (constats 7 et 16) : a write of a click's window belongs to that click's
         // gateway call (its card and its HTTP status), not to the call in progress when it leaves.
         const origin = clickWindow ? (this.clickToken ?? this.callToken) : this.callToken;
         // Audit du 10/11 (constat 13) : a write of more than 100 kB that no approval covers (a CV
         // posted with the application) was cancelled without a trace. It is now asked like a send :
         // the owner's click decides, and a refusal is said to the agent and in the Bilan.
-        const large = Buffer.byteLength(body) > 100000;
-        if (!granted && !afterSendClick && !large && !request.isNavigationRequest()) {
+        if (!forceCard && !afterSendClick && !large && !request.isNavigationRequest()) {
           this.#traceAutoSend(request.url());
           return route.continue();
         }
-        this.sendGrant = false;
         // A page can fire a burst of requests after one click: they share a single question, and a
-        // refused or expired answer blocks them all. An approval only ever frees the request it showed.
-        while (!granted && this.sendDecision)
+        // refused or expired answer blocks them all. An approval frees the request it showed, and
+        // what its cover allows (relecture fix5, constat 7).
+        while (this.sendDecision) {
           if ((await this.sendDecision) !== true) return route.abort('blockedbyclient');
-        let approved = granted;
-        if (!granted) {
+          if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();
+        }
+        {
           const decision = Promise.resolve(
             this.approve?.(
               {
@@ -1020,11 +1165,21 @@ export class CdpBrowser {
             ),
           ).catch(() => false);
           this.sendDecision = decision;
-          approved = await decision;
+          const approved = await decision;
           if (this.sendDecision === decision) this.sendDecision = null;
+          if (approved !== true || this.#closed) return route.abort('blockedbyclient');
         }
-        if (approved !== true || this.#closed) return route.abort('blockedbyclient');
-        this.#recordSubmission(request, origin);
+        const entry = this.#recordSubmission(request, origin);
+        // Relecture fix5 (constat 7) : the card of a click's write (« Je postule » that posts
+        // twice) covers that click's next write to the same site, once : one card, one send.
+        if (!forceCard && clickWindow && origin && origin === this.clickToken)
+          this.cover = {
+            target: request.url(),
+            left: 1,
+            until: Date.now() + CLICK_SEND_WINDOW_MS,
+            token: origin,
+            primary: { entry, strong: true, url: request.url() },
+          };
         return route.continue();
       };
       await this.context.route('**/*', this.ownerSendGuard);
@@ -1191,34 +1346,67 @@ export class CdpBrowser {
     const handle = await this.targetLocator(target);
     return handle.evaluate(describeElement);
   }
-  // Audit du 10/11 (constat 14) : what Enter in this field would do to its form, by the browser's
-  // implicit submission : null when it submits nothing, else the description of the form's default
-  // button ({ implicit: true } for a lone field without one).
-  async enterSubmitter(target) {
+  // Audit du 10/11 (constat 14), relecture fix5 (constat 1) : what Enter on this element may do.
+  // - { kind: 'control' } : Enter activates the element itself (a button, a link, an ARIA control) ;
+  // - { kind: 'form', submitter, implicit, method, autocomplete, multiline } : a field of a form ;
+  //   `submitter` describes the form's default button (null when there is none or it is disabled),
+  //   `implicit` a lone text field that submits its form without a button ;
+  // - { kind: 'message', autocomplete } : a textarea or a contenteditable outside any form ;
+  // - { kind: 'field', autocomplete } : any other field outside a form.
+  async enterContext(target) {
     if (!this.page) return null;
-    const handle = await (
-      await this.targetLocator(target)
-    ).evaluateHandle((el) => {
-      const blocking =
+    const locator = await this.targetLocator(target);
+    const context = await locator.evaluate((el) => {
+      const textLike =
         /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
-      if (!(el instanceof HTMLInputElement) || !blocking.test(el.type) || !el.form) return null;
-      const elements = Array.from(el.form.elements);
-      const button = elements.find(
+      const submitControl = (f) =>
+        (f instanceof HTMLButtonElement && f.type === 'submit') ||
+        (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type));
+      const role = (el.getAttribute('role') ?? '').toLowerCase();
+      const popup = el.getAttribute('aria-haspopup');
+      const autocomplete =
+        ['combobox', 'searchbox', 'listbox', 'spinbutton'].includes(role) ||
+        (!!el.getAttribute('aria-autocomplete') &&
+          el.getAttribute('aria-autocomplete') !== 'none') ||
+        (el instanceof HTMLInputElement && !!el.getAttribute('list')) ||
+        el.hasAttribute('aria-expanded') ||
+        (!!popup && popup !== 'false');
+      const multiline = el instanceof HTMLTextAreaElement || el.isContentEditable;
+      const field =
+        (el instanceof HTMLInputElement &&
+          !['submit', 'image', 'button', 'reset'].includes(el.type)) ||
+        el instanceof HTMLSelectElement ||
+        multiline;
+      if (!field) return { kind: 'control' };
+      const form = el.form ?? el.closest('form');
+      if (!form) return { kind: multiline ? 'message' : 'field', autocomplete };
+      const elements = Array.from(form.elements);
+      const button = elements.find(submitControl);
+      const implicit =
+        !button &&
+        el instanceof HTMLInputElement &&
+        textLike.test(el.type) &&
+        elements.filter((f) => f instanceof HTMLInputElement && textLike.test(f.type)).length === 1;
+      return {
+        kind: 'form',
+        autocomplete,
+        multiline,
+        implicit,
+        // Relecture fix5 (constat 8) : only a stated GET is a search.
+        method: form.getAttribute('method')?.trim().toLowerCase() || null,
+        hasButton: !!button && !button.disabled,
+      };
+    });
+    if (context.kind !== 'form' || !context.hasButton) return context;
+    const handle = await locator.evaluateHandle((el) =>
+      Array.from((el.form ?? el.closest('form')).elements).find(
         (f) =>
           (f instanceof HTMLButtonElement && f.type === 'submit') ||
           (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
-      );
-      if (button) return button.disabled ? null : button;
-      const fields = elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type));
-      return fields.length === 1 ? el.form : null;
-    });
+      ),
+    );
     try {
-      const kind = await handle.evaluate((node) =>
-        node instanceof HTMLFormElement ? 'form' : node ? 'button' : null,
-      );
-      if (!kind) return null;
-      if (kind === 'form') return { implicit: true, tag: 'form', inForm: true, text: '' };
-      return await handle.evaluate(describeElement);
+      return { ...context, submitter: await handle.evaluate(describeElement) };
     } finally {
       await handle.dispose().catch(() => {});
     }
@@ -1227,19 +1415,34 @@ export class CdpBrowser {
   // the owner's approval compares them, and not what the page renews by itself (a token, a title).
   async #markAgentField(ref) {
     try {
-      const key = await (
+      let key = await (
         await this.targetLocator({ ref })
       ).evaluate((el) => {
         const field = el.matches('input, select, textarea')
           ? el
           : (el.control ?? el.querySelector('input, select, textarea') ?? el);
-        return field.name || field.id || null;
+        return { name: field.name || field.id || null, frame: location.href };
       });
+      // Relecture fix5 (constat 4) : the frame the agent acts in.
+      this.actionFrameUrl = key.frame;
+      key = key.name;
       if (key) (this.agentFields ??= new Set()).add(key);
       if (key) this.agentFieldsPage = pageKey(this.page.url());
     } catch {
       /* the action itself reports a missing ref */
     }
+  }
+  // Relecture fix5 (constat 4) : the frame of the agent's last action (an iframe of another site
+  // the agent works in is that frame's own site for its writes ; any other is third party).
+  async #noteActionFrame(locator) {
+    this.actionFrameUrl = await locator.evaluate(() => location.href).catch(() => null);
+  }
+  // A value the agent typed : a third-party frame must not carry it out without a card.
+  #rememberAgentValue(text) {
+    if (typeof text !== 'string' || text.trim().length < 3) return;
+    this.agentValues = [...(this.agentValues ?? []).filter((value) => value !== text), text].slice(
+      -40,
+    );
   }
   async submissionPreview(target) {
     if (!this.page) return null;
@@ -1263,6 +1466,22 @@ export class CdpBrowser {
               type: x.type,
             })),
             ...(agentFields.includes(f.name || f.id) ? { agent: true } : {}),
+            // Relecture fix5 (constat 10) : what the check after the owner's decision compares
+            // for a field the agent did not fill : shown or not, and a short digest of a hidden
+            // value (never the value itself).
+            ...(f.type === 'hidden' ||
+            f.hidden ||
+            !(f.offsetWidth || f.offsetHeight || f.getClientRects().length)
+              ? { hidden: true }
+              : {}),
+            ...(f.type === 'hidden' || (f.type !== 'password' && f.hidden)
+              ? {
+                  digest: Array.from(String(f.value)).reduce(
+                    (h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0,
+                    7,
+                  ),
+                }
+              : {}),
           })),
         };
       },
@@ -1315,11 +1534,24 @@ export class CdpBrowser {
         }
         const blocking =
           /^(?:text|search|url|tel|email|password|date|month|week|time|datetime-local|number)$/;
+        // Relecture fix5 (constat 1) : Enter on a native button or link is a click on it, as a
+        // visible tab would do (the gateway classified it as that click) ; on a box of a form, the
+        // form's default button submits it, as Chrome does.
         if (
           !down.defaultPrevented &&
           key === 'Enter' &&
+          !keep &&
+          (el instanceof HTMLButtonElement ||
+            (el instanceof HTMLAnchorElement && el.hasAttribute('href')) ||
+            (el instanceof HTMLInputElement &&
+              ['submit', 'image', 'button', 'reset'].includes(el.type)))
+        )
+          el.click();
+        else if (
+          !down.defaultPrevented &&
+          key === 'Enter' &&
           el instanceof HTMLInputElement &&
-          blocking.test(el.type) &&
+          (blocking.test(el.type) || ['checkbox', 'radio'].includes(el.type)) &&
           el.form
         ) {
           const elements = Array.from(el.form.elements);
@@ -1329,6 +1561,7 @@ export class CdpBrowser {
               (f instanceof HTMLInputElement && ['submit', 'image'].includes(f.type)),
           );
           const lone =
+            blocking.test(el.type) &&
             elements.filter((f) => f instanceof HTMLInputElement && blocking.test(f.type))
               .length === 1;
           if ((button && !button.disabled) || (!button && lone)) {
@@ -1564,6 +1797,7 @@ export class CdpBrowser {
   }
   async #fillText(ref, text) {
     await this.#markAgentField(ref);
+    this.#rememberAgentValue(text);
     // Filling a field is not a send; same-site autosave stays automatic.
     // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
     const target = await this.targetLocator({ ref: ref });
@@ -1686,6 +1920,9 @@ export class CdpBrowser {
   }
   async #perform(page, id, args, policy) {
     page.setDefaultTimeout(this.navigationTimeoutMs);
+    // Relecture fix5 (constat 5) : any other action of the agent closes what an approval covered.
+    if (!['browser.snapshot', 'browser.extract', 'browser.verify', 'browser.dialog'].includes(id))
+      this.cover = null;
     await this.assertLanded(policy);
     this.blocked = null;
     this.redirectLanding = null;
@@ -1694,7 +1931,7 @@ export class CdpBrowser {
       // E43 : a navigation of the agent ends the moment of an upload, and frees the file. It also
       // ends what an approved send click covered (audit du 10/11, constat 5).
       this.lastUploadEnd = 0;
-      this.clickApproved = false;
+      this.cover = null;
       this.uploadedFile = null;
       // Constats 9 et 11 : the fields the agent filled belong to the page it leaves.
       this.agentFields = null;
@@ -1811,8 +2048,8 @@ export class CdpBrowser {
       case 'browser.click':
         // Resolve first: a stale ref must not open the post-click send window.
         const target = await this.targetLocator({ ref: args.ref });
+        await this.#noteActionFrame(target);
         this.ownerConnection?.takeOpenedWindow();
-        this.sendGrant = args.sendApproved === true;
         // A click inside a form is a submission even when its label says "Continue". Audit du
         // 10/11 (constat 1) : a send-worded control outside a form (`candidate`) asks nothing
         // before the click ; a write it triggers from the same page waits for the owner's card.
@@ -1821,9 +2058,10 @@ export class CdpBrowser {
         this.formStep = args.formStep === true;
         this.clickKind = args.clickKind ?? null;
         this.clickPage = pageKey(page.url());
-        this.clickApproved = args.sendApproved === true;
         // Second tour : the gateway call of this click, owner of the writes of its window.
         this.clickToken = this.callToken;
+        // Relecture fix5 (constat 5) : what the owner's approval of this click covers.
+        this.cover = args.sendApproved === true ? await this.#coverFor(target) : null;
         this.blockedThirdParty = new Set();
         this.writeInProgress = true;
         let clickMode = 'mouse';
@@ -1863,8 +2101,9 @@ export class CdpBrowser {
           await page.waitForLoadState('domcontentloaded', { timeout: this.navigationTimeoutMs });
         } finally {
           this.writeInProgress = false;
-          this.sendGrant = false;
           this.lastClickEnd = Date.now();
+          if (this.cover?.until === Infinity)
+            this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
         }
         if (this.blocked) {
           await this.reset();
@@ -1994,6 +2233,7 @@ export class CdpBrowser {
       }
       case 'browser.press': {
         const target = await this.targetLocator({ ref: args.ref });
+        await this.#noteActionFrame(target);
         const hidden = await this.#isHidden(page);
         // Audit du 10/11 (constat 14) : Enter that submits a form is a click on its default
         // button : the same send window (approved send, step, ordinary click). From an
@@ -2001,14 +2241,16 @@ export class CdpBrowser {
         const enter = args.key === 'Enter';
         let guard = null;
         if (enter) {
-          this.sendGrant = args.sendApproved === true;
+          // Relecture fix5 (constat 1) : an Enter the gateway did not classify is a doubt : any
+          // write it triggers from the page waits for the owner's card.
+          const kind = args.sendApproved === true ? null : (args.clickKind ?? 'candidate');
           this.sendClick =
-            args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
+            args.sendApproved === true || args.formStep === true || kind === 'candidate';
           this.formStep = args.formStep === true;
-          this.clickKind = args.clickKind ?? 'plain';
+          this.clickKind = kind;
           this.clickPage = pageKey(page.url());
-          this.clickApproved = args.sendApproved === true;
           this.clickToken = this.callToken;
+          this.cover = args.sendApproved === true ? await this.#coverFor(target) : null;
           this.blockedThirdParty = new Set();
           this.writeInProgress = true;
           if (args.guardSubmit === true)
@@ -2027,20 +2269,24 @@ export class CdpBrowser {
             });
         }
         let pressed;
+        let blocked = false;
         try {
           pressed = await this.#press(target, args.key, hidden, args.guardSubmit === true);
         } finally {
           if (enter) {
             this.writeInProgress = false;
-            this.sendGrant = false;
             this.lastClickEnd = Date.now();
+            if (this.cover?.until === Infinity)
+              this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
           }
-        }
-        let blocked = false;
-        if (guard) {
-          blocked = await guard.evaluate((value) => value.fired()).catch(() => false);
-          await guard.evaluate((value) => value.stop()).catch(() => {});
-          await guard.dispose().catch(() => {});
+          // Relecture fix5 (constat 11) : the submit listener never outlives the key, even when
+          // the key fails (delay, detached element, navigation) ; it would swallow every later
+          // submission of the page, the approved one included.
+          if (guard) {
+            blocked = await guard.evaluate((value) => value.fired()).catch(() => false);
+            await guard.evaluate((value) => value.stop()).catch(() => {});
+            await guard.dispose().catch(() => {});
+          }
         }
         if (enter && args.sendApproved === true)
           for (
@@ -2065,6 +2311,7 @@ export class CdpBrowser {
       }
       case 'browser.upload': {
         const target = await this.targetLocator({ ref: args.ref });
+        await this.#noteActionFrame(target);
         const files = args.filePayload ?? args.path;
         const expected = typeof files === 'string' ? basename(files) : files.name;
         // Same activation target as describe(): a ref on a child node acts through its button.
@@ -2146,8 +2393,11 @@ export class CdpBrowser {
         } finally {
           // The window stays open after the call only for a file the page really received ; a
           // failed upload closes it and forgets the file (septième relecture).
-          if (attached) this.lastUploadEnd = Date.now();
-          else {
+          if (attached) {
+            this.lastUploadEnd = Date.now();
+            // Relecture fix5 (constat 4) : kept for the mission, beyond the upload's window.
+            this.agentFiles = [...(this.agentFiles ?? []), this.uploadedFile].slice(-3);
+          } else {
             this.lastUploadEnd = 0;
             this.uploadedFile = null;
           }
@@ -2236,12 +2486,11 @@ export class CdpBrowser {
         try {
           // The gateway has already approved this element, including form submissions.
           // Permit its POST only until the click and download event have completed.
-          this.sendGrant = args.sendApproved === true;
           this.sendClick = args.sendApproved === true;
           this.formStep = false;
           this.clickKind = null;
-          this.clickApproved = args.sendApproved === true;
           this.clickToken = this.callToken;
+          this.cover = args.sendApproved === true ? await this.#coverFor(link) : null;
           this.writeInProgress = true;
           try {
             await Promise.all([incoming, link.click({ timeout: 10000 })]);
@@ -2250,6 +2499,8 @@ export class CdpBrowser {
             // Revue Opus du 06/11 : a click of the agent, like browser.click : it closes the upload
             // window (E43) and opens the click's own window for the page's requests.
             this.lastClickEnd = Date.now();
+            if (this.cover?.until === Infinity)
+              this.cover.until = this.lastClickEnd + CLICK_SEND_WINDOW_MS;
           }
           await policy.assertUrl(download.url()).catch((e) => {
             throw new Error(`Téléchargement refusé : ${e.message}`);
@@ -2329,5 +2580,8 @@ export class CdpBrowser {
     this.page = null;
     this.lastUploadEnd = 0;
     this.uploadedFile = null;
+    this.agentFiles = null;
+    this.agentValues = null;
+    this.actionFrameUrl = null;
   }
 }

@@ -372,13 +372,64 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     { tag: 'div', role: 'combobox', inForm: true, text: 'Pays' },
     { tag: 'div', role: 'option', inForm: true, text: 'Envoyer par courrier' },
     { tag: 'button', buttonType: 'button', inForm: true, text: 'Ville', ariaHasPopup: 'listbox' },
-    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Plus', ariaExpanded: 'false' },
     { tag: 'div', role: 'switch', inForm: true, text: 'Oui' },
   ])
     assert.equal(kind(d), 'widget', JSON.stringify(d));
-  // Un bouton qui ne soumet rien et ne dit pas d'envoi.
-  assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Oui' }), 'plain');
+  // Relecture fix5 (constat 3) : un bouton d'un formulaire qui n'est ni étape ni widget est au
+  // moins candidat (une écriture qu'il déclenche attend la carte ; sans écriture, rien).
+  for (const text of ['Oui', ''])
+    assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: true, text }), 'candidate');
   assert.equal(kind({ tag: 'div', inForm: true, text: 'Continue' }), 'plain');
+  assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: false, text: 'Oui' }), 'plain');
+  // Libellés d'envoi non reconnus avant fix5, étapes au libellé entier seulement pour un submit.
+  for (const text of [
+    'Envoyez ma candidature',
+    'Validez',
+    'Je confirme',
+    'Déposer ma candidature',
+    'Terminé',
+    'Done',
+    'Répondre',
+    'Publier',
+    'Ajouter un message',
+    'Add comment',
+    'Retour au recruteur',
+  ])
+    assert.equal(kind({ tag: 'button', buttonType: 'submit', inForm: true, text }), 'submit', text);
+  for (const text of ['Valider et continuer', 'Confirmer et continuer', 'Back', 'Retour'])
+    assert.equal(kind({ tag: 'button', buttonType: 'submit', inForm: true, text }), 'step', text);
+  assert.equal(
+    kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Ajouter un commentaire' }),
+    'candidate',
+  );
+  // Relecture fix5 (constat 8) : cartes inutiles retirées là où c'est sûr seulement.
+  const sub = (text, extra = {}) => ({
+    tag: 'button',
+    buttonType: 'submit',
+    inForm: true,
+    text,
+    formMethod: 'post',
+    formHasFile: false,
+    formHasPassword: false,
+    formCrossSite: false,
+    ...extra,
+  });
+  assert.equal(kind(sub('Supprimer cette expérience')), 'step');
+  assert.equal(kind(sub('Se connecter', { formHasPassword: true })), 'step');
+  assert.equal(kind(sub('Rechercher', { formMethod: 'get' })), 'candidate');
+  assert.equal(kind(sub('Rechercher', { formMethod: null })), 'candidate');
+  assert.equal(kind({ tag: 'button', inForm: false, text: 'Apply filters' }), 'plain');
+  for (const d of [
+    sub('Supprimer et envoyer'),
+    sub('Se connecter'),
+    sub('Rechercher', { formMethod: 'get', formCrossSite: true }),
+    sub('Rechercher', { formMethod: 'get', formHasFile: true }),
+    sub('Envoyer', { formMethod: 'get' }),
+    // Un formulaire sans méthode (formulaire de script) n'est une recherche que par son libellé.
+    sub('OK', { formMethod: null }),
+  ])
+    assert.equal(kind(d), 'submit', JSON.stringify(d));
+  assert.equal(kind({ tag: 'button', inForm: false, text: 'Apply now' }), 'candidate');
   // « Postuler » hors formulaire : carte seulement si le clic déclenche une écriture.
   assert.equal(
     kind({ tag: 'button', buttonType: 'submit', inForm: false, text: 'Postuler' }),
@@ -392,6 +443,16 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     { tag: 'input', inputType: 'submit', inForm: true, text: '' },
     { tag: 'button', buttonType: 'button', inForm: true, text: 'Envoyer ma candidature' },
     { tag: 'button', buttonType: 'submit', inForm: true, text: 'Continue to submit' },
+    // Relecture fix5 (constat 2) : un bouton de soumission n'est jamais un widget par ses attributs ARIA.
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Plus', ariaExpanded: 'false' },
+    { tag: 'button', buttonType: 'submit', inForm: true, text: 'Envoyer', ariaHasPopup: 'dialog' },
+    { tag: 'input', inputType: 'submit', inForm: true, text: 'OK', role: 'menuitem' },
   ])
     assert.equal(kind(d), 'submit', JSON.stringify(d));
+  // Un menu qui dit un envoi : ses écritures attendent la carte.
+  for (const d of [
+    { tag: 'button', buttonType: 'button', text: 'Envoyer', ariaHasPopup: 'menu' },
+    { tag: 'div', role: 'menuitem', text: 'Envoyer le message' },
+  ])
+    assert.equal(kind(d), 'candidate', JSON.stringify(d));
 });

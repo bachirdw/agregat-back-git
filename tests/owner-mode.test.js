@@ -375,9 +375,33 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     { tag: 'div', role: 'switch', inForm: true, text: 'Oui' },
   ])
     assert.equal(kind(d), 'widget', JSON.stringify(d));
-  // Un bouton qui ne soumet rien et ne dit pas d'envoi.
-  assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Oui' }), 'plain');
+  // Relecture fix5 (constat 3) : un bouton d'un formulaire qui n'est ni étape ni widget est au
+  // moins candidat (une écriture qu'il déclenche attend la carte ; sans écriture, rien).
+  for (const text of ['Oui', ''])
+    assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: true, text }), 'candidate');
   assert.equal(kind({ tag: 'div', inForm: true, text: 'Continue' }), 'plain');
+  assert.equal(kind({ tag: 'button', buttonType: 'button', inForm: false, text: 'Oui' }), 'plain');
+  // Libellés d'envoi non reconnus avant fix5, étapes au libellé entier seulement pour un submit.
+  for (const text of [
+    'Envoyez ma candidature',
+    'Validez',
+    'Je confirme',
+    'Déposer ma candidature',
+    'Terminé',
+    'Done',
+    'Répondre',
+    'Publier',
+    'Ajouter un message',
+    'Add comment',
+    'Retour au recruteur',
+  ])
+    assert.equal(kind({ tag: 'button', buttonType: 'submit', inForm: true, text }), 'submit', text);
+  for (const text of ['Valider et continuer', 'Confirmer et continuer', 'Back', 'Retour'])
+    assert.equal(kind({ tag: 'button', buttonType: 'submit', inForm: true, text }), 'step', text);
+  assert.equal(
+    kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Ajouter un commentaire' }),
+    'candidate',
+  );
   // « Postuler » hors formulaire : carte seulement si le clic déclenche une écriture.
   assert.equal(
     kind({ tag: 'button', buttonType: 'submit', inForm: false, text: 'Postuler' }),

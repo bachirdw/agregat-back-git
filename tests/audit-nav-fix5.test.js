@@ -282,3 +282,59 @@ test(
     assert.deepEqual(lines(), [], 'rien n’est parti sans accord');
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Constat 3 : libellés d'envoi non reconnus, mots d'étape trop larges
+// ---------------------------------------------------------------------------------------------
+
+const post = (path) => `fetch('${path}', { method: 'POST', body: '{}' })`;
+const finalLabels = [
+  'Envoyez ma candidature',
+  'Validez',
+  'Je confirme',
+  'Déposer ma candidature',
+  'Terminé',
+  'Done',
+  'Répondre',
+  'Publier',
+];
+
+test(
+  'Constat 3 : dans un formulaire, un bouton au libellé d’envoi non reconnu, une icône ou « Ajouter un message » (submit) ont leur carte',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      finalLabels
+        .map(
+          (label, i) =>
+            `<form onsubmit="event.preventDefault(); ${post(`/api/f${i}`)}"><input name="n${i}" aria-label="Champ ${i}"><button type="submit" id="s${i}">${label}</button></form>`,
+        )
+        .join('') +
+        `<form onsubmit="event.preventDefault()"><textarea name="msg" aria-label="Texte"></textarea>
+           <button type="button" id="pub" onclick="${post('/api/messages')}">Publier</button>
+           <button type="button" id="ico" onclick="${post('/api/messages')}"><svg width="8" height="8"></svg></button>
+           <button type="button" id="exp" onclick="this.dataset.o = 1">Ajouter une expérience</button>
+           <button type="button" id="oui" onclick="this.dataset.o = 1">Oui</button>
+         </form>
+         <form action="/messages" method="post"><textarea name="m" aria-label="Réponse">Bonjour FICTIF</textarea>
+           <button type="submit" id="add">Ajouter un message</button></form>
+         <button id="env" onclick="${post('/api/applications')}">Envoyez ma candidature</button>`,
+    );
+    const { gateway, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    // Ni étape ni écriture : aucune carte.
+    for (const id of ['#exp', '#oui'])
+      await gateway.call('browser.click', { ref: await refFor(gateway, id) });
+    assert.deepEqual(sends(), [], '« Ajouter une expérience » et « Oui » ne demandent rien');
+    const ids = [...finalLabels.map((_, i) => `#s${i}`), '#pub', '#ico', '#add', '#env'];
+    for (const id of ids) {
+      const before = sends().length;
+      await gateway.call('browser.click', { ref: await refFor(gateway, id) }).catch(() => {});
+      for (let i = 0; i < 60 && sends().length === before; i++) await sleep(25);
+      assert.equal(sends().length, before + 1, `une carte pour ${id}`);
+    }
+    await sleep(300);
+    assert.deepEqual(lines(), [], 'aucun envoi refusé n’est parti');
+  },
+);

@@ -167,8 +167,9 @@ function hasSensitiveWord(value) {
 }
 // Audit du 10/11 (constat 2) : a path that names the submission itself (…/submit, /postuler,
 // /send…), not the many paths that merely contain « apply » or « order » (autosaves, applyFlow).
+// Relecture fix5 (constat 3) : a message, a comment, a reply or a publication too.
 const SUBMIT_PATH_WORD =
-  /^(submit\p{L}*|send|envoyer|postuler|soumettre|candidater|transmettre|finali[sz]e)$/iu;
+  /^(submit\p{L}*|send|envoyer|postuler|soumettre|candidater|transmettre|finali[sz]e|publish\p{L}*|publier|reply|replies|r[ée]pondre|messag\p{L}*|comments?|commentaires?)$/iu;
 export function isSubmitPath(url) {
   try {
     return decodeURIComponent(new URL(url).pathname)
@@ -961,7 +962,9 @@ export class CdpBrowser {
           return route.abort('blockedbyclient');
         }
         // Continue/Next or choosing an option: the page saves its own step (no approval).
-        if (firstParty && this.formStep && !sensitive) return route.continue();
+        // Relecture fix5 (constat 3) : unless it goes to a submission target.
+        if (firstParty && this.formStep && !sensitive && !isSubmitPath(request.url()))
+          return route.continue();
         // Owner decision (05/11): only the agent's click on a send button waits for the owner. Any
         // other network write (script fetch, mutation after a non-form click, step upkeep) is granted
         // and traced, host only. A form posted by navigation stays a submission and keeps the question.

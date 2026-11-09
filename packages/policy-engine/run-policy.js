@@ -9,12 +9,27 @@ export const SENSITIVE_WORDS =
 // Audit du 10/11 (constat 2) : labels of a final send that SENSITIVE_WORDS misses (conjugated
 // verbs, other phrasings). Used for the agent's clicks only, never for request paths.
 export const SEND_LABEL_WORDS =
-  /\b(postul\p{L}*|candidate[rz]|soumet\p{L}*|soumis|soumission|transmet\p{L}*|envoi\p{L}*|termin(?:er|ez)|finalis\p{L}*|finaliz\p{L}*|finish|submit\p{L}*|send\p{L}*)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
+  /\b(postul\p{L}*|candidate[rz]|soumet\p{L}*|soumis|soumission|transmet\p{L}*|envoi\p{L}*|envoy\p{L}*|termin(?:er|ez|é|ée)|finalis\p{L}*|finaliz\p{L}*|finish|submit\p{L}*|send\p{L}*|valid\p{L}*|confirm\p{L}*|d[ée]pos\p{L}*|publi\p{L}*|r[ée]pond\p{L}*|reply|post|done)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
+// Relecture fix5 (constat 3) : conjugated and other final-send labels (« Envoyez ma candidature »,
+// « Validez », « Je confirme », « Déposer », « Publier », « Terminé », « Done », « Répondre »).
 // Moving between the steps of a multi-step form, or filling it, is not a send. Audit du 10/11
-// (constat 1) : found anywhere in the label (« Étape suivante », « Suivant → », « Save & continue »),
-// a send word in the same label still wins (« Continue to submit »).
+// (constat 1) : found anywhere in the label of a control that does not submit its form (« Ajouter
+// une expérience » of type button), a send word in the same label still wins.
 export const STEP_WORDS =
   /(?:^|[^\p{L}])(continue|continuer|next|suivant|suivante|previous|précédent|précédente|back|retour|save (?:and|&) continue|enregistrer et continuer|ajouter|add)(?:$|[^\p{L}])/iu;
+// Relecture fix5 (constat 3) : a button that submits its form is a step only when its whole label
+// is one (« Suivant → », « Étape suivante », « Valider et continuer ») : « Ajouter un message » or
+// « Retour au recruteur » of type submit are no step.
+export const STRICT_STEP_LABEL =
+  /^(?:continue|continuer|next|next step|suivant|suivante|étape suivante|passer à l['’]étape suivante|previous|précédent|précédente|étape précédente|back|retour|save (?:and|&) continue|enregistrer et continuer|sauvegarder et continuer|valider et continuer|confirmer et continuer|confirm and continue|continuer vers l['’]étape \d+|continue to step \d+)$/iu;
+// What a publication or a message adds (« Ajouter un commentaire ») : never a step.
+const PUBLISH_OBJECT =
+  /(?:^|[^\p{L}])(messages?|commentaires?|comments?|avis|reviews?|posts?|publications?|réponses?|repl(?:y|ies))(?:$|[^\p{L}])/iu;
+const stepLabel = (label) =>
+  label
+    .replace(/[^\p{L}\p{N}'’&]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
 // Owner mode : controls that open, choose or toggle something in the page, never a send.
 const WIDGET_ROLES = new Set([
   'combobox',
@@ -198,14 +213,20 @@ export class RunPolicy {
   }
   isFormStep(d = {}) {
     const label = [d.text, d.ariaLabel].filter(Boolean).join(' ');
-    if (SENSITIVE_WORDS.test(`${label} ${d.formAction ?? ''}`) || SEND_LABEL_WORDS.test(label))
-      return false;
+    if (SENSITIVE_WORDS.test(d.formAction ?? '')) return false;
+    const buttonish = ['button', 'a', 'input'].includes(d.tag) || d.role === 'button';
+    if (buttonish && STRICT_STEP_LABEL.test(stepLabel(label))) return true;
+    if (SENSITIVE_WORDS.test(label) || SEND_LABEL_WORDS.test(label)) return false;
     if (['label', 'select', 'option', 'textarea'].includes(d.tag)) return true;
     if (d.tag === 'input' && !['submit', 'button', 'image'].includes(d.inputType))
       return FIELD_INPUTS.has(d.inputType);
-    return (
-      (['button', 'a', 'input'].includes(d.tag) || d.role === 'button') && STEP_WORDS.test(label)
-    );
+    // Relecture fix5 (constat 3) : a submission trigger is a step only by its whole label.
+    if (
+      (d.tag === 'input' && ['submit', 'image'].includes(d.inputType)) ||
+      (d.tag === 'button' && d.buttonType === 'submit' && d.inForm)
+    )
+      return false;
+    return buttonish && STEP_WORDS.test(label) && !PUBLISH_OBJECT.test(label);
   }
   // Audit du 10/11 (constats 1 et 2), owner mode : what an agent's click may send.
   // - 'step' : a step of a multi-step form or a field (no card) ;
@@ -236,7 +257,11 @@ export class RunPolicy {
       // A menu entry or a disclosure button that says a send (« Envoyer » opening a confirmation)
       // : any write it triggers waits for the card.
       return sendLabel ? 'candidate' : 'widget';
-    if (!sendLabel) return 'plain';
+    // Relecture fix5 (constat 3) : a button of a form that is no step (« Publier » of type button,
+    // an icon) is at least a candidate : any write it triggers waits for the card ; one that writes
+    // nothing passes.
+    const button = ['button', 'input'].includes(d.tag) || d.role === 'button';
+    if (!sendLabel) return d.inForm && button ? 'candidate' : 'plain';
     return d.inForm && d.tag !== 'a' ? 'submit' : 'candidate';
   }
   workspacePath(p) {

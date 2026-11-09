@@ -125,6 +125,12 @@ test('Audit 10/11 (constat 2) : chemin d’envoi explicite, pas les sauvegardes 
     'https://example.test/api/submitApplication',
     'https://example.test/candidature/postuler',
     'https://example.test/api/messages/send',
+    // Relecture fix5 (constat 3) : message, commentaire, réponse, publication.
+    'https://example.test/api/messages',
+    'https://example.test/voyager/api/messaging/conversations',
+    'https://example.test/posts/1/comments',
+    'https://example.test/api/publish',
+    'https://example.test/thread/9/reply',
   ])
     assert.equal(isSubmitPath(url), true, url);
   for (const url of [

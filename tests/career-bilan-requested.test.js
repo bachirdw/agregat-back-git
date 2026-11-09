@@ -39,3 +39,25 @@ test('progressArgument : seul « scan » vaut le scan des portails', async () =>
   assert.equal(progressArgument('career_script', { command: 'rescan-x' }), 'rescan-x');
   assert.equal(progressArgument('career_script', { command: 'scripts/scan-foo.mjs' }), null);
 });
+
+test('failedActions : un appel réussi du même outil efface l’échec précédent', () => {
+  const truth = createTurnTruth();
+  const a = '11111111-1111-4111-8111-111111111111';
+  const b = '22222222-2222-4222-8222-222222222222';
+  truth.recordGatewayTool('browser_click', 'failed', { toolCallId: a });
+  assert.deepEqual(
+    truth.failedActions().map((item) => item.name),
+    ['browser_click'],
+  );
+  truth.recordGatewayTool('browser_click', 'completed', { toolCallId: b });
+  assert.deepEqual(truth.failedActions(), []);
+  const acp = createTurnTruth();
+  const call = (id, status) => {
+    acp.observe({ sessionUpdate: 'tool_call', toolCallId: id, title: 'browser_click' });
+    acp.observe({ sessionUpdate: 'tool_call_update', toolCallId: id, status });
+  };
+  call('x1', 'failed');
+  assert.equal(acp.failedActions().length, 1);
+  call('x2', 'completed');
+  assert.deepEqual(acp.failedActions(), []);
+});

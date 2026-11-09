@@ -429,6 +429,8 @@ export function createTurnTruth({ root, seed } = {}) {
           status: 'failed',
           cause: failed.get(name) ?? 'échec signalé par l’outil',
         });
+      // A later successful call of the same tool clears its earlier failure: the retry worked.
+      if (update.status === 'completed') failed.delete(name);
       if (update.status === 'completed') {
         outcomes.set(update.toolCallId, {
           ...outcomes.get(update.toolCallId),
@@ -563,6 +565,7 @@ export function createTurnTruth({ root, seed } = {}) {
           contactWrites.add('extract');
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
+      if (status === 'completed') failed.delete(name);
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
         failed.set(name, 'échec signalé par l’outil');
     },

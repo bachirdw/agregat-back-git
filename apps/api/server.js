@@ -254,10 +254,14 @@ export function createApp({
               ...store.usage(id),
               byDimension: summarize(store.usage(id).entries),
             },
+            // Relecture du 10/11 (constat 7) : the rows of this run are re-hashed as well, so the
+            // usage shown is proven ; `?ledger=full` checks the whole chain.
             ledger:
               url.searchParams.get('ledger') === 'full'
                 ? store.verifyLedger()
-                : store.verifyLedgerTail(),
+                : ([store.verifyLedgerTail(), store.verifyRunLedger(id)].find((r) => !r.ok) ?? {
+                    ok: true,
+                  }),
             steps: run.mode === 'workflow' ? engine.workflows.steps(id) : [],
             pendingPermission: engine.pendingPermission(id),
             permissions: [...engine.permissions.values()]

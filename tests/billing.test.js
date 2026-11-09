@@ -342,22 +342,54 @@ test('monnaie : un ledger non vide ne change pas de devise implicitement', () =>
   }
 });
 
-test('ledger : charge ne vérifie que la queue, falsification ancienne détectée au démarrage et à la vérification complète', () => {
+test('ledger : falsification ancienne détectée par le budget du run, au démarrage de mission et périodiquement (relecture 10/11, constat 7)', () => {
   const file = join(temporary(), 'db');
   let store = new Store(file);
   store.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });
-  for (let i = 0; i < 5; i++) store.charge('FICTIF', 'tool_call', 1, 1);
-  // Falsification ancienne en cours de vie : la charge (queue seule) continue, la vérification complète voit.
+  for (let i = 0; i < 4; i++) store.charge('FICTIF', 'tool_call', 1, 20);
+  // Falsification ancienne en cours de vie : la vérification incrémentale ne relit pas la ligne 2…
   store.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=2');
   assert.equal(store.verifyLedgerTail().ok, true);
-  assert.doesNotThrow(() => store.charge('FICTIF', 'tool_call', 1, 1));
-  assert.equal(store.verifyLedger().ok, false);
+  // … mais le budget n'est calculé que sur les lignes du run revérifiées : 120 pour 100 refusé.
+  assert.throws(() => store.charge('FICTIF', 'tool_call', 1, 20), /intégrité/i);
+  assert.equal(store.usage('FICTIF').entries.length, 4);
+  assert.equal(store.verifyLedgerTail().ok, false, 'la rupture reste constatée');
   store.close();
   // Au démarrage suivant la vérification complète refuse toute écriture.
   store = new Store(file);
   assert.equal(store.startupLedger.ok, false);
   assert.throws(() => store.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
   store.close();
+  // Sans budget : la première charge d'une nouvelle mission vérifie toute la chaîne.
+  const s3 = new Store(join(temporary(), 'db'));
+  s3.create({ id: 'A', state: 'running', budgetCents: 0 });
+  s3.create({ id: 'B', state: 'running', budgetCents: 0 });
+  for (let i = 0; i < 3; i++) s3.charge('A', 'tool_call', 1, 1);
+  s3.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=1');
+  assert.doesNotThrow(() => s3.charge('A', 'tool_call', 1, 1));
+  assert.throws(() => s3.charge('B', 'tool_call', 1, 1), /intégrité/i);
+  s3.close();
+  // Sans budget, même mission : la vérification complète périodique la voit.
+  const previous = process.env.AGENT_PLATFORM_LEDGER_FULL_EVERY;
+  process.env.AGENT_PLATFORM_LEDGER_FULL_EVERY = '5';
+  try {
+    const s4 = new Store(join(temporary(), 'db'));
+    s4.create({ id: 'A', state: 'running', budgetCents: 0 });
+    for (let i = 0; i < 3; i++) s4.charge('A', 'tool_call', 1, 1);
+    s4.db.exec('UPDATE ledger SET platform_cents=0 WHERE id=1');
+    let refused = 0;
+    for (let i = 0; i < 6; i++)
+      try {
+        s4.charge('A', 'tool_call', 1, 1);
+      } catch {
+        refused++;
+      }
+    assert.ok(refused >= 1, 'détectée au plus tard à la cinquième charge');
+    s4.close();
+  } finally {
+    if (previous === undefined) delete process.env.AGENT_PLATFORM_LEDGER_FULL_EVERY;
+    else process.env.AGENT_PLATFORM_LEDGER_FULL_EVERY = previous;
+  }
   // Falsification de la queue : détectée à la charge, sans réouverture.
   const s2 = new Store(join(temporary(), 'db'));
   s2.create({ id: 'FICTIF', state: 'running', budgetCents: 100 });

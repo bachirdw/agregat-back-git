@@ -213,3 +213,11 @@ Prochaine étape : relancer 4311 et 5174, accompagner le propriétaire sur ces e
   **E71 vérifié en réel** (`career_read reports/` nomme les fichiers lisibles) ; question formulaire au propriétaire :
   note 3,4/5 sous le seuil 4,0 → e-mail de clarification (recommandé par le rapport), candidature complète, ou annuler.
   **En attente de sa réponse** (front 5174). Rien saisi dans Gmail pour l'instant.
+- 09/11 19:31 : la mission Gmail d851b345 annulée sur demande du propriétaire (rien saisi dans Gmail) pour relancer LinkedIn.
+  Mission contacto neuve **37e8afaa** (code corrigé, Chrome du propriétaire) : carnet, une recherche web, profil LinkedIn
+  lu, message de 200 caractères, question d'enregistrement, **« oui » du propriétaire porté par `/answer`**, ligne écrite
+  dans `data/contacts.tsv` (9 colonnes, `recruiter`, tracker #5, lue par `contact-lookup` et `contacts.mjs` sans défaut),
+  `completed` en 5 min, Bilan fidèle, rien envoyé. **E72, E74, E75 vérifiés en réel** ; E73 (script au clavier) reste à
+  vérifier (contact-extract non appelé). Effet sur les données du propriétaire : `data/contacts.tsv` créé (un contact,
+  données d'un tiers, hors Git), `relay/linkedin.json` réécrit. Reste : l'essai Gmail (mode email) et la décision
+  « Bilan cumulé en reprise ».

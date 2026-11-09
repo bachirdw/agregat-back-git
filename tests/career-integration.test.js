@@ -30,6 +30,7 @@ import {
   createTurnTruth,
   formatCareerBilan,
   gatewayToolOutcome,
+  gatewayProgress,
 } from '../packages/career-ops/truth.js';
 
 test('Suivi du tour ACP FICTIF : source lue, sauvegarde et échec anonymisé', () => {
@@ -139,10 +140,12 @@ test('Bilan FICTIF : un verdict de script de contrôle (expiré, doublon, faits)
   truth.recordGatewayTool('career_script', 'failed', {
     toolCallId: id(2),
     argument: 'check-liveness',
+    exitCode: 1,
   });
   truth.recordGatewayTool('career_script', 'failed', {
     toolCallId: id(3),
     argument: 'precheck-duplicate',
+    exitCode: 1,
   });
   let bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
   assert.match(
@@ -157,6 +160,48 @@ test('Bilan FICTIF : un verdict de script de contrôle (expiré, doublon, faits)
   });
   bilan = formatCareerBilan('Lis cette annonce FICTIVE', truth);
   assert.match(bilan, /1 échoué \(échec signalé par l’outil\), 2 verdicts/);
+});
+test('Bilan FICTIF : sans code de sortie ou hors 1-125, un script de contrôle en échec reste une panne', () => {
+  const id = (n) => `00000000-0000-4000-8000-00000000010${n}`;
+  const truth = createTurnTruth();
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(1),
+    argument: 'check-liveness',
+    exitCode: 1,
+  });
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(2),
+    argument: 'check-liveness',
+  });
+  truth.recordGatewayTool('career_script', 'failed', {
+    toolCallId: id(3),
+    argument: 'verify-cv-facts',
+    exitCode: 127,
+  });
+  assert.match(
+    formatCareerBilan('Lis cette annonce FICTIVE', truth),
+    /2 échoués \(échec signalé par l’outil\), 1 verdict de script/,
+  );
+  const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
+  assert.equal(
+    gatewayProgress(
+      'career_script',
+      'failed',
+      { command: 'check-liveness', args: ['u'] },
+      result({ text: '', exitCode: 1 }),
+    ).exitCode,
+    1,
+  );
+  assert.equal(
+    'exitCode' in
+      gatewayProgress(
+        'career_script',
+        'failed',
+        { command: 'check-liveness' },
+        { isError: true, content: [{ type: 'text', text: 'Commande expirée' }] },
+      ),
+    false,
+  );
 });
 test('Bilan FICTIF : le statut du résultat distingue script échoué et courriel en brouillon', () => {
   const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });

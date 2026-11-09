@@ -221,8 +221,24 @@ export function scriptTokens(args) {
 export function gatewayProgress(name, status, args, result) {
   const progress = callProgress(name, status, args, result);
   const tokens = name === 'career_script' ? scriptTokens(args?.args) : [];
-  return tokens.length ? { ...progress, args: tokens } : progress;
+  const withArgs = tokens.length ? { ...progress, args: tokens } : progress;
+  // Audit orch2 : the script's own exit code tells « the script answered » (an exit code came back)
+  // from « the tool failed » (spawn error, timeout, cancel : no exit code, the gateway raised).
+  const exitCode =
+    name === 'career_script' && status === 'failed' ? scriptExitCode(result) : undefined;
+  return exitCode === undefined ? withArgs : { ...withArgs, exitCode };
 }
+function scriptExitCode(result) {
+  try {
+    const value = JSON.parse(result?.content?.[0]?.text ?? '');
+    return Number.isInteger(value?.exitCode) ? value.exitCode : undefined;
+  } catch {
+    return undefined;
+  }
+}
+// A control script « answers » with a plain exit status (1 to 125). 126/127 (not runnable, not found)
+// and 128+ (killed by a signal) are the tool's breakdown, never a verdict.
+const scriptAnswered = (exitCode) => Number.isInteger(exitCode) && exitCode >= 1 && exitCode <= 125;
 function callProgress(name, status, args, result) {
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
@@ -495,6 +511,7 @@ export function createTurnTruth({ root, seed } = {}) {
         toolCallId,
         scoredUrl,
         argument,
+        exitCode,
         tracker: rows,
         facts,
         scan: scanRows,
@@ -511,7 +528,10 @@ export function createTurnTruth({ root, seed } = {}) {
       const name = canonicalToolName(reportedName);
       const key = toolCallId ?? `anonymous-${++anonymousCall}`;
       const verdict =
-        status === 'failed' && name === 'career_script' && VERDICT_SCRIPTS.has(argument);
+        status === 'failed' &&
+        name === 'career_script' &&
+        VERDICT_SCRIPTS.has(argument) &&
+        scriptAnswered(exitCode);
       gatewayOutcomes.set(key, {
         ...gatewayOutcomes.get(key),
         name,

@@ -244,7 +244,11 @@ test('Passerelle : préfixe output/, faits sans source comptés dans la sortie d
     { command: 'verify-cv-facts', args: [CV_HTML] },
     mcp({ text: FACTS_FAILED, exitCode: 1 }),
   );
-  assert.deepEqual(failed, { argument: 'verify-cv-facts', facts: { unsourced: 3 } });
+  assert.deepEqual(failed, {
+    argument: 'verify-cv-facts',
+    exitCode: 1,
+    facts: { unsourced: 3 },
+  });
   assert.doesNotMatch(JSON.stringify(failed), /Rust|90%|synergie/);
   assert.deepEqual(
     gatewayProgress(

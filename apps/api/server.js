@@ -507,6 +507,7 @@ export function createApp({
             scoredUrl:
               typeof body.scoredUrl === 'string' ? body.scoredUrl.slice(0, 2048) : undefined,
             argument: typeof body.argument === 'string' ? body.argument.slice(0, 60) : undefined,
+            exitCode: Number.isInteger(body.exitCode) ? body.exitCode : undefined,
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,

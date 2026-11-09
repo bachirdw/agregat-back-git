@@ -1,6 +1,6 @@
 import { homedir, tmpdir } from 'node:os';
 import { resolve, relative, isAbsolute, extname } from 'node:path';
-import { realpathSync, statSync, lstatSync } from 'node:fs';
+import { realpathSync, statSync, lstatSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -28,7 +28,12 @@ const within = (root, target) => {
 
 // No shell, remote converter or model. Bounded local utilities; missing utilities fail explicitly.
 export async function convertCv(file, extension) {
-  const options = { timeout: 15000, maxBuffer: MAX_FILE_BYTES, encoding: 'utf8' };
+  // A minimal PATH (launchd) lacks Homebrew, where pdftotext lives.
+  const env = {
+    ...process.env,
+    PATH: [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean).join(':'),
+  };
+  const options = { timeout: 15000, maxBuffer: MAX_FILE_BYTES, encoding: 'utf8', env };
   if (extension === '.pdf')
     return (await exec('pdftotext', ['-layout', file, '-'], options)).stdout;
   if (extension === '.docx')
@@ -127,14 +132,19 @@ export class CareerWorkspace {
     const id = randomUUID();
     const file = `inputs/${id}${extension}`;
     writeConfined(root, file, bytes);
+    // A file whose conversion fails leaves no orphan under inputs/ (no .md, no .json beside it).
+    const discard = () => rmSync(resolve(root, file), { force: true });
     let text;
     try {
       text = await this.converter(resolve(root, file), extension);
     } catch {
+      discard();
       throw new Error('Conversion locale impossible (PDF : pdftotext ; DOCX : textutil)');
     }
-    if (typeof text !== 'string' || !text.trim() || Buffer.byteLength(text) > MAX_FILE_BYTES)
+    if (typeof text !== 'string' || !text.trim() || Buffer.byteLength(text) > MAX_FILE_BYTES) {
+      discard();
       throw new Error('CV vide ou conversion trop volumineuse');
+    }
     const item = { id, name, size: bytes.length, type };
     writeConfined(root, `inputs/${id}.md`, text);
     writeConfined(root, `inputs/${id}.json`, JSON.stringify(item));

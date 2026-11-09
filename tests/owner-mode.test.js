@@ -402,6 +402,31 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     kind({ tag: 'button', buttonType: 'button', inForm: true, text: 'Ajouter un commentaire' }),
     'candidate',
   );
+  // Relecture fix5 (constat 8) : cartes inutiles retirées là où c'est sûr seulement.
+  const sub = (text, extra = {}) => ({
+    tag: 'button',
+    buttonType: 'submit',
+    inForm: true,
+    text,
+    formMethod: 'post',
+    formHasFile: false,
+    formHasPassword: false,
+    formCrossSite: false,
+    ...extra,
+  });
+  assert.equal(kind(sub('Supprimer cette expérience')), 'step');
+  assert.equal(kind(sub('Se connecter', { formHasPassword: true })), 'step');
+  assert.equal(kind(sub('Rechercher', { formMethod: 'get' })), 'candidate');
+  assert.equal(kind({ tag: 'button', inForm: false, text: 'Apply filters' }), 'plain');
+  for (const d of [
+    sub('Supprimer et envoyer'),
+    sub('Se connecter'),
+    sub('Rechercher', { formMethod: 'get', formCrossSite: true }),
+    sub('Rechercher', { formMethod: 'get', formHasFile: true }),
+    sub('Envoyer', { formMethod: 'get' }),
+  ])
+    assert.equal(kind(d), 'submit', JSON.stringify(d));
+  assert.equal(kind({ tag: 'button', inForm: false, text: 'Apply now' }), 'candidate');
   // « Postuler » hors formulaire : carte seulement si le clic déclenche une écriture.
   assert.equal(
     kind({ tag: 'button', buttonType: 'submit', inForm: false, text: 'Postuler' }),

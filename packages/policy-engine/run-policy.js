@@ -25,6 +25,12 @@ export const STRICT_STEP_LABEL =
 // What a publication or a message adds (« Ajouter un commentaire ») : never a step.
 const PUBLISH_OBJECT =
   /(?:^|[^\p{L}])(messages?|commentaires?|comments?|avis|reviews?|posts?|publications?|réponses?|repl(?:y|ies))(?:$|[^\p{L}])/iu;
+// Relecture fix5 (constat 8) : labels that are sure not to be a final send.
+const FILTER_WORDS = /\b(filters?|filtres?|search|recherche|rechercher|sort|trier)\b/iu;
+const DELETE_LABEL =
+  /^(?:supprimer|delete|remove|retirer|effacer)(?: (?:cette|cet|ce|this|the|l['’]|la|le|une?|an?) ?[\p{L}\p{N} '’-]{0,40})?$/iu;
+const LOGIN_LABEL =
+  /^(?:se connecter|connexion|connectez-vous|s['’]identifier|identifiez-vous|log ?in|sign ?in)$/iu;
 const stepLabel = (label) =>
   label
     .replace(/[^\p{L}\p{N}'’&]+/gu, ' ')
@@ -239,13 +245,28 @@ export class RunPolicy {
   ownerClickKind(d = {}) {
     if (this.isFormStep(d)) return 'step';
     const label = [d.text, d.ariaLabel, d.value].filter(Boolean).join(' ');
-    const sendLabel = SENSITIVE_WORDS.test(label) || SEND_LABEL_WORDS.test(label);
+    // Relecture fix5 (constat 8) : « Apply filters », « Confirm search » say no send.
+    const sendLabel =
+      (SENSITIVE_WORDS.test(label) && !FILTER_WORDS.test(label)) || SEND_LABEL_WORDS.test(label);
     // Relecture fix5 (constat 2) : a submission trigger of a form stays one whatever its ARIA
     // attributes say (a submit button with aria-haspopup="dialog" is still the send).
     const submitControl =
       (d.tag === 'input' && ['submit', 'image'].includes(d.inputType)) ||
       (d.tag === 'button' && d.buttonType === 'submit' && d.inForm);
-    if (submitControl) return 'submit';
+    if (submitControl) {
+      // Relecture fix5 (constat 8), only where it is sure : removing an entry of the form, logging
+      // in (a password field, a login label) are steps ; a search form (GET, to this site, no
+      // file, no send label) is a candidate (its GET passes, a write it triggers waits for the
+      // card). Anything else submitting a form is the send.
+      const whole = stepLabel(label);
+      if (!SEND_LABEL_WORDS.test(label)) {
+        if (DELETE_LABEL.test(whole)) return 'step';
+        if (d.formHasPassword && LOGIN_LABEL.test(whole)) return 'step';
+        if (d.formMethod === 'get' && !d.formHasFile && d.formCrossSite === false && !sendLabel)
+          return 'candidate';
+      }
+      return 'submit';
+    }
     const role = String(d.role ?? '').toLowerCase();
     // Choosing an option, a box, a tab is never a send.
     if (WIDGET_ROLES.has(role) && role !== 'menuitem') return 'widget';

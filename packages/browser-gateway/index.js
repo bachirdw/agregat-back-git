@@ -249,7 +249,13 @@ export class BrowserGateway {
         throw new Error('Fichier trop volumineux');
       args.path = real;
     }
-    const step = capabilityId === 'browser.click' && !!element && this.policy.isFormStep(element);
+    // Relecture fix5 (constat 8) : in owner mode, the click's kind says whether it is a step.
+    const step =
+      capabilityId === 'browser.click' &&
+      !!element &&
+      (this.policy.ownerMode
+        ? this.policy.ownerClickKind(element) === 'step'
+        : this.policy.isFormStep(element));
     if (step && this.policy.ownerMode) sensitive = false;
     // Audit du 10/11 (constats 1 et 2) : in owner mode, only the final send waits for the owner. A
     // list, an option, a toggle or a button that is no submission trigger and says no send passes

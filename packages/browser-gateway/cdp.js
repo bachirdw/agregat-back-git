@@ -468,6 +468,14 @@ const describeElement = (el) => {
     buttonType: control.tagName === 'BUTTON' ? control.type : null,
     inForm: !!form,
     formAction: form?.getAttribute('action') ?? null,
+    // Relecture fix5 (constat 8) : what tells a search or a login form from a send.
+    formMethod: form ? String(form.method || 'get').toLowerCase() : null,
+    formHasFile: !!form?.querySelector('input[type=file]'),
+    formHasPassword: !!form?.querySelector('input[type=password]'),
+    formCrossSite: form
+      ? new URL(form.getAttribute('action') || location.href, document.baseURI).hostname !==
+        location.hostname
+      : null,
     // Audit du 10/11 (constat 18) : the label of an <input type=submit|button|reset|image>
     // is its value, never a secret.
     text: (

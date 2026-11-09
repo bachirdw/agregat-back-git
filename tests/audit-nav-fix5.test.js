@@ -536,6 +536,49 @@ test(
 // ---------------------------------------------------------------------------------------------
 
 test(
+  'Relecture 8 : recherche GET, « Se connecter », « Supprimer cette expérience » et « Apply filters » passent sans carte ; une recherche vers un autre site ou « Envoyer » dans un GET, non',
+  { skip },
+  async (t) => {
+    const other = await site(t, '<p>Autre site FICTIF</p>', { host: 'localhost' });
+    const { origin, lines } = await site(t, (path) =>
+      path !== '/'
+        ? `<p>Page FICTIVE ${path}</p>`
+        : `<form action="/recherche" method="get"><input name="q" aria-label="Mots-clés"><button type="submit" id="rech">Rechercher</button></form>
+           <form action="/login" method="post"><input name="u" aria-label="Identifiant"><input type="password" name="p" aria-label="Mot de passe"><button type="submit" id="login">Se connecter</button></form>
+           <form onsubmit="event.preventDefault()"><button type="submit" id="suppr" onclick="fetch('/api/experiences/3', { method: 'DELETE' })">Supprimer cette expérience</button></form>
+           <button id="filt" onclick="${post('/api/jobs/search')}">Apply filters</button>
+           <form action="${other.origin}/q" method="get"><input name="q2" aria-label="Ailleurs"><button type="submit" id="ailleurs">Rechercher ailleurs</button></form>
+           <form action="/envoi" method="get"><input name="m" aria-label="Message"><button type="submit" id="getenv">Envoyer</button></form>`,
+    );
+    const { gateway, provider, sends } = await owner(t, [origin, other.origin]);
+    const home = () => gateway.call('browser.navigate', { url: origin });
+    await home();
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#filt') });
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#suppr') });
+    await settle(lines, 2);
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#rech') });
+    assert.match(provider.page.url(), /\/recherche\?q=/);
+    await home();
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#login') });
+    await settle(lines, 3);
+    assert.deepEqual(lines(), [
+      'POST /api/jobs/search',
+      'DELETE /api/experiences/3',
+      'POST /login',
+    ]);
+    assert.deepEqual(sends(), [], 'aucune carte hors envoi final');
+    await home();
+    for (const id of ['#ailleurs', '#getenv'])
+      await assert.rejects(
+        gateway.call('browser.click', { ref: await refFor(gateway, id) }),
+        /Action refusée/,
+        id,
+      );
+    assert.equal(sends().length, 2);
+  },
+);
+
+test(
   'Relecture 9 : juste après le téléversement, un envoi final qui ne porte que le CV attend la carte ; la pièce seule passe',
   { skip },
   async (t) => {

@@ -32,3 +32,10 @@ test('Bilan : prompts anglais courants (apply, evaluate, send email)', () => {
     /évaluation enregistrée/,
   );
 });
+
+test('progressArgument : seul « scan » vaut le scan des portails', async () => {
+  const { progressArgument } = await import('../packages/career-ops/truth.js');
+  assert.equal(progressArgument('career_script', { command: 'scan' }), 'scan');
+  assert.equal(progressArgument('career_script', { command: 'rescan-x' }), 'rescan-x');
+  assert.equal(progressArgument('career_script', { command: 'scripts/scan-foo.mjs' }), null);
+});

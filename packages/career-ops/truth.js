@@ -62,11 +62,7 @@ export function progressArgument(name, args = {}) {
   const command = String(args?.command ?? args?.script ?? '');
   const path = String(args?.path ?? '');
   if (name === 'career_script')
-    return command.includes('scan')
-      ? 'scan'
-      : /^[a-z][a-z0-9-]{1,40}$/.test(command)
-        ? command
-        : null;
+    return command === 'scan' ? 'scan' : /^[a-z][a-z0-9-]{1,40}$/.test(command) ? command : null;
   // A read of the Skill's inbox proves the first step of modes/pipeline.md; a report read is the
   // context of modes/email.md (prefix only, never the file name) ; other reads say nothing.
   if (name === 'career_read')
@@ -655,10 +651,7 @@ function proved(manifest, truth, label) {
   const calls = truth.completedCalls?.() ?? [];
   return steps.some((step) =>
     calls.some(
-      (call) =>
-        call.name === step.tool &&
-        (!step.argument ||
-          (typeof call.argument === 'string' && call.argument.includes(step.argument))),
+      (call) => call.name === step.tool && (!step.argument || call.argument === step.argument),
     ),
   );
 }

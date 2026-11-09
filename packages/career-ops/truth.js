@@ -325,16 +325,34 @@ const outputText = (output) => {
 // Seconde relecture de nuit : the one reader of an answered exit code (orchestrator/exit-code.js).
 const exitFailed = (output) => exitFailedOf(output);
 
+// A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
+// « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
+// mais envoie l'email » keeps « envoie l'email ».
+const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
+const NEGATED = new RegExp(
+  String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
+  'giu',
+);
+export const withoutNegations = (prompt) => String(prompt ?? '').replace(NEGATED, ' ');
+
+// An action the owner orders now: an imperative not denied, not said of someone else (« je postule »,
+// « il m’envoie »), never the noun « envoi » or the adjective « candidate » (audit 10/11, constat 6:
+// « N’envoie pas encore », « Quel est l’envoi prévu ? », « Je suis candidate » used to match and
+// the agent's answer was replaced by « L’agent n’a rien exécuté »).
+const NOT_SAID_OF_SOMEONE = String.raw`(?<!(?:^|[^\p{L}])(?:je|j['’]|tu|il|elle|on|ils|elles|qui|qu['’](?:il|elle|on))\s*(?:(?:me|m['’]|te|t['’]|lui|leur|les|la|le|l['’]|nous|vous)\s*)?)`;
+const ACTION_ORDER = new RegExp(
+  [
+    String.raw`${NOT_SAID_OF_SOMEONE}(?<![\p{L}])(?:envoie(?:-(?:la|le|les|lui|leur|moi))?|envoyez|envoyons|soumets|soumettez|soumettons|postule|postulez|postulons|candidatez|clique[sz]?\s+sur\s+(?:le bouton\s+)?[«"“']?\s*(?:envoyer|soumettre|postuler|send|submit|apply))(?![\p{L}])`,
+    String.raw`${NOT_SAID_OF_SOMEONE}(?<!(?:^|[^\p{L}])(?:suis|es|est|sommes|êtes|sont|être|serai|serais|étais|était|reste|une|la|ma|ta|sa|la seule)\s+)(?<![\p{L}])candidate\s+(?:à|a|au|aux|chez|pour|sur)(?![\p{L}])`,
+    String.raw`(?:^|[.!?;]\s*|(?:^|[^\p{L}])(?:oui|ok|okay|vas-y|go)\s*,?\s*)candidate(?![\p{L}])`,
+    String.raw`(?<![\p{L}])(?:submit|apply|send\s+(?:it|them|the|my))(?![\p{L}])`,
+  ].join('|'),
+  'iu',
+);
+export const ordersAction = (prompt) => ACTION_ORDER.test(withoutNegations(prompt));
+
 export function shortResumeWithoutBrowser({ previous, prompt, durationMs, browserObserved }) {
-  return (
-    !!previous &&
-    durationMs < 15000 &&
-    !browserObserved &&
-    // Audit du 10/11 : the imperative « envoie », « soumets » and « candidate » were missed.
-    /\b(?:postul(?:e|er|ez|ons)|envoi(?:e|es)?|envoy(?:e|er|ez|ons)|soumet(?:s|tre|tez)?|candidat(?:e|er|ez)|submit|apply)\b/i.test(
-      prompt,
-    )
-  );
+  return !!previous && durationMs < 15000 && !browserObserved && ordersAction(prompt);
 }
 
 export function gatewayToolOutcome(name, result) {
@@ -760,17 +778,7 @@ function emailSendRequested(text) {
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,
 // optional, exempt): a step neither optional nor waived that never ran is said as missing.
 export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), skillSteps = []) {
-  // A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
-  // « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
-  // mais envoie l'email » keeps « envoie l'email ».
-  const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
-  const requested = prompt.replace(
-    new RegExp(
-      String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
-      'giu',
-    ),
-    ' ',
-  );
+  const requested = withoutNegations(prompt);
   const outcomes = truth.toolOutcomes();
   const byName = new Map();
   for (const outcome of outcomes) {

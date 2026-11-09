@@ -820,7 +820,7 @@ export class Orchestrator {
     } else this.store.create(run);
     const control = { abort: new AbortController(), runtime: null };
     this.active.set(id, control);
-    setImmediate(() => this.execute(run, plan, control, previous));
+    setImmediate(() => this.launch(run, plan, control, previous));
     return run.workspace === 'career-ops' ? this.store.get(id) : run;
   }
   // Resume a workflow run in place: same run id, durable steps kept, unfinished steps retried.
@@ -867,8 +867,51 @@ export class Orchestrator {
     this.store.event(runId, 'workflow_resumed', { at: new Date().toISOString() });
     const control = { abort: new AbortController(), runtime: null };
     this.active.set(runId, control);
-    setImmediate(() => this.execute(this.store.get(runId), plan, control, null));
+    setImmediate(() => this.launch(this.store.get(runId), plan, control, null));
     return this.store.get(runId);
+  }
+  // Audit du 10/11 (constat 9) : an exception escaping execute() (cleanup of the agent's home,
+  // diagnostic write) was an unhandled rejection : Node stops the server, or the mission stayed in
+  // `active` (slot and private-workspace lock held, close() waiting forever). It is caught here : the
+  // mission fails with its cause unless it already ended, and its locks are released.
+  launch(run, plan, control, previous) {
+    return Promise.resolve()
+      .then(() => this.execute(run, plan, control, previous))
+      .catch((error) => this.executionCrashed(run, control, error));
+  }
+  executionCrashed(run, control, error) {
+    const detail = String(error?.message ?? error).slice(0, 300);
+    const cause =
+      run?.workspace === 'career-ops'
+        ? 'Erreur interne de la plateforme (détail dans le journal du serveur).'
+        : `Erreur interne de la plateforme : ${detail}`;
+    const quietly = (action) => {
+      try {
+        action();
+      } catch {
+        /* Best effort: the locks below are released whatever happens. */
+      }
+    };
+    quietly(() => console.error(`[relay] mission ${run?.id} : exécution interrompue`, error));
+    quietly(() => {
+      if (!control.abort.signal.aborted) control.abort.abort(new Error(cause));
+    });
+    quietly(() => control.runtime?.close());
+    quietly(() => {
+      const row = this.store.get(run.id);
+      if (row && !terminal.has(row.state))
+        this.store.update(run.id, {
+          state: 'failed',
+          error: cause,
+          finishedAt: new Date().toISOString(),
+        });
+    });
+    quietly(() => this.clearPermissions(run.id));
+    quietly(() => this.clearQuestions(run.id));
+    if (this.active.get(run.id) === control) this.active.delete(run.id);
+    this.approvalTokens.delete(run.id);
+    this.expiredPermissions.delete(run.id);
+    this.expiredDelays.delete(run.id);
   }
   async execute(run, plan, control, previous) {
     let text = '',
@@ -1534,7 +1577,15 @@ export class Orchestrator {
           control.runtime.exited.catch(() => {}),
           new Promise((done) => setTimeout(done, 5000)),
         ]);
-      removeRunHomes(homesBase(run, plan.pack.id, this.dataDir), run.id);
+      // A home the exiting CLI still writes (ENOTEMPTY, EPERM) must not keep the mission's locks.
+      try {
+        removeRunHomes(homesBase(run, plan.pack.id, this.dataDir), run.id);
+      } catch (error) {
+        console.error(
+          `[relay] mission ${run.id} : home de l’agent non supprimé`,
+          error?.code ?? '',
+        );
+      }
       this.active.delete(run.id);
       this.approvalTokens.delete(run.id);
       this.expiredPermissions.delete(run.id);

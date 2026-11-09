@@ -54,3 +54,13 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   c'est le comportement d'un navigateur normal (jeton anti-robot réel, ATS intégré) ; le fichier de l'agent ne sort
   toujours que par la règle d'upload et l'envoi final dans l'iframe garde sa carte. Fusionnés (928116f, c9e7737).
   Suite complète lancée sur c9e7737.
+- 01:16 — **suite complète verte sur c9e7737** (tout fusionné) : 973 unitaires (971 ✔, 2 ignorés), 157/157 Chrome,
+  contrôle et format. Tests Chrome de l'audit navigateur rangés en phase série.
+- 01:17-01:20 — **Démo career-ops sur le code complet**, mission c6c0250e : `completed` en 2 min 45 s, une seule carte
+  (envoi final), CV adapté reçu. Deux défauts de Bilan corrigés par le manager : `find` sans résultat (code 1) compté
+  en panne → verdict (e8ceb35) ; capture de la page 1 qui valait « relire avant soumission » → étape répétable (2af93fa).
+  Outil `.manager/outils/demo-candidature.py` (n'accorde que les cartes vers 127.0.0.1).
+- 01:23-01:24 — **Démo sans Skill sur le code complet**, mission cf04ca91 : `completed` en 70 s, une carte, statut
+  HTTP 200 de la soumission vu par l'agent, envoi approuvé au Bilan.
+- 01:24 — usage : 16 % de la fenêtre de 5 h, 35 % de la semaine. Troisième tour lancé : `audit-nav2` (Opus) et
+  `audit-misc3` (Sonnet).

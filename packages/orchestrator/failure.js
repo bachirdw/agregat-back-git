@@ -64,6 +64,7 @@ export function careerFailureMessage({ cancelled = false, reason, error } = {}) 
   if (/^Accord expiré sans réponse\b/.test(error?.message ?? '')) return error.message;
   if (reason?.message === 'Délai maximal dépassé') return 'Délai maximal dépassé';
   if (reason?.message === SERVER_STOPPED) return SERVER_STOPPED;
+  if (reason?.code === 'too_many_events') return reason.message;
   if (reason?.code === 'tool_stalled')
     return `Outil sans mise à jour depuis ${Math.max(1, Math.ceil((reason.afterMs || 120000) / 1000))} s${reason.toolTitle === 'Searching the web' ? ' : Searching the web' : ''} ; relancer.`;
   if (reason?.code === 'agent_silent') {

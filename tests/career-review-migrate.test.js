@@ -167,3 +167,19 @@ test('préparation : ne réécrit jamais un reçu existant', (t) => {
   assert.equal(keepExistingReceipt(lib.root), false);
   assert.equal(existsSync(lib.receipt), false);
 });
+
+// Audit misc3 : un reçu corrompu donne un message clair, pas un SyntaxError brut.
+test('reçu de revue corrompu : message clair dans keepExistingReceipt', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'receipt-corrompu-FICTIF-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'relay'));
+  writeFileSync(join(root, 'relay/source-review.json'), '{ pas du json');
+  assert.throws(
+    () => keepExistingReceipt(root),
+    (error) => {
+      assert.ok(!(error instanceof SyntaxError));
+      assert.match(error.message, /Reçu de revue illisible.*nouvelle revue nécessaire/);
+      return true;
+    },
+  );
+});

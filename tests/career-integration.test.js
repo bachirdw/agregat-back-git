@@ -461,10 +461,9 @@ test('Contrôles CV FICTIFS : manque et fait inventé détectés, chemins et dé
   writeFileSync(join(root, 'jd-skill-gap.mjs'), 'setInterval(() => {}, 1000)');
   writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
   const quick = new CareerTools(tools.career, { scriptTimeoutMs: 50 });
-  await assert.rejects(
-    quick.script({ command: 'jd-skill-gap', path: 'jds/fictive.md' }),
-    /expirée/,
-  );
+  const expired = await quick.script({ command: 'jd-skill-gap', path: 'jds/fictive.md' });
+  assert.equal(expired.timedOut, true);
+  assert.match(expired.text, /Délai dépassé/);
   const controller = new AbortController();
   const cancelled = tools.script(
     { command: 'jd-skill-gap', path: 'jds/fictive.md' },

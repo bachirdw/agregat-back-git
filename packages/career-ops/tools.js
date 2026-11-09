@@ -6,7 +6,7 @@ import {
   tailoredCv,
   UPLOAD_NOTE,
 } from './produced-documents.js';
-import { readdirSync, lstatSync, existsSync, realpathSync, statSync } from 'node:fs';
+import { readdirSync, rmSync, lstatSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { resolve, extname, sep, relative, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
@@ -698,11 +698,73 @@ export function isTrackerFirstRun(root, text) {
   return /^\|\s*#\s*\|\s*Date\s*\|/i.test(header) && /^\|(?:\s*:?-{3,}:?\s*\|)+$/.test(separator);
 }
 
+// Délai et tampon d'un script. Défaut 60 s ; les scripts longs (scan des portails, génération de
+// PDF, traitements par lot) ont davantage. Réglable par RELAY_CAREER_SCRIPT_TIMEOUT_MS (défaut
+// général) et RELAY_CAREER_SCRIPT_TIMEOUTS (« scan=900000,generate-pdf=300000 », par script) ; le
+// tampon par RELAY_CAREER_SCRIPT_MAX_BUFFER. Une valeur explicite du constructeur prime.
+const DEFAULT_SCRIPT_TIMEOUT_MS = 60000;
+const LONG_SCRIPT_TIMEOUT_MS = [
+  [/^scan$/, 600000],
+  [/^generate-pdf$/, 300000],
+  [/^batch-/, 900000],
+];
+const DEFAULT_SCRIPT_BUFFER = 200000;
+const positive = (value) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 2 ** 31 - 1 ? n : null;
+};
+export function scriptLimits(command, { timeoutMs, maxBuffer, env = process.env } = {}) {
+  const name = String(command)
+    .replace(/^scripts\//, '')
+    .replace(/\.(?:mjs|js|sh)$/, '');
+  let ms = positive(timeoutMs);
+  if (!ms) {
+    for (const entry of String(env.RELAY_CAREER_SCRIPT_TIMEOUTS ?? '').split(',')) {
+      const [key, value] = entry.split('=').map((part) => part.trim());
+      if (key === name && positive(value)) ms = positive(value);
+    }
+  }
+  ms ??=
+    positive(env.RELAY_CAREER_SCRIPT_TIMEOUT_MS) ??
+    LONG_SCRIPT_TIMEOUT_MS.find(([pattern]) => pattern.test(name))?.[1] ??
+    DEFAULT_SCRIPT_TIMEOUT_MS;
+  return {
+    timeout: ms,
+    maxBuffer:
+      positive(maxBuffer) ?? positive(env.RELAY_CAREER_SCRIPT_MAX_BUFFER) ?? DEFAULT_SCRIPT_BUFFER,
+  };
+}
+// A script cut short : the partial output stays readable, with a plain message (never an opaque
+// error). `timedOut` : délai dépassé ; `truncated` : tampon de sortie dépassé.
+function cutShort(error, limits, signal) {
+  if (signal?.aborted) return null;
+  const partial = (value) => (typeof value === 'string' ? value : (value?.toString?.() ?? ''));
+  const out = [partial(error.stdout), partial(error.stderr)].filter(Boolean).join('\n');
+  if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER')
+    return {
+      text: `${out}\n[Sortie tronquée : plus de ${limits.maxBuffer} octets ; le script a été arrêté.]`.trim(),
+      exitCode: null,
+      truncated: true,
+      untrusted: true,
+    };
+  if (error.killed === true && error.signal === 'SIGTERM')
+    return {
+      text: `${out}\n[Délai dépassé : ${Math.round(limits.timeout / 1000)} s ; le script a été arrêté, sortie partielle ci-dessus.]`.trim(),
+      exitCode: null,
+      timedOut: true,
+      untrusted: true,
+    };
+  return null;
+}
+
+const MAX_LINKEDIN_DRAFTS = 50;
 export class CareerTools {
   constructor(
     career,
     {
-      scriptTimeoutMs = 60000,
+      scriptTimeoutMs,
+      scriptMaxBuffer,
+      env = process.env,
       ownerMode = false,
       approve = async () => false,
       optionalFiles = [],
@@ -711,6 +773,8 @@ export class CareerTools {
     this.career = career;
     this.optionalFiles = optionalFiles;
     this.scriptTimeoutMs = scriptTimeoutMs;
+    this.scriptMaxBuffer = scriptMaxBuffer;
+    this.limitsEnv = env;
     this.ownerMode = ownerMode;
     this.approve = approve;
   }
@@ -942,10 +1006,63 @@ export class CareerTools {
       return { ...draft, state };
     });
   }
+  // Un brouillon par cible (relay/linkedin/<empreinte de l'URL>.json, au plus 50, les plus anciens
+  // écartés) ; relay/linkedin.json garde le dernier, pour les lecteurs historiques.
   linkedIn(raw) {
     const draft = linkedInDraft(raw);
-    writeConfined(this.career.path(), 'relay/linkedin.json', JSON.stringify(draft));
+    const root = this.career.path();
+    const body = JSON.stringify(draft);
+    const key = createHash('sha256').update(draft.url).digest('hex').slice(0, 16);
+    writeConfined(root, `relay/linkedin/${key}.json`, body);
+    writeConfined(root, 'relay/linkedin.json', body);
+    const files = this.#linkedInFiles(root);
+    for (const old of files.slice(MAX_LINKEDIN_DRAFTS))
+      rmSync(resolve(root, old.path), { force: true });
     return draft;
+  }
+  #linkedInFiles(root) {
+    let names;
+    try {
+      names = readdirSync(resolve(root, 'relay/linkedin'));
+    } catch {
+      return [];
+    }
+    return names
+      .filter((name) => /^[0-9a-f]{16}\.json$/.test(name))
+      .map((name) => {
+        const path = `relay/linkedin/${name}`;
+        try {
+          const stat = lstatSync(resolve(root, path));
+          return stat.isFile() ? { path, mtimeMs: stat.mtimeMs } : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+  }
+  // The drafts kept, newest first (unreadable or invalid files are skipped).
+  linkedInDrafts() {
+    const root = this.career.path();
+    const drafts = [];
+    for (const file of this.#linkedInFiles(root))
+      try {
+        drafts.push(linkedInDraft(JSON.parse(readConfined(root, file.path, 100000))));
+      } catch {
+        /* skipped */
+      }
+    return drafts;
+  }
+  // The latest draft: relay/linkedin.json, or null when none was ever written.
+  linkedInLatest() {
+    try {
+      return linkedInDraft(
+        JSON.parse(readConfined(this.career.path(), 'relay/linkedin.json', 100000)),
+      );
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      return null;
+    }
   }
   // apply-01 (E40): the documents this mission produced under output/, with paths browser_upload
   // takes as they are; cvTailored is the CV the Skill's chain produced, never a career_document rendering.
@@ -977,7 +1094,7 @@ export class CareerTools {
         lstatSync(resolve(root, command)).isSymbolicLink()
       )
         throw new Error('Script absent ou lien symbolique');
-      const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
+      const review = readSourceReview(root);
       assertSourceReview(review, sourceSnapshot(root));
       if (signal?.aborted) throw new Error('Script annulé');
       const approved = await this.approve({
@@ -988,6 +1105,11 @@ export class CareerTools {
       });
       if (approved !== true || signal?.aborted)
         throw new Error('Exécution du script refusée ou annulée');
+      const limits = scriptLimits(command, {
+        timeoutMs: this.scriptTimeoutMs,
+        maxBuffer: this.scriptMaxBuffer,
+        env: this.limitsEnv,
+      });
       try {
         const result = await withoutInput(
           exec(
@@ -1000,13 +1122,15 @@ export class CareerTools {
                 CAREER_OPS_DATA_DIR: root,
               }),
               signal,
-              timeout: this.scriptTimeoutMs,
-              maxBuffer: 200000,
+              timeout: limits.timeout,
+              maxBuffer: limits.maxBuffer,
             },
           ),
         );
         return { text: result.stdout, exitCode: 0, untrusted: true };
       } catch (error) {
+        const cut = cutShort(error, limits, signal);
+        if (cut) return cut;
         if (Number.isInteger(error.code) && !signal?.aborted)
           return {
             text: error.stdout || error.stderr || '',
@@ -1067,7 +1191,7 @@ export class CareerTools {
     }
     if (existsSync(resolve(root, '.env')))
       throw new Error('Scripts isolés : déplacer la configuration secrète vers le lanceur Relay');
-    const review = JSON.parse(readConfined(root, 'relay/source-review.json', 200000));
+    const review = readSourceReview(root);
     const snapshot = sourceSnapshot(root);
     assertSourceReview(review, snapshot);
     if (command === 'scan') {
@@ -1102,6 +1226,11 @@ export class CareerTools {
     // The PDF a document step names, as it was before the script : only what the script wrote
     // counts as produced.
     const before = skillEntry ? documentStamp(root, command, scriptArgs) : null;
+    const limits = scriptLimits(command, {
+      timeoutMs: this.scriptTimeoutMs,
+      maxBuffer: this.scriptMaxBuffer,
+      env: this.limitsEnv,
+    });
     try {
       const result = await withoutInput(
         exec(process.execPath, execArgs, {
@@ -1111,8 +1240,8 @@ export class CareerTools {
             CAREER_OPS_DATA_DIR: root,
           }),
           signal,
-          timeout: this.scriptTimeoutMs,
-          maxBuffer: 200000,
+          timeout: limits.timeout,
+          maxBuffer: limits.maxBuffer,
         }),
       );
       // A Skill script reports through stdout and warns on stderr (merge-tracker's skipped TSVs).
@@ -1126,6 +1255,9 @@ export class CareerTools {
         ...(skillEntry ? documentsAnswer(root, command, scriptArgs, { before }) : {}),
       };
     } catch (error) {
+      // Délai ou tampon dépassé : sortie partielle et message clair, pas une erreur générique.
+      const cut = cutShort(error, limits, signal);
+      if (cut) return cut;
       if (skillEntry && Number.isInteger(error.code) && !signal?.aborted)
         return {
           text: [error.stdout, error.stderr].filter(Boolean).join('\n'),
@@ -1198,6 +1330,15 @@ export function sourceSnapshot(root) {
 
 // Version the measurement itself: extending its scope is a review migration, not
 // a claim that upstream bytes changed. Never silently approve or rewrite a receipt.
+// The review receipt, parsed: a corrupted file gets a plain message, not a raw SyntaxError.
+export function readSourceReview(root, path = 'relay/source-review.json') {
+  const bytes = readConfined(root, path, 200000);
+  try {
+    return JSON.parse(bytes);
+  } catch {
+    throw new Error('Reçu de revue illisible (JSON invalide) ; nouvelle revue nécessaire');
+  }
+}
 export function assertSourceReview(review, snapshot) {
   const legacy =
     review &&

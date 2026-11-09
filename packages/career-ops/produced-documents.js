@@ -13,7 +13,7 @@ export const UPLOAD_NOTE =
 export function documentKind(name) {
   const lower = String(name).toLowerCase();
   if (/cover|lettre|letter/.test(lower)) return 'cover';
-  if (/(?:^|[^a-z])cv(?:[^a-z]|$)|resume|curriculum/.test(lower)) return 'cv';
+  if (/(?:^|[^a-z])cv|resume|curriculum/.test(lower)) return 'cv';
   return 'other';
 }
 
@@ -54,20 +54,36 @@ export function recordProduced(root, paths) {
   return next;
 }
 
-// PDFs under output/ (one level), newest first. Never lists inputs/ or relay/.
+// PDFs under output/ (sub-folders included, down to MAX_DEPTH levels), newest first. Never lists
+// inputs/ or relay/; hidden entries and linked folders are skipped.
+const MAX_DEPTH = 4;
+function pdfPaths(root) {
+  const found = [];
+  const visit = (dir, depth) => {
+    let entries;
+    try {
+      entries = readdirSync(resolve(root, dir), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (depth < MAX_DEPTH) visit(path, depth + 1);
+      } else if (/\.pdf$/i.test(entry.name)) found.push(path);
+    }
+  };
+  visit('output', 1);
+  return found;
+}
 export function listProducedDocuments(root, { produced = [] } = {}) {
-  let names;
-  try {
-    names = readdirSync(resolve(root, 'output'));
-  } catch {
-    return [];
-  }
+  const names = pdfPaths(root);
   const index = readPdfIndex(root);
   const fromChain = new Set([...readProducedRecord(root), ...produced]);
   const documents = [];
-  for (const name of names) {
-    if (!/\.pdf$/i.test(name) || name.startsWith('.')) continue;
-    const path = `output/${name}`;
+  for (const path of names) {
+    const name = path.slice(path.lastIndexOf('/') + 1);
     let stat;
     try {
       stat = statSync(resolve(root, path));

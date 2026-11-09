@@ -75,3 +75,11 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
   réel : l'adaptateur Claude ne nomme l'outil que dans `_meta` sur la mise à jour qui porte les arguments.
 - 01:45 — faux constat écarté : « un script `scripts/…` demande un clic en mode propriétaire » ; l'accord `execute`
   est accordé automatiquement (`orchestrator/index.js`, seul `send` attend le propriétaire).
+- 02:15 — `audit-nav2` rendu (11 commits) et fusionné (a992379) : CV de plus de 100 ko téléversé sans annulation
+  muette ; pièce jointe possible SANS Skill (copiée dans `pieces-jointes/` de la mission, chemin donné à l'agent) ;
+  « refusé par le site (HTTP nnn) » au Bilan ; code HTTP tardif rattaché au bon clic ; Tab et Entrée permis (Entrée qui
+  soumet = clic, carte seulement pour l'envoi final) ; accord refusé seulement si cible ou champs saisis changent ;
+  relais perdu dit clairement (plus de bascule muette en Chrome isolé) ; fenêtre ouverte par le site ne fait plus
+  quitter le formulaire. **À trancher par le propriétaire** : une grosse écriture réseau (> 100 ko) qu'aucun accord ne
+  couvre demande maintenant une carte (avant : annulée sans trace) — à observer sur Gmail (brouillon avec pièce jointe).
+  Suite complète relancée.

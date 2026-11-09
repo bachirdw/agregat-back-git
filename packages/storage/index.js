@@ -175,12 +175,17 @@ export class Store extends EventEmitter {
     try {
       if (currency) this.bindCurrency(currency);
       if (!this.verifyLedgerTail().ok) throw new Error('Intégrité du ledger invalide');
-      const budget = this.get(id)?.budgetCents;
-      if (!Number.isSafeInteger(budget) || budget < 0) throw new Error('Budget invalide');
-      const { spent } = this.db
-        .prepare('SELECT COALESCE(SUM(platform_cents),0) AS spent FROM ledger WHERE run_id=?')
-        .get(id);
-      if (spent + cents > budget) throw new Error('Budget plateforme dépassé');
+      // 0 or absent = no per-run cap (the monthly cap still applies); only a positive budget is a ceiling.
+      // A malformed value is an integrity problem, reported apart from a real overrun.
+      const budget = this.get(id)?.budgetCents ?? 0;
+      if (!Number.isSafeInteger(budget) || budget < 0)
+        throw new Error('Valeur illisible : budgetCents du run');
+      if (budget > 0) {
+        const { spent } = this.db
+          .prepare('SELECT COALESCE(SUM(platform_cents),0) AS spent FROM ledger WHERE run_id=?')
+          .get(id);
+        if (spent + cents > budget) throw new Error('Budget plateforme dépassé');
+      }
       if (this.limits.monthlyCapCents !== null && cents > 0) {
         const month = new Date().toISOString().slice(0, 7);
         const { total } = this.db

@@ -367,3 +367,23 @@ test('ledger : charge ne vérifie que la queue, falsification ancienne détecté
   assert.throws(() => s2.charge('FICTIF', 'tool_call', 1, 1), /ledger|intégrité/i);
   s2.close();
 });
+
+test('budget : 0 ou absent = illimité par run, plafond positif respecté, valeur illisible distincte du dépassement', () => {
+  const store = new Store(join(temporary(), 'db'));
+  try {
+    store.create({ id: 'zero', state: 'running', budgetCents: 0 });
+    assert.doesNotThrow(() => store.charge('zero', 'tool_call', 1, 5));
+    store.create({ id: 'absent', state: 'running' });
+    assert.doesNotThrow(() => store.charge('absent', 'tool_call', 1, 5));
+    store.create({ id: 'plafond', state: 'running', budgetCents: 5 });
+    store.charge('plafond', 'tool_call', 1, 5);
+    assert.throws(() => store.charge('plafond', 'tool_call', 1, 1), /Budget plateforme dépassé/);
+    store.create({ id: 'abime', state: 'running', budgetCents: -3 });
+    assert.throws(
+      () => store.charge('abime', 'tool_call', 1, 0),
+      (e) => /illisible/.test(e.message) && !/Budget|Plafond/.test(e.message),
+    );
+  } finally {
+    store.close();
+  }
+});

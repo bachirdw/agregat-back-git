@@ -466,3 +466,44 @@ test(
     );
   },
 );
+
+test(
+  'Constat 6 : seule la soumission couverte compte ; une télémétrie en 404 ne fait pas « refusé par le site »',
+  { skip },
+  async (t) => {
+    const { submissionRefused } = await import('../packages/mcp-gateway/outcome.js');
+    const { origin, lines } = await site(
+      t,
+      `<form id="a" onsubmit="event.preventDefault(); ${post('/api/candidatures')}.then(() => ${post('/api/telemetry')})">
+         <button type="submit" id="seq">Envoyer ma candidature</button></form>
+       <form id="b" onsubmit="event.preventDefault(); ${post('/api/telemetry')}; ${post('/api/candidature/submit')}">
+         <button type="submit" id="par">Envoyer mon dossier</button></form>
+       <form id="c" onsubmit="event.preventDefault(); ${post('/api/candidatures')}; setTimeout(() => ${post('/api/telemetry')}, 2500)">
+         <button type="submit" id="tard">Envoyer ma réponse</button></form>`,
+      { status: (req) => (req.url === '/api/telemetry' ? 404 : 200) },
+    );
+    const { gateway, sends } = await owner(t, origin, () => true);
+    const late = [];
+    let current = { toolCallId: 'appel-FICTIF-0' };
+    gateway.currentCall = () => current;
+    gateway.onLateSubmission = (entry) => late.push(entry);
+    await gateway.call('browser.navigate', { url: origin });
+    const host = origin.replace('http://', '');
+    for (const id of ['#seq', '#par']) {
+      current = { toolCallId: `appel-FICTIF-${id}` };
+      const result = await gateway.call('browser.click', { ref: await refFor(gateway, id) });
+      await sleep(400);
+      assert.deepEqual(result.submissions, [{ host, status: 200 }], id);
+      assert.equal(submissionRefused(result), null, id);
+    }
+    current = { toolCallId: 'appel-FICTIF-tard' };
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#tard') });
+    current = { toolCallId: 'appel-FICTIF-suivant' };
+    await sleep(3200);
+    const next = await gateway.call('browser.snapshot', {});
+    assert.equal(next.lateSubmissionNote, undefined);
+    assert.ok(!late.some((entry) => entry.status === 404), JSON.stringify(late));
+    assert.equal(sends().length, 3, 'une carte par envoi');
+    assert.equal(lines().filter((l) => l === 'POST /api/telemetry').length, 3);
+  },
+);

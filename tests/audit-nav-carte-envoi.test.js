@@ -207,10 +207,14 @@ test(
     const { origin, writes } = await site(t, asyncForm);
     const { gateway, asked, sends } = await owner(t, origin, () => true);
     await gateway.call('browser.navigate', { url: origin });
-    await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
+    const result = await gateway.call('browser.click', { ref: await refFor(gateway, 'button') });
     for (let i = 0; i < 150 && writes.length < 2; i++) await sleep(20);
     await sleep(300);
     assert.deepEqual(writes, ['POST /api/candidatures', 'POST /api/suivi']);
+    // Relecture fix5 (constat 12) : une seule soumission comptée, la candidature (pas le suivi).
+    assert.deepEqual(result.submissions, [{ host: origin.replace('http://', ''), status: 200 }]);
+    const next = await gateway.call('browser.snapshot', {});
+    assert.equal(next.lateSubmissions, undefined, 'le suivi n’est pas une seconde soumission');
     assert.deepEqual(
       sends().map((r) => r.capability),
       ['browser.click'],

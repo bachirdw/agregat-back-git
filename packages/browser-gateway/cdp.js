@@ -915,7 +915,9 @@ export class CdpBrowser {
   // Relecture fix5 (constats 5 et 6) : what the owner's approval of a send covers. Only writes to
   // the site of the target shown on the card (the form's action, the request's host), at most
   // `left` of them, while the click runs and for a short window after it ; any other action of the
-  // agent closes it.
+  // agent closes it. Of the covered writes, one only is the submission whose HTTP status counts :
+  // the first, unless a later one names the send (a navigation of the form, a submission or
+  // sensitive path) while the first did not. The others are traced as automatic writes.
   #takeCover(request, sensitive) {
     const cover = this.cover;
     if (!cover || cover.left <= 0 || Date.now() > cover.until) return false;
@@ -926,7 +928,23 @@ export class CdpBrowser {
       this.#traceAutoSend(url);
       return true;
     }
-    this.#recordSubmission(request, cover.token);
+    const strong = request.isNavigationRequest() || sensitive || isSubmitPath(url);
+    const primary = cover.primary;
+    const replace =
+      !!primary?.entry &&
+      !primary.strong &&
+      strong &&
+      (this.submissions ?? []).includes(primary.entry);
+    if (primary && !replace) {
+      this.#traceAutoSend(url);
+      return true;
+    }
+    if (replace) {
+      primary.entry.dropped = true;
+      this.submissions = this.submissions.filter((entry) => entry !== primary.entry);
+      this.#traceAutoSend(primary.url);
+    }
+    cover.primary = { entry: this.#recordSubmission(request, cover.token), strong, url };
     return true;
   }
   // The cover of an approved click on `locator` : the site of its form's action (or of its page).

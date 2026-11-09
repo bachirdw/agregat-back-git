@@ -16,6 +16,10 @@ const BROWSER = new Set([
   'apply-01-approval-card.test.js',
   'appels-rappels-reseau.test.js',
   'televersement-autre-site.test.js',
+  // Audit du 10/11 : tests Chrome réels des correctifs du navigateur.
+  'audit-nav-carte-envoi.test.js',
+  'audit-nav-iframe.test.js',
+  'audit-nav-onglet.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

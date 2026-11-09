@@ -1,7 +1,7 @@
 import { rateLimitState, usageLimitMessage } from './failure.js';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { AcpRuntime, saveProbe } from '../agent-runtime/index.js';
+import { AcpRuntime, saveProbe, AUTH_REFUSAL } from '../agent-runtime/index.js';
 import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
@@ -86,7 +86,11 @@ export function aggregateOutputs(inputs) {
 }
 
 export async function executeWorkflow(orch, run, plan, control) {
-  const engine = new WorkflowEngine({ store: orch.store, executors: {} });
+  const engine = new WorkflowEngine({
+    store: orch.store,
+    executors: {},
+    unsupervised: orch.unsupervised === true,
+  });
   control.engine = engine;
   const signal = control.abort.signal;
   const runtimes = new Set();
@@ -260,7 +264,7 @@ export async function executeWorkflow(orch, run, plan, control) {
           guard.start();
           response = await runtime.prompt(prompt, stepSignal);
         } catch (e) {
-          if (!definition.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
+          if (!definition.simulated && AUTH_REFUSAL.test(String(e.message ?? '')))
             saveProbe(orch.dataDir, definition.id, {
               inference: false,
               inferenceError: String(e.message).slice(0, 120),
@@ -287,14 +291,24 @@ export async function executeWorkflow(orch, run, plan, control) {
         }
         orch.meter(run.id, definition.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
         const result = executionResult(parsed.value, definition);
+        let unprovenWarning = null;
         if (browserObserved || plan.browserWorkflow) {
-          if (!scope.browserEvidence.some((item) => item.readable))
-            throw new Error(browserObservationFailure(scope.browserEvidence));
+          // Same rule as the agent mode (audit 10/11, constat 3) : an unproven navigation no longer
+          // throws the step's work away, the Bilan warns next to the agent's answer.
+          if (!scope.browserEvidence.some((item) => item.readable)) {
+            unprovenWarning = browserObservationFailure(scope.browserEvidence);
+            orch.store.event(run.id, 'browser_unproven', {
+              step: step.id,
+              message: unprovenWarning.slice(0, 300),
+            });
+          }
           result.evidence = scope.browserEvidence;
         }
         result.verification = assessBrowserClaims(result.summary, scope.browserEvidence);
         if (!definition.simulated || browserObserved || plan.browserWorkflow)
           result.summary += '\n' + result.verification.notice;
+        if (unprovenWarning)
+          result.summary += `\nAvertissement — ${unprovenWarning} Réponse de l’agent gardée : à vérifier.`;
         return result;
       } finally {
         guard.close();

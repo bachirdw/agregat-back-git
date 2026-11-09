@@ -21,6 +21,7 @@ import {
   loadProbes,
   requirementsFor,
   saveProbe,
+  AUTH_REFUSAL,
 } from '../agent-runtime/index.js';
 import { ROOT, getDag, getPack, packs, proposeDag, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
@@ -199,6 +200,9 @@ export class Orchestrator {
         : null,
       career = defaultCareerWorkspace(),
       ownerMode = process.env.AGENT_PLATFORM_OWNER_MODE === '1',
+      // Nobody follows the mission (script, CI): an agent step that failed ends at once instead of
+      // waiting for an owner who is not there. Default: supervised (the owner's front can settle it).
+      unsupervised = process.env.AGENT_PLATFORM_UNSUPERVISED === '1',
     } = {},
   ) {
     Object.assign(this, {
@@ -213,6 +217,7 @@ export class Orchestrator {
       silentMs,
       questionTimeoutMs,
       ownerMode,
+      unsupervised,
     });
     this.active = new Map();
     this.permissions = new Map();
@@ -221,6 +226,10 @@ export class Orchestrator {
     this.questions = [];
     this.expiredOutcomes = new WeakSet();
     this.permissionTimeoutMs = 60000;
+    this.closeTimeoutMs =
+      Number(process.env.AGENT_PLATFORM_CLOSE_MS) > 0
+        ? Number(process.env.AGENT_PLATFORM_CLOSE_MS)
+        : 10000;
     // Final send in owner mode: waits for the owner's click, no ceiling unless configured.
     this.sendTimeoutMs =
       Number(process.env.AGENT_PLATFORM_SEND_TIMEOUT_MS) > 0
@@ -1235,7 +1244,7 @@ export class Orchestrator {
         response = await runtime.prompt(prompt, control.abort.signal);
         clearSilence();
       } catch (e) {
-        if (!plan.simulated && /auth|login|credential|api key/i.test(e.message ?? ''))
+        if (!plan.simulated && AUTH_REFUSAL.test(String(e.message ?? '')))
           saveProbe(this.dataDir, plan.agent.id, {
             inference: false,
             inferenceError:
@@ -1863,6 +1872,36 @@ export class Orchestrator {
   }
   async close() {
     for (const control of this.active.values()) control.abort.abort(new Error(SERVER_STOPPED));
-    while (this.active.size) await new Promise((r) => setTimeout(r, 20));
+    // Bounded stop (audit 10/11) : a mission stuck on something that ignores the abort signal used to
+    // keep the server alive for ever (SIGINT/SIGTERM never ended). After `closeTimeoutMs`, what is
+    // left is forced : agent closed, mission marked `interrupted`, slot and locks released.
+    const until = Date.now() + this.closeTimeoutMs;
+    while (this.active.size && Date.now() < until) await new Promise((r) => setTimeout(r, 20));
+    for (const [id, control] of [...this.active]) {
+      const quietly = (action) => {
+        try {
+          action();
+        } catch {
+          /* Best effort : the other releases below still happen. */
+        }
+      };
+      control.cancelled = true;
+      quietly(() => control.closeAll?.());
+      quietly(() => control.runtime?.cancel());
+      quietly(() => control.runtime?.close());
+      quietly(() => this.clearPermissions(id));
+      quietly(() => this.clearQuestions(id));
+      quietly(() => {
+        const row = this.store.get(id);
+        if (row && !terminal.has(row.state))
+          this.store.update(id, {
+            state: 'interrupted',
+            error: SERVER_STOPPED,
+            finishedAt: new Date().toISOString(),
+          });
+      });
+      this.active.delete(id);
+      this.approvalTokens.delete(id);
+    }
   }
 }

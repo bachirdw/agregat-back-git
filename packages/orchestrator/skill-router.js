@@ -142,6 +142,9 @@ const stepSchema = z
     readFirst: z.boolean().optional(),
     // The step writes the work (report, record): dropped when the prompt forbids saving.
     persists: z.boolean().optional(),
+    // The step is redone as often as needed (a multi-page form : the values are read back on each
+    // page) : doing it before or after its neighbours is not an order deviation.
+    repeatable: z.boolean().optional(),
     // The outcome this step proves once done, named by the pack for its own Bilan.
     proves: z.string().trim().min(2).max(60).optional(),
   })
@@ -551,6 +554,8 @@ export class SkillProgress {
     // The page of the last completed call that reported one : where the agent was.
     this.lastPage = null;
     this.orderDeviation = false;
+    // The steps done out of order, named for the Bilan (« X avant Y » : X done before Y, which comes first).
+    this.orderDetails = [];
     this.scored = new Set();
   }
   publish(step) {
@@ -690,9 +695,8 @@ export class SkillProgress {
     return siblings.some((other) => matches(other.definition, update, name));
   }
   settle(step, toolCallId, next, status = 'completed') {
-    if (
-      next === 'done' &&
-      this.steps.some(
+    if (next === 'done') {
+      const skipped = this.steps.filter(
         (earlier) =>
           earlier.pack === step.pack &&
           earlier.intent === step.intent &&
@@ -701,9 +705,12 @@ export class SkillProgress {
           !earlier.optional &&
           // A step the prompt waived ("sans scan") is not a deviation when skipped.
           !earlier.definition.exempt,
-      )
-    )
-      this.orderDeviation = true;
+      );
+      if (skipped.length) {
+        this.orderDeviation = true;
+        for (const earlier of skipped) this.noteOrder(step.title, earlier.title);
+      }
+    }
     step.state = next;
     step.toolCallId = toolCallId;
     step.cause =
@@ -715,19 +722,34 @@ export class SkillProgress {
     if (next === 'done') this.completions.push(`${step.pack}:${step.intent}:${step.id}`);
     this.publish(step);
   }
+  noteOrder(first, second) {
+    const line = `${first} avant ${second}`;
+    if (!this.orderDetails.includes(line)) this.orderDetails.push(line);
+  }
   finish() {
     for (const step of this.steps)
       if (step.state === 'pending' && step.optional) {
         step.state = 'skipped';
         this.publish(step);
       }
-    const order = this.completions;
-    const expected = this.steps
-      .filter((step) => step.state === 'done')
-      .map((step) => `${step.pack}:${step.intent}:${step.id}`);
+    // A repeatable step is left out of the comparison : its place among the others is free.
+    const keyOf = (step) => `${step.pack}:${step.intent}:${step.id}`;
+    const fixed = this.steps.filter((step) => step.state === 'done' && !step.definition.repeatable);
+    const expected = fixed.map(keyOf);
+    const order = this.completions.filter((key) => expected.includes(key));
+    const byKey = new Map(this.steps.map((step) => [keyOf(step), step]));
+    const details = [...this.orderDetails];
+    // Each step done before one that comes first in the manifest is named with it.
+    for (let i = 0; i < order.length; i++)
+      for (let j = i + 1; j < order.length; j++)
+        if (expected.indexOf(order[i]) > expected.indexOf(order[j])) {
+          const line = `${byKey.get(order[i]).title} avant ${byKey.get(order[j]).title}`;
+          if (!details.includes(line)) details.push(line);
+        }
     return {
       steps: this.steps.map(({ definition, ...step }) => ({ ...step })),
       orderDeviation: this.orderDeviation || order.some((key, index) => key !== expected[index]),
+      ...(details.length ? { orderDetails: details.slice(0, 4) } : {}),
     };
   }
   // What the owner asked for and the platform did not observe. `readPages` holds platform evidence.
@@ -758,6 +780,7 @@ export class SkillProgress {
     return {
       steps: this.steps.map(({ definition, ...step }) => ({ ...step })),
       orderDeviation: this.orderDeviation,
+      ...(this.orderDetails.length ? { orderDetails: this.orderDetails.slice(0, 4) } : {}),
     };
   }
 }
@@ -772,6 +795,6 @@ export function formatSkillBilan(result) {
           `${step.state === 'done' ? '✓' : step.state === 'failed' ? '✗' : '·'} ${step.title} (${step.state === 'done' ? (step.recovered ? 'faite après un échec' : 'faite') : step.state === 'failed' ? step.cause : step.state === 'skipped' ? 'ignorée' : 'non exécutée'})`,
       )
       .join(' ; ') +
-    `.\n- Écart d’ordre : ${result.orderDeviation ? 'constaté' : 'aucun constaté'}.`
+    `.\n- Écart d’ordre : ${result.orderDeviation ? `constaté${result.orderDetails?.length ? ` (${result.orderDetails.join(' ; ')})` : ''}` : 'aucun constaté'}.`
   );
 }

@@ -86,7 +86,7 @@ for (const [kind, config] of [
     assert.equal(app.engine.attemptTokens.size, 0);
   });
 }
-test('DAG : outil navigateur déclaré sans observation ne certifie pas un résultat', async (t) => {
+test('DAG : outil navigateur déclaré sans observation : avertissement au Bilan, travail gardé', async (t) => {
   const { app, run, plan, control } = await setup(t, {
     workflow: true,
     config: {
@@ -94,15 +94,11 @@ test('DAG : outil navigateur déclaré sans observation ne certifie pas un résu
       result: { simulated: true, summary: 'Tout lu FICTIF', evidence: [] },
     },
   });
-  const pending = app.engine.execute(run, plan, control, null);
-  const until = Date.now() + 3000;
-  while (app.engine.workflows.row(run.id, 'agent')?.state !== 'uncertain') {
-    assert.ok(Date.now() < until, 'refus de preuve attendu');
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  assert.match(app.engine.workflows.row(run.id, 'agent').error, /Navigation non prouvée/);
-  control.engine.resolveUncertain(run.id, 'agent', 'fail');
-  await pending;
-  assert.equal(app.store.get(run.id).state, 'failed');
+  await app.engine.execute(run, plan, control, null);
+  const done = app.store.get(run.id);
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /Avertissement — Navigation non prouvée/);
+  assert.match(done.result.summary, /Tout lu FICTIF/);
+  assert.ok(app.store.events(run.id).some((e) => e.type === 'browser_unproven'));
   assert.equal(app.engine.attemptTokens.size, 0);
 });

@@ -83,6 +83,7 @@ test('C8 FICTIF : la passerelle transmet le compte du scan, le Bilan l’écrit 
     ),
     {
       argument: 'scan',
+      exitCode: 1,
     },
   );
   // ACP channel: the scan output travels in rawOutput.

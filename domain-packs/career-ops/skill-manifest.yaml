@@ -600,6 +600,8 @@ intents:
         precondition: Champs préparés
         done: Valeurs relues
         optional: true
+        # Formulaire en plusieurs pages : relue à chaque page, avant ou après le téléversement.
+        repeatable: true
       - id: review
         title: Relire avant soumission
         tool: browser_snapshot

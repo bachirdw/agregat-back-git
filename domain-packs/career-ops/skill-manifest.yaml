@@ -527,6 +527,34 @@ intents:
     priority: 60
     phrases: [postule, candidature, apply]
     keywords: [postuler]
+    # Audit du 10/11 (essai réel) : « Postule … joins mon CV adapté … clique sur Envoyer » suivait
+    # documents (70, « cv adapté ») ; la candidature partait, puis la mission échouait sur les étapes du
+    # CV. Un verbe de candidature passe devant documents (70), LinkedIn (66) et l'e-mail (65), pas
+    # devant l'évaluation, la recherche ni la boîte d'entrée. « Candidature » seul (nom) n'appuie pas :
+    # « adapte mon CV pour ma candidature » reste des documents, comme « … pour postuler ».
+    boost:
+      priority: 80
+      phrases:
+        [
+          postule,
+          postuler,
+          postulez,
+          postulons,
+          candidate,
+          candidater,
+          candidatez,
+          envoie ma candidature,
+          envoyer ma candidature,
+          soumets ma candidature,
+          dépose ma candidature,
+          apply to,
+          apply for,
+          apply on,
+          submit my application,
+          submit the application,
+          send my application,
+        ]
+      unlessPhrases: [pour postuler, pour candidater, avant de postuler, avant de candidater]
     steps:
       - id: open
         title: Ouvrir le formulaire

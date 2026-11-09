@@ -138,3 +138,12 @@ jetable, sous-agents Sonnet pour le simple et Opus pour le complexe ; au réveil
 - 04:44 — correctif du manager a109c23 : interrupteur `AGENT_PLATFORM_WS_GUARD=0` (coupe le relais des sockets si un
   site en souffrait dans votre Chrome ; le repli garde la carte avant un clic d'envoi), avec son test.
 - 04:45 — suite complète et relecture indépendante du dernier tour lancées.
+- 04:54 — suite complète verte sur a109c23 : 1013 unitaires (1011 ✔, 2 ignorés), 203/203 Chrome. Démos sans Skill et
+  sans Skill + CV rejouées sur l'API relancée : `completed`, une carte chacune, CV reçu ; le Bilan montre maintenant
+  « browser_fillForm : 1 échoué puis réussi » (correctif fix4, fidèle).
+- 04:55 — relecture du dernier tour (`relecture-ws.md`, 10 constats) : la garde par relais WebSocket retient ou
+  réordonne du trafic normal (binaire après texte, battements retenus : 10 cartes en 1,5 s) et laisse passer un message
+  sans saisie de l'agent ; 7 intentions anglaises devenues fausses. **Décision du manager** : relais WebSocket
+  optionnel (`AGENT_PLATFORM_WS_GUARD=1`), désactivé par défaut ; par défaut, carte AVANT tout clic ou touche d'envoi
+  (repli renforcé : Entrée, Ctrl+Entrée, icône d'envoi). Correcteurs `audit-ws2` (Opus) et `audit-en2` (Sonnet)
+  lancés à 04:57, fin exigée avant 06:25.

@@ -6,7 +6,11 @@ import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
 import { executionResult, parseAgentResult } from './result.js';
-import { assessBrowserClaims, browserObservationFailure } from './browser-proof.js';
+import {
+  assessBrowserClaims,
+  browserObservationFailure,
+  isBrowserToolName,
+} from './browser-proof.js';
 import { TurnGuard } from './turn-guard.js';
 import { agentHomeFor } from './isolation.js';
 
@@ -167,7 +171,7 @@ export async function executeWorkflow(orch, run, plan, control) {
         onEvent: (update) => {
           if (!scope.promptStarted || stepSignal.aborted) return;
           guard.observe(update);
-          if (/\bbrowser[_\.][a-z]/i.test(String(update.title ?? ''))) browserObserved = true;
+          if (isBrowserToolName(update.title)) browserObserved = true;
           rateLimit =
             rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
           if (++events > 4000) {

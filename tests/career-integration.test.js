@@ -905,6 +905,50 @@ test('Reprise FICTIVE rapide sans navigateur : résultat privé signale l’abse
   assert.ok(app.store.events(second.id).some((event) => event.type === 'career_no_browser_action'));
 });
 
+test('audit 10/11 FICTIF : reprise rapide par mcp__platform__browser_click, pas « rien exécuté »', async (t) => {
+  const { career, app } = fixture(t);
+  reviewCareer(career, app.skills);
+  writeFileSync(join(career.path(), 'cv.md'), 'CV FICTIF');
+  const originalPlan = app.engine.plan.bind(app.engine);
+  app.engine.plan = async (...args) => {
+    const plan = await originalPlan(...args);
+    plan.agent = {
+      ...plan.agent,
+      command: process.execPath,
+      args: [resolve('tests/fixtures/career-agent.js')],
+    };
+    return plan;
+  };
+  const wait = async (run) => {
+    for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
+      await new Promise((r) => setTimeout(r, 20));
+    return app.store.get(run.id);
+  };
+  const first = await wait(
+    await app.engine.create({
+      prompt: 'FICTIF_PROFIL questions',
+      agent: 'fixture',
+      pack: 'career-ops',
+    }),
+  );
+  assert.equal(first.state, 'completed', first.error);
+  const second = await wait(
+    await app.engine.create(
+      { prompt: 'FICTIF_REPRISE_CLIC_CLAUDE postule', agent: 'fixture', pack: 'career-ops' },
+      first,
+    ),
+  );
+  assert.equal(second.state, 'completed', second.error);
+  const privateResult = JSON.parse(
+    readFileSync(join(career.path(), `relay/runs/${second.id}-result.json`), 'utf8'),
+  );
+  assert.doesNotMatch(privateResult.summary, /n’a rien exécuté/i);
+  assert.match(privateResult.summary, /Candidature FICTIVE envoyée par un clic/);
+  assert.ok(
+    !app.store.events(second.id).some((event) => event.type === 'career_no_browser_action'),
+  );
+});
+
 test('Modèle choisi dans l’interface : appliqué via la session ACP sans variable Gemini pour un autre agent', async (t) => {
   const { career, app } = fixture(t, true);
   reviewCareer(career, app.skills);
@@ -1629,4 +1673,12 @@ test('CV adapté FICTIF : verify-cv-facts refuse un fait inventé, aucun PDF, Bi
   assert.match(summary, /· Produire le PDF du CV adapté \(non exécutée\)/);
   // Le contenu des faits refusés ne remonte pas dans le Bilan de la plateforme (vérité, pas contenu privé).
   assert.doesNotMatch(summary.slice(summary.indexOf('Bilan')), /Rust|25 personnes/);
+});
+
+test('audit 10/11 : nom d’outil navigateur, nu ou préfixé par l’adaptateur Claude', async () => {
+  const { isBrowserToolName } = await import('../packages/orchestrator/browser-proof.js');
+  for (const name of ['browser_click', 'browser.navigate', 'mcp__platform__browser_click'])
+    assert.equal(isBrowserToolName(name), true, name);
+  for (const name of ['mybrowser_click', 'career_read', '', undefined])
+    assert.equal(isBrowserToolName(name), false, String(name));
 });

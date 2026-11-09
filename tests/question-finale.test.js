@@ -62,3 +62,38 @@ test('E52 : le message est borné à la taille d’une question', () => {
   const long = 'Veux-tu que je continue ' + 'x'.repeat(9000) + ' ?';
   assert.equal(decisionRequest(long).message.length, 8000);
 });
+
+// Audit du 10/11 (constat 4) : une formule de politesse (« Dis-moi si tu veux autre chose »,
+// « Would you like me to also… ») ou un pronom relatif (« à laquelle », « pour lequel ») en fin de
+// réponse passait pour une question : la mission restait en `awaiting_owner`, sans limite, et
+// bloquait l'espace privé. Seule une vraie question finale adressée au propriétaire attend.
+test('audit 10/11 FICTIF : politesse et pronoms relatifs ne sont pas des questions', () => {
+  for (const text of [
+    'Candidature FICTIVE préparée pour l’offre à laquelle tu voulais candidater.',
+    'Le poste pour lequel tu postules est ouvert.',
+    'Formulaire FICTIF rempli.\n\nDis-moi si tu veux autre chose.',
+    'Formulaire FICTIF rempli. Dites-moi si vous avez besoin d’autre chose.',
+    'Application FICTIVE submitted.\n\nWould you like me to also save the offer?',
+    'Rapport écrit. Veux-tu que je l’enregistre aussi ?',
+    'Done. Let me know if you need anything else.',
+    'C’est fait. N’hésite pas si tu as besoin d’aide.',
+  ])
+    assert.equal(decisionRequest(text), null, JSON.stringify(text));
+});
+
+test('audit 10/11 FICTIF : une vraie question finale attend toujours', () => {
+  for (const text of [
+    'Formulaire FICTIF rempli. Dis-moi si je dois cliquer sur Envoyer.',
+    'Deux offres FICTIVES. Laquelle veux-tu que je traite ?',
+    'Deux offres FICTIVES. Lesquelles retenir',
+    'Rapport écrit. Merci ! Veux-tu que je continue avec la suivante ?',
+  ])
+    assert.equal(
+      decisionRequest(text)?.message,
+      text
+        .split(/\n[ \t]*\n/)
+        .at(-1)
+        .trim(),
+      text,
+    );
+});

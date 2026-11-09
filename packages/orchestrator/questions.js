@@ -65,11 +65,20 @@ export function proseQuestion(id, question, askedAt) {
 
 // bilan-06 (E52) : a turn that ends by asking the owner to decide, in prose with no form and no
 // `question` field, is a question all the same. The last paragraph is the question when it asks
-// (« dis-moi », « veux-tu », « voulez-vous », « lesquel(le)s », « préfères-tu », « souhaites-tu »,
+// (« dis-moi », « veux-tu », « voulez-vous », « lesquel(le)s » en tête de phrase, « préfères-tu », « souhaites-tu »,
 // « do you want », « would you like », « which one(s) », or a final « ? »). The agent's own words,
 // nothing rephrased; no options, the owner answers freely.
 const ASKS =
-  /(?:^|[^\p{L}])(?:dis[-‑ ]?moi|dites[-‑ ]?moi|veux[-‑ ]?tu|voulez[-‑ ]?vous|lesquel(?:le)?s?|laquelle|lequel|prefere[sz][-‑ ]?(?:tu|vous)|souhaite[sz][-‑ ]?(?:tu|vous)|do you want|would you like|which one(?:s)?|let me know which|tell me which)(?![\p{L}])/iu;
+  /(?:^|[^\p{L}])(?:dis[-‑ ]?moi|dites[-‑ ]?moi|veux[-‑ ]?tu|voulez[-‑ ]?vous|prefere[sz][-‑ ]?(?:tu|vous)|souhaite[sz][-‑ ]?(?:tu|vous)|do you want|would you like|which one(?:s)?|let me know which|tell me which)(?![\p{L}])/iu;
+// Audit du 10/11 (constat 4) : « lequel / laquelle / lesquel(le)s » ask only when they open the
+// sentence (« Laquelle traiter ? ») ; inside it they are mostly relatives (« l'offre à laquelle tu
+// voulais candidater ») and asked nothing.
+const ASKING_PRONOUN = /^(?:lesquel(?:le)?s?|laquelle|lequel)(?![\p{L}])/iu;
+// A courtesy sentence offers more help and asks for no decision (« Dis-moi si tu veux autre chose »,
+// « Would you like me to also save it? », « Let me know if you need anything else ») : it is left
+// out before the paragraph is read as a question.
+const COURTESY =
+  /(?:(?:dis|dites)[-‑ ]?moi si (?:tu|vous) (?:veux|voulez|souhaite[sz]?|as|avez|aimerais|aimeriez)|let me know if you|n['’]h[e]site[sz]? pas|autre chose|quoi que ce soit d['’]autre|anything else|feel free|(?:je reste|reste) a (?:ta|votre) disposition|(?:would you like|do you want|veux[-‑ ]?tu|voulez[-‑ ]?vous|souhaite[sz][-‑ ]?(?:tu|vous))(?![\p{L}])[^.?!]*(?:^|[^\p{L}])(?:aussi|egalement|also|as well)(?![\p{L}]))/iu;
 export function decisionRequest(summary) {
   if (typeof summary !== 'string') return null;
   const last = summary
@@ -79,8 +88,17 @@ export function decisionRequest(summary) {
     .at(-1);
   if (!last) return null;
   const plain = last.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const end = plain.replace(/[\s*_`"'»)\]]+$/u, '');
-  if (!end.endsWith('?') && !ASKS.test(plain)) return null;
+  const sentences = plain
+    .split(/(?<=[.!?])\s+/u)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence && !COURTESY.test(sentence));
+  if (!sentences.length) return null;
+  const end = sentences.at(-1).replace(/[\s*_`"'»)\]]+$/u, '');
+  if (
+    !end.endsWith('?') &&
+    !sentences.some((sentence) => ASKS.test(sentence) || ASKING_PRONOUN.test(sentence))
+  )
+    return null;
   return { message: last.slice(0, MAX_MESSAGE) };
 }
 

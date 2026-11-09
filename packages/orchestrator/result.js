@@ -18,67 +18,107 @@ const resultSchema = z
   .passthrough()
   .refine((value) => value.summary.length > 0 || value.question !== undefined);
 
-function lastJsonObject(text) {
-  let start = -1;
-  let end = -1;
+// End (exclusive) of the object opened at `start`, strings respected; -1 when it never closes.
+const SCAN_LIMIT = 262144;
+function objectEnd(text, start) {
   let depth = 0;
   let quoted = false;
   let escaped = false;
-  for (let i = 0; i < text.length; i++) {
+  const stop = Math.min(text.length, start + SCAN_LIMIT);
+  for (let i = start; i < stop; i++) {
     const char = text[i];
-    if (!depth) {
-      if (char === '{') {
-        start = i;
-        depth = 1;
-      }
-      continue;
-    }
     if (quoted) {
       if (escaped) escaped = false;
       else if (char === '\\') escaped = true;
       else if (char === '"') quoted = false;
     } else if (char === '"') quoted = true;
     else if (char === '{') depth++;
-    else if (char === '}' && --depth === 0) end = i + 1;
+    else if (char === '}' && --depth === 0) return i + 1;
   }
-  return { start, end, incomplete: depth > 0 };
+  return -1;
+}
+const parseJson = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+};
+const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const CONTRACT_KEYS = ['simulated', 'summary', 'evidence'];
+const contractShaped = (json) => isObject(json) && CONTRACT_KEYS.every((key) => key in json);
+// Audit du 10/11 (constat 2) : the browser instructions ask an agent without a form to end its
+// answer with a lone {"question":{…}} object. It is an answer of the contract: merged into the
+// contract answer just before it, else its summary is the prose around it.
+function questionOnly(json) {
+  return (
+    isObject(json) &&
+    CONTRACT_KEYS.every((key) => !(key in json)) &&
+    questionSchema.safeParse(json.question).success
+  );
+}
+// Every `{` of the text (the last MAX_STARTS) with the object it opens, parsed when it is JSON.
+const MAX_STARTS = 200;
+function candidates(text) {
+  const starts = [];
+  for (let i = text.indexOf('{'); i >= 0; i = text.indexOf('{', i + 1)) starts.push(i);
+  return starts.slice(-MAX_STARTS).map((start) => {
+    const end = objectEnd(text, start);
+    return { start, end, json: end > 0 ? parseJson(text.slice(start, end)) : undefined };
+  });
 }
 
 // Agents answer in free text; only a JSON object matching the contract is accepted. Refusals and
 // prose are reported with a short excerpt instead of a parser error.
+// Audit du 10/11 (constat 6) : the turn's text gathers every message written between tools (a
+// fenced payload, a stray « { »), and a resumed session replays earlier turns first. The answer is
+// the LAST object shaped like the contract (fenced or not; the outermost when nested); an object or
+// a truncated `{"…` written after it makes it doubtful and the answer is refused.
 export function parseAgentResult(text) {
   const raw = String(text ?? '').trim();
   const excerpt = raw.replace(/\s+/g, ' ').slice(0, 300) || '(réponse vide)';
-  // A resumed session replays earlier turns before the new answer: the LAST fenced block wins.
-  const fenced = [...raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].at(-1);
-  const candidate = fenced ? fenced[1].trim() : raw;
-  const { start, end, incomplete } = lastJsonObject(candidate);
-  if (start < 0)
+  const found = candidates(raw);
+  if (!found.length)
     return {
       ok: false,
       reason: 'Réponse non structurée de l’agent (refus ou texte libre)',
       excerpt,
     };
-  if (incomplete || end <= start)
-    return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
-  let json;
-  try {
-    json = JSON.parse(candidate.slice(start, end));
-  } catch {
-    return { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
+  const invalid = { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
+  const offContract = {
+    ok: false,
+    reason: 'Réponse hors contrat (simulated, summary, evidence attendus)',
+    excerpt,
+  };
+  const best = found
+    .filter((c) => contractShaped(c.json) || questionOnly(c.json))
+    .sort((a, b) => b.end - a.end || a.start - b.start)[0];
+  if (!best) return found.some((c) => isObject(c.json)) ? offContract : invalid;
+  const later = found.filter((c) => c.start >= best.end);
+  if (later.some((c) => c.end < 0 && /^\{\s*"/.test(raw.slice(c.start)))) return invalid;
+  if (later.some((c) => isObject(c.json))) return offContract;
+  let json = best.json;
+  let span = best;
+  if (questionOnly(json)) {
+    // The contract answer written just before the question (nothing but blanks or fences between).
+    const answer = found
+      .filter((c) => c.end > 0 && c.end <= best.start && contractShaped(c.json))
+      .sort((a, b) => b.end - a.end || a.start - b.start)[0];
+    if (answer && /^[\s`]*(?:json)?[\s`]*$/i.test(raw.slice(answer.end, best.start))) {
+      json = { ...answer.json, question: json.question };
+      span = { start: answer.start, end: best.end };
+    } else json = { simulated: false, summary: '', evidence: [], question: json.question };
   }
-  if (json && typeof json === 'object' && json.summary === '') {
-    const prose = fenced ? raw.replace(fenced[0], ' ') : raw.slice(0, start) + raw.slice(end);
+  if (json.summary === '') {
+    const prose = (raw.slice(0, span.start) + ' ' + raw.slice(span.end)).replace(
+      /```(?:json)?/gi,
+      ' ',
+    );
     const fallback = redact(prose).replace(/\s+/g, ' ').trim().slice(0, 2000);
-    if (fallback) json.summary = fallback;
+    if (fallback) json = { ...json, summary: fallback };
   }
   const parsed = resultSchema.safeParse(json);
-  if (!parsed.success)
-    return {
-      ok: false,
-      reason: 'Réponse hors contrat (simulated, summary, evidence attendus)',
-      excerpt,
-    };
+  if (!parsed.success) return offContract;
   return { ok: true, value: parsed.data };
 }
 

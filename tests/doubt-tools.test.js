@@ -296,7 +296,7 @@ test('Consigne navigateur : une question passe par le formulaire ACP ou le champ
   );
   assert.ok(
     instructions.includes(
-      'Si une confirmation, un choix ou une précision reste nécessaire, pose la question par le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) : la mission attend la réponse du propriétaire sans se terminer, dans la même session. Si ton agent n’a pas de formulaire, termine ta réponse par un objet JSON {"question":{"message":"…","options":["…"]}} et la plateforme attendra de la même façon.',
+      'Si une confirmation, un choix ou une précision reste nécessaire, pose la question par le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) : la mission attend la réponse du propriétaire sans se terminer, dans la même session. Si ton agent n’a pas de formulaire, termine ta réponse par un objet JSON {"question":{"message":"…","options":["…"]}} et la plateforme attendra de la même façon ; ce champ question peut aussi figurer dans ta réponse JSON finale.',
     ),
     instructions,
   );

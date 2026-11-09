@@ -146,3 +146,60 @@ test('question hors contrat refusée : 9 options, message vide, option trop long
   // Sans question, un summary vide reste hors contrat.
   assert.equal(parseAgentResult(JSON.stringify({ ...base, summary: '' })).ok, false);
 });
+
+// Audit du 10/11 (constat 2) : l'objet {"question":…} que la consigne sans Skill demande est accepté
+// seul (résumé = prose qui le précède) ou fusionné avec la réponse au contrat qui le précède.
+test('audit 10/11 FICTIF : un objet question seul est une réponse au contrat', () => {
+  const alone = parseAgentResult(
+    'J’ai ouvert le formulaire FICTIF.\n{"question":{"message":"Quelle adresse e-mail utiliser ?","options":["perso","pro"]}}',
+  );
+  assert.equal(alone.ok, true, JSON.stringify(alone));
+  assert.equal(alone.value.question.message, 'Quelle adresse e-mail utiliser ?');
+  assert.deepEqual(alone.value.question.options, ['perso', 'pro']);
+  assert.equal(alone.value.summary, 'J’ai ouvert le formulaire FICTIF.');
+  assert.deepEqual(alone.value.evidence, []);
+  const bare = parseAgentResult('{"question":{"message":"Laquelle des deux offres ?"}}');
+  assert.equal(bare.ok, true);
+  assert.equal(bare.value.summary, '');
+  const merged = parseAgentResult(
+    '{"simulated":false,"summary":"Formulaire FICTIF rempli.","evidence":["étape 1"]}\n{"question":{"message":"J’envoie ?"}}',
+  );
+  assert.equal(merged.ok, true);
+  assert.equal(merged.value.summary, 'Formulaire FICTIF rempli.');
+  assert.deepEqual(merged.value.evidence, ['étape 1']);
+  assert.equal(merged.value.question.message, 'J’envoie ?');
+  // Un objet sans question ni contrat reste hors contrat.
+  assert.equal(parseAgentResult('{"question":{"message":""}}').ok, false);
+  assert.equal(parseAgentResult('{"foo":1}').ok, false);
+});
+
+// Audit du 10/11 (constat 6) : le texte du tour cumule les messages écrits entre deux outils. Un
+// bloc ```json de charge utile avant la réponse finale la masquait (« hors contrat »), et une
+// accolade jamais refermée avalait la suite (« JSON invalide »). Le dernier objet conforme au
+// contrat est désormais la réponse ; une réponse finale tronquée reste refusée.
+test('audit 10/11 FICTIF : le dernier objet conforme au contrat est la réponse', () => {
+  const final = { simulated: false, summary: 'Formulaire FICTIF envoyé.', evidence: ['étape 3'] };
+  const payload =
+    'J’écris le payload du CV :\n```json\n{"name":"FICTIF","skills":["SQL"]}\n```\nPuis je remplis.\n';
+  const afterPayload = parseAgentResult(payload + JSON.stringify(final));
+  assert.equal(afterPayload.ok, true, JSON.stringify(afterPayload));
+  assert.deepEqual(afterPayload.value, final);
+  const unclosed = parseAgentResult(
+    'Je vérifie la page {en cours de chargement…\nC’est bon.\n' + JSON.stringify(final),
+  );
+  assert.equal(unclosed.ok, true, JSON.stringify(unclosed));
+  assert.deepEqual(unclosed.value, final);
+  const fencedFinal = parseAgentResult(
+    'Note {brouillon\n```json\n' + JSON.stringify(final) + '\n```\nFin du tour.',
+  );
+  assert.equal(fencedFinal.ok, true, JSON.stringify(fencedFinal));
+  assert.deepEqual(fencedFinal.value, final);
+  // Un objet au contrat imbriqué (preuve) ne remplace pas la réponse qui le contient.
+  const nested = { ...final, evidence: [{ simulated: true, summary: 'ancien', evidence: [] }] };
+  assert.deepEqual(parseAgentResult(JSON.stringify(nested)).value, nested);
+  // Un objet hors contrat écrit APRÈS la réponse la rend douteuse : refusée.
+  assert.match(
+    parseAgentResult(JSON.stringify(final) + '\n{"name":"FICTIF"}').reason,
+    /hors contrat/,
+  );
+});

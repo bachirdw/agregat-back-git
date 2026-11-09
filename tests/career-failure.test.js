@@ -91,7 +91,7 @@ test('échec privé intégré : le délai du run est visible dans le fil sans do
   }
 });
 
-test('échec privé intégré : navigation non prouvée nommée sans prompt privé', async () => {
+test('mission privée intégrée : navigation non prouvée avertie sans prompt privé', async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'career-navigation-FICTIF-')));
   const career = new CareerWorkspace({ root, roots: [root] });
   const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: true });
@@ -127,8 +127,9 @@ test('échec privé intégré : navigation non prouvée nommée sans prompt priv
   try {
     await app.engine.execute(run, plan, control, null);
     const done = app.store.get(run.id);
-    assert.equal(done.state, 'failed');
-    assert.equal(done.error, 'Navigation non prouvée : aucune page ouverte puis observée.');
+    // Audit du 10/11 (constat 3) : un avertissement au Bilan, plus un échec qui jette le travail.
+    assert.equal(done.state, 'completed', done.error);
+    assert.match(done.result.summary, /Navigation non prouvée/);
     assert.doesNotMatch(JSON.stringify(done), /CV SECRET/);
   } finally {
     await app.close();

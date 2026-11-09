@@ -112,13 +112,19 @@ test('reprise ACP : outils navigateur rejoués, réponse sans navigation accept�
   );
 });
 
-test('reprise ACP : nouvel appel navigateur sans preuve reste refusé', async (t) => {
+// Audit du 10/11 (constat 3) : vérifiée après la fin de l'agent, une navigation non prouvée ne jette
+// plus son travail (reprise « oui, envoie » réduite à un clic approuvé) : le Bilan l'avertit et garde
+// la réponse de l'agent, marquée « navigation non prouvée ».
+test('reprise ACP : nouvel appel navigateur sans preuve → avertissement, réponse gardée', async (t) => {
   const done = await runFixture(t, {
     previous: { sessionId: 'fake-session-1' },
     config: { promptBrowserTool: 'browser.navigate', result: answer },
   });
-  assert.equal(done.state, 'failed');
-  assert.match(done.error, /Navigation non prouvée/);
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /cinq liens FICTIFS/);
+  assert.match(done.result.summary, /Avertissement — Navigation non prouvée/);
+  assert.equal(done.result.provenance.data, 'navigation non prouvée');
+  assert.equal(done.testEvents.filter((e) => e.type === 'browser_unproven').length, 1);
 });
 
 test('nouvelle mission sans outil navigateur : réponse marquée sans navigation ni preuve', async (t) => {
@@ -129,13 +135,31 @@ test('nouvelle mission sans outil navigateur : réponse marquée sans navigation
   assert.deepEqual(done.result.evidence, []);
 });
 
-test('nouvelle mission nommant une URL sans navigation reste refusée', async (t) => {
+test('audit 10/11 FICTIF : reprise « oui, envoie » réduite à un clic, sans capture → completed', async (t) => {
+  const done = await runFixture(t, {
+    prompt: 'oui, envoie',
+    previous: { sessionId: 'fake-session-1' },
+    config: {
+      promptBrowserTool: 'browser_click',
+      result: { simulated: true, summary: 'Candidature FICTIVE envoyée.', evidence: [] },
+    },
+  });
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /^Candidature FICTIVE envoyée\./);
+  assert.match(done.result.summary, /Navigation non prouvée/);
+});
+
+test('nouvelle mission nommant une URL sans navigation : avertie, pas présentée comme lue', async (t) => {
   const done = await runFixture(t, {
     prompt: 'Ouvre https://exemple.invalid et résume',
     config: { result: answer },
   });
-  assert.equal(done.state, 'failed');
-  assert.match(done.error, /Navigation non prouvée/);
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(
+    done.result.summary,
+    /Avertissement — Navigation non prouvée : aucune page HTTP\(S\)/,
+  );
+  assert.equal(done.result.provenance.data, 'navigation non prouvée');
 });
 
 test('capture lisible du tour : preuve même sans navigate séparé', async (t) => {
@@ -158,7 +182,7 @@ test('capture lisible du tour : preuve même sans navigate séparé', async (t) 
   );
 });
 
-test('capture about:blank du tour : refus précis sans résultat inventé', async (t) => {
+test('capture about:blank du tour : avertissement précis, réponse non présentée comme lue', async (t) => {
   const done = await runFixture(t, {
     previous: { sessionId: 'fake-session-1' },
     config: { lateMs: 100, result: answer },
@@ -169,9 +193,9 @@ test('capture about:blank du tour : refus précis sans résultat inventé', asyn
       loading: false,
     },
   });
-  assert.equal(done.state, 'failed');
-  assert.match(done.error, /about:blank/);
-  assert.doesNotMatch(done.result.summary, /cinq liens FICTIFS/);
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /Avertissement — Navigation non prouvée : .*about:blank/);
+  assert.equal(done.result.provenance.data, 'navigation non prouvée');
 });
 
 test('résumé vide : le texte final utile de l’agent est repris et borné', async (t) => {
@@ -363,4 +387,56 @@ test('mission navigateur : le prompt prime et un consentement revient à l’uti
     },
   });
   assert.equal(done.state, 'completed');
+});
+
+// Audit du 10/11 (constat 8) : sans Skill, le Bilan ne disait rien des envois ; l'agent pouvait
+// écrire « candidature envoyée » après un refus. La ligne des envois suit toute mission qui a demandé
+// un accord d'envoi, comme career-ops.
+async function sendDuringPrompt(t, choice) {
+  const callId = randomUUID();
+  return runFixture(t, {
+    browserWorkflow: false,
+    config: {
+      lateMs: 400,
+      result: { simulated: true, summary: 'Candidature FICTIVE envoyée.', evidence: [] },
+    },
+    duringPrompt: (app, run) => {
+      app.engine.approvalTokens.set(run.id, 'JETON_FICTIF');
+      const decision = app.engine.gatewayApproval(run.id, 'JETON_FICTIF', {
+        capability: 'browser.click',
+        actionClass: 'send',
+        sensitive: true,
+        element: { text: 'Envoyer FICTIF' },
+        callId,
+      });
+      const wait = setInterval(() => {
+        const [id] = app.engine.permissions.keys();
+        if (!id) return;
+        clearInterval(wait);
+        app.engine.decide(id, choice);
+      }, 5);
+      decision.finally(() => clearInterval(wait));
+    },
+  });
+}
+
+test('audit 10/11 FICTIF : sans Skill, un envoi approuvé est dit au Bilan', async (t) => {
+  const done = await sendDuringPrompt(t, 'allow');
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(
+    done.result.summary,
+    /Envoi par la plateforme : 1 approuvé\(s\) par le propriétaire, dont 1 sans issue connue/,
+  );
+});
+
+test('audit 10/11 FICTIF : sans Skill, un envoi refusé contredit « candidature envoyée »', async (t) => {
+  const done = await sendDuringPrompt(t, 'deny');
+  assert.equal(done.state, 'completed', done.error);
+  assert.match(done.result.summary, /Envoi par la plateforme : aucun approuvé/);
+});
+
+test('audit 10/11 FICTIF : sans demande d’envoi, pas de ligne d’envoi hors career-ops', async (t) => {
+  const done = await runFixture(t, { browserWorkflow: false, config: { result: answer } });
+  assert.equal(done.state, 'completed', done.error);
+  assert.doesNotMatch(done.result.summary, /Envoi par la plateforme/);
 });

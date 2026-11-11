@@ -7,6 +7,7 @@ import { createApp } from '../apps/api/server.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { reviewCareer } from '../packages/career-ops/integration.js';
 import { createTurnTruth } from '../packages/career-ops/truth.js';
+import { compactBrowserEvidence, readablePages } from '../packages/orchestrator/browser-proof.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 import {
   SkillProgress,
@@ -205,4 +206,53 @@ test('E24 FICTIF : « ne lance aucun script » exempte le scan obligatoire', () 
   assert.equal(scan.exempt, true);
   const [strict] = selectSkillIntents('Cherche des offres FICTIVES', [manifest]);
   assert.equal(strict.intent.steps.find((step) => step.id === 'scan').required, true);
+});
+
+test('E93 FICTIF : une offre lue dans sa page de résultats (champ de sélection) compte comme lue', () => {
+  const progress = new SkillProgress([]);
+  const offers = [
+    { url: 'https://www.offres.example.test/jobs/view/4486979104/', toolCallId: 'a' },
+  ];
+  const results =
+    'https://www.offres.example.test/jobs/search-results/?currentJobId=4486979104&keywords=x';
+  assert.deepEqual(progress.incomplete([results], false, offers), []);
+  // Another item selected, another host, or a short number : not a reading of that offer.
+  for (const other of [
+    'https://www.offres.example.test/jobs/search-results/?currentJobId=4486979105',
+    'https://autre.example.test/jobs/search-results/?currentJobId=4486979104',
+    'https://www.offres.example.test/jobs/search-results/?keywords=4486979104',
+  ])
+    assert.deepEqual(progress.incomplete([other], false, offers), [
+      '1 offre(s) notée(s) sans lecture de leur page',
+    ]);
+  assert.deepEqual(
+    progress.incomplete(['https://offres.example.test/jobs?currentJobId=123'], false, [
+      { url: 'https://offres.example.test/jobs/view/123', toolCallId: 'b' },
+    ]),
+    ['1 offre(s) notée(s) sans lecture de leur page'],
+  );
+  // The item named by a query field of its own page (« ?jk=… ») and selected in the list (« vjk »).
+  assert.deepEqual(
+    progress.incomplete(['https://offres.example.test/jobs?q=x&vjk=ab12cd34ef'], false, [
+      { url: 'https://offres.example.test/viewjob?jk=ab12cd34ef', toolCallId: 'c' },
+    ]),
+    [],
+  );
+});
+
+test('E93 FICTIF : la preuve de capture garde l’offre sélectionnée, sans la requête', () => {
+  const evidence = compactBrowserEvidence({
+    capability: 'browser.snapshot',
+    provider: 'fixture',
+    url: 'https://www.offres.example.test/jobs/search-results/?currentJobId=4486979104&keywords=secret',
+    text: 'Description FICTIVE de l’offre. '.repeat(40),
+    textLength: 1200,
+  });
+  assert.equal(evidence.selected, '4486979104');
+  assert.doesNotMatch(JSON.stringify(evidence), /secret|keywords/);
+  const pages = readablePages([{ ...evidence, readable: true }]);
+  const offers = [
+    { url: 'https://www.offres.example.test/jobs/view/4486979104/', toolCallId: 'a' },
+  ];
+  assert.deepEqual(new SkillProgress([]).incomplete(pages, false, offers), []);
 });

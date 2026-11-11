@@ -28,6 +28,13 @@ function pageOf(value) {
   }
 }
 
+const SELECTION = /^(?:currentjobid|selectedjobid|vjk)$/;
+function selectedItem(url) {
+  for (const [key, field] of url.searchParams)
+    if (SELECTION.test(key.toLowerCase()) && /^[\w-]{6,40}$/.test(field)) return field;
+  return null;
+}
+
 // Private runs keep only the source URL without credentials, query or fragment and a
 // boolean observation. Never persist page text or the full MCP response in the public run.
 export function compactBrowserEvidence(output) {
@@ -51,6 +58,9 @@ export function compactBrowserEvidence(output) {
     provider,
     loading: output.loading === true,
     readable: readableBrowserObservation(output),
+    // E93 : the item a results page shows beside its list (« ?currentJobId=… »), its identifier
+    // only : the query itself is never kept.
+    ...(selectedItem(url) ? { selected: selectedItem(url) } : {}),
     // E29 : an extract is a reading like a snapshot; its content stays untrusted page text.
     ...(output.untrusted === true ? { untrusted: true } : {}),
     // Tab facts (no page text): a hidden tab and a short text explain a missing description.
@@ -76,6 +86,8 @@ export const readablePages = (evidence = []) => {
     if (!['browser.snapshot', 'browser.extract'].includes(item?.capability) || !item.readable)
       continue;
     pages.push(item.url);
+    // E93 : the selected item, said as the selection field the progress follower reads.
+    if (item.selected) pages.push(`${item.url}?currentJobId=${item.selected}`);
     if (item.requestedUrl) pages.push(item.requestedUrl);
     for (const nav of evidence)
       if (nav?.capability === 'browser.navigate' && nav.requestedUrl && nav.url === item.url)

@@ -4,8 +4,8 @@ Mis à jour le 11/11/2026 (branche `cto-11-11`). Ce fichier ne porte que des poi
 
 ## À lire, dans l'ordre
 1. [`reports/passation.md`](reports/passation.md) : **la** passation consolidée (règles du propriétaire, branches,
-   chronologie, ce qui marche ou non, décisions, environnements, outils). Sa section 9 « État du 11/11 » est tenue à jour.
-2. [`reports/registre-erreurs.md`](reports/registre-erreurs.md) : défauts E1 à E78 avec degré de certitude.
+   chronologie, ce qui marche ou non, décisions, environnements, outils). Ses sections 9 et 10 (« État du 11/11 », « Soirée du 11/11 ») sont tenues à jour.
+2. [`reports/registre-erreurs.md`](reports/registre-erreurs.md) : défauts E1 à E96 avec degré de certitude.
 3. [`reports/audit-10-11/SYNTHESE.md`](reports/audit-10-11/SYNTHESE.md) : audit de la nuit du 10/11 (le plus récent).
 
 ## Journaux conservés

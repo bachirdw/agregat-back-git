@@ -394,6 +394,37 @@ const VISITS = 50;
 // « page-2 », « page/2 ») ; followed by anything else (a slug, a short number), it names one item.
 const QUERY_ITEM = /^(?:gh_jid|jid|jobid|job_id|jk|postingid|posting_id|reqid|req_id)$/;
 const EXTENSIONS = new Set(['html', 'htm', 'php', 'asp', 'aspx', 'jsp']);
+// E93 (essai réel du 11/11, LinkedIn) : an item opened inside its results page (the list on one
+// side, the item's text on the other) is read there ; the page's address names it in a selection
+// field. Such a readable capture proves the reading of the item's own page when both carry the
+// same identifier on the same host : « /jobs/search-results/?currentJobId=4486979104 » reads
+// « /jobs/view/4486979104 ». The identifier is 6 characters or more, never a short number.
+const SELECTION = /^(?:currentjobid|selectedjobid|vjk|jobid|job_id|jk)$/;
+const bareHost = (host) => host.toLowerCase().replace(/^www\./, '');
+const withScheme = (value) => (/^https?:\/\//i.test(value) ? value : `https://${value}`);
+function selectedItems(value) {
+  try {
+    const url = new URL(withScheme(String(value)));
+    return [...url.searchParams]
+      .filter(([key, field]) => SELECTION.test(key.toLowerCase()) && /^[\w-]{6,}$/.test(field))
+      .map(([, field]) => `${bareHost(url.host)} ${field.toLowerCase()}`);
+  } catch {
+    return [];
+  }
+}
+function itemIdentifiers(value) {
+  try {
+    const url = new URL(withScheme(String(value)));
+    const fields = [...url.searchParams]
+      .filter(([key]) => QUERY_ITEM.test(key.toLowerCase()))
+      .map(([, field]) => field);
+    return [...url.pathname.split(/[^A-Za-z0-9_-]+/), ...fields]
+      .filter((token) => /^[\w-]{6,}$/.test(token) && /\d/.test(token))
+      .map((token) => `${bareHost(url.host)} ${token.toLowerCase()}`);
+  } catch {
+    return [];
+  }
+}
 function listPage(value, words) {
   let url;
   try {
@@ -786,8 +817,21 @@ export class SkillProgress {
         causes.push(cause);
     const read = new Set(readPages.map(pageKey));
     const scored = new Set(this.scored);
-    for (const offer of scoredOffers) if (pageKey(offer.url)) scored.add(pageKey(offer.url));
-    const unread = sourceRead ? 0 : [...scored].filter((page) => !read.has(page)).length;
+    // E93 : the identifiers of each scored page, from its whole address when the turn record has it.
+    const identifiers = new Map([...scored].map((page) => [page, itemIdentifiers(page)]));
+    for (const offer of scoredOffers) {
+      const page = pageKey(offer.url);
+      if (!page) continue;
+      scored.add(page);
+      identifiers.set(page, [...(identifiers.get(page) ?? []), ...itemIdentifiers(offer.url)]);
+    }
+    const selected = new Set(readPages.flatMap(selectedItems));
+    const unread = sourceRead
+      ? 0
+      : [...scored].filter(
+          (page) =>
+            !read.has(page) && !(identifiers.get(page) ?? []).some((item) => selected.has(item)),
+        ).length;
     if (unread) causes.push(`${unread} offre(s) notée(s) sans lecture de leur page`);
     return causes;
   }

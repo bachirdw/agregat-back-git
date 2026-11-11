@@ -26,6 +26,9 @@ export const STRICT_STEP_LABEL =
 const PUBLISH_OBJECT =
   /(?:^|[^\p{L}])(messages?|commentaires?|comments?|avis|reviews?|posts?|publications?|réponses?|repl(?:y|ies))(?:$|[^\p{L}])/iu;
 // Relecture fix5 (constat 8) : labels that are sure not to be a final send.
+const CARD_LABEL = 120;
+const DATED_PUBLICATION =
+  /\b(?:publication|republication|(?:re)?publi[ée]e?s?|(?:re)?published|(?:re)?posted|(?:re)?post[ée]e?s?)\s+(?:il y a|depuis|le\s+\d|on\s|aujourd|hier|today|yesterday|\d|an?\s|one\s)[^·|•]{0,30}/giu;
 const FILTER_WORDS = /\b(filters?|filtres?|search|recherche|rechercher|sort|trier)\b/iu;
 const DELETE_LABEL =
   /^(?:supprimer|delete|remove|retirer|effacer)(?: (?:cette|cet|ce|this|the|l['’]|la|le|une?|an?) ?[\p{L}\p{N} '’-]{0,40})?$/iu;
@@ -245,9 +248,17 @@ export class RunPolicy {
   ownerClickKind(d = {}) {
     if (this.isFormStep(d)) return 'step';
     const label = [d.text, d.ariaLabel, d.value].filter(Boolean).join(' ');
+    // E93 (essais réels du 11/11, LinkedIn) : each offer of a results list is one button whose
+    // label is the whole card (« … Publication il y a 2 semaines · Candidature simplifiée ») ; «
+    // Publication » made it a send-worded control, and each of the page's own writes after the
+    // click asked the owner for a send card (eight in a row). The date a card states (« Publié il
+    // y a 3 jours », « Published 2 days ago ») says no send, and a label of more than 120
+    // characters describes an item, it does not name an action. A submission trigger of a form
+    // and a write to a submission path keep their card whatever the label.
+    const worded = label.length > CARD_LABEL ? '' : label.replace(DATED_PUBLICATION, ' ');
     // Relecture fix5 (constat 8) : « Apply filters », « Confirm search » say no send.
     const sendLabel =
-      (SENSITIVE_WORDS.test(label) && !FILTER_WORDS.test(label)) || SEND_LABEL_WORDS.test(label);
+      (SENSITIVE_WORDS.test(worded) && !FILTER_WORDS.test(worded)) || SEND_LABEL_WORDS.test(worded);
     // Relecture fix5 (constat 2) : a submission trigger of a form stays one whatever its ARIA
     // attributes say (a submit button with aria-haspopup="dialog" is still the send).
     const submitControl =

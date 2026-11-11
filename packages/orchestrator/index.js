@@ -117,6 +117,23 @@ export const inputSchema = z
   })
   .strict();
 export { parseAgentResult } from './result.js';
+// E93 (essai réel du 11/11) : eight send cards on a results page and nothing kept of the request
+// that asked for them. The journal keeps where a send card's request was going : method, host and
+// path, never the query nor the body (the preview stays private to the pending card).
+function sendTarget(permission) {
+  if (permission?.actionClass !== 'send') return null;
+  const args = permission.toolCall?.rawInput?.args;
+  try {
+    const url = new URL(args.url);
+    return {
+      method: String(args.method ?? '').slice(0, 12),
+      host: url.host,
+      path: url.pathname.slice(0, 160),
+    };
+  } catch {
+    return null;
+  }
+}
 // Owner mode: network writes granted without a question are counted from the traces (permission_auto
 // with capability browser.send), next to the owner's own approvals.
 export function formatAutoSendLine(events) {
@@ -1867,6 +1884,7 @@ export class Orchestrator {
           tool,
           options,
           expiresAt: delay ? Date.now() + delay : null,
+          ...(sendTarget(p) ? { target: sendTarget(p) } : {}),
         },
         {
           privatePreview: p.actionClass === 'send',

@@ -371,3 +371,80 @@ vérifiés en direct ; 185/185 tests, build vert. Rapport : `agregat-front-cto/.
 - Constat 6 de la relecture (`slowLoad`) ; test « faux exécutable muet » fragile ; E53 ; décisions du propriétaire
   (section 6) toujours ouvertes, plus : garder `cto-11-11` et `transcription-11-11` ?
 - La copie de l'espace career-ops est dans `/private/tmp` (effacée au redémarrage du Mac).
+
+## 10. Soirée du 11/11 (20:36 → 21:40) — passation de la session
+
+**Demandes du propriétaire pendant la soirée, dans l'ordre.**
+1. « Sous-agents Opus de préférence », ligne Codex retirée de `CLAUDE.md` et de la mémoire du manager : fait (2b40707).
+2. Avertissement « Limite d'usage de Codex… réessayer à Nov 6th » : faux. Il relisait une mission Codex du 02/11 sur
+   l'ancienne API 4310. Corrigé dans le front (`agentStatus.ts`, commit 9ee30ad) : plus d'avertissement une fois l'heure
+   de reprise passée.
+3. « Skill career-ops non revu, inactif ou modifié » : le propriétaire testait sur **5173 → API 4310** (code du 02/11,
+   dossier `agregat-back`, branche `codex/browser-audit-31-10`). La version du jour est sur **5176 → API 4313**. Proposé :
+   relancer 4310/5173 sur le code du jour ; **pas de réponse, rien touché**.
+4. Mission du propriétaire sur 5176 (Codex, « Seek indeed linkdin », 92b0313b, 20:47-21:00) : « envoie un sous-agent
+   Sonnet qui surveille », « pourquoi c'est si long, est-ce le relais ? », « tout noter ». Fait : rapport
+   `reports/veille-92b0313b.md`, registre E93 à E96.
+5. Un protocole d'épreuves par compartiment (cycles courts ; on ne corrige jamais une sortie, on remonte à la couche
+   de documentation : constitution / règle scopée / skill / prompt système / registre de décisions). **Étape 1,
+   question 1 posée, sans réponse** : « quels sont les compartiments, lequel coûte le plus cher quand il rate ? ».
+   Compartiments proposés : recherche, évaluation, documents, candidature, e-mails et messages, Bilan.
+6. Cette passation.
+7. Dernière demande, **non commencée, à préciser** : un projet open source sur GitHub « qui reprend l'ingénierie de
+   highfield » (nom incertain, sans doute dicté) ; aller le voir, redéfinir ce qu'on prend des dépôts de référence
+   (`~/Downloads/agent-repos-agregat`, 29 clones) en code et en logique, et revoir « le fichier créé par rapport à ça »
+   (candidats : `.manager/CARTE.md` du 04/11, `docs/open-source-research.md` du 26/10). Question à lui poser : le nom
+   exact du projet et lequel des deux fichiers.
+
+**Constats de la mission 92b0313b** (Codex, 13 min, 135 appels).
+- **Le relais n'est pas la cause de la lenteur** : 80 % du temps dans le modèle, 20 % dans les outils (E96).
+- **E93, fausses cartes LinkedIn** : cause prouvée (libellé de carte d'offre contenant « Publication »), corrigée,
+  vérifiée en réel (7 cartes avant, 0 après).
+- **E94, `failed` à tort** (« offres notées sans lecture ») : l'offre est lue dans le panneau de la liste. Deux
+  correctifs ; le second (la preuve garde l'identifiant sélectionné) n'est testé qu'en unitaire.
+- **E95**, fusion5.com jamais chargée (44 s), cause inconnue. Le scan du Skill reste sans SEEK (E21).
+
+**Décisions prises par le manager.**
+- Une carte d'envoi laisse au journal sa cible (`target` : méthode, hôte, chemin ; ni requête ni corps).
+- Un libellé de plus de 120 caractères, ou une date de publication, ne fait pas d'un bouton un bouton d'envoi ; le
+  déclencheur d'un formulaire et une écriture vers un chemin de soumission gardent leur carte.
+- La preuve de capture garde l'identifiant de l'élément sélectionné (`currentJobId`, `selectedJobId`, `vjk`), jamais
+  la requête.
+- Cartes de la mission de reproduction 6e620a10 : refusées par le manager (télémétrie de LinkedIn, aucun envoi).
+
+**Fichiers modifiés ce soir** (back, `cto-11-11`).
+| Fichier | Changement |
+|---|---|
+| `packages/policy-engine/run-policy.js` | `CARD_LABEL`, `DATED_PUBLICATION` dans `ownerClickKind` (E93) |
+| `packages/orchestrator/index.js` | `sendTarget` : cible de la carte dans l'événement `permission` |
+| `packages/orchestrator/skill-router.js` | `selectedItems`, `itemIdentifiers`, `incomplete` (E94) |
+| `packages/orchestrator/browser-proof.js` | `selected` dans la preuve, repris par `readablePages` (E94) |
+| `tests/carte-offre-datee.test.js` (nouveau), `tests/note-sans-lecture.test.js` | tests E93 et E94 |
+| `.manager/reports/veille-92b0313b.md` (nouveau), `registre-erreurs.md` (E93-E96), `HANDOFF.md` | rapports |
+
+Front (`transcription-11-11`) : `src/agentStatus.ts`, `src/affichage.test.tsx` (9ee30ad), 185/185.
+Mémoire du manager : cinq notes Codex supprimées, « sous-agents Opus de préférence », `cto-11-11-branch.md`.
+
+**Outils du scratchpad utiles à reprendre** (`/private/tmp/claude-501/-Users-diaw-Downloads-agregat-back/5009c246-48e5-4e2c-a03d-0abed3131a81/scratchpad/`,
+effacé au redémarrage) : `temps-ev.py` (part outils / modèle d'une mission), `resume-ev.py` (derniers appels),
+`guet-cartes.py` (suit une mission et refuse chaque carte), `api-4313.sh` (API du jour).
+
+**Missions de la soirée** (API 4313, Chrome du propriétaire, copie de l'espace, aucun envoi).
+| Heure | Mission | Agent | Issue |
+|---|---|---|---|
+| 20:47 | 92b0313b | Codex (propriétaire) | 3 offres classées, rapports 011-013 ; `failed` à tort (E94) ; 8 fausses cartes (E93) |
+| 21:04 | 6e620a10 | Claude Sonnet | reproduction E93 : 7 cartes refusées, `completed` en 3 min |
+| 21:10 | f839ff6c | Claude Sonnet | E93 vérifié (0 carte) ; E94 encore `failed` (premier correctif insuffisant) |
+
+**Suite (21:32 → 23:00).** Unitaires : 1076 (1074 ✔, 2 ignorés), contrôle et format verts. Phase Chrome **non
+concluante** : 204/215, 6 échecs et 5 annulés dans `owner-browser.test.js`, chacun long de ~900 s. Le Mac, sur
+batterie, s'est mis en veille par cycles de 15 min (`pmset -g log` : « Maintenance Sleep … 902 secs ») : ce sont des
+délais dus à la veille, pas une régression établie. **À relancer Mac éveillé** (`npm test`), avant toute fusion.
+
+**Reste à faire, dans l'ordre.**
+0. Relancer la suite complète Mac éveillé (phase Chrome).
+1. Rejouer la mission LinkedIn avec notes pour vérifier E94 en réel (API 4313 à relancer sur le code commité).
+2. Réponse du propriétaire attendue : question 1 du protocole d'épreuves ; projet open source (point 7) ; relance de
+   4310/5173 sur le code du jour ; fusion des branches.
+3. Tout le « reste à faire » de la section 9 demeure (E84, E87, E89, E90, E92 en réel ; longue mission ; Gmail ; envoi
+   réel ; pièce jointe).

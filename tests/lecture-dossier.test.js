@@ -112,3 +112,22 @@ test('E71 FICTIF : un dossier atteint par un lien symbolique n’est pas listé'
       path,
     );
 });
+
+// Essai réel du 11/11 : en mode propriétaire, l'agent lit un script ou un guide à la racine du
+// Skill (« career_read application-answers.mjs ») ; hors de ce mode, et pour tout autre chemin, le
+// périmètre ne change pas, et rien de plus ne s'écrit.
+test('mode propriétaire FICTIF : un script ou un guide à la racine du Skill se lit, ne s’écrit pas', (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'lecture-racine-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, 'outil-fictif.mjs'), '// script FICTIF\n');
+  writeFileSync(join(root, '.env'), 'SECRET=FICTIF\n');
+  mkdirSync(join(root, 'src'));
+  writeFileSync(join(root, 'src/interne.mjs'), '// FICTIF\n');
+  const career = { path: () => root };
+  const owner = new CareerTools(career, { ownerMode: true });
+  assert.equal(owner.read('outil-fictif.mjs').text, '// script FICTIF\n');
+  assert.throws(() => owner.read('.env'));
+  assert.throws(() => owner.read('src/interne.mjs'), /hors du périmètre/);
+  assert.throws(() => owner.write('outil-fictif.mjs', '// réécrit'), /hors du périmètre/);
+  assert.throws(() => new CareerTools(career).read('outil-fictif.mjs'), /hors du périmètre/);
+});

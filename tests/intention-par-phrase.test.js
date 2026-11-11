@@ -95,3 +95,22 @@ test('E68 FICTIF : une demande de documents ne cache plus la boîte d’entrée 
   );
   assert.equal(intentOf('Prépare-moi un CV adapté pour cette offre'), 'documents');
 });
+
+// Essai réel du 11/11 (SEEK, rapport 010) : la préparation d'une candidature qui joint un CV déjà
+// produit suivait `documents` ; le Bilan réclamait les étapes de fabrication du CV.
+test('« Prépare ma candidature … joins mon CV adapté » est une candidature, pas des documents', () => {
+  assert.equal(
+    intentOf(
+      "Prépare ma candidature à l'offre du rapport 010 sur SEEK, dans mon navigateur : ouvre le formulaire de candidature de l'annonce, joins mon CV adapté à cette offre (le PDF déjà produit dans output/), remplis toutes les étapes. Arrête-toi juste avant le bouton d'envoi final.",
+    ),
+    'apply',
+  );
+  assert.equal(intentOf('Remplis le formulaire de candidature avec mon CV adapté'), 'apply');
+  assert.equal(intentOf('Prepare my application for this job with my tailored CV'), 'apply');
+  // The documents themselves stay documents.
+  assert.equal(intentOf('Adapte mon CV pour ma candidature chez FICTIF'), 'documents');
+  assert.equal(
+    intentOf('Prépare mon CV et une lettre de motivation pour cette offre'),
+    'documents',
+  );
+});

@@ -580,9 +580,14 @@ function validateSkillArgs(command, args, root, unknownKeys = []) {
   if ((spec.requiredFlags ?? []).some((flag) => !seen.has(flag))) fail();
   return args;
 }
+// Essai réel du 11/11 (candidature SEEK) : « career_read application-answers.mjs » était refusé ;
+// l'agent voulait lire comment appeler un script du Skill. En mode propriétaire, les fichiers de
+// texte à la racine du Skill (scripts, guides) se lisent ; rien de plus ne s'écrit.
+const ownerReadPath = /^[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.(?:mjs|cjs|js|md|txt|yml|yaml|json)$/u;
 const validatePath = (path, write = false, ownerMode = false) => {
   pathSchema.parse(path);
   if (ownerMode && ownerUserPath.test(path)) return path;
+  if (ownerMode && !write && ownerReadPath.test(path)) return path;
   if (!userPath.test(path) && (write || (!systemPath.test(path) && !attachmentPath.test(path))))
     throw new Error('Fichier hors du périmètre career-ops');
   return path;
@@ -788,7 +793,7 @@ export class CareerTools {
     )
       throw new Error('Pagination de lecture invalide');
     try {
-      validatePath(path);
+      validatePath(path, false, this.ownerMode);
     } catch (error) {
       if (error instanceof z.ZodError) throw error;
       throw folderRefusal(this.career.path(), path) ?? error;

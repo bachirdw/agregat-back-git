@@ -580,8 +580,7 @@ intents:
     # plus le pas sur une demande de CV, de lettre, de message LinkedIn ou d'e-mail.
     boost:
       priority: 80
-      phrases:
-        [
+      phrases: [
           postule,
           postulez,
           postulons,
@@ -596,6 +595,19 @@ intents:
           envoyer ma candidature,
           soumets ma candidature,
           dépose ma candidature,
+          # Essai réel du 11/11 (SEEK, rapport 010) : « Prépare ma candidature … ouvre le formulaire,
+          # joins mon CV adapté … » suivait documents (« cv adapté ») ; le Bilan réclamait les étapes
+          # d'un CV déjà produit.
+          prépare ma candidature,
+          préparer ma candidature,
+          prépare la candidature,
+          prépare une candidature,
+          remplis ma candidature,
+          remplis le formulaire de candidature,
+          prepare my application,
+          prepare the application,
+          fill in the application,
+          fill out the application,
           apply to,
           apply for,
           apply on,

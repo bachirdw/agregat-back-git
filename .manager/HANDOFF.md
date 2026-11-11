@@ -1,49 +1,38 @@
 # Passation — Relay (point d'entrée unique)
 
-Une seule porte d'entrée, tenue à jour : ce fichier dit **où est l'état courant** et ce qui vaut encore.
-Réorganisé le 05/11/2026 à 20:20 à la demande du propriétaire (anciennes passations supprimées ou
-fusionnées ; tout reste lisible dans l'historique Git avec `git show <commit>:<chemin>`).
+Mis à jour le 11/11/2026 (branche `cto-11-11`). Ce fichier ne porte que des pointeurs ; l'état est dans la passation.
 
-## État courant (à lire en premier)
-- **Passation du 06/11 (11:55)** : [`reports/passation-06-11.md`](reports/passation-06-11.md) — état, processus
-  lancés, fichiers modifiés, décisions, reste à faire, prompt de reprise.
-- **Nuit du 05 au 06/11 et matin du 06/11** (branche `nuit-06-11`, non fusionnée, dossier
-  `~/Downloads/agregat-back-nuit`) : [`reports/nuit-06-11.md`](reports/nuit-06-11.md) — point du matin en tête
-  (essais réels, cause de E65/E69/E70 trouvée dans le relais Playwriter, revue Opus, décisions à prendre), puis la
-  synthèse de la nuit et le journal horodaté ; registre mis à jour (E26, E43, E46, E54-E71).
-- **Passation du jour** : [`reports/passation-05-11.md`](reports/passation-05-11.md), sections 13
-  (20:04), 14 (22:10, fusions bilan-06 et stall-01, API relancée) et 15 (22:45, essai réel f336641e) pour l'état du soir ; section 2 pour les règles permanentes du propriétaire ; section 5
-  pour le protocole « éprouver le système » (compartiment `apply`, cycles courts, cinq étapes).
-- **Prompt de reprise** à coller dans une nouvelle session :
-  [`briefs/reprise-05-11-soir.md`](briefs/reprise-05-11-soir.md).
-- **Registre d'erreurs** (défauts avec degré de certitude) :
-  [`reports/registre-erreurs.md`](reports/registre-erreurs.md).
-- Branches : `dev` = travail (dossier `~/Downloads/agregat-back-dev`), `main` = stable ; sessions cloud
-  sur `cloud/<id>` depuis `origin/dev` (voir `CLAUDE.md`).
+## À lire, dans l'ordre
+1. [`reports/passation.md`](reports/passation.md) : **la** passation consolidée (règles du propriétaire, branches,
+   chronologie, ce qui marche ou non, décisions, environnements, outils). Sa section 9 « État du 11/11 » est tenue à jour.
+2. [`reports/registre-erreurs.md`](reports/registre-erreurs.md) : défauts E1 à E78 avec degré de certitude.
+3. [`reports/audit-10-11/SYNTHESE.md`](reports/audit-10-11/SYNTHESE.md) : audit de la nuit du 10/11 (le plus récent).
 
-## Passations conservées
+## Journaux conservés
 | Fichier | Portée | Pourquoi gardé |
 |---|---|---|
-| `reports/passation-05-11.md` | 05/11, 14:50 → 20:04 (13 sections) | état courant, règles, décisions |
-| `reports/passation-04-11.md` | 04/11, 14:15 + mise à jour du soir 20:20 (section 10, ex-`passation-04-11-soir.md`) | décisions du 04/11 encore citées par le registre (E1–E30) |
-| `reports/reprise-04-11.md` | journal horodaté du 04/11 (cadrage et épreuves P1, P4, P5, E7) | preuves et heures des missions citées par le registre |
-| `reports/reprise-05-11.md` | journal horodaté 04/11 20:23 → 05/11 10:33 (C7, C8, E19, audit career-ops, mission « coller une URL ») | idem |
+| `reports/audit-10-11/` (`JOURNAL.md`, rapports d'auditeurs, correcteurs, relecteurs) | nuit du 09 au 10/11 | preuves citées par le registre et la synthèse |
+| `reports/nuit-06-11.md` | nuit du 05 au 06/11 + matin (journal horodaté) | preuves et heures des correctifs E55-E71 |
+| `reports/reprise-05-11.md` | 04/11 20:23 → 05/11 (C7, E19, audit career-ops, épreuves `apply`) | preuves citées par le registre |
+| `reports/reprise-04-11.md` | 04/11 (cadrage, épreuves P1, P4, P5, E7) | preuves et heures des missions du registre |
+| `PLAN-04-11.md`, `BACKLOG.md`, `PLAN.md` | plan du 04/11, backlog, plan de la 1re nuit | chantiers C0-C15 ; routeur de Skills ; historique |
 
-## Supprimées le 05/11 (contenu intégralement dépassé par les fichiers ci-dessus)
-| Fichier | Dernier commit | Lire avec |
+## Passations supprimées (relisibles par Git)
+| Fichier | Commit de lecture | Commande |
 |---|---|---|
-| `.manager/HANDOFF.md` du 31/10 (Codex, design v3 du front, état 31/10) | 65a77bf | `git show 65a77bf:.manager/HANDOFF.md` |
-| `reports/passation-claude-cloud.md` (31/10, audit `fix-perms-01`) | 7dd923a | `git show 7dd923a:.manager/reports/passation-claude-cloud.md` |
-| `reports/reprise-claude-01.md` (31/10) | a233c8b | `git show a233c8b:.manager/reports/reprise-claude-01.md` |
-| `reports/reprise-02-11.md` (02–03/11) | 456b198 | `git show 456b198:.manager/reports/reprise-02-11.md` |
-| `reports/passation-04-11-soir.md` | fusionnée dans `passation-04-11.md` section 10 | — |
+| `reports/passation-04-11.md` (04/11 + soir) | `audit-nuit-10-11` | `git show audit-nuit-10-11:.manager/reports/passation-04-11.md` |
+| `reports/passation-05-11.md` (05/11, sections 1-15) | `audit-nuit-10-11` | `git show audit-nuit-10-11:.manager/reports/passation-05-11.md` |
+| `reports/passation-06-11.md` (06/11 + 08 et 09/11) | `audit-nuit-10-11` | `git show audit-nuit-10-11:.manager/reports/passation-06-11.md` |
+| `HANDOFF.md` de 49 lignes (05-10/11, pointait vers les passations) | `audit-nuit-10-11` | `git show audit-nuit-10-11:.manager/HANDOFF.md` |
+| `HANDOFF.md` du 31/10 (Codex, front v3) | 65a77bf | `git show 65a77bf:.manager/HANDOFF.md` |
+| `reports/passation-claude-cloud.md` | 7dd923a | `git show 7dd923a:.manager/reports/passation-claude-cloud.md` |
+| `reports/reprise-claude-01.md` | a233c8b | `git show a233c8b:.manager/reports/reprise-claude-01.md` |
+| `reports/reprise-02-11.md` | 456b198 | `git show 456b198:.manager/reports/reprise-02-11.md` |
+| `reports/passation-04-11-soir.md` | fusionnée dans `passation-04-11.md` | via `passation-04-11.md` ci-dessus |
+| Passations du 26 au 29/10 | b71f1da | `git show b71f1da:.manager/HANDOFF.md` |
 
-Anciennes passations des 26–29/10, supprimées le 31/10 : `git show b71f1da:.manager/HANDOFF.md`.
-
-## Convention à partir de maintenant
-- Une passation par jour : `reports/passation-JJ-MM.md`, complétée par des sections datées
-  (« Mise à jour HH:MM ») plutôt que par de nouveaux fichiers.
-- Un journal horodaté par jour si nécessaire : `reports/reprise-JJ-MM.md` (preuves, heures, décisions
-  au fil de l'eau).
-- Un prompt de reprise par fin de journée : `briefs/reprise-JJ-MM-<moment>.md`.
-- Ce fichier ne porte que les pointeurs et la liste de ce qui vaut encore ; `date` avant tout horodatage.
+## Convention
+- Une seule passation tenue à jour : `reports/passation.md` (sections datées, pas de nouveau fichier par jour).
+- Un journal horodaté par nuit ou par session si nécessaire (`reports/nuit-JJ-MM.md`, `reprise-JJ-MM.md`) ; il reste
+  un journal, la passation en tire l'état.
+- `date` avant tout horodatage. Aucune donnée personnelle ni secret dans Git (dépôt public).

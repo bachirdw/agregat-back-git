@@ -76,7 +76,9 @@ function escapeControlsInStrings(text) {
 const parseJson = (text) => {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (error) {
+    // Relecture du 11/11 (constat 5) : only that failure is repaired ; any other stays unreadable.
+    if (!/control character/i.test(String(error?.message))) return undefined;
     try {
       return JSON.parse(escapeControlsInStrings(text));
     } catch {
@@ -94,6 +96,9 @@ function questionOnly(json) {
   return (
     isObject(json) &&
     CONTRACT_KEYS.every((key) => !(key in json)) &&
+    // Relecture du 11/11 (constat 2) : a string is a question only when the object holds nothing
+    // else ; `{"question": "…", "answer": "5"}` quoted from a form is not the agent asking.
+    (typeof json.question !== 'string' || Object.keys(json).length === 1) &&
     questionField.safeParse(json.question).success
   );
 }
@@ -177,17 +182,24 @@ export function executionResult(value, definition, { fixtureData = false } = {})
 }
 
 // The prose answer of a turn whose text holds no usable structured answer : `text` gathers every
-// message written between tool calls, `lastStart` is where the last one begins. The last message is
-// the answer when it says enough ; a short closing line (« Voilà. ») keeps the whole turn. A fenced
-// JSON block that could not be read is left out : it is not something to show the owner.
-export function proseAnswer(text, lastStart = 0) {
+// message written between tool calls, `starts` says where each one begins. Short lines of narration
+// written before the first substantial message (« Je charge les outils. ») are left out ; from that
+// message on, everything is kept — a table followed by a closing line stays whole (relecture du
+// 11/11, constat 1). A fenced JSON block that cannot be read is left out ; a readable one stays.
+export function proseAnswer(text, starts = []) {
+  const raw = String(text ?? '');
+  const bounds = [...new Set([0, ...starts.filter((at) => at > 0 && at < raw.length)])].sort(
+    (a, b) => a - b,
+  );
+  const first = bounds.find(
+    (at, index) => raw.slice(at, bounds[index + 1] ?? raw.length).trim().length >= 200,
+  );
   const clean = (value) =>
-    String(value ?? '')
-      .replace(/```json[\s\S]*?(?:```|$)/gi, ' ')
+    value
+      .replace(/```json([\s\S]*?)(?:```|$)/gi, (block, inner) =>
+        parseJson(inner.trim()) === undefined ? ' ' : block,
+      )
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-  const whole = clean(text);
-  const last = clean(String(text ?? '').slice(lastStart));
-  if (last.length >= 200) return last;
-  return whole || String(text ?? '').trim();
+  return clean(raw.slice(first ?? 0)) || clean(raw) || raw.trim();
 }

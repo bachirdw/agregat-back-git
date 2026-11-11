@@ -86,8 +86,18 @@ const PROPOSED_ACTION =
   /(?:^|[^\p{L}])(?:soumet\p{L}*|soumis|soumettre|envoi\p{L}*|envoy\p{L}*|j['’]envoie|postul\p{L}*|candidat(?:er|ez)|cliqu\p{L}*|joign\p{L}*|joindre|joins|rempli(?:r|sse|sses|ssiez)|publi(?:e|er|es|ez)|supprim\p{L}*|pay(?:e|er|ez)|achet\p{L}*|televers\p{L}*|submit\p{L}*|send(?:ing)?|apply(?:ing)?|click\p{L}*|attach\p{L}*|fill(?:ing)?|publish\p{L}*|upload\p{L}*|delete|purchase)(?![\p{L}])/iu;
 const OFFERS_CHOICE =
   /(?:^|[^\p{L}])(?:prefere[sz]?|prefer|plutot|rather|veux[-‑ ]?tu|voulez[-‑ ]?vous|souhaite[sz][-‑ ]?(?:tu|vous)|(?:dis|dites)[-‑ ]?moi si (?:tu|vous) (?:veux|voulez)|would you|do you want|should i|dois[-‑ ]?je)(?![\p{L}])[^.?!]*(?:^|[^\p{L}])(?:ou|or)(?![\p{L}])/iu;
+// Essais réels du 11/11 (SEEK, puis LinkedIn + Indeed) : two missions out of three delivered their
+// answer and closed on an offer of more work (« Dis-moi si tu veux que j'ouvre un oferta complet sur
+// l'une de ces offres, ou que j'aille voir d'autres résultats ») ; the « ou » made it a choice, the
+// mission waited for the owner and kept the private space. A conditional offer (« tell me if you
+// want me to … », no question mark) asks nothing the work depends on, with or without « ou » ;
+// one that proposes an action with consequences (send, apply, submit…) stays a question.
+const FOLLOW_UP_OFFER =
+  /(?:^|[^\p{L}])(?:(?:dis|dites)[-‑ ]?moi si (?:tu|vous) (?:veux|voulez|souhaite[sz]?|preferes?|preferez) que j(?:e\s|['’])|(?:let me know|tell me) if you(?:['’]d| would)? (?:want|like) me to(?![\p{L}]))/iu;
 const isCourtesy = (sentence) =>
-  COURTESY.test(sentence) && !PROPOSED_ACTION.test(sentence) && !OFFERS_CHOICE.test(sentence);
+  !PROPOSED_ACTION.test(sentence) &&
+  ((COURTESY.test(sentence) && !OFFERS_CHOICE.test(sentence)) ||
+    (FOLLOW_UP_OFFER.test(sentence) && !/\?[\s*_`"'»)\]]*$/u.test(sentence)));
 export function decisionRequest(summary) {
   if (typeof summary !== 'string') return null;
   const last = summary

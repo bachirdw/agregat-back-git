@@ -1289,7 +1289,12 @@ export class CdpBrowser {
         // third-party POSTs (telemetry, trackers) are blocked silently, without approval spam.
         // Relecture fix5 (constat 12) : a write of more than 100 kB (a CV with the application)
         // waits for the card outside a click's window too.
-        const large = Buffer.byteLength(body) > 100000;
+        // Essai réel du 11/11 (LinkedIn, lecture seule) : the site's own compressed telemetry (a POST
+        // of more than 100 kB to its own host) asked the owner for a send card while the agent was
+        // only reading an offer. A large write is a possible send only on a page where the agent
+        // has typed or attached something ; elsewhere it is the page's own traffic, as before.
+        const agentInput = (this.agentFields?.size ?? 0) > 0 || !!this.uploadedFile;
+        const large = agentInput && Buffer.byteLength(body) > 100000;
         if (
           !forceCard &&
           !large &&

@@ -316,6 +316,17 @@ test('question en prose en attente : une nouvelle mission la ferme et démarre',
   assert.equal(first.state, 'completed', first.error);
   assert.match(first.result.summary, /Question restée sans réponse : /);
   assert.match(first.result.summary, /Questions : 1 posée\(s\), 0 répondue\(s\)/);
+  // Relecture du 11/11 (constats 4 et 7), mode propriétaire : the agent's answer apart from the
+  // platform's lines ; the line that closed the question is the platform's.
+  assert.ok(first.result.answer.length > 0, 'réponse de l’agent donnée à part');
+  assert.doesNotMatch(
+    first.result.answer,
+    /Question restée sans réponse|Bilan|Envoi par la plateforme/,
+  );
+  assert.ok(
+    first.result.platformNotes.some((line) => /^Question restée sans réponse : /.test(line)),
+  );
+  assert.ok(first.result.platformNotes.includes('Bilan'));
   for (let i = 0; i < 1500 && !terminal.has(app.store.get(second.id).state); i++)
     await new Promise((r) => setTimeout(r, 20));
   assert.equal(app.store.get(second.id).state, 'completed', app.store.get(second.id).error);

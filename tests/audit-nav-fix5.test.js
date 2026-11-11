@@ -693,21 +693,41 @@ test(
   },
 );
 
+// Essai réel du 11/11 (LinkedIn, lecture seule) : la télémétrie compressée du site (un POST de plus
+// de 100 ko vers son propre hôte) demandait une carte d'envoi pendant une simple lecture. La règle
+// vaut là où l'agent a saisi ou joint quelque chose ; ailleurs c'est le trafic de la page.
 test(
-  'Relecture 12 : une écriture de plus de 100 ko hors fenêtre de clic attend la carte',
+  'Relecture 12 : une écriture de plus de 100 ko hors clic attend la carte seulement si l’agent a saisi ou joint quelque chose sur la page',
   { skip },
   async (t) => {
-    const { origin, lines } = await site(t, '<p>Brouillon FICTIF</p>');
+    const { origin, lines } = await site(
+      t,
+      '<p>Brouillon FICTIF</p><input id="nom" aria-label="Nom">',
+    );
     const { gateway, provider, sends } = await owner(t, origin);
     await gateway.call('browser.navigate', { url: origin });
+    // Lecture seule : la grosse écriture de la page passe, sans carte.
+    await provider.page.evaluate(() => {
+      fetch('/api/telemetrie', { method: 'POST', body: 'x'.repeat(150_000) }).catch(() => {});
+    });
+    await settle(lines);
+    assert.deepEqual(lines(), ['POST /api/telemetrie'], 'trafic propre de la page : libre');
+    assert.deepEqual(sends(), [], 'aucune carte pendant une lecture');
+    // L'agent a saisi un champ : la même écriture peut porter sa saisie, elle attend la carte.
+    await gateway.call('browser.type', { ref: await refFor(gateway, '#nom'), text: 'FICTIF' });
+    await sleep(9000); // hors de la fenêtre de la saisie
     await provider.page.evaluate(() => {
       fetch('/api/brouillon', { method: 'POST', body: 'x'.repeat(150_000) }).catch(() => {});
       fetch('/api/petit', { method: 'POST', body: 'x' }).catch(() => {});
     });
     for (let i = 0; i < 80 && !sends().length; i++) await sleep(25);
-    await settle(lines);
+    await settle(lines, 2);
     await sleep(300);
-    assert.deepEqual(lines(), ['POST /api/petit'], 'la petite écriture passe, la grande attend');
+    assert.deepEqual(
+      lines(),
+      ['POST /api/telemetrie', 'POST /api/petit'],
+      'la petite écriture passe, la grande attend',
+    );
     assert.deepEqual(
       sends().map((r) => r.capability),
       ['browser.send'],

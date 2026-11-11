@@ -776,23 +776,6 @@ export class Orchestrator {
       };
     const plan = await this.plan(input, { resume: !!previous });
     if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
-    // Essai réel du 11/11 (f. SEEK) : a mission that has delivered its answer and ends on a
-    // question in prose (« dites-moi si vous voulez que je… ») kept the private space for up to
-    // two hours ; the owner could launch nothing else. Launching another mission is the owner's
-    // answer : that question is closed unanswered, the waiting mission ends with its answer kept.
-    // A form asked in the middle of a turn (the agent is still working) keeps the space.
-    if (plan.input.workspace === 'career-ops') {
-      const busy = () =>
-        [...this.active.keys()].filter((id) => this.store.get(id)?.workspace === 'career-ops');
-      const waiting = busy().map((id) => this.openQuestion(id));
-      if (waiting.length && waiting.every((entry) => entry?.question.kind === 'prose')) {
-        for (const entry of waiting)
-          this.settleQuestion(entry, { action: 'cancel' }, { action: 'superseded' });
-        for (let i = 0; i < 100 && busy().length; i++)
-          await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      if (busy().length) throw new Error('Une seule mission privée à la fois dans cet espace');
-    }
     if (!plan.cost.withinBudget)
       throw new Error(
         `Budget insuffisant : estimation ${plan.cost.platformCents} c > budget ${plan.cost.budgetCents} c`,
@@ -805,6 +788,32 @@ export class Orchestrator {
         !terminal.has(previous.state))
     )
       throw new Error('Session non reprenable');
+    // Essai réel du 11/11 (f. SEEK) : a mission that has delivered its answer and ends on a
+    // question in prose (« dites-moi si vous voulez que je… ») kept the private space for up to
+    // two hours ; the owner could launch nothing else. Launching another mission is the owner's
+    // answer : that question is closed unanswered, the waiting mission ends with its answer kept.
+    // A form asked in the middle of a turn (the agent is still working) keeps the space.
+    // Relecture du 11/11 (constat 3) : nothing is closed before every other refusal has been
+    // checked (budget, session non reprenable) : a refused launch has no effect.
+    if (plan.input.workspace === 'career-ops') {
+      const busy = () =>
+        [...this.active.keys()].filter((id) => this.store.get(id)?.workspace === 'career-ops');
+      const waiting = busy().map((id) => this.openQuestion(id));
+      if (waiting.length && waiting.every((entry) => entry?.question.kind === 'prose')) {
+        for (const entry of waiting)
+          this.settleQuestion(entry, { action: 'cancel' }, { action: 'superseded' });
+        // The closed mission writes its Bilan, then its agent gets up to 5 s to leave (see the
+        // end of execute) : wait for both, with a margin.
+        for (let i = 0; i < 300 && busy().length; i++)
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        if (busy().length)
+          throw new Error(
+            'La mission précédente se termine encore (sa question a été fermée sans réponse) ; relancer dans quelques secondes',
+          );
+        if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
+      }
+      if (busy().length) throw new Error('Une seule mission privée à la fois dans cet espace');
+    }
     const id = randomUUID();
     // A simulated mission (demo agent) or one on fictitious data never works in the owner's own
     // career-ops space: its folder is a temporary workspace like any other mission's.
@@ -968,8 +977,8 @@ export class Orchestrator {
   async execute(run, plan, control, previous) {
     let text = '',
       events = 0;
-    let lastMessageStart = 0,
-      afterTool = false;
+    let afterTool = false;
+    let messageStarts = [];
     let browserToolObserved = false;
     let sessionReset = false;
     let rateLimit = null;
@@ -1197,12 +1206,12 @@ export class Orchestrator {
             return;
           }
           // Messages written between tool calls are kept apart (they ran together : « …pages.Je
-          // lis… ») and the start of the last one is remembered for a prose answer.
+          // lis… ») and where each one starts is remembered for a prose answer.
           if (update.sessionUpdate === 'tool_call') afterTool = true;
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
             if (afterTool) {
               if (text && !/\n\s*$/.test(text)) text += '\n\n';
-              lastMessageStart = text.length;
+              messageStarts.push(text.length);
               afterTool = false;
             }
             text += update.content.text;
@@ -1250,8 +1259,8 @@ export class Orchestrator {
       }
       // session/load replays the previous conversation as updates: only this turn's answer counts.
       text = '';
-      lastMessageStart = 0;
       afterTool = false;
+      messageStarts = [];
       await runtime.selectModel(run.model);
       this.store.update(run.id, {
         sessionId: session.sessionId,
@@ -1345,7 +1354,7 @@ export class Orchestrator {
             ok: true,
             value: {
               simulated: !!plan.simulated,
-              summary: proseAnswer(text, lastMessageStart),
+              summary: proseAnswer(text, messageStarts),
               evidence: [],
             },
           };
@@ -1360,7 +1369,7 @@ export class Orchestrator {
             ok: true,
             value: {
               simulated: false,
-              summary: redact(proseAnswer(text, lastMessageStart)),
+              summary: redact(proseAnswer(text, messageStarts)),
               evidence: [],
             },
           };
@@ -1377,12 +1386,16 @@ export class Orchestrator {
       // A structured `question` waits for the owner, then the agent continues in the SAME session.
       // bilan-06 (E52) : so does a last paragraph that asks the owner to decide, in plain prose.
       const questionCount = { asked: 0, answered: 0 };
+      let closingLine = '';
       for (;;) {
         const { question: structured, ...rest } = agentValue;
         const question = structured ?? decisionRequest(rest.summary);
         if (!question) break;
         const said = rest.summary.trim();
-        const close = (line) => ({ ...rest, summary: [said, line].filter(Boolean).join('\n') });
+        const close = (line) => {
+          closingLine = line;
+          return { ...rest, summary: [said, line].filter(Boolean).join('\n') };
+        };
         if (questionCount.asked >= MAX_QUESTIONS) {
           agentValue = close(
             `Questions trop nombreuses (${MAX_QUESTIONS} au plus par mission) ; non posée : ${question.message}`,
@@ -1404,8 +1417,8 @@ export class Orchestrator {
         if (!runtime.continueSession())
           throw new Error('Session de l’agent fermée pendant la question');
         text = '';
-        lastMessageStart = 0;
         afterTool = false;
+        messageStarts = [];
         armSilence();
         response = await runtime.prompt(
           JSON.stringify({
@@ -1425,7 +1438,13 @@ export class Orchestrator {
         fixtureData: plan.dataMode === 'fixture',
       });
       // What the agent itself answered, before anything the platform writes around it.
-      const agentSaid = String(agentValue.summary ?? '').trim();
+      // Relecture du 11/11 (constat 4) : without the line the platform wrote when it closed a
+      // question (« Question restée sans réponse : … ») ; that line belongs to platformNotes.
+      const wholeSaid = String(agentValue.summary ?? '').trim();
+      const agentSaid =
+        closingLine && wholeSaid.endsWith(closingLine)
+          ? wholeSaid.slice(0, -closingLine.length).trim()
+          : wholeSaid;
       let privateResult = null;
       const skillResult = skillProgress.finish();
       if (skillResult.steps.length) this.store.update(run.id, { skillProgress: skillResult });

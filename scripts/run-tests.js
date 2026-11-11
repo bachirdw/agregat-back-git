@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { testPhaseTimeoutMs } from './test-phase-timeout.js';
 const BROWSER = new Set([
+  'onglet-eveille.test.js',
   'browser-click-ref.test.js',
   'browser-type-upload-ref.test.js',
   'browser-select-check.test.js',

@@ -104,6 +104,17 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
       pending.set(id, { method, resolve, reject, timer });
       upstream.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
+  // Essai réel du 11/11 (mission 8f365fd4, sonde-visibilite.mjs) : the relay opens the mission's tab
+  // in the background, and Playwright's own focus emulation is off in owner mode (noDefaults). The
+  // page is then « hidden » : its timers run once a second, deferred content is not rendered,
+  // captures and waits expire. Focus emulation makes that tab behave as a visible one, without
+  // taking the owner's active tab. A relay that refuses it leaves the page as before.
+  const awake = new Set();
+  const keepAwake = (sessionId) => {
+    if (upstream.readyState !== WebSocket.OPEN || awake.has(sessionId)) return;
+    awake.add(sessionId);
+    rpc('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId).catch(() => {});
+  };
   upstream.on('message', (raw) => {
     let m;
     try {
@@ -118,8 +129,10 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
       pending.delete(m.id);
       clearTimeout(p.timer);
       if (p.method === 'Target.createTarget' && m.result?.targetId) targets.add(m.result.targetId);
-      if (p.method === 'Target.attachToTarget' && m.result?.sessionId)
+      if (p.method === 'Target.attachToTarget' && m.result?.sessionId) {
         sessions.add(m.result.sessionId);
+        keepAwake(m.result.sessionId);
+      }
       if (m.error) p.reject(new Error(m.error.message));
       else p.resolve(m.result ?? {});
       return;
@@ -129,6 +142,7 @@ export async function ownerTransport(endpoint, timeoutMs = 10000) {
     if (m.method === 'Target.attachedToTarget') {
       if (!targets.has(ti?.targetId) && !sessions.has(m.sessionId)) return;
       sessions.add(m.params.sessionId);
+      if (ti?.type === 'page') keepAwake(m.params.sessionId);
       if (ti?.type === 'page' && (!targetInfo || ti.url === marker)) {
         targetInfo = ti;
         targetSession = m.params.sessionId;

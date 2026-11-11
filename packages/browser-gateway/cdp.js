@@ -458,7 +458,11 @@ async function prepareCapture(page, args) {
       await handle.dispose();
     } catch (error) {
       if (error.name !== 'TimeoutError') throw error;
-      found = false;
+      // Essai réel du 11/11 : once scrolling and loading have used the budget, the wait above has
+      // a millisecond left and « not found » was said of a text the page shows. Read it once.
+      found = await page
+        .evaluate((text) => (document.body?.innerText ?? '').toLowerCase().includes(text), needle)
+        .catch(() => false);
     }
     waitedFor = { text: args.waitForText, found };
   }
@@ -2196,7 +2200,9 @@ export class CdpBrowser {
     await this.assertLanded(policy);
     this.blocked = null;
     this.redirectLanding = null;
+    let slowLoad = false;
     const goto = async (url, landing = false) => {
+      const before = page.url();
       this.snapshotRefs = null;
       // E43 : a navigation of the agent ends the moment of an upload, and frees the file. It also
       // ends what an approved send click covered (audit du 10/11, constat 5).
@@ -2216,7 +2222,16 @@ export class CdpBrowser {
       } catch (e) {
         if (this.blocked) await this.reset();
         if (this.blocked) throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
-        throw e;
+        // Essai réel du 11/11 (8f365fd4) : the wait for the document expired twice (20 s each) on a
+        // page that had arrived and was readable three seconds later. A page that left the former
+        // address for an http(s) document with a body is an arrival, said slow, not a failure.
+        const arrived =
+          e?.name === 'TimeoutError' &&
+          /^https?:/i.test(page.url()) &&
+          page.url() !== before &&
+          (await page.evaluate(() => !!document.body).catch(() => false));
+        if (!arrived) throw e;
+        slowLoad = true;
       }
       if (this.blocked) throw new Error(`Navigation bloquée par la politique : ${this.blocked}`);
       await this.assertLanded(policy);
@@ -2262,7 +2277,16 @@ export class CdpBrowser {
       case 'browser.navigate':
         this.ownerConnection?.takeOpenedWindow();
         await goto(args.url);
-        return { url: page.url(), title: await page.title() };
+        return {
+          url: page.url(),
+          title: await page.title().catch(() => ''),
+          ...(slowLoad
+            ? {
+                slowLoad:
+                  'La page est arrivée mais son chargement n’était pas fini au délai : la capturer (browser_snapshot) plutôt que de renaviguer.',
+              }
+            : {}),
+        };
       case 'browser.snapshot': {
         let followed = {};
         if (args.url) {

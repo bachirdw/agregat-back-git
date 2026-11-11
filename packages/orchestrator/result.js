@@ -37,11 +37,44 @@ function objectEnd(text, start) {
   }
   return -1;
 }
+// Essai réel du 11/11 (8f365fd4) : an agent wrote its summary (a Markdown table) with raw line
+// breaks inside the JSON string ; the whole answer was then refused as invalid JSON and the raw
+// turn, block included, became the summary. Raw control characters inside a string are escaped and
+// the object read again ; nothing else is repaired.
+function escapeControlsInStrings(text) {
+  let out = '';
+  let quoted = false;
+  let escaped = false;
+  for (const char of text) {
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') quoted = false;
+      else if (char < ' ') {
+        out +=
+          char === '\n'
+            ? '\\n'
+            : char === '\r'
+              ? '\\r'
+              : char === '\t'
+                ? '\\t'
+                : `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`;
+        continue;
+      }
+    } else if (char === '"') quoted = true;
+    out += char;
+  }
+  return out;
+}
 const parseJson = (text) => {
   try {
     return JSON.parse(text);
   } catch {
-    return undefined;
+    try {
+      return JSON.parse(escapeControlsInStrings(text));
+    } catch {
+      return undefined;
+    }
   }
 };
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -134,4 +167,20 @@ export function executionResult(value, definition, { fixtureData = false } = {})
       analysis: definition.simulated ? 'démonstrateur' : definition.id,
     },
   };
+}
+
+// The prose answer of a turn whose text holds no usable structured answer : `text` gathers every
+// message written between tool calls, `lastStart` is where the last one begins. The last message is
+// the answer when it says enough ; a short closing line (« Voilà. ») keeps the whole turn. A fenced
+// JSON block that could not be read is left out : it is not something to show the owner.
+export function proseAnswer(text, lastStart = 0) {
+  const clean = (value) =>
+    String(value ?? '')
+      .replace(/```json[\s\S]*?(?:```|$)/gi, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  const whole = clean(text);
+  const last = clean(String(text ?? '').slice(lastStart));
+  if (last.length >= 200) return last;
+  return whole || String(text ?? '').trim();
 }

@@ -48,6 +48,7 @@ async function relay(t, options = {}) {
         setTimeout(() => emit({ id: m.id, result: { late: true } }), options.slowSession);
         return;
       }
+      if (options.refuse === m.method) return emit({ id: m.id, error: { message: 'refusé' } });
       let result = {};
       if (m.method === 'Target.createTarget') {
         if (options.mute) return;
@@ -343,4 +344,30 @@ test('Audit 10/11 (constat 10) : une commande de page lente n’est pas coupée 
   const answer = received.find((m) => m.id === 1);
   assert.equal(answer?.error, undefined, JSON.stringify(answer));
   assert.deepEqual(answer.result, { late: true });
+});
+
+// Essai réel du 11/11 (mission 8f365fd4) : l'onglet ouvert par le relais est en arrière-plan, donc
+// « hidden » : minuteries à une par seconde, contenu différé non rendu, captures qui expirent.
+test('transport propriétaire : l’onglet de mission et ses fenêtres sont tenus éveillés, jamais ceux du propriétaire', async (t) => {
+  const fake = await relay(t, { popup: true });
+  const transport = await ownerTransport(fake.endpoint, 1000);
+  t.after(() => transport.close());
+  const until = Date.now() + 2000;
+  const focus = () =>
+    fake.commands.filter((m) => m.method === 'Emulation.setFocusEmulationEnabled');
+  while (focus().length < 2 && Date.now() < until) await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(
+    focus()
+      .map((m) => m.sessionId)
+      .sort(),
+    ['own-session', 'popup-session'],
+  );
+  assert.ok(focus().every((m) => m.params.enabled === true));
+});
+
+test('transport propriétaire : un relais qui refuse l’émulation du focus laisse la mission démarrer', async (t) => {
+  const fake = await relay(t, { refuse: 'Emulation.setFocusEmulationEnabled' });
+  const transport = await ownerTransport(fake.endpoint, 1000);
+  t.after(() => transport.close());
+  assert.match(transport.endpoint, /^ws:\/\/127\.0\.0\.1:\d+\/relay-/);
 });

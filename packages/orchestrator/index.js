@@ -27,7 +27,7 @@ import {
 import { ROOT, getDag, getPack, packs, proposeDag, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
-import { executionResult, parseAgentResult } from './result.js';
+import { executionResult, parseAgentResult, proseAnswer } from './result.js';
 import {
   browserObservationFailure,
   isBrowserToolName,
@@ -956,6 +956,8 @@ export class Orchestrator {
   async execute(run, plan, control, previous) {
     let text = '',
       events = 0;
+    let lastMessageStart = 0,
+      afterTool = false;
     let browserToolObserved = false;
     let sessionReset = false;
     let rateLimit = null;
@@ -1182,7 +1184,15 @@ export class Orchestrator {
             );
             return;
           }
+          // Messages written between tool calls are kept apart (they ran together : « …pages.Je
+          // lis… ») and the start of the last one is remembered for a prose answer.
+          if (update.sessionUpdate === 'tool_call') afterTool = true;
           if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
+            if (afterTool) {
+              if (text && !/\n\s*$/.test(text)) text += '\n\n';
+              lastMessageStart = text.length;
+              afterTool = false;
+            }
             text += update.content.text;
             if (text.length > 1000000) {
               control.abort.abort(new Error('Résultat trop volumineux'));
@@ -1228,6 +1238,8 @@ export class Orchestrator {
       }
       // session/load replays the previous conversation as updates: only this turn's answer counts.
       text = '';
+      lastMessageStart = 0;
+      afterTool = false;
       await runtime.selectModel(run.model);
       this.store.update(run.id, {
         sessionId: session.sessionId,
@@ -1319,7 +1331,11 @@ export class Orchestrator {
         if (!result.ok && plan.pack.id === 'career-ops' && text.trim())
           result = {
             ok: true,
-            value: { simulated: !!plan.simulated, summary: text.trim(), evidence: [] },
+            value: {
+              simulated: !!plan.simulated,
+              summary: proseAnswer(text, lastMessageStart),
+              evidence: [],
+            },
           };
         // Any other real agent may answer in prose too: shown as its answer, with no evidence.
         if (
@@ -1330,7 +1346,11 @@ export class Orchestrator {
         )
           result = {
             ok: true,
-            value: { simulated: false, summary: redact(text.trim()), evidence: [] },
+            value: {
+              simulated: false,
+              summary: redact(proseAnswer(text, lastMessageStart)),
+              evidence: [],
+            },
           };
         if (!result.ok) {
           this.store.event(run.id, 'agent_output_rejected', {
@@ -1372,6 +1392,8 @@ export class Orchestrator {
         if (!runtime.continueSession())
           throw new Error('Session de l’agent fermée pendant la question');
         text = '';
+        lastMessageStart = 0;
+        afterTool = false;
         armSilence();
         response = await runtime.prompt(
           JSON.stringify({

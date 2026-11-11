@@ -1458,7 +1458,7 @@ export function registerCareerTools(
   );
   register(
     'career_offer_save',
-    'Index Relay facultatif : enregistrer une offre sourcée et éventuellement sa note 1–5 (décimale admise, ex. 4.5) et un rapport A–G (H facultatif). Le rapport et le suivi du Skill s’écrivent par career_write reports/{###}-… et batch/tracker-additions/ puis career_script merge-tracker. report est un objet dont les seules clés sont A, B, C, D, E, F, G et H, chacune un texte ; toute autre clé est refusée. fetchedAt : date ISO de lecture, ou absente. Ne rien inventer. La plateforme génère l’identifiant et le renvoie.',
+    'Index Relay facultatif : enregistrer une offre sourcée et éventuellement sa note 1–5 (décimale admise, ex. 4.5) et un rapport A–G (H facultatif) : note et rapport vont ensemble (les deux, ou aucun des deux pour une offre seulement repérée). Le rapport et le suivi du Skill s’écrivent par career_write reports/{###}-… et batch/tracker-additions/ puis career_script merge-tracker. report est un objet dont les seules clés sont A, B, C, D, E, F, G et H, chacune un texte ; toute autre clé est refusée. fetchedAt : date ISO de lecture, ou absente. Ne rien inventer. La plateforme génère l’identifiant et le renvoie.',
     offerInputSchema,
     (offer) => tools.saveOffer(offer),
   );

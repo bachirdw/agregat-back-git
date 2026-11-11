@@ -47,6 +47,16 @@ test('E44 FICTIF : sans URL, le scan reste obligatoire ; « sans scan » dispens
   const waived = search('Trouve des offres FICTIVES sans scan');
   waived.start();
   assert.deepEqual(waived.incomplete(), []);
+  // Essai réel du 11/11 (2768fb23) : la dispense dite avec d'autres mots finissait `failed`.
+  for (const prompt of [
+    'Sans lancer le scan des portails : cherche dans mon navigateur, sur LinkedIn puis sur Indeed, les offres « AI Engineer » FICTIVES publiées cette semaine.',
+    'Cherche des offres FICTIVES sur LinkedIn, ne lance pas le scan.',
+    'Find FICTIVE job offers on LinkedIn, skip the scan.',
+  ]) {
+    const progress = search(prompt);
+    progress.start();
+    assert.deepEqual(progress.incomplete(), [], prompt);
+  }
 });
 
 test('E44 FICTIF : un scan lancé malgré l’URL est crédité, un scan échoué reste visible', () => {

@@ -244,6 +244,17 @@ intents:
           sans le scan,
           pas de scan,
           sans scanner,
+          sans lancer le scan,
+          sans lancer de scan,
+          ne lance pas le scan,
+          ne lance pas de scan,
+          sans passer par le scan,
+          without the scan,
+          without scanning,
+          no scan,
+          skip the scan,
+          don't run the scan,
+          do not run the scan,
         ]
     steps:
       - id: scan
@@ -257,12 +268,24 @@ intents:
         # E44 : un prompt qui donne une URL (page de résultats à lire) nomme lui-même la source ;
         # le scan des portails n'est plus exigé, il reste crédité s'il tourne.
         unlessUrl: true
-        unlessPhrases:
-          [
+        unlessPhrases: [
             sans scan,
             sans le scan,
             pas de scan,
             sans scanner,
+            # Essai réel du 11/11 (2768fb23) : « Sans lancer le scan des portails : cherche sur
+            # LinkedIn puis sur Indeed… » finissait `failed` (scan non exécuté).
+            sans lancer le scan,
+            sans lancer de scan,
+            ne lance pas le scan,
+            ne lance pas de scan,
+            sans passer par le scan,
+            without the scan,
+            without scanning,
+            no scan,
+            skip the scan,
+            don't run the scan,
+            do not run the scan,
             ne lance aucun script,
             sans lancer de script,
             ne lance rien,

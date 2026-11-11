@@ -134,7 +134,7 @@ const stepSchema = z
     optional: z.boolean(),
     // Without this step the mission is reported as incomplete, unless the prompt waives it.
     required: z.boolean().optional(),
-    unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(10).optional(),
+    unlessPhrases: z.array(z.string().trim().min(2).max(60)).max(30).optional(),
     // The step is waived, like a matched `unlessPhrases` entry, when the prompt carries a URL: the
     // prompt names the page itself (E44: a results page to read is not a portal scan).
     unlessUrl: z.boolean().optional(),

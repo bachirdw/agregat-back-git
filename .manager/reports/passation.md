@@ -282,11 +282,11 @@ tournait en Chrome isolé sur une copie de l'espace career-ops, voir ci-dessous)
 | 4310 | API `dev` historique, habituelle du propriétaire (front 5173) | depuis `agregat-back-dev`, commande type ; le 07/11 elle a tourné depuis `agregat-back` (ancien code) |
 | 4311 | API de la branche `nuit-06-11` (mode propriétaire, Playwriter, origine locale 4321) | depuis `agregat-back-nuit` |
 | 4312 | API de la branche `audit-nuit-10-11` (Chrome isolé, page FICTIVE 4321, copie career-ops) | depuis `agregat-back-audit` ; démos : `.manager/outils/demo-candidature.py 4312 skill|libre|libre-cv` |
-| 4313 | API de la branche cto-11-11 | à compléter par le manager |
+| 4313 | API de la branche `cto-11-11` (mode propriétaire, Chrome du propriétaire par Playwriter, origine locale 4321, **copie** de l'espace career-ops) | script `api-4313.sh` du scratchpad de la session (même commande que 4312, depuis `agregat-back-cto`, sans `AGENT_PLATFORM_BROWSER`) ; données `.data` propres au worktree |
 | 5173 | front habituel (Vite, `~/Downloads/agregat-front`) vers 4310 | lancé par le propriétaire |
 | 5174 | front de test de la branche de nuit vers 4311 | `AGENT_PLATFORM_API_URL=http://127.0.0.1:4311 npx vite --host 127.0.0.1 --port 5174` dans `agregat-front` |
 | 5175 | front de test de la branche d'audit vers 4312 | même commande avec `…:4312` et `--port 5175` |
-| 5176 | front de test (rôle non documenté dans les sources) | à l'écoute le 11/11 ; à compléter par le manager |
+| 5176 | front de la branche `transcription-11-11` (`~/Downloads/agregat-front-cto`) → 4313 | `AGENT_PLATFORM_API_URL=http://127.0.0.1:4313 npx vite --host 127.0.0.1 --port 5176 --strictPort` |
 | 4321 | page de candidature FICTIVE, compteur `/count` | `node tests/support/apply-page.js 4321` |
 | 19988 | relais Playwriter 0.7.0 (`playwriter-serve`), extension Chrome du propriétaire | démarré par l'API à la première mission en mode propriétaire (`relay-start.js`) ; survit à l'API |
 
@@ -318,6 +318,56 @@ Collecteur du registre : `python3 .manager/registre-erreurs.py` (lit `.data/plat
 - Autres : `run-sprint.sh`, `run-until-done.sh`, `make-review.sh` (anciens lanceurs Codex), `CARTE.md` (où vit quoi dans
   Relay), `reuse-map.md`/`reuse-plan.md`/`PLAN-reuse.md` (réutilisation des dépôts de référence), `api-usage.md`.
 
-## 9. État du 11/11
+## 9. État du 11/11 (20:36)
 
-(à compléter par le manager en fin de session)
+**Où est le travail.** Back : branche `cto-11-11` (worktree `~/Downloads/agregat-back-cto`), partie de
+`audit-nuit-10-11` (ea6fa14), 9 commits, HEAD 71d347e. Front : branche `transcription-11-11` (worktree
+`~/Downloads/agregat-front-cto`), partie de `envoi-question`, 4 commits. Rien n'est fusionné ni poussé.
+Tout enlever : `git -C ~/Downloads/agregat-back-dev worktree remove --force ~/Downloads/agregat-back-cto && git -C ~/Downloads/agregat-back-dev branch -D cto-11-11`
+(même chose dans `agregat-front` pour `agregat-front-cto` / `transcription-11-11`).
+
+**Suite.** Verte sur 188a84b (20:33) : 1072 unitaires (1070 ✔, 2 ignorés), 215/215 Chrome, contrôle et format ; le
+commit suivant (71d347e, phrases du manifeste) : 158 tests ciblés verts. Un test Chrome (« faux exécutable muet »,
+fenêtre de 1 s) a échoué une fois sous charge puis réussi seul : fragile au temps, connu depuis le 27/10.
+
+**Cause racine trouvée (E79).** L'onglet de mission ouvert par le relais Playwriter dans le Chrome du propriétaire est
+en arrière-plan : « caché », minuteries bridées, contenu différé non rendu. Playwright corrige cela d'ordinaire par
+l'émulation du focus, coupée en mode propriétaire (`noDefaults`). Le transport l'active maintenant sur l'onglet de
+mission. Sonde : `.manager/outils/sonde-visibilite.mjs` (5 minuteries de 100 ms : 4,7 s avant, 0,5 s après). C'est la
+cause probable d'E19, E23, E69 et des expirations dans Gmail.
+
+**Missions réelles du jour** (API 4313, Chrome du propriétaire, copie de l'espace career-ops, aucun envoi) :
+
+| Heure | Mission | Agent | Demande | Issue |
+|---|---|---|---|---|
+| 19:18 | 8f365fd4 | Claude Sonnet | scan des portails + 5 meilleures offres | `completed`, 10 min ; a révélé E79 à E82, E84 |
+| 19:44 | (SEEK) | Claude Sonnet | recherche SEEK dans le navigateur, 3 offres lues | `completed`, 4 min, aucun échec navigateur (E79 vérifié) ; E83 |
+| 19:51 | f831e62b | Codex | évaluer une offre SEEK, CV adapté, lettre | fermée sans rien faire : E86 (question en chaîne) |
+| 19:53 | f7271831 | Codex | reprise après correctif | rapport 010, CV adapté PDF, suivi fusionné, 10 min, aucun appel en échec ; question de la lettre posée (réponses personnelles du propriétaire attendues) |
+| 20:04 | (apply) | Claude Sonnet | préparer la candidature SEEK du rapport 010, arrêt avant l'envoi | `completed`, 5 min 43 : CV adapté joint, lettre saisie, toutes les étapes, arrêt avant « Submit application », aucune carte, rien d'envoyé ; E87, E88 |
+| 20:12 | 2768fb23 | Claude Sonnet | LinkedIn + Indeed sans scan, 4 offres lues | réponse complète en 6 min (E19 levé) ; fausse carte d'envoi (E89), offre de suite prise pour une question (E90), `failed` à tort (E92) |
+
+Effets sur les données du propriétaire : son compte SEEK contient une candidature **préparée et non envoyée** pour
+l'offre Lanson Partners (CV adapté du rapport 010 téléversé dans son compte, lettre saisie dans le formulaire) ;
+rien dans son espace career-ops réel (tout est dans la copie du scratchpad : rapport 010, CV, suivi).
+
+**Corrigé ce jour** (détail : registre E79 à E92) : onglet tenu éveillé ; navigation arrivée mais lente ; texte attendu
+relu ; JSON à retours à la ligne bruts ; question en chaîne (Codex) ; réponse en prose sans narration ni bloc JSON
+illisible ; `result.answer` et `result.platformNotes` ; résultat privé complété ; une nouvelle mission ferme une
+question en prose en attente ; offre de suite ≠ question ; carte de grosse écriture seulement après une saisie ou un
+fichier de l'agent ; « prépare ma candidature » = `apply` ; dispense de scan dite autrement ; lecture des scripts du
+Skill en mode propriétaire ; description de `career_offer_save`. Relecture Opus indépendante : 3 importants et 4
+mineurs, tous corrigés sauf le constat 6 (consigné, E91).
+
+**Front** (`transcription-11-11`, http://127.0.0.1:5176) : fil de l'agent façon Claude Code (ligne par outil, dépliable,
+groupes, appel en cours), réponse d'abord, « Détails des actions » replié, avertissements visibles ; Claude et Codex
+vérifiés en direct ; 185/185 tests, build vert. Rapport : `agregat-front-cto/.manager/reports/transcription-11-11.md`.
+
+**Reste à faire.**
+- À vérifier en réel sur le code final : E84, E87, E89, E90, E92 ; une longue mission (15-20 min) pour E65/E69 ; Gmail.
+- Jamais joué : un envoi réel (le clic du propriétaire) ; une pièce jointe (CV) dans une mission career-ops réelle.
+- E21 : le scan du Skill n'atteint pas SEEK (bibliothèque, intouchable) ; l'agent passe par le navigateur quand on le
+  lui demande. Idée : que la plateforme propose d'elle-même ce complément quand le scan signale des cibles injoignables.
+- Constat 6 de la relecture (`slowLoad`) ; test « faux exécutable muet » fragile ; E53 ; décisions du propriétaire
+  (section 6) toujours ouvertes, plus : garder `cto-11-11` et `transcription-11-11` ?
+- La copie de l'espace career-ops est dans `/private/tmp` (effacée au redémarrage du Mac).

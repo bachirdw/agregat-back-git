@@ -776,11 +776,23 @@ export class Orchestrator {
       };
     const plan = await this.plan(input, { resume: !!previous });
     if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
-    if (
-      plan.input.workspace === 'career-ops' &&
-      [...this.active.keys()].some((id) => this.store.get(id)?.workspace === 'career-ops')
-    )
-      throw new Error('Une seule mission privée à la fois dans cet espace');
+    // Essai réel du 11/11 (f. SEEK) : a mission that has delivered its answer and ends on a
+    // question in prose (« dites-moi si vous voulez que je… ») kept the private space for up to
+    // two hours ; the owner could launch nothing else. Launching another mission is the owner's
+    // answer : that question is closed unanswered, the waiting mission ends with its answer kept.
+    // A form asked in the middle of a turn (the agent is still working) keeps the space.
+    if (plan.input.workspace === 'career-ops') {
+      const busy = () =>
+        [...this.active.keys()].filter((id) => this.store.get(id)?.workspace === 'career-ops');
+      const waiting = busy().map((id) => this.openQuestion(id));
+      if (waiting.length && waiting.every((entry) => entry?.question.kind === 'prose')) {
+        for (const entry of waiting)
+          this.settleQuestion(entry, { action: 'cancel' }, { action: 'superseded' });
+        for (let i = 0; i < 100 && busy().length; i++)
+          await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      if (busy().length) throw new Error('Une seule mission privée à la fois dans cet espace');
+    }
     if (!plan.cost.withinBudget)
       throw new Error(
         `Budget insuffisant : estimation ${plan.cost.platformCents} c > budget ${plan.cost.budgetCents} c`,
@@ -1412,6 +1424,9 @@ export class Orchestrator {
       const value = executionResult(agentValue, plan.agent, {
         fixtureData: plan.dataMode === 'fixture',
       });
+      // What the agent itself answered, before anything the platform writes around it.
+      const agentSaid = String(agentValue.summary ?? '').trim();
+      let privateResult = null;
       const skillResult = skillProgress.finish();
       if (skillResult.steps.length) this.store.update(run.id, { skillProgress: skillResult });
       let unproven = false;
@@ -1501,6 +1516,7 @@ export class Orchestrator {
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
         value.summary += '\n' + careerBilan;
         writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
+        privateResult = { ...value };
         value.summary =
           (agentAnswer
             ? this.ownerMode
@@ -1518,6 +1534,7 @@ export class Orchestrator {
           )
             delete value[key];
       }
+      const publicLength = value.summary.length;
       if (plan.pack.id !== 'career-ops' && skillResult.steps.length)
         value.summary += '\nBilan\n' + formatSkillBilan(skillResult);
       if (plan.pack.id !== 'career-ops' && turnTruth.failedActions().length)
@@ -1587,6 +1604,38 @@ export class Orchestrator {
           .filter(Boolean)
           .join(' ; ') || null;
       if (incomplete.length) value.summary += `\nMission incomplète : ${incomplete.join(' ; ')}.`;
+      // Front du 11/11 : the answer of the agent and the lines of the platform, apart, so that an
+      // interface shows the first and folds the second without recognising sentences. `summary`
+      // stays the whole text. The private career-ops result gets the lines written after it too
+      // (sends, questions, native actions, session, browser) : it was saved before them.
+      {
+        const at = agentSaid ? value.summary.indexOf(agentSaid) : -1;
+        const lines = (text) =>
+          text
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+        value.answer = at >= 0 ? agentSaid : '';
+        value.platformNotes =
+          at >= 0
+            ? [
+                ...lines(value.summary.slice(0, at)),
+                ...lines(value.summary.slice(at + agentSaid.length)),
+              ]
+            : lines(value.summary);
+        if (privateResult) {
+          privateResult.summary += value.summary.slice(publicLength);
+          try {
+            writeConfined(
+              run.cwd,
+              `relay/runs/${run.id}-result.json`,
+              JSON.stringify(privateResult),
+            );
+          } catch {
+            /* the first write stands */
+          }
+        }
+      }
       this.meter(run.id, plan.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
       this.store.event(run.id, 'verification', {
         valid: !incompleteMessage && !unproven,

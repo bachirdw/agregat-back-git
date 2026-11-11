@@ -1208,6 +1208,14 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
     );
     assert.match(privateResult.summary, /- Actions échouées :/);
     assert.match(privateResult.summary, /- Non exécuté :/);
+    // Front du 11/11 : the private result holds the lines written after the Bilan too, and the
+    // public result gives the platform's lines apart from the agent's answer.
+    assert.match(privateResult.summary, /Envoi par la plateforme : aucun approuvé\./);
+    const publicResult = app.store.get(run.id).result;
+    assert.ok(publicResult.platformNotes.includes('Envoi par la plateforme : aucun approuvé.'));
+    assert.ok(publicResult.platformNotes.includes('Bilan'));
+    assert.equal(typeof publicResult.answer, 'string');
+    assert.ok(!publicResult.platformNotes.some((line) => line === publicResult.answer));
     assert.doesNotMatch(privateResult.summary, /DONNÉE_PRIVÉE_FICTIVE/);
     assert.match(app.store.get(run.id).result.summary, /Bilan\n- Actions réussies/);
     if (prompt.includes('FICTIF_ACTION_ECHOUEE'))

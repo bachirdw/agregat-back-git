@@ -124,7 +124,7 @@ async function runPipelineFixture(t, prompt, until = (state) => terminal.has(sta
       })
     ).status;
   const done = await waitUntil(until);
-  return { root, done, app, run, answer, waitUntil };
+  return { root, done, app, run, answer, waitUntil, base };
 }
 
 test('Boîte d’entrée FICTIVE de 3 entrées : 2 traitées [x], 1 [!], rapports, suivi et Bilan fidèles', async (t) => {
@@ -289,4 +289,34 @@ test('E52 FICTIF : un dernier message sans demande reste completed (boîte trait
   assert.equal(done.state, 'completed', done.error);
   assert.equal(done.pendingQuestion ?? null, null);
   assert.doesNotMatch(done.result.summary, /Questions : /);
+});
+
+// Essai réel du 11/11 : une mission qui a rendu sa réponse et finit sur une question en prose gardait
+// l'espace privé (« Une seule mission privée à la fois ») jusqu'à deux heures. Lancer une autre
+// mission ferme cette question sans réponse : la première se termine, sa réponse gardée.
+test('question en prose en attente : une nouvelle mission la ferme et démarre', async (t) => {
+  const { done, app, run, base } = await runPipelineFixture(
+    t,
+    'Traite la boîte d’entrée FICTIVE FICTIF_PIPELINE_AJOUT DEMANDE',
+    pausedOnOwner,
+  );
+  assert.equal(done.state, 'awaiting_owner', done.error ?? done.state);
+  const next = await fetch(base + '/api/runs', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-platform-request': '1' },
+    body: JSON.stringify({
+      prompt: 'Traite la boîte d’entrée FICTIVE FICTIF_PIPELINE',
+      agent: 'fixture',
+      attachments: done.attachments,
+    }),
+  });
+  assert.equal(next.status < 300, true, `nouvelle mission acceptée (HTTP ${next.status})`);
+  const second = await next.json();
+  const first = app.store.get(run.id);
+  assert.equal(first.state, 'completed', first.error);
+  assert.match(first.result.summary, /Question restée sans réponse : /);
+  assert.match(first.result.summary, /Questions : 1 posée\(s\), 0 répondue\(s\)/);
+  for (let i = 0; i < 1500 && !terminal.has(app.store.get(second.id).state); i++)
+    await new Promise((r) => setTimeout(r, 20));
+  assert.equal(app.store.get(second.id).state, 'completed', app.store.get(second.id).error);
 });

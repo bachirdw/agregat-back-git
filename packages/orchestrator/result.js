@@ -8,12 +8,19 @@ const questionSchema = z.object({
   options: z.array(z.string().min(1).max(200)).max(8).optional(),
 });
 
+// Essai réel du 11/11 (Codex, 68… « Confirmez-vous que cette offre passe par l'agence ? ») : the
+// question came as a plain string ; the whole answer was refused, the raw JSON shown as the answer,
+// the question never asked and the mission closed with nothing done. A string is a question.
+const questionField = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() ? { message: value.trim() } : value),
+  questionSchema,
+);
 const resultSchema = z
   .object({
     simulated: z.boolean(),
     summary: z.string(),
     evidence: z.array(z.unknown()),
-    question: questionSchema.optional(),
+    question: questionField.optional(),
   })
   .passthrough()
   .refine((value) => value.summary.length > 0 || value.question !== undefined);
@@ -87,7 +94,7 @@ function questionOnly(json) {
   return (
     isObject(json) &&
     CONTRACT_KEYS.every((key) => !(key in json)) &&
-    questionSchema.safeParse(json.question).success
+    questionField.safeParse(json.question).success
   );
 }
 // Every `{` of the text (the last MAX_STARTS) with the object it opens, parsed when it is JSON.

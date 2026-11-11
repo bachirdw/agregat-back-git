@@ -35,3 +35,20 @@ test('réponse en prose : le dernier message quand il dit assez, sans bloc JSON 
   assert.equal(proseAnswer(`${long}Voilà.`, long.length), `${long}Voilà.`.trim());
   assert.equal(proseAnswer('Bonjour.', 0), 'Bonjour.');
 });
+
+// Essai réel du 11/11 (Codex) : « question » donnée comme une simple chaîne.
+test('question donnée comme chaîne dans la réponse structurée : c’est une question', () => {
+  const result = parseAgentResult(
+    '{"simulated": false, "summary": "Annonce lue.", "question": "Confirmez-vous l’agence FICTIVE ?", "evidence": []}',
+  );
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.value.question, { message: 'Confirmez-vous l’agence FICTIVE ?' });
+  const alone = parseAgentResult('Voici où j’en suis.\n{"question": "Laquelle traiter ?"}');
+  assert.equal(alone.ok, true);
+  assert.deepEqual(alone.value.question, { message: 'Laquelle traiter ?' });
+  // An empty or non-text question is still off contract.
+  assert.equal(
+    parseAgentResult('{"simulated": false, "summary": "x", "question": 3, "evidence": []}').ok,
+    false,
+  );
+});

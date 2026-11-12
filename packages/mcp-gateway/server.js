@@ -14,6 +14,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { BrowserGateway, CdpBrowser, FixtureBrowser } from '../browser-gateway/index.js';
+import { shadowSinkFromEnv } from '../browser-gateway/send-shadow.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { describeCapabilities, getCapability } from '../capability-registry/index.js';
 import { getPack } from '../orchestrator/packs.js';
@@ -219,6 +220,8 @@ if (mode === 'fixture') {
   );
 } else {
   const policy = RunPolicy.fromJSON(process.env.RELAY_POLICY ?? '{}');
+  // carte-ombre-01 : the observation trace of the send card, only when the platform gave a file.
+  const cardShadow = shadowSinkFromEnv(process.env);
   const provider =
     mode === 'playwriter'
       ? new CdpBrowser({
@@ -231,8 +234,9 @@ if (mode === 'fixture') {
               }
             : null,
           extensionWaitMs: process.env.RELAY_CDP_ENDPOINT ? 0 : 15000,
+          cardShadow,
         })
-      : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH } });
+      : new CdpBrowser({ launch: { executablePath: process.env.RELAY_CHROME_PATH }, cardShadow });
   // Owner mode: network writes that follow no send click are granted; the platform only records them.
   const onAutoSend = ({ host }) =>
     approve(

@@ -34,7 +34,7 @@ const DELETE_LABEL =
   /^(?:supprimer|delete|remove|retirer|effacer)(?: (?:cette|cet|ce|this|the|l['’]|la|le|une?|an?) ?[\p{L}\p{N} '’-]{0,40})?$/iu;
 const LOGIN_LABEL =
   /^(?:se connecter|connexion|connectez-vous|s['’]identifier|identifiez-vous|log ?in|sign ?in)$/iu;
-const stepLabel = (label) =>
+export const stepLabel = (label) =>
   label
     .replace(/[^\p{L}\p{N}'’&]+/gu, ' ')
     .trim()

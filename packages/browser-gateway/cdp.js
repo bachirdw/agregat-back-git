@@ -19,6 +19,9 @@ import { paginateText } from './paginate.js';
 import { waitForExtension } from './relay-start.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
+// carte-ombre-01 : the observation mode (a cycle with send-shadow.js, which reuses carriesAgentData ;
+// both sides only call each other's hoisted functions at run time).
+import { gestureKind, shadowDecision } from './send-shadow.js';
 
 // Revue Opus du 06/11 (E64, E66) : Playwright runs its callbacks (routes, events) in the async
 // context where the browser connection was created. Opened inside an agent's tool call, every later
@@ -548,6 +551,8 @@ export class CdpBrowser {
   // never accepted or dismissed silently. A dialog blocks the page, so the action that opened it
   // returns at once with dialog: {type, message} and finishes after the answer.
   #dialogPages = new WeakSet();
+  // carte-ombre-01 : the decision the guard took for a request (card, cover), observation mode only.
+  #shadowActual = null;
   // Audit WebSocket (ws2) : the sockets each tab of the mission has open (seen, never relayed).
   #socketPages = new WeakMap();
   #dialog = null;
@@ -608,6 +613,9 @@ export class CdpBrowser {
     chromium = null,
     fallbackLaunch = null,
     extensionWaitMs = 0,
+    // carte-ombre-01 : a function that receives one line of observation per network write the owner
+    // guard sees (rule R2 next to the actual decision) ; null (the default) : nothing is computed.
+    cardShadow = null,
   } = {}) {
     if (!endpoint && !launch) throw new Error('endpoint CDP ou lancement isolé requis');
     if (!Number.isInteger(startupTimeoutMs) || startupTimeoutMs <= 0)
@@ -626,6 +634,10 @@ export class CdpBrowser {
       fallbackLaunch,
       extensionWaitMs,
     });
+    if (typeof cardShadow === 'function') {
+      this.cardShadow = cardShadow;
+      this.#shadowActual = new WeakMap();
+    }
     this.name = endpoint ? 'cdp-shared' : 'cdp-isolated';
     this.page = null;
   }
@@ -971,6 +983,11 @@ export class CdpBrowser {
   // the first, unless a later one names the send (a navigation of the form, a submission or
   // sensitive path) while the first did not. The others are traced as automatic writes.
   #takeCover(request, sensitive) {
+    const taken = this.#takeCoverOf(request, sensitive);
+    if (taken) this.#shadowActual?.set(request, 'cover');
+    return taken;
+  }
+  #takeCoverOf(request, sensitive) {
     const cover = this.cover;
     if (!cover || cover.left <= 0 || Date.now() > cover.until) return false;
     const url = request.url();
@@ -1225,11 +1242,168 @@ export class CdpBrowser {
     };
     return true;
   }
+  // carte-ombre-01 : the kind of the agent's click (or of the control Enter stands for in a form
+  // field : the form's default button), by structure only ; 'other' when it cannot be read.
+  async #shadowGestureOf(locator, enter) {
+    let handle = null;
+    try {
+      handle = await locator.evaluateHandle(
+        (el, onEnter) => {
+          if (!onEnter || !el.matches('input, textarea, select')) return el;
+          if (el.matches('input[type=submit], input[type=image]')) return el;
+          // Enter in a multi-line field or a list submits nothing by itself.
+          if (el.matches('textarea, select')) return null;
+          const form = el.form ?? el.closest('form');
+          return (
+            form?.querySelector(
+              'button:not([type]), button[type=submit], input[type=submit], input[type=image]',
+            ) ?? null
+          );
+        },
+        enter,
+        { timeout: 1000 },
+      );
+      const element = handle.asElement();
+      return element ? gestureKind(await element.evaluate(describeElement)) : 'other';
+    } catch {
+      return 'other';
+    } finally {
+      await handle?.dispose().catch(() => {});
+    }
+  }
+  // carte-ombre-01 : the owner guard in observation mode. R2 is computed when the write arrives
+  // (what the agent typed and attached then, its last gesture), `decide` runs exactly as without the
+  // mode, and one line is given to the sink once it has answered : the actual decision (a card the
+  // guard asked, a cover of an approved click, a pass, a block) next to R2. Host only, never a URL,
+  // a body or a value.
+  async #shadowGuard(route, decide) {
+    let request;
+    let method;
+    try {
+      request = route.request();
+      method = request.method();
+    } catch {
+      return decide(route);
+    }
+    if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return decide(route);
+    let line;
+    try {
+      line = this.#shadowLine(request, method);
+    } catch {
+      return decide(route);
+    }
+    let outcome = null;
+    const watched = {
+      request: () => request,
+      continue: (...rest) => {
+        outcome = 'pass';
+        return route.continue(...rest);
+      },
+      abort: (...rest) => {
+        outcome = 'blocked';
+        return route.abort(...rest);
+      },
+      fallback: (...rest) => {
+        outcome = null;
+        return route.fallback(...rest);
+      },
+    };
+    try {
+      return await decide(watched);
+    } finally {
+      // A request of a page that is not the mission's (fallback) is not traced.
+      if (outcome)
+        try {
+          this.cardShadow({
+            mission: line.mission,
+            heure: line.heure,
+            actuelle: this.#shadowActual.get(request) ?? outcome,
+            ...line.rest,
+          });
+        } catch {
+          /* observation only */
+        }
+    }
+  }
+  #shadowLine(request, method) {
+    const heure = new Date().toISOString();
+    const mission = this.shadowMission ?? null;
+    let host = '';
+    let url = '';
+    let pageUrl = '';
+    let body = null;
+    try {
+      url = request.url();
+      host = new URL(url).host;
+    } catch {
+      /* unparsable URL : no host */
+    }
+    try {
+      pageUrl = request.frame().page().url();
+    } catch {
+      /* no page */
+    }
+    try {
+      body = request.postDataBuffer();
+    } catch {
+      body = null;
+    }
+    const ms = this.writeInProgress
+      ? 0
+      : this.lastClickEnd
+        ? Math.max(0, Date.now() - this.lastClickEnd)
+        : null;
+    const gesture = ms === null ? null : { kind: this.shadowGesture ?? 'other', ms };
+    const same = sameSite(url, pageUrl);
+    let verdict;
+    try {
+      let navigation = false;
+      let headers = {};
+      try {
+        navigation = request.isNavigationRequest();
+        headers = request.headers();
+      } catch {
+        /* read as a script's write */
+      }
+      verdict = shadowDecision({
+        method,
+        navigation,
+        sameSite: same,
+        gesture,
+        body,
+        headers,
+        values: this.agentValues ?? [],
+        files: [...new Set([...(this.agentFiles ?? []), this.uploadedFile])]
+          .filter(Boolean)
+          .map((file) => ({ name: file.name, size: file.size })),
+        windowMs: CLICK_SEND_WINDOW_MS,
+      });
+    } catch {
+      verdict = { r2: 'unknown', reasons: ['erreur de calcul'], readable: false };
+    }
+    return {
+      mission,
+      heure,
+      rest: {
+        r2: verdict.r2,
+        raisons: verdict.reasons,
+        méthode: method,
+        hôte: host,
+        mêmeSite: same,
+        cheminDeSoumission: isSubmitPath(url),
+        genreDuClic: gesture?.kind ?? null,
+        msDepuisLeClic: ms,
+        octets: body?.length ?? 0,
+        corpsLisible: verdict.readable,
+      },
+    };
+  }
   async guard(policy) {
     if (policy.ownerMode) {
       // Owner mode keeps ordinary browsing automatic. Each outbound write still needs a
       // one-use grant; a scripted POST after an ordinary click cannot bypass the send queue.
-      this.ownerSendGuard = async (route) => {
+      this.shadowMission = policy.runId ?? null;
+      const decide = async (route) => {
         const request = route.request();
         try {
           if (!this.#pages.has(request.frame().page())) return route.fallback();
@@ -1398,6 +1572,7 @@ export class CdpBrowser {
           if (!forceCard && this.#takeCover(request, sensitive)) return route.continue();
         }
         {
+          this.#shadowActual?.set(request, 'card');
           const decision = Promise.resolve(
             this.approve?.(
               {
@@ -1432,6 +1607,8 @@ export class CdpBrowser {
           };
         return route.continue();
       };
+      // carte-ombre-01 : without a sink, the guard is `decide` itself (no cost, no trace).
+      this.ownerSendGuard = this.cardShadow ? (route) => this.#shadowGuard(route, decide) : decide;
       await this.context.route('**/*', this.ownerSendGuard);
       // Audit du 10/11 (audit-ws) : WebSocket frames never meet the route above. A message the
       // agent composed, sent by WebSocket after a click or a key that asked no card, would leave
@@ -2390,6 +2567,7 @@ export class CdpBrowser {
         // Resolve first: a stale ref must not open the post-click send window.
         const target = await this.targetLocator({ ref: args.ref });
         await this.#noteActionFrame(target);
+        if (this.cardShadow) this.shadowGesture = await this.#shadowGestureOf(target, false);
         this.ownerConnection?.takeOpenedWindow();
         // A click inside a form is a submission even when its label says "Continue". Audit du
         // 10/11 (constat 1) : a send-worded control outside a form (`candidate`) asks nothing
@@ -2582,6 +2760,7 @@ export class CdpBrowser {
         const enter = args.key === 'Enter';
         let guard = null;
         if (enter) {
+          if (this.cardShadow) this.shadowGesture = await this.#shadowGestureOf(target, true);
           // Relecture fix5 (constat 1) : an Enter the gateway did not classify is a doubt : any
           // write it triggers from the page waits for the owner's card.
           const kind = args.sendApproved === true ? null : (args.clickKind ?? 'candidate');
@@ -2685,6 +2864,8 @@ export class CdpBrowser {
         const content = typeof files === 'string' ? readFileSync(files) : files.buffer;
         this.uploadedFile = {
           name: expected,
+          // carte-ombre-01 : the size of the attached file (rule R2 of the observation mode).
+          size: content.length,
           // Kept for the slices of a chunked upload, up to 10 MB.
           bytes: content.length <= 10 * 1024 * 1024 ? Buffer.from(content) : null,
           head: Buffer.from(content.subarray(0, 512)),
@@ -2831,6 +3012,7 @@ export class CdpBrowser {
           this.formStep = false;
           this.clickKind = null;
           this.clickToken = this.callToken;
+          if (this.cardShadow) this.shadowGesture = await this.#shadowGestureOf(link, false);
           this.cover = args.sendApproved === true ? await this.#coverFor(link) : null;
           this.writeInProgress = true;
           try {

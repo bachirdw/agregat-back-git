@@ -439,6 +439,10 @@ export class Orchestrator {
             .filter(Boolean),
         }),
       );
+      // carte-ombre-01 : observation mode of the send card (rule R2 next to the actual decision),
+      // one JSONL file per mission under the data folder ; it changes no decision.
+      if (process.env.AGENT_PLATFORM_CARD_SHADOW === '1')
+        env.RELAY_CARD_SHADOW_FILE = resolve(this.dataDir, 'card-shadow', `${run.id}.jsonl`);
       if (process.env.AGENT_PLATFORM_CHROME_PATH)
         env.RELAY_CHROME_PATH = process.env.AGENT_PLATFORM_CHROME_PATH;
       if (process.env.AGENT_PLATFORM_CDP_ENDPOINT)

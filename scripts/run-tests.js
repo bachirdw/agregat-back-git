@@ -27,6 +27,8 @@ const BROWSER = new Set([
   'audit-ws.test.js',
   // envoi-issue-01 (audit du 12/11, A8 et A9) : issue d'un envoi accordé.
   'envoi-issue.test.js',
+  // carte-ombre-01 : mode d'observation de la carte d'envoi.
+  'carte-ombre-chrome.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

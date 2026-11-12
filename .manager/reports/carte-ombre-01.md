@@ -123,3 +123,4 @@ modifié (diff : enveloppe, marques et lecture seulement). Preuves : sorties de 
 ## Pour le manager
 - Pour mesurer : lancer l'API avec `AGENT_PLATFORM_CARD_SHADOW=1` (en plus des variables habituelles), puis l'outil.
 - Décider si la fenêtre de téléversement doit entrer dans R2 observée (écart avec l'étude, voir limites).
+- **00:30** Commits `4f6e832` (code et tests) et `d405107` (outil et rapport), par chemins explicites ; arbre propre.

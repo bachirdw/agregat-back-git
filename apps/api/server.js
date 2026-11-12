@@ -515,6 +515,17 @@ export function createApp({
           } else if (siteRefusal(status) && settled === 'completed') {
             control.sendsRefused = [...(control.sendsRefused ?? []), status];
             control.sendSettled.set(call, 'refused');
+          } else if (
+            Number.isInteger(status) &&
+            status >= 200 &&
+            status <= 399 &&
+            settled === 'uncertain' &&
+            control.sendsBlocked?.has(call)
+          ) {
+            // review-envoi-issue-01 : the click's own submission left after its call returned and
+            // the site took it ; the cancelled write to another site was not the send.
+            control.sendsBlocked.delete(call);
+            control.sendSettled.set(call, 'completed');
           } else if (control.sendCalls?.has(call)) {
             // A send whose call never reported its own outcome (its card was asked after it).
             control.sendCalls.delete(call);

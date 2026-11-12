@@ -976,7 +976,10 @@ export class CdpBrowser {
     const url = request.url();
     if (!sameSite(url, cover.target)) return false;
     // envoi-issue-01 (A9) : a beacon is no submission and takes no place of the cover.
+    // review-envoi-issue-01 : unless it goes to a submission path (a send by beacon) : it keeps
+    // taking its place, so that a burst of such beacons past the cover still waits for the card.
     if (request.resourceType() === 'ping') {
+      if (isSubmitPath(url)) cover.left -= 1;
       this.#traceAutoSend(url);
       return true;
     }

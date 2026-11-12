@@ -299,3 +299,79 @@ test('A8 : formatSendLine nomme les hôtes bloqués d’un envoi accordé', () =
     '\nEnvoi par la plateforme : 2 approuvé(s) par le propriétaire, dont 1 à l’issue incertaine (échec après le début de l’action : vérifier sur le site), dont 2 à l’issue incertaine (écriture vers api.exemple-fictif.test, a.test, b.test bloquée par la plateforme : vérifier sur le site).',
   );
 });
+
+// ---------------------------------------------------------------------------------------------
+// review-envoi-issue-01 : relecture indépendante (pages FICTIVES locales, Chrome isolé)
+// ---------------------------------------------------------------------------------------------
+
+test(
+  'Relecture : une balise vers un chemin d’envoi garde sa place ; la troisième redemande la carte',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(
+      t,
+      `<form onsubmit="event.preventDefault(); ${beacon('/api/messages/send')}; ${beacon('/api/messages/send')}; ${beacon('/api/messages/send')}">
+         <button type="submit" id="go">Envoyer le message</button></form>`,
+    );
+    const { gateway, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#go') });
+    for (let i = 0; i < 40 && lines().length < 3; i++) await sleep(25);
+    assert.equal(lines().length, 3);
+    // Le clic accordé couvre deux écritures ; la troisième balise d'envoi attend une carte.
+    assert.equal(sends().length, 2, JSON.stringify(sends().map((r) => r.args?.url)));
+  },
+);
+
+test(
+  'Relecture : deux clics accordés de suite, l’hôte bloqué du premier ne passe pas au second',
+  { skip },
+  async (t) => {
+    const api = await site(t, '', { host: 'localhost' });
+    const { origin, lines } = await site(
+      t,
+      `<form id="a" onsubmit="event.preventDefault(); fetch('${api.origin}/api/applications', { method: 'POST', body: '{}' })">
+         <button type="submit" id="autre">Envoyer</button></form>
+       <form id="b" onsubmit="event.preventDefault(); fetch('${api.origin}/collect', { method: 'POST', body: '{}' }); ${post('/api/applications')}">
+         <button type="submit" id="meme">Envoyer encore</button></form>`,
+    );
+    const { gateway } = await owner(t, [origin, api.origin]);
+    await gateway.call('browser.navigate', { url: origin });
+    const apiHost = api.origin.replace('http://', '');
+    const first = await gateway.call('browser.click', { ref: await refFor(gateway, '#autre') });
+    assert.deepEqual(first.approvedSendBlocked, [apiHost]);
+    // Second clic : une statistique vers l'autre site est annulée, mais la candidature du même
+    // site est enregistrée : l'issue se lit sur elle, aucune note d'envoi bloqué.
+    const second = await gateway.call('browser.click', { ref: await refFor(gateway, '#meme') });
+    assert.deepEqual(api.lines(), []);
+    assert.deepEqual(lines(), ['POST /api/applications']);
+    assert.deepEqual(second.submissions, [{ host: origin.replace('http://', ''), status: 200 }]);
+    assert.equal(second.approvedSendBlocked, undefined);
+  },
+);
+
+test('Relecture : un statut tardif 2xx de l’envoi dit bloqué le range « effectué »', async (t) => {
+  const { control, outcome, approveFor, bilan } = await apiWithRun(t);
+  const [ok, silent] = [crypto.randomUUID(), crypto.randomUUID()];
+  for (const call of [ok, silent]) {
+    await approveFor(call);
+    await outcome({
+      name: 'browser_click',
+      status: 'completed',
+      toolCallId: call,
+      approvedSendBlocked: ['api.exemple-fictif.test'],
+    });
+  }
+  assert.equal(control.sendSettled.get(ok), 'uncertain');
+  // La soumission du même site, partie après le retour du clic, répond 201 : l'envoi est fait.
+  await outcome({ late: true, toolCallId: ok, httpStatus: 201 });
+  assert.equal(control.sendSettled.get(ok), 'completed');
+  // Sans réponse (statut nul) : l'issue reste incertaine.
+  await outcome({ late: true, toolCallId: silent, httpStatus: null });
+  assert.equal(control.sendSettled.get(silent), 'uncertain');
+  assert.equal(control.sendsUncertain ?? 0, 0);
+  assert.equal(
+    bilan(),
+    '\nEnvoi par la plateforme : 2 approuvé(s) par le propriétaire, dont 1 à l’issue incertaine (écriture vers api.exemple-fictif.test bloquée par la plateforme : vérifier sur le site).',
+  );
+});

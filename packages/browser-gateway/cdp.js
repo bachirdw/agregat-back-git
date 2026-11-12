@@ -1319,6 +1319,21 @@ export class CdpBrowser {
           ((this.agentFields?.size ?? 0) > 0 && this.agentFieldsPage === pageKey(pageUrl)) ||
           !!this.uploadedFile;
         const large = agentInput && Buffer.byteLength(body) > 100000;
+        // audit-suite-02 : the send of a candidate click (no card before it) can leave after the
+        // click's window (slow validation, a token fetched first, a throttled tab). A write of the
+        // click's own page to a submission path of its site still waits for the owner's card ;
+        // any other write (telemetry, another page) keeps the rules below.
+        if (
+          !forceCard &&
+          this.sendClick === true &&
+          this.clickKind === 'candidate' &&
+          firstParty &&
+          pageKey(pageUrl) === this.clickPage &&
+          isSubmitPath(request.url()) &&
+          !this.writeInProgress &&
+          Date.now() - (this.lastClickEnd ?? 0) > CLICK_SEND_WINDOW_MS
+        )
+          forceCard = 'late-candidate';
         if (
           !forceCard &&
           !large &&
@@ -1364,7 +1379,10 @@ export class CdpBrowser {
               isSubmitPath(request.url())));
         // Second tour (constats 7 et 16) : a write of a click's window belongs to that click's
         // gateway call (its card and its HTTP status), not to the call in progress when it leaves.
-        const origin = clickWindow ? (this.clickToken ?? this.callToken) : this.callToken;
+        const origin =
+          clickWindow || forceCard === 'late-candidate'
+            ? (this.clickToken ?? this.callToken)
+            : this.callToken;
         // Audit du 10/11 (constat 13) : a write of more than 100 kB that no approval covers (a CV
         // posted with the application) was cancelled without a trace. It is now asked like a send :
         // the owner's click decides, and a refusal is said to the agent and in the Bilan.

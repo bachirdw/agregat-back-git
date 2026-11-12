@@ -226,14 +226,17 @@ export async function executeWorkflow(orch, run, plan, control) {
         // the engine's per-step `timeoutMs`, when a DAG sets one, is not paused.
         onElicitation: (p) => orch.elicit(run.id, p, stepControl),
       });
+      // review-audit-suite-02 : the step's guard is a flag, not a count ; two owner waits at once
+      // (two send cards, a card and a question) keep it paused until the last one is answered.
+      let stepPauses = 0;
       const stepControl = {
         abort: { signal: stepSignal },
         suspendTimers: () => {
-          guard.suspend();
+          if (stepPauses++ === 0) guard.suspend();
           control.suspendTimers?.();
         },
         resumeTimers: () => {
-          guard.resume();
+          if (stepPauses > 0 && --stepPauses === 0) guard.resume();
           control.resumeTimers?.();
         },
         // audit-suite-02 (A10) : the owner's send click also pauses the step's ACP turn deadline.

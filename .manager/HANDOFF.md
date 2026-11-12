@@ -1,10 +1,10 @@
 # Passation — Relay (point d'entrée unique)
 
-Mis à jour le 12/11/2026 (branche `cto-11-11`). Ce fichier ne porte que des pointeurs ; l'état est dans la passation.
+Mis à jour le 13/11/2026 (branche `cto-11-11`). Ce fichier ne porte que des pointeurs ; l'état est dans la passation.
 
 ## À lire, dans l'ordre
 1. [`reports/passation.md`](reports/passation.md) : **la** passation consolidée (règles du propriétaire, branches,
-   chronologie, ce qui marche ou non, décisions, environnements, outils). Ses sections 9 à 11 (« État du 11/11 », « Soirée du 11/11 », « Nuit du 12/11 ») sont tenues à jour.
+   chronologie, ce qui marche ou non, décisions, environnements, outils). Ses sections 9 à 13 (11/11, soirée du 11/11, nuit du 12/11 et ses deux suites) sont tenues à jour ; pour la nuit du 12 au 13/11, lire aussi `reports/nuit-12-11.md` (diagnostic, questions au propriétaire), `nuit-12-11-suite.md`, `nuit-12-11-ombre.md` et `carte-envoi-etude-01.md`.
 2. [`reports/registre-erreurs.md`](reports/registre-erreurs.md) : défauts E1 à E101 avec degré de certitude.
 3. [`reports/audit-10-11/SYNTHESE.md`](reports/audit-10-11/SYNTHESE.md) : audit de la nuit du 10/11 (le plus récent).
 

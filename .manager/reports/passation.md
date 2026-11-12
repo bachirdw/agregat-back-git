@@ -535,3 +535,11 @@ Détail complet : `.manager/reports/nuit-12-11-ombre.md`.
 - 185 écritures « blocked » (actuelle) que R2 laisserait passer : cause non établie, à examiner.
 - **Ouvert** : fenêtre de téléversement dans R2 ; délai de lecture du geste (1 s) ; Entrée et téléchargement sans test Chrome ; WebSocket non observés ; aucun clic réel du propriétaire.
 - **Processus laissés** : API 4313 relancée à 01:31 SANS observation (`api-branche.sh`, espace career-ops dans `/private/tmp`) ; page fictive 4321 en marche (au moins 10 envois fictifs au compteur) ; API 4310 non touchée.
+
+**Contrôle du manager (13/11, 01:40).** Les trois sprints de la nuit (audit-suite-02, contrat-agents-01, carte-ombre-01)
+ont chacun été relus par un relecteur Opus indépendant et la suite a été relancée par le greffier ; le manager n'a pas
+relu lui-même leurs diffs (économie de la limite demandée par le propriétaire). Arrêt des lancements à 64 % de la
+fenêtre de 5 h et 61 % de la semaine. Sur les 185 écritures « blocked » : ce sont des écritures vers d'autres sites
+(publicité, mesure), que la règle actuelle annule sans carte ; R2, telle que définie, ne dit rien des autres sites :
+ce n'est pas un désaccord sur la carte. E100 ne s'est pas reproduit pendant l'observation (aucune carte sur LinkedIn),
+donc R2 n'a pas encore été mesurée en réel sur le cas qui l'a motivée ; il l'est seulement par test unitaire.

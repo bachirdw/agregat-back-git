@@ -29,6 +29,21 @@ export function submissionRefused(output) {
   );
 }
 
+// envoi-issue-01 (audit du 12/11, A8) : an approved send whose only write went to another site and
+// was cancelled by the platform (no submission recorded). Hosts only, bounded ; undefined otherwise.
+export function approvedSendBlocked(name, status, result) {
+  if (status !== 'completed' || !name?.startsWith('browser_')) return undefined;
+  let hosts;
+  try {
+    hosts = JSON.parse(result?.content?.[0]?.text ?? '{}').approvedSendBlocked;
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(hosts)) return undefined;
+  const kept = hosts.filter((host) => typeof host === 'string' && host).slice(0, 10);
+  return kept.length ? kept : undefined;
+}
+
 export function landedUrl(name, status, result) {
   if (!LANDING_TOOLS.has(name) || status !== 'completed') return undefined;
   try {

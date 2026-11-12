@@ -25,6 +25,8 @@ const BROWSER = new Set([
   'audit-nav-fix5.test.js',
   // Audit du 10/11 (audit-ws) : messages envoyés par WebSocket.
   'audit-ws.test.js',
+  // envoi-issue-01 (audit du 12/11, A8 et A9) : issue d'un envoi accordé.
+  'envoi-issue.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

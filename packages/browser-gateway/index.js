@@ -165,6 +165,7 @@ export class BrowserGateway {
     const token = { call: this.currentCall() ?? null, done: false };
     const task = (this.pending ?? Promise.resolve()).then(async () => {
       this.provider.callToken = token;
+      this.activeToken = token;
       try {
         const output = await this.execute(capabilityId, rawArgs);
         // Network writes granted without a question since the previous call (owner mode).
@@ -184,6 +185,18 @@ export class BrowserGateway {
               }
             : {}),
           ...(submissions.length ? { submissions } : {}),
+          // envoi-issue-01 (audit du 12/11, A8) : an approved send that recorded no submission
+          // while a write to another site was cancelled : its outcome is uncertain (hosts only).
+          ...(token.sendApproved &&
+          !submissions.length &&
+          Array.isArray(output?.blockedThirdPartyPosts) &&
+          output.blockedThirdPartyPosts.length
+            ? {
+                approvedSendBlocked: [
+                  ...new Set(output.blockedThirdPartyPosts.filter((h) => typeof h === 'string')),
+                ].slice(0, 10),
+              }
+            : {}),
           ...(late.length
             ? {
                 lateSubmissions: late,
@@ -488,6 +501,7 @@ export class BrowserGateway {
       args.filePayload = { name: basename(real), mimeType: mimeTypeFor(real), buffer };
     }
     await this.meter(cap.meter, 1, capabilityId);
+    if (sending && this.activeToken) this.activeToken.sendApproved = true;
     const output = await this.provider.perform(
       capabilityId,
       fields

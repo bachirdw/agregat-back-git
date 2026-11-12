@@ -1,7 +1,7 @@
 import { CareerWorkspace } from '../career-ops/workspace.js';
 import { gatewayProgress, gatewayToolOutcome } from '../career-ops/truth.js';
 import { producedBy } from '../career-ops/attachments.js';
-import { landedUrl, refusedSubmission, submissionRefused } from './outcome.js';
+import { approvedSendBlocked, landedUrl, refusedSubmission, submissionRefused } from './outcome.js';
 import { requestDecision } from './approval.js';
 import { withEvidence } from './evidence.js';
 import { proofWatch } from './proofs.js';
@@ -124,6 +124,10 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
       ...(status === 'failed' && notDoneResults.has(result) ? { actionDone: false } : {}),
       ...(status === 'failed' && siteStatusOf.has(result)
         ? { httpStatus: siteStatusOf.get(result) }
+        : {}),
+      // envoi-issue-01 (A8) : an approved send whose write to another site was cancelled (hosts).
+      ...(approvedSendBlocked(name, status, result)
+        ? { approvedSendBlocked: approvedSendBlocked(name, status, result) }
         : {}),
     }),
     signal: AbortSignal.timeout(5000),

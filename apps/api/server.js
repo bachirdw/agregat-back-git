@@ -505,7 +505,11 @@ export function createApp({
           const settled = control.sendSettled?.get(call);
           if (siteRefusal(status) && (control.sendCalls?.has(call) || settled === 'uncertain')) {
             control.sendCalls?.delete(call);
-            if (settled === 'uncertain') control.sendsUncertain -= 1;
+            // envoi-issue-01 (A8) : an uncertain send whose other-site write was cancelled is
+            // counted apart (its blocked hosts), not among the failures after the action began.
+            if (settled === 'uncertain' && control.sendsBlocked?.has(call))
+              control.sendsBlocked.delete(call);
+            else if (settled === 'uncertain') control.sendsUncertain -= 1;
             control.sendsRefused = [...(control.sendsRefused ?? []), status];
             (control.sendSettled ??= new Map()).set(call, 'refused');
           } else if (siteRefusal(status) && settled === 'completed') {
@@ -564,6 +568,24 @@ export function createApp({
             } else {
               outcome = 'uncertain';
               control.sendsUncertain = (control.sendsUncertain ?? 0) + 1;
+            }
+          } else {
+            // envoi-issue-01 (audit du 12/11, A8) : the click went through, but the only write it
+            // made went to another site and the platform cancelled it (no submission recorded) :
+            // nothing says the site received the send. Uncertain, with the blocked hosts.
+            const blocked = Array.isArray(body.approvedSendBlocked)
+              ? body.approvedSendBlocked
+                  .filter(
+                    (host) =>
+                      typeof host === 'string' &&
+                      host.length <= 260 &&
+                      /^[a-z0-9.-]+(:\d{1,5})?$/i.test(host),
+                  )
+                  .slice(0, 10)
+              : [];
+            if (blocked.length) {
+              outcome = 'uncertain';
+              (control.sendsBlocked ??= new Map()).set(body.toolCallId, blocked);
             }
           }
           // Kept so that an HTTP status arriving later (second tour) settles this send.

@@ -507,6 +507,9 @@ export class Orchestrator {
       },
       false,
       abandoned ? AbortSignal.any([control.abort.signal, abandoned]) : control.abort.signal,
+      undefined,
+      // audit-suite-02 (A10) : a DAG step's attempt pauses its own guard and turn while the owner decides.
+      control.suspendTimers ? control : undefined,
     );
     if (this.bridgeControl(runId, token) !== control) return { approved: false };
     // E64 : an approval the gateway is no longer waiting for sends nothing and is never counted.
@@ -1810,7 +1813,9 @@ export class Orchestrator {
       this.expiredDelays.delete(run.id);
     }
   }
-  permission(runId, p, simulated, signal, observedTool) {
+  // `pauser` : the control whose timers wait for the owner's click (a DAG step's own control);
+  // the mission's control otherwise (agent mode, E64).
+  permission(runId, p, simulated, signal, observedTool, pauser) {
     if (signal.aborted) return { outcome: { outcome: 'cancelled' } };
     // A decision hands the call over to the agent's tool: its guard starts here (stall-01).
     const delivered = () => {
@@ -1850,7 +1855,7 @@ export class Orchestrator {
         signal.removeEventListener('abort', onAbort);
         clearTimeout(timer);
         this.permissions.delete(id);
-        if (suspended) this.active.get(runId)?.resumeTimers?.();
+        if (suspended) paused?.resumeTimers?.();
         pausedRuntime?.resumeDeadlines?.();
         delivered();
         if (!terminal.has(this.store.get(runId).state))
@@ -1880,9 +1885,10 @@ export class Orchestrator {
       const delay = waitsForOwner ? this.sendTimeoutMs : this.permissionTimeoutMs;
       const timer = delay ? setTimeout(() => finish(undefined, 'expired'), delay) : null;
       const suspended = waitsForOwner;
-      if (suspended) this.active.get(runId)?.suspendTimers?.();
+      const paused = suspended ? (pauser ?? this.active.get(runId)) : null;
+      if (suspended) paused?.suspendTimers?.();
       // E64 : the agent's turn deadline (ACP prompt) waits for the owner's click as well.
-      const pausedRuntime = suspended ? this.active.get(runId)?.runtime : null;
+      const pausedRuntime = suspended ? paused?.runtime : null;
       pausedRuntime?.pauseDeadlines?.();
       const options = p.options.filter((o) =>
         ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),

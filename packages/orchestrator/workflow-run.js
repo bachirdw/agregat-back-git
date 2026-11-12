@@ -212,7 +212,15 @@ export async function executeWorkflow(orch, run, plan, control) {
             orch.meter(run.id, 'tool_observed', 1);
           }
         },
-        onPermission: (p) => orch.permission(run.id, p, !!definition.simulated, scope.abort.signal),
+        onPermission: (p) =>
+          orch.permission(
+            run.id,
+            p,
+            !!definition.simulated,
+            scope.abort.signal,
+            undefined,
+            stepControl,
+          ),
         // Owner question from the step's agent: same queue and answer route as an agent mission.
         // The step's guard and the run's own deadline (if the caller gives one) pause meanwhile;
         // the engine's per-step `timeoutMs`, when a DAG sets one, is not paused.
@@ -228,7 +236,13 @@ export async function executeWorkflow(orch, run, plan, control) {
           guard.resume();
           control.resumeTimers?.();
         },
+        // audit-suite-02 (A10) : the owner's send click also pauses the step's ACP turn deadline.
+        runtime,
       };
+      // The gateway's approval card reaches permission() through this attempt (bridgeControl).
+      scope.suspendTimers = stepControl.suspendTimers;
+      scope.resumeTimers = stepControl.resumeTimers;
+      scope.runtime = runtime;
       runtimes.add(runtime);
       const onAbort = () => {
         // A step stopped alone (timeout, failure) closes its own open question, not the others'.

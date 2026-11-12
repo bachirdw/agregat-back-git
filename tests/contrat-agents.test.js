@@ -364,3 +364,53 @@ test('contrat FICTIF : une permission nomme le même outil pour les deux agents'
   assert.equal(nameOf(AGENTS.claude.cases.gateway_browser), 'browser.navigate');
   assert.equal(nameOf(AGENTS.codex.cases.native_never_closed), 'execute');
 });
+
+// review-contrat-agents-01 : once the ACP channel reads Codex's calls, a failed gateway call is seen
+// twice, by its ACP update (`exec-…` / `toolu_…`) and by the gateway's report (its own uuid). The
+// Bilan must still say one failure, for both agents (Claude double-counted it before this review).
+test('contrat FICTIF : un échec vu par les deux canaux compte une fois, pour les deux agents', () => {
+  const failedNav = (kase, id) =>
+    JSON.parse(
+      JSON.stringify(kase.updates.filter((update) => !update.platform)).replaceAll(
+        '"status":"completed"',
+        '"status":"failed"',
+      ),
+    ).map((update) => (update.toolCallId ? { ...update, toolCallId: id } : update));
+  const completedNav = (kase, id) =>
+    acp(kase.updates).map((update) => (update.toolCallId ? { ...update, toolCallId: id } : update));
+  for (const agent of Object.keys(AGENTS)) {
+    const kase = AGENTS[agent].cases.gateway_browser;
+    const truth = createTurnTruth();
+    for (const update of failedNav(kase, `${agent}-a`)) truth.observe(update);
+    truth.recordGatewayTool('browser_navigate', 'failed', {
+      toolCallId: '00000000-0000-4000-8000-0000000000a1',
+    });
+    assert.deepEqual(
+      truth.failedActions(),
+      [{ name: 'browser_navigate', cause: 'échec signalé par l’outil' }],
+      `${agent} : un seul appel échoué`,
+    );
+    // A later call of the same tool succeeds : one failure, then success.
+    for (const update of completedNav(kase, `${agent}-b`)) truth.observe(update);
+    truth.recordGatewayTool('browser_navigate', 'completed', {
+      toolCallId: '00000000-0000-4000-8000-0000000000b1',
+    });
+    assert.deepEqual(
+      truth.failedActions(),
+      [
+        {
+          name: 'browser_navigate',
+          cause: 'échec signalé par l’outil',
+          failures: 1,
+          recovered: true,
+        },
+      ],
+      `${agent} : 1 échoué puis réussi`,
+    );
+    // Two distinct failed calls seen by one channel only are still two.
+    const acpOnly = createTurnTruth();
+    for (const id of ['x1', 'x2'])
+      for (const update of failedNav(kase, `${agent}-${id}`)) acpOnly.observe(update);
+    assert.equal(acpOnly.failedActions()[0].failures, 2, `${agent} : deux échecs ACP`);
+  }
+});

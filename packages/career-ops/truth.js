@@ -493,7 +493,14 @@ export function createTurnTruth({ root, seed } = {}) {
   // call of the tool succeeded. Relecture du 10/11 (constat 3) : a success of another call of the
   // same tool (another button, another recipient) used to erase the failure; only the same call id
   // succeeding clears it, otherwise the Bilan says « 1 échoué puis réussi ».
+  // review-contrat-agents-01 : one call is seen by two channels with two ids (its ACP update, the
+  // gateway's own uuid) : ids are kept per channel (`acp:` / `gateway:`) and failures counted on the
+  // channel that saw the most, never summed.
   const failed = new Map();
+  const failureCount = (ids) => {
+    const acp = [...ids].filter((id) => id.startsWith('acp:')).length;
+    return Math.max(acp, ids.size - acp);
+  };
   const markFailed = (name, id, cause) => {
     const entry = failed.get(name) ?? { ids: new Set(), cause, recovered: false };
     entry.ids.add(id ?? `anonymous-failure-${entry.ids.size}`);
@@ -560,7 +567,7 @@ export function createTurnTruth({ root, seed } = {}) {
       if (update.status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
         markFailed(
           name,
-          update.toolCallId,
+          `acp:${update.toolCallId}`,
           /écriture automatisée interdite|automated writing prohibited/i.test(
             JSON.stringify(update.rawOutput ?? update.content ?? ''),
           )
@@ -573,7 +580,7 @@ export function createTurnTruth({ root, seed } = {}) {
           status: 'failed',
           cause: failed.get(name)?.cause ?? 'échec signalé par l’outil',
         });
-      if (update.status === 'completed') markCompleted(name, update.toolCallId);
+      if (update.status === 'completed') markCompleted(name, `acp:${update.toolCallId}`);
       if (update.status === 'completed') {
         outcomes.set(update.toolCallId, {
           ...outcomes.get(update.toolCallId),
@@ -718,9 +725,9 @@ export function createTurnTruth({ root, seed } = {}) {
           contactWrites.add('extract');
       }
       if (status === 'completed' && name === 'career_read' && sourceRead) jdRead = true;
-      if (status === 'completed') markCompleted(name, key);
+      if (status === 'completed') markCompleted(name, `gateway:${key}`);
       if (status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))
-        markFailed(name, key, 'échec signalé par l’outil');
+        markFailed(name, `gateway:${key}`, 'échec signalé par l’outil');
     },
     toolOutcomes() {
       const gateway = [...gatewayOutcomes.values()];
@@ -733,7 +740,9 @@ export function createTurnTruth({ root, seed } = {}) {
       return [...failed].map(([name, entry]) => ({
         name,
         cause: entry.cause,
-        ...(entry.ids.size > 1 || entry.recovered ? { failures: entry.ids.size } : {}),
+        ...(failureCount(entry.ids) > 1 || entry.recovered
+          ? { failures: failureCount(entry.ids) }
+          : {}),
         ...(entry.recovered ? { recovered: true } : {}),
       }));
     },

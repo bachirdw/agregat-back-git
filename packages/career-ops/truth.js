@@ -1005,7 +1005,16 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
     /(?:^|[^\p{L}])(?:prépar(?:e|er|ez)|rédig(?:e|er|ez)|cré(?:e|er|ez)|adapt(?:e|er|ez)|génér(?:e|er|ez)|produi(?:s|re)).{0,80}\b(?:CV|lettre)\b/iu.test(
       requested,
     ) || /\bCV\s*\+\s*lettre\b/iu.test(requested);
-  if (documentsRequested && !done.has('career_write')) missing.push('rédaction de document');
+  // audit-suite-02 : with an intent selected, the writing is due only when one of its steps, neither
+  // optional nor waived, proves a document (« joins mon CV adapté » in apply attaches an existing CV).
+  const documentsDue =
+    !skillSteps.length ||
+    skillSteps.some(
+      (step) =>
+        [CV_PRODUCED, COVER_PRODUCED].includes(step.proves) && !step.optional && !step.exempt,
+    );
+  if (documentsRequested && documentsDue && !done.has('career_write'))
+    missing.push('rédaction de document');
   // The Skill's documents (modes/pdf.md, modes/cover.md): said when asked for, or when produced anyway.
   const cvProduced = proved(manifest, truth, CV_PRODUCED);
   const coverProduced = proved(manifest, truth, COVER_PRODUCED);

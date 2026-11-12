@@ -543,3 +543,39 @@ fenêtre de 5 h et 61 % de la semaine. Sur les 185 écritures « blocked » : ce
 (publicité, mesure), que la règle actuelle annule sans carte ; R2, telle que définie, ne dit rien des autres sites :
 ce n'est pas un désaccord sur la carte. E100 ne s'est pas reproduit pendant l'observation (aucune carte sur LinkedIn),
 donc R2 n'a pas encore été mesurée en réel sur le cas qui l'a motivée ; il l'est seulement par test unitaire.
+
+## 14. Premier envoi réel (13/11, 10:37 → 10:42)
+
+Le propriétaire a lancé lui-même la mission depuis le front 5176 et cliqué lui-même sur la carte. Le manager n'a
+rien lancé ni accordé : deux guetteurs en lecture seule (`GET /api/runs`), aucun guetteur de la nuit en marche
+(vérifié par `pgrep`). API 4313 sur 8b56407, observation éteinte, copie de l'espace career-ops.
+
+**Mission ac65039b** (Claude Sonnet, SEEK, reprise du fil 380f1345) : `completed` en 4 min 38.
+
+| Heure | Fait observé par la plateforme |
+|---|---|
+| 10:39:34 | Question de l'agent (le rapport 010 déconseille de postuler à 3,8/5) ; réponse du propriétaire à 10:40:09 : poursuivre, CV seul, sans lettre |
+| 10:40:57 | Clic d'ouverture du formulaire ; une requête d'envoi vers le site accordée automatiquement (mode propriétaire) |
+| 10:41:01 | Page « Choose documents » : un autre CV et une lettre d'une autre candidature y étaient présélectionnés ; l'agent choisit le CV du rapport 010 et « sans lettre » |
+| 10:41:48 | Page « Review and submit » : cite le CV du rapport 010, pas de lettre, plus aucune trace de l'autre candidature |
+| 10:41:54 | **Une seule carte d'envoi** (POST vers le site, `/graphql`) ; quatre envois vers des tiers bloqués |
+| 10:41:59 | Carte accordée par le propriétaire (4,8 s) |
+| 10:42:06 | Page « Application sent » observée |
+| 10:42:18 | Suivi de la copie : rapport 010 passé à « Applied », relance semée au 20/11 |
+
+Ce que cela prouve : le parcours complet (prompt → question → formulaire en plusieurs étapes → carte → clic du
+propriétaire → envoi → page de confirmation → suivi) tient sur un vrai site, avec Claude. Une seule mission : ce
+n'est pas une mesure de fiabilité. Aucune fausse carte sur sept clics.
+
+Ce qui reste faux dans le Bilan de cette mission (registre E102, E103) : quatre étapes du CV annoncées « non
+exécutée » (intention `documents` retenue au lieu de `apply`) et « CV joint : aucun » alors que le CV venait des
+documents déjà déposés sur le site. Sans effet sur l'envoi ni sur l'état de la mission.
+
+À vérifier : la preuve de mission (`missionProof`) d'un fil repris porte les lectures de la mission précédente
+(pages LinkedIn de 380f1345) ; voulu ou non, non tranché. Le clic final rend sa main avant l'accord (10:41:55) et
+son résultat ne porte aucun champ d'issue ; le Bilan dit « 1 approuvé » sans statut HTTP visible, non examiné.
+
+Effets réels : une candidature envoyée chez l'employeur du rapport 010. Le suivi (« Applied », relance) n'existe
+que dans la copie du scratchpad, effacée au redémarrage ; rien n'est écrit dans l'espace career-ops réel du
+propriétaire, qui doit décider de reporter la ligne. Jamais joué : un envoi réel par Codex, une lettre, un fichier
+joint pendant la mission, un autre site.

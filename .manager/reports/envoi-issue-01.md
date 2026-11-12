@@ -66,3 +66,15 @@ Rien d'ouvert, aucune carte ajoutée : l'autre site reçoit toujours 0 requête 
 - **`scripts/run-tests.js` touché** : enregistrer le nouveau fichier Chrome dans la phase en série.
 - Le Bilan compte l'envoi bloqué dans une note propre (« écriture vers … bloquée par la plateforme ») plutôt que
   dans « échec après le début de l'action », qui serait faux ici (le clic n'a pas échoué).
+
+## État final (21:07)
+- Ciblé : `node --test --test-concurrency=1 --test-timeout=120000 tests/audit-nav-fix5.test.js tests/envoi-issue.test.js`
+  → 23/23 verts.
+- Suite complète (une fois, 20:56 → 21:07) : `npm test` unitaires 1090 tests (1088 réussis, 2 ignorés, 0 échec),
+  Chrome réel 222/222 ; `npm run check` « Syntaxe JavaScript valide » ; `npm run format:check` conforme.
+  Le test fragile « délai du faux exécutable muet » n'a pas échoué.
+- Commits : `dfc6d08` (A9), `c836150` (A8, tests, rapport), plus celui de cette section.
+- **Rien n'est vérifié en réel** : le parcours carte → clic du propriétaire → statut HTTP → Bilan n'est prouvé que
+  sur pages FICTIVES locales ; aucun vrai site, ni Chrome du propriétaire, ni relais.
+- Pour le manager : le cas séquentiel « statistique attendue puis candidature » reste non couvert (voir écarts) ;
+  l'issue `uncertain` d'A8 est rangée dans `control.sendsBlocked`, distinct de `sendsUncertain`.

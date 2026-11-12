@@ -975,11 +975,12 @@ export class CdpBrowser {
     if (!cover || cover.left <= 0 || Date.now() > cover.until) return false;
     const url = request.url();
     if (!sameSite(url, cover.target)) return false;
-    cover.left -= 1;
+    // envoi-issue-01 (A9) : a beacon is no submission and takes no place of the cover.
     if (request.resourceType() === 'ping') {
       this.#traceAutoSend(url);
       return true;
     }
+    cover.left -= 1;
     const strong = request.isNavigationRequest() || sensitive || isSubmitPath(url);
     const primary = cover.primary;
     const replace =
@@ -987,14 +988,30 @@ export class CdpBrowser {
       !primary.strong &&
       strong &&
       (this.submissions ?? []).includes(primary.entry);
+    // envoi-issue-01 (A9) : while the submission is weak and still unanswered, another weak write
+    // of the same click is recorded too (a statistic that left first must not hide the refusal of
+    // the application) ; a write that leaves once the first was answered (telemetry after the
+    // application, constat 6) stays a traced automatic write, as before.
+    const alongside = !!primary?.entry && !primary.strong && !strong && !primary.entry.done;
+    if (alongside) {
+      (primary.extra ??= []).push({ entry: this.#recordSubmission(request, cover.token), url });
+      return true;
+    }
     if (primary && !replace) {
       this.#traceAutoSend(url);
       return true;
     }
     if (replace) {
-      primary.entry.dropped = true;
-      this.submissions = this.submissions.filter((entry) => entry !== primary.entry);
-      this.#traceAutoSend(primary.url);
+      const dropped = [primary, ...(primary.extra ?? [])].filter(({ entry }) =>
+        (this.submissions ?? []).includes(entry),
+      );
+      for (const { entry, url: droppedUrl } of dropped) {
+        entry.dropped = true;
+        this.#traceAutoSend(droppedUrl);
+      }
+      this.submissions = this.submissions.filter(
+        (entry) => !dropped.some((item) => item.entry === entry),
+      );
     }
     cover.primary = { entry: this.#recordSubmission(request, cover.token), strong, url };
     return true;

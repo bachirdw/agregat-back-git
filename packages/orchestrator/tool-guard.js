@@ -97,6 +97,11 @@ export class ToolGuard {
       this.onRelease(id);
     }
   }
+  // Whether a call handed over is running under its own deadline : the silence of the agent is
+  // then the tool's, and this guard judges it (a scan of 600 s says nothing until it answers).
+  get busy() {
+    return [...this.calls.values()].some((call) => call.armed && call.timer !== null);
+  }
   // The delay that applies to a call (for the stall message).
   delayOf(id) {
     return Math.max(this.idleMs, this.calls.get(id)?.idleMs ?? 0);
@@ -155,7 +160,8 @@ export function isGatewayToolCall(update, servers) {
 // (`limitsOf`, scriptLimits of the career tools) plus a margin for the gateway to answer; null for
 // any other call. Claude's adapter names the tool only in `_meta` on the update carrying the input.
 export function careerScriptDelay(update, limitsOf) {
-  const command = update?.rawInput?.command;
+  // Codex nests the arguments (`rawInput.arguments.command`) ; Claude gives them flat.
+  const command = update?.rawInput?.command ?? update?.rawInput?.arguments?.command;
   const name = toolCallName(update) || update?._meta?.claudeCode?.toolName || '';
   return /career_script$/.test(name) && typeof command === 'string'
     ? limitsOf(command).timeout + 15000

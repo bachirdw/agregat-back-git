@@ -38,3 +38,12 @@ test('E93 FICTIF : un vrai libellé d’envoi garde sa carte', () => {
     'submit',
   );
 });
+
+// Audit du 12/11 : « Je candidate » hors formulaire était un clic ordinaire ; « candidate » nom
+// (« View candidate ») le reste.
+test('Audit FICTIF : « Je candidate » est un libellé d’envoi, « View candidate » non', () => {
+  assert.notEqual(kind('Je candidate'), 'plain');
+  assert.notEqual(kind('Je candidate à cette offre'), 'plain');
+  assert.equal(kind('View candidate'), 'plain');
+  assert.equal(kind('Profil candidate'), 'plain');
+});

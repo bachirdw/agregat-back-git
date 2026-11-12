@@ -734,3 +734,34 @@ test(
     );
   },
 );
+
+// Audit du 12/11 (E89 bis) : la règle des 100 ko vaut sur la page de la saisie. Une recherche tapée
+// sur une page faisait revenir la carte pour la télémétrie des pages ouvertes ensuite par un clic.
+test(
+  'E89 bis : après une saisie, une grosse écriture faite sur une autre page atteinte par clic passe sans carte',
+  { skip },
+  async (t) => {
+    const { origin, lines } = await site(t, (path) =>
+      path === '/offre'
+        ? '<p>Offre FICTIVE</p>'
+        : '<input id="q" aria-label="Mots-clés"><a id="lien" href="/offre">Offre FICTIVE</a>',
+    );
+    const { gateway, provider, sends } = await owner(t, origin);
+    await gateway.call('browser.navigate', { url: origin });
+    await gateway.call('browser.type', { ref: await refFor(gateway, '#q'), text: 'FICTIF' });
+    await gateway.call('browser.click', { ref: await refFor(gateway, '#lien') });
+    await provider.page.waitForURL(/\/offre$/);
+    await sleep(9000); // hors de la fenêtre du clic
+    await provider.page.evaluate(() => {
+      fetch('/api/telemetrie', { method: 'POST', body: 'x'.repeat(150_000) }).catch(() => {});
+    });
+    await settle(lines);
+    await sleep(300);
+    assert.deepEqual(
+      lines(),
+      ['POST /api/telemetrie'],
+      'trafic propre de la page suivante : libre',
+    );
+    assert.deepEqual(sends(), [], 'aucune carte sur une page où l’agent n’a rien saisi');
+  },
+);

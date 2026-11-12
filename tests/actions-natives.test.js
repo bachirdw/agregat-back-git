@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { createApp } from '../apps/api/server.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { NativeActions } from '../packages/orchestrator/native-actions.js';
-import { isPlatformToolCall } from '../packages/orchestrator/tool-guard.js';
+import { isGatewayToolCall, isPlatformToolCall } from '../packages/orchestrator/tool-guard.js';
 
 // E63 (constaté le 05/11, mission f336641e à 22:37:30 et 22:37:53) : l'agent a écrit un brouillon
 // dans /tmp avec son outil natif Write, puis l'a supprimé par Bash ; le Bilan n'en disait rien
@@ -182,4 +182,37 @@ test('E63 FICTIF : un outil de la plateforme sans préfixe MCP n’est jamais un
   ])
     native.observe(update);
   assert.equal(native.line(), '');
+});
+
+// E98 (mission d74dc68e, Codex, 12/11) : 18 appels navigateur de la passerelle, nommés
+// `mcp.platform.browser_*` avec kind `execute`, étaient dits « 18 commandes » natives au Bilan.
+test('E98 FICTIF : un appel de la passerelle nommé à la façon de Codex n’est pas une commande native', () => {
+  const native = new NativeActions({
+    folder: FOLDER,
+    isPlatform: (update) => isGatewayToolCall(update, servers) === true,
+  });
+  for (const update of [
+    {
+      sessionUpdate: 'tool_call',
+      toolCallId: 'exec-1',
+      title: 'mcp.platform.browser_click',
+      kind: 'execute',
+      status: 'in_progress',
+      rawInput: { server: 'platform', tool: 'browser_click', arguments: { ref: 'e1' } },
+    },
+    done('exec-1'),
+    {
+      sessionUpdate: 'tool_call',
+      toolCallId: 'exec-2',
+      title: 'mcp.autre.outil',
+      kind: 'execute',
+      status: 'in_progress',
+      rawInput: { server: 'autre', tool: 'outil', arguments: {} },
+    },
+    done('exec-2'),
+    call('b1', 'Bash', 'execute', { command: 'ls' }),
+    done('b1'),
+  ])
+    native.observe(update);
+  assert.match(native.line(), /2 commandes/);
 });

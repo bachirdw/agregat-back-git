@@ -28,7 +28,9 @@ function pageOf(value) {
   }
 }
 
-const SELECTION = /^(?:currentjobid|selectedjobid|vjk)$/;
+// One list for the proof and for the router (audit du 12/11 : SEEK shows the offer beside its list
+// under « ?jobId=… », which the proof dropped while the router expected it).
+export const SELECTION = /^(?:currentjobid|selectedjobid|vjk|jobid|job_id|jk)$/;
 function selectedItem(url) {
   for (const [key, field] of url.searchParams)
     if (SELECTION.test(key.toLowerCase()) && /^[\w-]{6,40}$/.test(field)) return field;

@@ -9,7 +9,7 @@ export const SENSITIVE_WORDS =
 // Audit du 10/11 (constat 2) : labels of a final send that SENSITIVE_WORDS misses (conjugated
 // verbs, other phrasings). Used for the agent's clicks only, never for request paths.
 export const SEND_LABEL_WORDS =
-  /\b(postul\p{L}*|candidate[rz]|soumet\p{L}*|soumis|soumission|transmet\p{L}*|envoi\p{L}*|envoy\p{L}*|termin(?:er|ez|é|ée)|finalis\p{L}*|finaliz\p{L}*|finish|submit\p{L}*|send\p{L}*|valid\p{L}*|confirm\p{L}*|d[ée]pos\p{L}*|publi\p{L}*|r[ée]pond\p{L}*|reply|post|done)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
+  /\b(postul\p{L}*|candidate[rz]|je candidate|soumet\p{L}*|soumis|soumission|transmet\p{L}*|envoi\p{L}*|envoy\p{L}*|termin(?:er|ez|é|ée)|finalis\p{L}*|finaliz\p{L}*|finish|submit\p{L}*|send\p{L}*|valid\p{L}*|confirm\p{L}*|d[ée]pos\p{L}*|publi\p{L}*|r[ée]pond\p{L}*|reply|post|done)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
 // Relecture fix5 (constat 3) : conjugated and other final-send labels (« Envoyez ma candidature »,
 // « Validez », « Je confirme », « Déposer », « Publier », « Terminé », « Done », « Répondre »).
 // Moving between the steps of a multi-step form, or filling it, is not a send. Audit du 10/11

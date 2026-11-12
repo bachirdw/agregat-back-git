@@ -1293,7 +1293,11 @@ export class CdpBrowser {
         // of more than 100 kB to its own host) asked the owner for a send card while the agent was
         // only reading an offer. A large write is a possible send only on a page where the agent
         // has typed or attached something ; elsewhere it is the page's own traffic, as before.
-        const agentInput = (this.agentFields?.size ?? 0) > 0 || !!this.uploadedFile;
+        // Audit du 12/11 (E89 bis) : on the page of that input only ; a search typed on one page
+        // made the card come back for the telemetry of every page opened by a click afterwards.
+        const agentInput =
+          ((this.agentFields?.size ?? 0) > 0 && this.agentFieldsPage === pageKey(pageUrl)) ||
+          !!this.uploadedFile;
         const large = agentInput && Buffer.byteLength(body) > 100000;
         if (
           !forceCard &&

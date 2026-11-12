@@ -256,3 +256,27 @@ test('E93 FICTIF : la preuve de capture garde l’offre sélectionnée, sans la 
   ];
   assert.deepEqual(new SkillProgress([]).incomplete(pages, false, offers), []);
 });
+
+// Audit du 12/11 (E94, correctif insuffisant) : la liste de résultats de SEEK montre l'offre sous
+// « ?jobId=… » ; la preuve de capture jetait ce champ alors que le routeur l'attendait.
+test('E94 FICTIF : la preuve de capture garde l’offre sélectionnée par « jobId », sans la requête', () => {
+  const evidence = compactBrowserEvidence({
+    capability: 'browser.snapshot',
+    provider: 'fixture',
+    url: 'https://www.offres.example.test/ai-jobs/in-Ville?jobId=88123456&type=secret',
+    text: 'Description FICTIVE de l’offre. '.repeat(40),
+    textLength: 1200,
+  });
+  assert.equal(evidence.selected, '88123456');
+  assert.doesNotMatch(JSON.stringify(evidence), /secret|type=/);
+  const pages = readablePages([{ ...evidence, readable: true }]);
+  const offers = [{ url: 'https://www.offres.example.test/job/88123456', toolCallId: 'a' }];
+  assert.deepEqual(new SkillProgress([]).incomplete(pages, false, offers), []);
+  // Une autre offre sélectionnée ne vaut pas lecture.
+  assert.deepEqual(
+    new SkillProgress([]).incomplete(pages, false, [
+      { url: 'https://www.offres.example.test/job/88123457', toolCallId: 'b' },
+    ]),
+    ['1 offre(s) notée(s) sans lecture de leur page'],
+  );
+});

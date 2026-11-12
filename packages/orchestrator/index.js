@@ -1050,6 +1050,10 @@ export class Orchestrator {
         warningMs,
       );
       silenceTimer = this.timers.setTimeout(() => {
+        // Audit du 12/11 : a call handed over to the platform runs under its own deadline (scan
+        // 600 s, generate-pdf 300 s) and the adapter says nothing meanwhile ; the tool guard
+        // judges it, the silence starts again after it.
+        if (toolGuard.busy) return armSilence();
         this.store.event(run.id, 'agent_silent', { elapsedMs: this.silentMs, stopped: true });
         const error = new Error('Agent inactif');
         error.code = 'agent_silent';
@@ -1071,7 +1075,8 @@ export class Orchestrator {
     // E63 : the agent's own tools (writes, commands, web fetches), counted for the Bilan.
     const nativeActions = new NativeActions({
       folder: run.cwd,
-      isPlatform: (update) => isPlatformToolCall(update, gatewayServers),
+      // E98 : whatever the adapter's naming (Codex : `mcp.platform.browser_click`, server in the input).
+      isPlatform: (update) => isGatewayToolCall(update, gatewayServers) === true,
     });
     // stall-01 (E49): a tool call is guarded once handed over to the platform, not when the agent
     // opens it (a long report streams for minutes behind one pending tool_call). See ToolGuard.

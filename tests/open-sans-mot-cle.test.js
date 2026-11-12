@@ -139,3 +139,86 @@ test('E41 FICTIF : canal passerelle (URL d’arrivée en entrée) crédite de m�
   assert.equal(step(result, 'fill').state, 'done');
   assert.equal(result.orderDeviation, false);
 });
+
+// E99 (mission 9fcec9ca, 12/11, page FICTIVE par le relais) : le premier remplissage échoue, le
+// second réussit sur la page de la navigation ; l'ouverture restait « non exécutée ».
+test('E99 FICTIF : remplissage réussi après un échec, sur la page de la navigation → ouverture faite', () => {
+  const progress = start();
+  navigate(progress, 'nav', 'http://127.0.0.1:4321/');
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'fill-1',
+    title: 'browser_fillForm',
+    status: 'failed',
+    rawOutput: {
+      content: [{ type: 'text', text: JSON.stringify({ url: 'http://127.0.0.1:4321/' }) }],
+    },
+  });
+  assert.equal(step(progress.current(), 'fill').state, 'failed');
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: '00000000-0000-4000-8000-0000000000b2',
+    title: 'browser_fillForm',
+    channel: 'gateway',
+    rawInput: { command: undefined, path: undefined, url: 'http://127.0.0.1:4321/' },
+    status: 'completed',
+  });
+  const result = progress.finish();
+  assert.equal(step(result, 'fill').state, 'done');
+  assert.equal(step(result, 'open').state, 'done');
+  assert.equal(step(result, 'open').toolCallId, 'nav');
+  const bilan = formatSkillBilan(result);
+  assert.match(bilan, /✓ Ouvrir le formulaire \(faite\)/);
+  assert.match(bilan, /Préparer les champs \(faite après un échec\)/);
+});
+
+test('E99 FICTIF : remplissage réussi après un échec sur une AUTRE page → ouverture non prouvée', () => {
+  const progress = start();
+  navigate(progress, 'nav', 'https://ats.example.test/jobs/123');
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'fill-1',
+    title: 'browser_fillForm',
+    status: 'failed',
+  });
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: '00000000-0000-4000-8000-0000000000b3',
+    title: 'browser_fillForm',
+    channel: 'gateway',
+    rawInput: { command: undefined, path: undefined, url: 'https://ats.example.test/x/7f3a9c' },
+    status: 'completed',
+  });
+  assert.equal(step(progress.finish(), 'open').state, 'pending');
+});
+
+// Audit du 12/11 : Codex imbrique les arguments (`rawInput.arguments.url`) ; l'étape à motif d'URL
+// n'était jamais créditée par sa navigation.
+test('Codex FICTIF : navigation vers …/apply, arguments imbriqués → ouverture faite', () => {
+  const progress = start();
+  progress.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'exec-1',
+    title: 'mcp.platform.browser_navigate',
+    rawInput: {
+      server: 'platform',
+      tool: 'browser_navigate',
+      arguments: { url: 'https://jobs.example.test/job/1/apply' },
+    },
+    status: 'completed',
+  });
+  assert.equal(step(progress.finish(), 'open').state, 'done');
+  const other = start();
+  other.observe({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'exec-2',
+    title: 'mcp.platform.browser_navigate',
+    rawInput: {
+      server: 'platform',
+      tool: 'browser_navigate',
+      arguments: { url: 'https://jobs.example.test/job/1' },
+    },
+    status: 'completed',
+  });
+  assert.equal(step(other.finish(), 'open').state, 'pending');
+});

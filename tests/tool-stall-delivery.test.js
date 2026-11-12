@@ -48,13 +48,14 @@ function fakeTimers() {
 
 // Mission career-ops en mode propriétaire (accords automatiques, événements ACP conservés), faux
 // agent configuré par `fake` (FAKE_ACP). wait : la composition attend goFile.
-async function startMission(fake, { wait = false } = {}) {
+async function startMission(fake, { wait = false, silentMs } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-stall-remise-FICTIF-')));
   const career = new CareerWorkspace({ root, roots: [root] });
   const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: true });
   await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
   const timers = fakeTimers();
   app.engine.timers = timers;
+  if (silentMs) app.engine.silentMs = silentMs;
   const files = {
     goFile: join(root, 'go-FICTIF'),
     doneFile: join(root, 'remis-FICTIF'),
@@ -258,6 +259,34 @@ test('(c) outil natif hors passerelle (in_progress, aucune remise observable) : 
     const done = m.app.store.get(m.run.id);
     assert.equal(done.state, 'failed');
     assert.equal(done.error, 'Outil sans mise à jour depuis 120 s : Searching the web ; relancer.');
+  } finally {
+    await m.finish();
+  }
+});
+
+// Audit du 12/11 : la garde de silence (180 s par défaut) arrêtait un appel remis à la plateforme
+// qui court sous un délai propre plus long (scan 600 s, generate-pdf 300 s), l'adaptateur ne disant
+// rien pendant l'appel. Ici le silence (60 s) est plus court que le délai de l'outil (120 s).
+test('(d) appel remis à la passerelle : le silence de l’agent pendant l’outil n’arrête pas la mission, la garde de l’outil juge', async () => {
+  const m = await startMission(
+    { composeTool: { mcp: true, permission: false, stall: true } },
+    { silentMs: 60000 },
+  );
+  try {
+    await m.waitFor(() => m.types().includes('tool_armed'));
+    await m.waitFor(() => existsSync(m.files.doneFile));
+    m.timers.tick(119999);
+    assert.ok(
+      !m.events().some((event) => event.type === 'agent_silent' && event.data.stopped),
+      'aucun arrêt pour silence pendant un outil remis',
+    );
+    assert.ok(!m.types().includes('tool_stalled'));
+    m.timers.tick(1);
+    await m.waitFor(() => m.types().includes('tool_stalled'));
+    await m.done;
+    const done = m.app.store.get(m.run.id);
+    assert.equal(done.state, 'failed');
+    assert.equal(done.error, STALL_MESSAGE);
   } finally {
     await m.finish();
   }

@@ -309,3 +309,46 @@ test('appel de la passerelle selon l’adaptateur : préfixe de Claude, serveur 
   assert.equal(isGatewayToolCall({ title: 'Bash' }, SERVERS), false);
   assert.equal(isGatewayToolCall({ status: 'in_progress' }, SERVERS), null);
 });
+
+test('garde FICTIVE : délai propre d’un career_script, forme Codex (arguments imbriqués)', async () => {
+  const { careerScriptDelay } = await import('../packages/orchestrator/tool-guard.js');
+  const limitsOf = (command) => ({ timeout: command === 'scan' ? 600000 : 60000 });
+  const codex = (command) => ({
+    sessionUpdate: 'tool_call',
+    toolCallId: 'c',
+    title: 'mcp.platform.career_script',
+    status: 'in_progress',
+    rawInput: { server: 'platform', tool: 'career_script', arguments: { command } },
+  });
+  assert.equal(careerScriptDelay(codex('scan'), limitsOf), 615000);
+  assert.equal(careerScriptDelay(codex('find'), limitsOf), 75000);
+  const t = clock();
+  const stalled = [];
+  const g = new ToolGuard({
+    idleMs: 120000,
+    timers: t,
+    idleFor: (update) => careerScriptDelay(update, limitsOf),
+    onStall: (id) => stalled.push(id),
+  });
+  g.observe(codex('scan'));
+  t.tick(121000);
+  assert.deepEqual(stalled, []);
+  t.tick(500000);
+  assert.deepEqual(stalled, ['c']);
+});
+
+test('busy : vrai seulement pour un appel armé dont le délai court', () => {
+  const t = clock();
+  const { g } = guard(t);
+  assert.equal(g.busy, false);
+  g.observe(call('w', { name: 'mcp__platform__career_write', status: 'pending' }));
+  assert.equal(g.busy, false);
+  g.deliver('w', 'gateway');
+  assert.equal(g.busy, true);
+  g.suspend();
+  assert.equal(g.busy, false);
+  g.resume();
+  assert.equal(g.busy, true);
+  g.observe(update('w', { status: 'completed' }));
+  assert.equal(g.busy, false);
+});

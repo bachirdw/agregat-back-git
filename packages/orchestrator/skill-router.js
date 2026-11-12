@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
+import { SELECTION } from './browser-proof.js';
 import { answeredExitCode, exitFailedOf } from './exit-code.js';
 import { simulatedBy } from './proof-args.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -399,7 +400,6 @@ const EXTENSIONS = new Set(['html', 'htm', 'php', 'asp', 'aspx', 'jsp']);
 // field. Such a readable capture proves the reading of the item's own page when both carry the
 // same identifier on the same host : « /jobs/search-results/?currentJobId=4486979104 » reads
 // « /jobs/view/4486979104 ». The identifier is 6 characters or more, never a short number.
-const SELECTION = /^(?:currentjobid|selectedjobid|vjk|jobid|job_id|jk)$/;
 const bareHost = (host) => host.toLowerCase().replace(/^www\./, '');
 const withScheme = (value) => (/^https?:\/\//i.test(value) ? value : `https://${value}`);
 function selectedItems(value) {
@@ -524,7 +524,9 @@ function matches(step, update, name) {
   if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;
   if (step.urlPattern) {
     try {
-      const url = new URL(update.rawInput?.url ?? update.rawInput?.args?.url);
+      // Codex nests the arguments : `toolInput` reads both shapes.
+      const input = toolInput(update);
+      const url = new URL(input.url ?? input.args?.url ?? update.rawInput?.args?.url);
       const segments = url.pathname.toLowerCase().split('/');
       if (
         !/^https?:$/.test(url.protocol) ||
@@ -675,10 +677,9 @@ export class SkillProgress {
           prior.intent === step.intent &&
           prior.id === step.definition.requiresStep,
       )?.state !== 'done';
-    let settled = false;
-    for (const step of candidates) {
-      if (step.state !== 'pending') continue;
-      if (waits(step)) continue;
+    // A step done on the page that the previous step's tool reached : that visit was the previous
+    // step, whatever the page's address says (a form served without « apply » in its path).
+    const creditVisit = (step) => {
       const previous = this.steps.find(
         (prior) =>
           prior.pack === step.pack &&
@@ -691,6 +692,12 @@ export class SkillProgress {
         previous.state === 'pending' &&
         this.visits.findLast((item) => item.page === page && uses(previous, item.name));
       if (visit) this.settle(previous, visit.toolCallId, 'done');
+    };
+    let settled = false;
+    for (const step of candidates) {
+      if (step.state !== 'pending') continue;
+      if (waits(step)) continue;
+      creditVisit(step);
       this.settle(step, update.toolCallId, next, update.status);
       settled = true;
       break;
@@ -720,6 +727,8 @@ export class SkillProgress {
       // Not a count : one call reaches the platform on two channels, under two identifiers.
       if (retry) {
         retry.recovered = true;
+        // E99 : the step first failed, so its page was never credited to the step before it.
+        creditVisit(retry);
         this.settle(retry, update.toolCallId, 'done', update.status);
       }
     }

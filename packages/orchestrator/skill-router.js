@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { SELECTION } from './browser-proof.js';
 import { answeredExitCode, exitFailedOf } from './exit-code.js';
 import { simulatedBy } from './proof-args.js';
+import { readToolCall } from './tool-call.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
@@ -365,11 +366,8 @@ function requiredOrder(selection) {
       : '') + (steps.some((step) => step.readFirst) ? '\n' + READ_BEFORE_SCORE : '')
   );
 }
-// Some adapters nest the tool arguments.
-const toolInput = (update) => ({
-  ...(update.rawInput ?? update.args ?? {}),
-  ...(update.rawInput?.arguments ?? {}),
-});
+// Some adapters nest the tool arguments (contrat-agents-01 : the one reader, tool-call.js).
+const toolInput = (update) => readToolCall(update).input;
 const pageKey = (value) => {
   try {
     const url = new URL(value);
@@ -483,7 +481,7 @@ function listPage(value, words) {
 }
 
 function toolName(update, expected) {
-  const candidate = String(update.rawInput?.name ?? update.rawInput?.tool ?? update.title ?? '');
+  const candidate = readToolCall(update).tool;
   return (
     expected.find((tool) =>
       new RegExp(`(?:^|[^a-zA-Z0-9])${tool}(?![a-zA-Z0-9_])`).test(candidate),

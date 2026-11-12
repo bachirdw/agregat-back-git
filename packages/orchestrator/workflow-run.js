@@ -5,6 +5,7 @@ import { AcpRuntime, saveProbe, AUTH_REFUSAL } from '../agent-runtime/index.js';
 import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
+import { readToolCall } from './tool-call.js';
 import { executionResult, parseAgentResult } from './result.js';
 import {
   assessBrowserClaims,
@@ -179,7 +180,8 @@ export async function executeWorkflow(orch, run, plan, control) {
         onEvent: (update) => {
           if (!scope.promptStarted || stepSignal.aborted) return;
           guard.observe(update);
-          if (isBrowserToolName(update.title)) browserObserved = true;
+          // contrat-agents-01 : the bare tool, whatever the adapter's naming.
+          if (isBrowserToolName(readToolCall(update).tool)) browserObserved = true;
           rateLimit =
             rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
           // Relecture du 10/11 (constat 11) : the agent mode's ceiling and message.

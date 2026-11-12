@@ -1,0 +1,347 @@
+{
+  "agent": "codex",
+  "adapter": "@agentclientprotocol/codex-acp 2.2.2",
+  "source": "Formes relevées dans les journaux réels des missions a635d2ea, c031ef07 et 32638afc (table events, type agent) ; toutes les valeurs (identifiants, chemins, URL, textes) sont FICTIVES et de même forme. Les objets { \"platform\": … } marquent ce que la plateforme observe hors ACP au même moment (gateway_received : la passerelle reçoit l'appel ; permission : décision de permission ACP).",
+  "cases": {
+    "gateway_browser": {
+      "tool": "browser_navigate",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f001",
+          "title": "mcp.platform.browser_navigate",
+          "kind": "execute",
+          "status": "in_progress",
+          "rawInput": {
+            "server": "platform",
+            "tool": "browser_navigate",
+            "arguments": {
+              "url": "https://offres.example.test/emplois/42/apply"
+            }
+          },
+          "_meta": {
+            "is_mcp_tool_call": true
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f001",
+          "status": "in_progress"
+        },
+        {
+          "platform": "gateway_received"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f001",
+          "status": "completed",
+          "rawOutput": {
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"untrusted\":true,\"notice\":\"FICTIF\"}"
+                }
+              ],
+              "structuredContent": null,
+              "_meta": null
+            },
+            "error": null
+          }
+        }
+      ]
+    },
+    "career_script_long": {
+      "tool": "career_script",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f002",
+          "title": "mcp.platform.career_script",
+          "kind": "execute",
+          "status": "in_progress",
+          "rawInput": {
+            "server": "platform",
+            "tool": "career_script",
+            "arguments": {
+              "command": "scan"
+            }
+          },
+          "_meta": {
+            "is_mcp_tool_call": true
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f002",
+          "status": "in_progress"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f002",
+          "status": "completed",
+          "rawOutput": {
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"text\":\"Scan FICTIF terminé\",\"exitCode\":0}"
+                }
+              ],
+              "structuredContent": null,
+              "_meta": null
+            },
+            "error": null
+          }
+        }
+      ]
+    },
+    "career_write": {
+      "tool": "career_write",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f003",
+          "title": "mcp.platform.career_write",
+          "kind": "execute",
+          "status": "in_progress",
+          "rawInput": {
+            "server": "platform",
+            "tool": "career_write",
+            "arguments": {
+              "path": "reports/001-exemple-fictif-2026-01-01.md",
+              "text": "# Évaluation FICTIVE\n\n**Score:** 4.0/5\n**URL:** https://offres.example.test/emplois/42\n"
+            }
+          },
+          "_meta": {
+            "is_mcp_tool_call": true
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f003",
+          "status": "in_progress"
+        },
+        {
+          "platform": "gateway_received"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f003",
+          "status": "completed",
+          "rawOutput": {
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"path\":\"reports/001-exemple-fictif-2026-01-01.md\",\"saved\":true}"
+                }
+              ],
+              "structuredContent": null,
+              "_meta": null
+            },
+            "error": null
+          }
+        }
+      ]
+    },
+    "gateway_upload": {
+      "tool": "browser_upload",
+      "observed": "construit sur la forme MCP relevée (aucun dépôt de fichier par Codex dans ces missions)",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f007",
+          "title": "mcp.platform.browser_upload",
+          "kind": "execute",
+          "status": "in_progress",
+          "rawInput": {
+            "server": "platform",
+            "tool": "browser_upload",
+            "arguments": {
+              "ref": "e12",
+              "path": "output/cv-exemple-fictif.pdf"
+            }
+          },
+          "_meta": {
+            "is_mcp_tool_call": true
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "platform": "gateway_received"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f007",
+          "status": "completed",
+          "rawOutput": {
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"uploaded\":\"output/cv-exemple-fictif.pdf\"}"
+                }
+              ],
+              "structuredContent": null,
+              "_meta": null
+            },
+            "error": null
+          }
+        }
+      ]
+    },
+    "native_exec": {
+      "tool": null,
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f004",
+          "title": "ls dossier-fictif",
+          "name": "exec_command",
+          "kind": "execute",
+          "status": "in_progress",
+          "content": [
+            {
+              "terminalId": "exec-00000000-0000-4000-8000-00000000f004",
+              "type": "terminal"
+            }
+          ],
+          "rawInput": {
+            "command": "ls dossier-fictif",
+            "cwd": "/dossier/fictif"
+          },
+          "_meta": {
+            "terminal_info": {
+              "cwd": "/dossier/fictif",
+              "terminal_id": "exec-00000000-0000-4000-8000-00000000f004"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f004",
+          "status": "completed",
+          "_meta": {
+            "terminal_output_delta": {
+              "data": "fichier-fictif\n",
+              "terminal_id": "exec-00000000-0000-4000-8000-00000000f004"
+            },
+            "terminal_exit": {
+              "exit_code": 0,
+              "signal": null,
+              "terminal_id": "exec-00000000-0000-4000-8000-00000000f004"
+            }
+          }
+        }
+      ]
+    },
+    "native_never_closed": {
+      "tool": null,
+      "observed": "mission c031ef07 : une décision de permission (classe execute) puis une seule mise à jour in_progress, sans tool_call ni clôture",
+      "updates": [
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f005",
+          "status": "in_progress"
+        },
+        {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Suite FICTIVE."
+          }
+        }
+      ],
+      "request": {
+        "toolCall": {
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f005",
+          "kind": "execute"
+        },
+        "options": [
+          {
+            "optionId": "approved",
+            "name": "Autoriser",
+            "kind": "allow_once"
+          },
+          {
+            "optionId": "abort",
+            "name": "Refuser",
+            "kind": "reject_once"
+          }
+        ]
+      }
+    },
+    "permission": {
+      "tool": "career_read",
+      "observed": "l'appel observé est relevé ; la demande de permission ACP elle-même n'est pas journalisée : sa forme est reconstruite (toolCallId, kind)",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f006",
+          "title": "mcp.platform.career_read",
+          "kind": "execute",
+          "status": "in_progress",
+          "rawInput": {
+            "server": "platform",
+            "tool": "career_read",
+            "arguments": {
+              "path": "modes/exemple-fictif.md"
+            }
+          },
+          "_meta": {
+            "is_mcp_tool_call": true
+          }
+        },
+        {
+          "platform": "permission"
+        }
+      ],
+      "request": {
+        "toolCall": {
+          "toolCallId": "exec-00000000-0000-4000-8000-00000000f006",
+          "kind": "execute"
+        },
+        "options": [
+          {
+            "optionId": "approved",
+            "name": "Autoriser",
+            "kind": "allow_once"
+          },
+          {
+            "optionId": "abort",
+            "name": "Refuser",
+            "kind": "reject_once"
+          }
+        ]
+      }
+    },
+    "question": {
+      "tool": null,
+      "observed": "construit : aucune question Codex dans ces missions ; Codex n'a pas d'outil de question, il la pose dans sa réponse (texte)",
+      "updates": [
+        {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Question FICTIVE ?"
+          }
+        }
+      ]
+    }
+  }
+}

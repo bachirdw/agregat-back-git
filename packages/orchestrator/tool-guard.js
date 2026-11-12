@@ -11,6 +11,8 @@
 // by a lone in_progress update, mission c031ef07): the model writing again proves that every call
 // it was waiting for has returned, so those calls are released instead of stalling the mission
 // during the next long composition. A gateway call keeps its guard: the platform sees its end.
+import { readToolCall } from './tool-call.js';
+
 export const TERMINAL_TOOL_STATUS = new Set(['completed', 'failed', 'cancelled']);
 const MODEL_OUTPUT = new Set(['agent_message_chunk', 'agent_thought_chunk']);
 
@@ -147,13 +149,13 @@ export function isPlatformToolCall(update, servers) {
 }
 
 // Whether an update names a call the gateway serves, whatever the adapter's naming: Claude's
-// prefix, or the MCP server carried by the input (Codex: `rawInput.server`). null when the update
-// names nothing (a lone status update).
+// prefix (also in `_meta`), Codex's `mcp.<server>.` title or the server carried by its input
+// (contrat-agents-01 : read by the one reader, tool-call.js). null when the update names nothing
+// (a lone status update).
 export function isGatewayToolCall(update, servers) {
-  if (isPlatformToolCall(update, servers)) return true;
-  const server = update?.rawInput?.server;
-  if (typeof server === 'string') return servers.some((s) => s.name === server);
-  return toolCallName(update) ? false : null;
+  const { tool, server } = readToolCall(update);
+  if (server) return servers.some((s) => s.name === server);
+  return tool ? false : null;
 }
 
 // Audit du 10/11 : the delay a career_script call may stay silent, from the script's own timeout
@@ -161,9 +163,8 @@ export function isGatewayToolCall(update, servers) {
 // any other call. Claude's adapter names the tool only in `_meta` on the update carrying the input.
 export function careerScriptDelay(update, limitsOf) {
   // Codex nests the arguments (`rawInput.arguments.command`) ; Claude gives them flat.
-  const command = update?.rawInput?.command ?? update?.rawInput?.arguments?.command;
-  const name = toolCallName(update) || update?._meta?.claudeCode?.toolName || '';
-  return /career_script$/.test(name) && typeof command === 'string'
-    ? limitsOf(command).timeout + 15000
+  const { tool, input } = readToolCall(update);
+  return /career_script$/.test(tool) && typeof input.command === 'string'
+    ? limitsOf(input.command).timeout + 15000
     : null;
 }

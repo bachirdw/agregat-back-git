@@ -1,0 +1,457 @@
+{
+  "agent": "claude",
+  "adapter": "@agentclientprotocol/claude-agent-acp 0.95.0",
+  "source": "Formes relevées dans les journaux réels des missions b62c886b et c8d8a1a4 (table events, type agent) ; toutes les valeurs (identifiants, chemins, URL, textes) sont FICTIVES et de même forme. Les objets { \"platform\": … } marquent ce que la plateforme observe hors ACP au même moment (gateway_received : la passerelle reçoit l'appel ; permission : décision de permission ACP).",
+  "cases": {
+    "gateway_browser": {
+      "tool": "browser_navigate",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFnavigate000000001",
+          "title": "mcp__platform__browser_navigate",
+          "name": "mcp__platform__browser_navigate",
+          "kind": "other",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__browser_navigate"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFnavigate000000001",
+          "rawInput": {
+            "url": "https://offres.example.test/emplois/42/apply"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__browser_navigate"
+            }
+          }
+        },
+        {
+          "platform": "gateway_received"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFnavigate000000001",
+          "_meta": {
+            "claudeCode": {
+              "toolResponse": [
+                {
+                  "type": "text",
+                  "text": "{\"untrusted\":true,\"notice\":\"FICTIF\"}"
+                }
+              ],
+              "toolName": "mcp__platform__browser_navigate"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFnavigate000000001",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "{\"untrusted\":true,\"notice\":\"FICTIF\"}"
+              }
+            }
+          ],
+          "rawOutput": [
+            {
+              "type": "text",
+              "text": "{\"untrusted\":true,\"notice\":\"FICTIF\"}"
+            }
+          ],
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__browser_navigate"
+            }
+          }
+        }
+      ]
+    },
+    "career_script_long": {
+      "tool": "career_script",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFscript00000000001",
+          "title": "mcp__platform__career_script",
+          "name": "mcp__platform__career_script",
+          "kind": "other",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_script"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFscript00000000001",
+          "rawInput": {
+            "command": "scan"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_script"
+            }
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFscript00000000001",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "{\"text\":\"Scan FICTIF terminé\",\"exitCode\":0}"
+              }
+            }
+          ],
+          "rawOutput": [
+            {
+              "type": "text",
+              "text": "{\"text\":\"Scan FICTIF terminé\",\"exitCode\":0}"
+            }
+          ],
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_script"
+            }
+          }
+        }
+      ]
+    },
+    "career_write": {
+      "tool": "career_write",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFwrite000000000001",
+          "title": "mcp__platform__career_write",
+          "name": "mcp__platform__career_write",
+          "kind": "other",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_write"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFwrite000000000001",
+          "rawInput": {
+            "path": "reports/001-exemple-fictif-2026-01-01.md"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_write"
+            }
+          }
+        },
+        {
+          "platform": "gateway_received"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFwrite000000000001",
+          "rawInput": {
+            "path": "reports/001-exemple-fictif-2026-01-01.md",
+            "text": "# Évaluation FICTIVE\n\n**Score:** 4.0/5\n**URL:** https://offres.example.test/emplois/42\n"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_write"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFwrite000000000001",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "{\"path\":\"reports/001-exemple-fictif-2026-01-01.md\",\"saved\":true}"
+              }
+            }
+          ],
+          "rawOutput": [
+            {
+              "type": "text",
+              "text": "{\"path\":\"reports/001-exemple-fictif-2026-01-01.md\",\"saved\":true}"
+            }
+          ],
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_write"
+            }
+          }
+        }
+      ]
+    },
+    "gateway_upload": {
+      "tool": "browser_upload",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFupload00000000001",
+          "title": "mcp__platform__browser_upload",
+          "name": "mcp__platform__browser_upload",
+          "kind": "other",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__browser_upload"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFupload00000000001",
+          "rawInput": {
+            "ref": "e12",
+            "path": "output/cv-exemple-fictif.pdf"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__browser_upload"
+            }
+          }
+        },
+        {
+          "platform": "gateway_received"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFupload00000000001",
+          "status": "completed",
+          "rawOutput": [
+            {
+              "type": "text",
+              "text": "{\"uploaded\":\"output/cv-exemple-fictif.pdf\"}"
+            }
+          ],
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__browser_upload"
+            }
+          }
+        }
+      ]
+    },
+    "native_exec": {
+      "tool": null,
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFbash0000000000001",
+          "title": "Terminal",
+          "name": "Bash",
+          "kind": "execute",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "Bash"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFbash0000000000001",
+          "title": "ls dossier-fictif",
+          "rawInput": {
+            "command": "ls dossier-fictif"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "Bash"
+            }
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFbash0000000000001",
+          "status": "completed",
+          "rawOutput": "(Bash completed with no output)",
+          "_meta": {
+            "claudeCode": {
+              "toolName": "Bash"
+            }
+          }
+        }
+      ]
+    },
+    "native_never_closed": {
+      "tool": null,
+      "observed": "construit : forme Claude d'un appel natif, jamais vu sans clôture dans les journaux Claude",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFbash0000000000002",
+          "title": "Terminal",
+          "name": "Bash",
+          "kind": "execute",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "Bash"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFbash0000000000002",
+          "title": "sleep 1",
+          "rawInput": {
+            "command": "sleep 1"
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "Bash"
+            }
+          }
+        },
+        {
+          "platform": "permission"
+        },
+        {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Suite FICTIVE."
+          }
+        }
+      ]
+    },
+    "permission": {
+      "tool": "career_read",
+      "observed": "l'appel observé est relevé ; la demande de permission ACP elle-même n'est pas journalisée : sa forme est reconstruite (toolCallId, kind), le titre est porté par l'appel observé",
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFread0000000000001",
+          "title": "mcp__platform__career_read",
+          "name": "mcp__platform__career_read",
+          "kind": "other",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "mcp__platform__career_read"
+            }
+          }
+        },
+        {
+          "platform": "permission"
+        }
+      ],
+      "request": {
+        "toolCall": {
+          "toolCallId": "toolu_01FICTIFread0000000000001",
+          "kind": "other"
+        },
+        "options": [
+          {
+            "optionId": "allow",
+            "name": "Autoriser",
+            "kind": "allow_once"
+          },
+          {
+            "optionId": "reject",
+            "name": "Refuser",
+            "kind": "reject_once"
+          }
+        ]
+      }
+    },
+    "question": {
+      "tool": null,
+      "updates": [
+        {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "toolu_01FICTIFquestion000000001",
+          "title": "Asking for your input",
+          "name": "AskUserQuestion",
+          "kind": "other",
+          "status": "pending",
+          "content": [],
+          "rawInput": {},
+          "_meta": {
+            "claudeCode": {
+              "toolName": "AskUserQuestion"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFquestion000000001",
+          "rawInput": {
+            "questions": [
+              {
+                "question": "Question FICTIVE ?",
+                "header": "Choix FICTIF",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "label": "Oui FICTIF"
+                  },
+                  {
+                    "label": "Non FICTIF"
+                  }
+                ]
+              }
+            ]
+          },
+          "_meta": {
+            "claudeCode": {
+              "toolName": "AskUserQuestion"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "toolu_01FICTIFquestion000000001",
+          "status": "completed",
+          "rawOutput": "Réponse FICTIVE : Oui FICTIF",
+          "_meta": {
+            "claudeCode": {
+              "toolName": "AskUserQuestion"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve } from 'node:path';
-import { toolCallName } from './tool-guard.js';
+import { readToolCall } from './tool-call.js';
 
 // E63 : what the agent did with its own tools, outside the platform's gateway — file writes,
 // deletions and moves, commands, web fetches — is told in the Bilan, which must say the real
@@ -39,10 +39,11 @@ export class NativeActions {
       this.calls.set(update.toolCallId, call);
     }
     if (typeof update.kind === 'string') call.kind = update.kind;
-    if (this.isPlatform(update) || GATEWAY_TOOL.test(toolCallName(update))) call.platform = true;
+    // contrat-agents-01 : the bare tool, whatever the adapter's naming (Codex : `mcp.platform.…`).
+    const { tool, input } = readToolCall(update);
+    if (this.isPlatform(update) || GATEWAY_TOOL.test(tool)) call.platform = true;
     for (const location of Array.isArray(update.locations) ? update.locations : [])
       if (typeof location?.path === 'string') call.paths.add(location.path);
-    const input = update.rawInput ?? {};
     for (const key of ['file_path', 'notebook_path', 'path'])
       if (typeof input[key] === 'string') call.paths.add(input[key]);
     if (!TERMINAL.has(update.status) || call.counted) return;

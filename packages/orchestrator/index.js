@@ -74,6 +74,7 @@ import {
   isPlatformToolCall,
   careerScriptDelay,
 } from './tool-guard.js';
+import { readToolCall } from './tool-call.js';
 import { scriptLimits } from '../career-ops/tools.js';
 import { NativeActions } from './native-actions.js';
 import { capabilityIds } from '../capability-registry/index.js';
@@ -205,13 +206,17 @@ function registryName(tool) {
 }
 // Tool name only: titles and inputs can quote private arguments. A title counts only when it is
 // nothing but a name, or a call such as name(...); otherwise it may start with an argument.
-function permissionToolName(p, observedTool) {
+export function permissionToolName(p, observedTool) {
   const input = observedTool?.rawInput ?? p.toolCall?.rawInput;
   const id = String(p.toolCall?.toolCallId ?? observedTool?.toolCallId ?? '');
   const title = String(observedTool?.title ?? p.toolCall?.title ?? '').trim();
+  const prefixed = readToolCall(observedTool ?? p.toolCall);
   const name =
     input?.capability ??
     (typeof input?.tool === 'string' ? registryName(input.tool) : null) ??
+    // contrat-agents-01 : a name prefixed by its MCP server (Claude `mcp__platform__career_read`)
+    // is the same tool as Codex's `rawInput.tool` : named the same way in the trace.
+    (prefixed.server ? registryName(prefixed.tool) : null) ??
     id.match(/^(?:mcp_[^_]+_)?([a-z][a-z0-9_]*?)__[A-Za-z0-9]/)?.[1] ??
     title.match(/^[\w.-]+(?=\(|$)/)?.[0];
   return redact(String(name || p.toolCall?.kind || observedTool?.kind || 'outil')).slice(0, 80);
@@ -1241,7 +1246,7 @@ export class Orchestrator {
           if (
             promptStarted &&
             update.sessionUpdate === 'tool_call' &&
-            isBrowserToolName(update.title ?? update.rawInput?.name ?? update.rawInput?.tool)
+            isBrowserToolName(readToolCall(update).tool)
           )
             browserToolObserved = true;
           if (++events > this.maxEvents) {

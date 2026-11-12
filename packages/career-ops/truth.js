@@ -1,4 +1,5 @@
 import { exitFailedOf } from '../orchestrator/exit-code.js';
+import { readToolCall } from '../orchestrator/tool-call.js';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readConfined } from '../policy-engine/files.js';
@@ -541,22 +542,19 @@ export function createTurnTruth({ root, seed } = {}) {
     observe(update) {
       if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate) || !update.toolCallId)
         return;
-      const candidate = String(
-        update.title ?? update.rawInput?.name ?? update.rawInput?.tool ?? '',
+      // The whole name must be the tool name (its MCP server prefix removed by the one reader,
+      // contrat-agents-01 : Claude `mcp__platform__`, Codex `mcp.platform.` or `rawInput.tool`): a
+      // tool merely mentioned inside free text, such as a question to the owner, is not a call.
+      const { tool: candidate, input: flat } = readToolCall(update);
+      const match = candidate.match(
+        /^(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/i,
       );
-      // The whole title must be the tool name (optionally prefixed by its MCP server): a tool
-      // merely mentioned inside free text, such as a question to the owner, is not a call.
-      const match = candidate
-        .trim()
-        .match(
-          /^(?:mcp__[a-z0-9_]+?__)?(browser[_\.][a-z]\w*|email_send|career_[a-z]\w*|linkedin_draft|jobs_search_live|activate_skill|google_web_search)$/i,
-        );
       const name = match
         ? canonicalToolName(match[1].replace('.', '_'))
         : names.get(update.toolCallId);
       if (!name) return;
       names.set(update.toolCallId, name);
-      const path = update.rawInput?.path ?? update.rawInput?.arguments?.path;
+      const path = flat.path;
       if (path) paths.set(update.toolCallId, String(path));
       if (update.rawInput) inputs.set(update.toolCallId, update.rawInput);
       if (update.status === 'failed' && (name.startsWith('browser_') || name === 'email_send'))

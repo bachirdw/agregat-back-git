@@ -4,6 +4,7 @@
 // cv.md, or any other file of the folder), aucun when a candidature was asked and nothing was
 // attached. Names stay in memory for the classification; the Bilan never prints a file name.
 import { exitFailedOf } from '../orchestrator/exit-code.js';
+import { readToolCall } from '../orchestrator/tool-call.js';
 import { basename } from 'node:path';
 import { documentKind, listProducedDocuments } from './produced-documents.js';
 
@@ -36,9 +37,8 @@ export function trackAttachments(truth, { root } = {}) {
   const recordGatewayTool = truth.recordGatewayTool.bind(truth);
   truth.observe = (update) => {
     if (['tool_call', 'tool_call_update'].includes(update?.sessionUpdate) && update.toolCallId) {
-      const match = String(update.title ?? update.rawInput?.name ?? '')
-        .trim()
-        .match(TOOL);
+      // contrat-agents-01 : the bare tool, whatever the adapter's naming (Codex : `mcp.platform.…`).
+      const match = readToolCall(update).tool.match(TOOL);
       const tool = match ? match[1].toLowerCase() : names.get(update.toolCallId);
       if (tool) {
         names.set(update.toolCallId, tool);

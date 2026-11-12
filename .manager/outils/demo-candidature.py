@@ -5,7 +5,9 @@
 #
 #   python3 -I .manager/outils/demo-candidature.py <port> skill|libre [délai_s]
 #   python3 -I .manager/outils/demo-candidature.py <port> libre-cv <délai_s> <cv.pdf>   (sans Skill, CV joint)
-import json, sys, time, urllib.request
+# Variables facultatives : DEMO_BROWSER (isolated par défaut ; playwriter = Chrome du propriétaire par le
+# relais), DEMO_AGENT (claude), DEMO_MODEL (sonnet ; vide pour le modèle par défaut de l'agent), DEMO_PROMPT.
+import json, os, sys, time, urllib.request
 
 port = sys.argv[1]
 mode = sys.argv[2] if len(sys.argv) > 2 else 'skill'
@@ -38,7 +40,12 @@ def call(path, body=None):
         return json.loads(r.read())
 
 
-body = {'prompt': PROMPTS[mode], 'agent': 'claude', 'model': 'sonnet', 'browser': 'isolated'}
+body = {
+    'prompt': os.environ.get('DEMO_PROMPT') or PROMPTS[mode],
+    'agent': os.environ.get('DEMO_AGENT', 'claude'),
+    'model': os.environ.get('DEMO_MODEL', 'sonnet'),
+    'browser': os.environ.get('DEMO_BROWSER', 'isolated'),
+}
 if mode == 'libre-cv':
     cv = sys.argv[4]
     req = urllib.request.Request(

@@ -7,7 +7,12 @@
 // A gateway tool still pending is being composed by the agent (a long report streams for minutes
 // behind one tool_call): it arms nothing; the mission's silence guard covers an agent that stops
 // producing. Every real progression re-arms; a terminal status disarms. The clock is injectable.
+// An adapter may never close a call of the agent's own tools (Codex reports some native commands
+// by a lone in_progress update, mission c031ef07): the model writing again proves that every call
+// it was waiting for has returned, so those calls are released instead of stalling the mission
+// during the next long composition. A gateway call keeps its guard: the platform sees its end.
 export const TERMINAL_TOOL_STATUS = new Set(['completed', 'failed', 'cancelled']);
+const MODEL_OUTPUT = new Set(['agent_message_chunk', 'agent_thought_chunk']);
 
 export class ToolGuard {
   constructor({
@@ -19,8 +24,12 @@ export class ToolGuard {
     // Audit du 10/11 : a call may carry its own, longer delay (a long script of the Skill, whose
     // own timeout goes past the common one); null keeps the common delay.
     idleFor = () => null,
+    // Whether an update names a tool whose end the platform cannot see (the agent's own tools).
+    // An update naming nothing leaves the call as it was.
+    native = (update) => (toolCallName(update) ? this.deferred(update) !== true : null),
+    onRelease = () => {},
   }) {
-    Object.assign(this, { idleMs, timers, deferred, onArm, onStall, idleFor });
+    Object.assign(this, { idleMs, timers, deferred, onArm, onStall, idleFor, native, onRelease });
     this.calls = new Map(); // toolCallId -> { deferred, armed, timer, idleMs }
     this.paused = false;
   }
@@ -32,15 +41,24 @@ export class ToolGuard {
   }
   // ACP tool_call / tool_call_update of the agent.
   observe(update) {
+    if (MODEL_OUTPUT.has(update?.sessionUpdate)) return this.release();
     if (!['tool_call', 'tool_call_update'].includes(update?.sessionUpdate) || !update.toolCallId)
       return;
     const id = update.toolCallId;
     if (TERMINAL_TOOL_STATUS.has(update.status)) return this.forget(id);
     let call = this.calls.get(id);
     if (!call) {
-      call = { deferred: this.deferred(update) === true, armed: false, timer: null, idleMs: null };
+      call = {
+        deferred: this.deferred(update) === true,
+        native: true,
+        armed: false,
+        timer: null,
+        idleMs: null,
+      };
       this.calls.set(id, call);
     }
+    const native = this.native(update);
+    if (native === false) call.native = false;
     // The input often arrives with a later update of the call (Claude's adapter).
     const own = this.idleFor(update);
     if (Number.isFinite(own) && own > (call.idleMs ?? 0)) call.idleMs = own;
@@ -70,6 +88,14 @@ export class ToolGuard {
       },
       Math.max(this.idleMs, call.idleMs ?? 0),
     );
+  }
+  // The model writes again: every armed call of the agent's own tools has returned.
+  release() {
+    for (const [id, call] of this.calls) {
+      if (!call.armed || !call.native) continue;
+      this.forget(id);
+      this.onRelease(id);
+    }
   }
   // The delay that applies to a call (for the stall message).
   delayOf(id) {
@@ -113,6 +139,16 @@ export function toolCallName(update) {
 export function isPlatformToolCall(update, servers) {
   const name = toolCallName(update);
   return servers.some((server) => name.startsWith(`mcp__${server.name}__`));
+}
+
+// Whether an update names a call the gateway serves, whatever the adapter's naming: Claude's
+// prefix, or the MCP server carried by the input (Codex: `rawInput.server`). null when the update
+// names nothing (a lone status update).
+export function isGatewayToolCall(update, servers) {
+  if (isPlatformToolCall(update, servers)) return true;
+  const server = update?.rawInput?.server;
+  if (typeof server === 'string') return servers.some((s) => s.name === server);
+  return toolCallName(update) ? false : null;
 }
 
 // Audit du 10/11 : the delay a career_script call may stay silent, from the script's own timeout

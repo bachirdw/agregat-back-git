@@ -70,6 +70,7 @@ import { withDoubtRule } from './doubt-rule.js';
 import {
   ToolGuard,
   TERMINAL_TOOL_STATUS,
+  isGatewayToolCall,
   isPlatformToolCall,
   careerScriptDelay,
 } from './tool-guard.js';
@@ -1079,6 +1080,13 @@ export class Orchestrator {
       timers: this.timers,
       deferred: (update) => isPlatformToolCall(update, gatewayServers),
       onArm: (toolCallId, via) => this.store.event(run.id, 'tool_armed', { toolCallId, via }),
+      // A call of the agent's own tools that its adapter never closed (Codex, c031ef07).
+      native: (update) => {
+        const gateway = isGatewayToolCall(update, gatewayServers);
+        return gateway === null ? null : !gateway;
+      },
+      onRelease: (toolCallId) =>
+        this.store.event(run.id, 'tool_released', { toolCallId, via: 'model_output' }),
       // Audit du 10/11 : a long script of the Skill (scan 600 s, generate-pdf 300 s…) keeps its own
       // timeout, with a margin for the gateway to answer, instead of the common 120 s.
       idleFor: (update) => careerScriptDelay(update, scriptLimits),
@@ -1093,7 +1101,10 @@ export class Orchestrator {
       },
     });
     const watchTool = (update) => {
-      if (!promptStarted || !update.toolCallId) return;
+      if (!promptStarted) return;
+      if (['agent_message_chunk', 'agent_thought_chunk'].includes(update.sessionUpdate))
+        return toolGuard.observe(update);
+      if (!update.toolCallId) return;
       if (!['tool_call', 'tool_call_update'].includes(update.sessionUpdate)) return;
       const id = update.toolCallId;
       if (update.title === 'Searching the web') toolTitles.set(id, 'Searching the web');

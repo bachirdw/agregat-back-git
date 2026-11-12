@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ToolGuard,
+  isGatewayToolCall,
   isPlatformToolCall,
   toolCallName,
 } from '../packages/orchestrator/tool-guard.js';
@@ -41,15 +42,25 @@ const SERVERS = [{ name: 'platform' }];
 function guard(timers) {
   const armed = [];
   const stalled = [];
+  const released = [];
   const g = new ToolGuard({
     idleMs: 120000,
     timers,
     deferred: (update) => isPlatformToolCall(update, SERVERS),
+    native: (update) => {
+      const gateway = isGatewayToolCall(update, SERVERS);
+      return gateway === null ? null : !gateway;
+    },
     onArm: (id, via) => armed.push([id, via]),
     onStall: (id) => stalled.push(id),
+    onRelease: (id) => released.push(id),
   });
-  return { g, armed, stalled };
+  return { g, armed, stalled, released };
 }
+const thought = () => ({
+  sessionUpdate: 'agent_thought_chunk',
+  content: { type: 'text', text: 'x' },
+});
 const call = (toolCallId, fields) => ({ sessionUpdate: 'tool_call', toolCallId, ...fields });
 const update = (toolCallId, fields) => ({
   sessionUpdate: 'tool_call_update',
@@ -217,4 +228,84 @@ test('garde FICTIVE : délai propre d’un career_script, nom porté par _meta (
     null,
   );
   assert.equal(careerScriptDelay({ title: 'mcp__platform__career_script' }, scriptLimits), null);
+});
+
+// Mission c031ef07 (Codex, 12/11) : des commandes natives ne sont connues que par une mise à jour
+// in_progress, jamais closes ; l'activité de la passerelle les réarme, puis une rédaction de plus
+// de 120 s arrêtait la mission pour « outil figé ».
+test('appel natif jamais clos par l’adaptateur : libéré quand le modèle réécrit, plus d’arrêt à tort', () => {
+  const t = clock();
+  const { g, stalled, released } = guard(t);
+  g.observe(update('exec-1', { status: 'in_progress' }));
+  g.observe(update('exec-2', { status: 'in_progress' }));
+  t.tick(3000);
+  g.observe(thought());
+  assert.deepEqual(released, ['exec-1', 'exec-2']);
+  assert.deepEqual(g.pending, []);
+  // La mission continue : appels de la passerelle, puis longue rédaction.
+  g.observe(
+    call('r', {
+      title: 'mcp.platform.career_read',
+      status: 'in_progress',
+      rawInput: { server: 'platform' },
+    }),
+  );
+  g.deliver(undefined, 'gateway');
+  g.observe(update('r', { status: 'completed' }));
+  g.observe(thought());
+  t.tick(600000);
+  assert.deepEqual(stalled, []);
+});
+
+test('appel natif réellement figé : aucun texte du modèle, arrêt après 120 s comme avant', () => {
+  const t = clock();
+  const { g, stalled, released } = guard(t);
+  g.observe(update('exec-1', { status: 'in_progress' }));
+  t.tick(120000);
+  assert.deepEqual(stalled, ['exec-1']);
+  assert.deepEqual(released, []);
+});
+
+test('appel de la passerelle armé : le texte du modèle ne le libère pas (Claude et Codex)', () => {
+  const t = clock();
+  const { g, stalled, released } = guard(t);
+  g.observe(call('a', { name: 'mcp__platform__browser_click', status: 'in_progress' }));
+  g.observe(
+    call('b', {
+      title: 'mcp.platform.browser_click',
+      status: 'in_progress',
+      rawInput: { server: 'platform' },
+    }),
+  );
+  // Annonce sans nom, puis mise à jour qui nomme la passerelle : l'appel n'est plus natif.
+  g.observe(update('c', { status: 'in_progress' }));
+  g.observe(update('c', { rawInput: { server: 'platform', tool: 'browser_click' } }));
+  g.observe(thought());
+  assert.deepEqual(released, []);
+  t.tick(120000);
+  assert.deepEqual(stalled.sort(), ['a', 'b', 'c']);
+});
+
+test('appel de la passerelle en composition : le texte du modèle ne l’arme ni ne le libère', () => {
+  const t = clock();
+  const { g, armed, released } = guard(t);
+  g.observe(call('w', { name: 'mcp__platform__career_write', status: 'pending' }));
+  g.observe(thought());
+  assert.deepEqual(armed, []);
+  assert.deepEqual(released, []);
+  assert.deepEqual(g.pending, ['w']);
+});
+
+test('appel de la passerelle selon l’adaptateur : préfixe de Claude, serveur de l’entrée de Codex, sinon inconnu', () => {
+  assert.equal(isGatewayToolCall({ name: 'mcp__platform__x' }, SERVERS), true);
+  assert.equal(
+    isGatewayToolCall({ title: 'mcp.platform.x', rawInput: { server: 'platform' } }, SERVERS),
+    true,
+  );
+  assert.equal(
+    isGatewayToolCall({ title: 'mcp.other.x', rawInput: { server: 'other' } }, SERVERS),
+    false,
+  );
+  assert.equal(isGatewayToolCall({ title: 'Bash' }, SERVERS), false);
+  assert.equal(isGatewayToolCall({ status: 'in_progress' }, SERVERS), null);
 });

@@ -13,7 +13,9 @@ import {
   shadowFileSink,
   shadowSinkFromEnv,
   SHADOW_LIMIT,
+  withinMs,
 } from '../packages/browser-gateway/send-shadow.js';
+import { CdpBrowser } from '../packages/browser-gateway/cdp.js';
 import { createApp } from '../apps/api/server.js';
 import { getPack } from '../packages/orchestrator/packs.js';
 
@@ -359,4 +361,100 @@ test('passerelle : sans fichier donné par la plateforme, aucun journal', () => 
   assert.equal(shadowSinkFromEnv({}), null);
   assert.equal(shadowSinkFromEnv({ RELAY_CARD_SHADOW_FILE: '' }), null);
   assert.equal(typeof shadowSinkFromEnv({ RELAY_CARD_SHADOW_FILE: '/x/y.jsonl' }), 'function');
+});
+
+// review-carte-ombre-01 : constats de la relecture.
+test('relecture : « Continue » d’un formulaire dont l’action dit l’envoi n’est pas une étape (règle isFormStep)', () => {
+  const finalContinue = {
+    tag: 'button',
+    buttonType: 'submit',
+    inForm: true,
+    formAction: '/apply/submit',
+    text: 'Continue',
+  };
+  assert.equal(gestureKind(finalContinue), 'submit');
+  assert.equal(gestureKind({ ...finalContinue, formAction: '/profil/etape-2' }), 'step');
+  // Le brouillon d’une vraie étape passe ; l’envoi final déguisé en « Continue » porte une carte.
+  const verdict = shadowDecision(
+    xhr(JSON.stringify({ name: TYPED }), {
+      gesture: { kind: gestureKind(finalContinue), ms: 100 },
+      values: [TYPED],
+    }),
+  );
+  assert.equal(verdict.r2, 'card');
+});
+
+test('relecture : la lecture du geste est bornée (jamais d’attente sans fin avant le clic)', async () => {
+  const started = Date.now();
+  assert.equal(await withinMs(new Promise(() => {}), 50, 'other'), 'other');
+  assert.ok(Date.now() - started < 1000);
+  assert.equal(await withinMs(Promise.reject(new Error('FICTIF')), 50, 'other'), 'other');
+  assert.equal(await withinMs(Promise.resolve('submit'), 50, 'other'), 'submit');
+});
+
+// Une garde propriétaire montée sur un faux contexte : la décision vient d'abord, l'observation après.
+async function shadowGuardOf(sink) {
+  const browser = new CdpBrowser({ launch: {}, cardShadow: sink });
+  let handler = null;
+  browser.context = {
+    route: async (_pattern, h) => {
+      handler = h;
+    },
+  };
+  await browser.guard({ ownerMode: true, runId: 'mission-FICTIVE' });
+  return handler;
+}
+const fakeRoute = (events, extra = {}) => {
+  const request = {
+    method: () => 'POST',
+    url: () => 'https://fictif.test/api',
+    frame: () => {
+      throw new Error('aucune page (FICTIF)');
+    },
+    postDataBuffer: () => {
+      events.push('body');
+      return Buffer.from(JSON.stringify({ name: TYPED }));
+    },
+    headers: () => ({ 'content-type': 'application/json' }),
+    isNavigationRequest: () => false,
+    ...extra,
+  };
+  return {
+    request: () => request,
+    continue: async () => events.push('continue'),
+    abort: async () => events.push('abort'),
+    fallback: async () => events.push('fallback'),
+  };
+};
+
+test('relecture : la garde décide avant que l’observation ne lise le corps ; la ligne vient après', async () => {
+  const lines = [];
+  const handler = await shadowGuardOf((line) => lines.push(line));
+  const events = [];
+  await handler(fakeRoute(events));
+  assert.equal(events[0], 'abort', events.join(','));
+  assert.equal(events.filter((e) => e === 'abort').length, 1);
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].actuelle, 'blocked');
+  assert.equal(lines[0].mission, 'mission-FICTIVE');
+  assert.ok(!JSON.stringify(lines[0]).includes(TYPED));
+  assert.ok(!JSON.stringify(lines[0]).includes('/api'));
+});
+
+test('relecture : une observation qui lève (corps, en-têtes, puits) ne change pas la décision', async () => {
+  const handler = await shadowGuardOf(() => {
+    throw new Error('puits FICTIF en panne');
+  });
+  const events = [];
+  await handler(
+    fakeRoute(events, {
+      postDataBuffer: () => {
+        throw new Error('corps FICTIF illisible');
+      },
+      headers: () => {
+        throw new Error('en-têtes FICTIFS');
+      },
+    }),
+  );
+  assert.deepEqual(events, ['abort']);
 });

@@ -21,7 +21,7 @@ import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
 // carte-ombre-01 : the observation mode (a cycle with send-shadow.js, which reuses carriesAgentData ;
 // both sides only call each other's hoisted functions at run time).
-import { gestureKind, shadowDecision } from './send-shadow.js';
+import { gestureKind, shadowDecision, withinMs } from './send-shadow.js';
 
 // Revue Opus du 06/11 (E64, E66) : Playwright runs its callbacks (routes, events) in the async
 // context where the browser connection was created. Opened inside an agent's tool call, every later
@@ -1244,7 +1244,12 @@ export class CdpBrowser {
   }
   // carte-ombre-01 : the kind of the agent's click (or of the control Enter stands for in a form
   // field : the form's default button), by structure only ; 'other' when it cannot be read.
-  async #shadowGestureOf(locator, enter) {
+  // review-carte-ombre-01 : bounded as a whole (element.evaluate has no timeout of its own) : the
+  // agent's action never waits more than 1 s for the observation.
+  #shadowGestureOf(locator, enter) {
+    return withinMs(this.#shadowGestureRead(locator, enter), 1000, 'other');
+  }
+  async #shadowGestureRead(locator, enter) {
     let handle = null;
     try {
       handle = await locator.evaluateHandle(
@@ -1286,11 +1291,15 @@ export class CdpBrowser {
       return decide(route);
     }
     if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return decide(route);
-    let line;
+    // review-carte-ombre-01 : only what changes with time is read before `decide` (the state of the
+    // agent's gesture, references to its values and files, all replaced, never mutated) ; the body
+    // is read and R2 computed after the guard has answered, so that the observation never delays a
+    // decision whose windows depend on the clock.
+    let state = null;
     try {
-      line = this.#shadowLine(request, method);
+      state = this.#shadowState();
     } catch {
-      return decide(route);
+      state = null;
     }
     let outcome = null;
     const watched = {
@@ -1312,8 +1321,9 @@ export class CdpBrowser {
       return await decide(watched);
     } finally {
       // A request of a page that is not the mission's (fallback) is not traced.
-      if (outcome)
+      if (outcome && state)
         try {
+          const line = this.#shadowLine(request, method, state);
           this.cardShadow({
             mission: line.mission,
             heure: line.heure,
@@ -1325,9 +1335,23 @@ export class CdpBrowser {
         }
     }
   }
-  #shadowLine(request, method) {
-    const heure = new Date().toISOString();
-    const mission = this.shadowMission ?? null;
+  #shadowState() {
+    const ms = this.writeInProgress
+      ? 0
+      : this.lastClickEnd
+        ? Math.max(0, Date.now() - this.lastClickEnd)
+        : null;
+    return {
+      heure: new Date().toISOString(),
+      mission: this.shadowMission ?? null,
+      gesture: ms === null ? null : { kind: this.shadowGesture ?? 'other', ms },
+      values: this.agentValues ?? [],
+      files: [...new Set([...(this.agentFiles ?? []), this.uploadedFile])]
+        .filter(Boolean)
+        .map((file) => ({ name: file.name, size: file.size })),
+    };
+  }
+  #shadowLine(request, method, { heure, mission, gesture, values, files }) {
     let host = '';
     let url = '';
     let pageUrl = '';
@@ -1348,12 +1372,6 @@ export class CdpBrowser {
     } catch {
       body = null;
     }
-    const ms = this.writeInProgress
-      ? 0
-      : this.lastClickEnd
-        ? Math.max(0, Date.now() - this.lastClickEnd)
-        : null;
-    const gesture = ms === null ? null : { kind: this.shadowGesture ?? 'other', ms };
     const same = sameSite(url, pageUrl);
     let verdict;
     try {
@@ -1372,10 +1390,8 @@ export class CdpBrowser {
         gesture,
         body,
         headers,
-        values: this.agentValues ?? [],
-        files: [...new Set([...(this.agentFiles ?? []), this.uploadedFile])]
-          .filter(Boolean)
-          .map((file) => ({ name: file.name, size: file.size })),
+        values,
+        files,
         windowMs: CLICK_SEND_WINDOW_MS,
       });
     } catch {
@@ -1392,7 +1408,7 @@ export class CdpBrowser {
         mêmeSite: same,
         cheminDeSoumission: isSubmitPath(url),
         genreDuClic: gesture?.kind ?? null,
-        msDepuisLeClic: ms,
+        msDepuisLeClic: gesture?.ms ?? null,
         octets: body?.length ?? 0,
         corpsLisible: verdict.readable,
       },
@@ -2997,6 +3013,8 @@ export class CdpBrowser {
         }
         // Resolve before waiting for the event: a stale ref must not leave a pending wait.
         const link = await this.targetLocator({ ref: args.ref });
+        // review-carte-ombre-01 : read before the click's state is set, never in between.
+        if (this.cardShadow) this.shadowGesture = await this.#shadowGestureOf(link, false);
         let download;
         let finished = false;
         const incoming = page.waitForEvent('download', { timeout: 15000 }).then(async (value) => {
@@ -3012,7 +3030,6 @@ export class CdpBrowser {
           this.formStep = false;
           this.clickKind = null;
           this.clickToken = this.callToken;
-          if (this.cardShadow) this.shadowGesture = await this.#shadowGestureOf(link, false);
           this.cover = args.sendApproved === true ? await this.#coverFor(link) : null;
           this.writeInProgress = true;
           try {

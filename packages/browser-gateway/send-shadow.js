@@ -6,7 +6,7 @@
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { carriesAgentData } from './cdp.js';
-import { STRICT_STEP_LABEL, stepLabel } from '../policy-engine/run-policy.js';
+import { SENSITIVE_WORDS, STRICT_STEP_LABEL, stepLabel } from '../policy-engine/run-policy.js';
 
 // Lines of trace kept per mission (a later gateway process of the same mission counts the file).
 export const SHADOW_LIMIT = 500;
@@ -24,7 +24,9 @@ export function gestureKind(element) {
   if (!element || typeof element !== 'object') return 'other';
   const label = [element.text, element.ariaLabel].filter(Boolean).join(' ');
   const buttonish = ['button', 'a', 'input'].includes(element.tag) || element.role === 'button';
-  if (buttonish && STRICT_STEP_LABEL.test(stepLabel(label))) return 'step';
+  // review-carte-ombre-01 : as isFormStep, a form whose action names the send has no step.
+  const sendAction = SENSITIVE_WORDS.test(String(element.formAction ?? ''));
+  if (buttonish && !sendAction && STRICT_STEP_LABEL.test(stepLabel(label))) return 'step';
   if (element.tag === 'input' && ['submit', 'image'].includes(element.inputType)) return 'submit';
   if (element.tag === 'button' && element.buttonType === 'submit' && element.inForm)
     return 'submit';
@@ -135,4 +137,17 @@ export function shadowFileSink(path, limit = SHADOW_LIMIT) {
 export function shadowSinkFromEnv(env = process.env) {
   const path = env?.RELAY_CARD_SHADOW_FILE;
   return typeof path === 'string' && path ? shadowFileSink(path) : null;
+}
+
+// review-carte-ombre-01 : the observation never holds an action of the agent longer than `ms` : a
+// reading of the page that does not answer (a busy page, a dialog) gives `fallback`, as an error does.
+export function withinMs(promise, ms, fallback) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+    timer.unref?.();
+  });
+  return Promise.race([Promise.resolve(promise).catch(() => fallback), late]).finally(() =>
+    clearTimeout(timer),
+  );
 }

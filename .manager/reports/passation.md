@@ -448,3 +448,55 @@ délais dus à la veille, pas une régression établie. **À relancer Mac éveil
    4310/5173 sur le code du jour ; fusion des branches.
 3. Tout le « reste à faire » de la section 9 demeure (E84, E87, E89, E90, E92 en réel ; longue mission ; Gmail ; envoi
    réel ; pièce jointe).
+
+## 11. Nuit du 12/11 (19:22 → 21:50) — audit CTO, chantier candidature
+
+Journal, audit, diagnostic et questions au propriétaire : [`nuit-12-11.md`](nuit-12-11.md). Registre : E97 à E101.
+Rapports du sprint : `envoi-issue-01.md`, `review-envoi-issue-01.md` ; brief : `briefs/envoi-issue-01.md`.
+
+**Où est le travail.** Toujours `cto-11-11` (`~/Downloads/agregat-back-cto`). Après 759ca52 : d691644 et bc90c60
+(`[nuit-12-11]`), dfc6d08, c836150, 96575f0 (`[envoi-issue-01]`), d3f2639, 433af01 (`[review-envoi-issue-01]`), puis le
+commit de cette passation. Rien poussé, rien fusionné, aucun envoi réel. Le point 7 de la section 10 (projet open
+source « higgsfield ») est abandonné par le propriétaire (12/11, 20:33).
+
+**Suite.** Mac éveillé, lancée sur 759ca52 (le correctif E97 a été écrit pendant ce lancement) : 1076 unitaires
+(1074 ✔), 215/215 Chrome : les échecs du 11/11 soir venaient de la veille. Sur 433af01 (contrôle du manager, 21:38) : unitaires 0 échec (2 ignorés), **Chrome 225/225**, contrôle et
+format verts. Le test « faux exécutable muet » reste fragile au temps (un échec isolé à 20:27, 3 succès rejoué seul).
+
+**Prouvé en réel cette nuit** (API 4313, vrai relais Playwriter, Chrome du propriétaire ; cartes accordées seulement
+vers 127.0.0.1, toute autre carte refusée).
+| Heure | Mission | Agent | Demande | Issue |
+|---|---|---|---|---|
+| 19:49 | 2405c1bd | Claude Sonnet | candidature FICTIVE, sans Skill | `completed` 66 s, 1 carte, 1 envoi fictif |
+| 19:50 | d74dc68e | Codex | idem | `completed` 56 s ; Bilan faux « 18 commandes » (E98) |
+| 19:51 | 9fcec9ca | Claude Sonnet | candidature FICTIVE, Skill, CV adapté | `completed` 240 s ; Bilan faux « Ouvrir le formulaire non exécutée » (E99) |
+| 19:58 | 43d36353 | Claude Sonnet | LinkedIn, lire et noter 2 offres | 2 fausses cartes (E100) ; `failed` « Délai maximal dépassé » (E101) |
+| 20:28 | a635d2ea | Codex | candidature FICTIVE, Skill, CV adapté | `completed` 290 s ; E97, E98, E99 vérifiés |
+| 20:33 | c8d8a1a4 | Claude Sonnet | LinkedIn, lire et noter 2 offres | `completed` 748 s, aucune carte ; **E94 vérifié** |
+| 21:39 | b62c886b | Claude Sonnet | candidature FICTIVE, Skill, code final | `completed` 328 s, 3 questions, 1 carte, 1 envoi fictif |
+| 21:44 | 32638afc | Codex | candidature FICTIVE, sans Skill, code final | `completed` 105 s, 1 carte, 1 envoi fictif |
+
+C'est la première fois que le dernier maillon (carte → clic → statut HTTP → Bilan) passe par le vrai relais, mais sur
+la page fictive seulement.
+
+**Corrigé cette nuit** (tests : registre et section « Audit » du journal).
+- E97 : garde « outil figé » qui tuait une mission Codex pendant la rédaction (c031ef07, mission du propriétaire).
+- Silence de 180 s qui coupait un script long déjà remis à la plateforme (scan, generate-pdf).
+- Forme Codex des appels : délai propre des scripts, Bilan « commandes natives » (E98), étape à motif d'URL.
+- E99 : « Ouvrir le formulaire (non exécutée) » quand le premier remplissage échoue puis réussit.
+- E94 pour SEEK (`jobId`), E89 bis (carte de grosse écriture limitée à la page de la saisie), « Je candidate ».
+- A8, A9 (sprint + relecture) : issue d'un envoi accordé dite vraie dans deux cas (statistique avant la candidature,
+  écriture vers un autre site annulée).
+- Environnement : `.manager/outils/api-branche.sh <port> [espace]` lance l'API avec les délais de la commande type
+  (E101). L'API 4313 tourne ainsi depuis 21:39 sur 433af01, avec la copie de l'espace career-ops (`/private/tmp`,
+  effacée au redémarrage du Mac). Page FICTIVE 4321 en marche. API 4310 et fronts 5173 / 5176 non touchés.
+
+**Ouvert, à la décision du propriétaire** (sept questions en fin de journal).
+- **E100** : fausses cartes d'envoi sur LinkedIn en lecture seule, troisième cycle (E89, E93, E100). Non corrigé
+  exprès : la carte décidée par le libellé du bouton est un compartiment trop gros.
+- A7 (envoi sans carte par le « Oui » d'une modale hors formulaire), A10 (mode workflow), A11 (dispenses de scan par
+  phrases) : même famille, non corrigés.
+- Issue d'un envoi à statuts contraires dans le même clic : deux cas miroirs laissés (rapports du sprint).
+- Jamais fait : le clic réel du propriétaire sur un vrai site ; un essai réel sur SEEK depuis le 11/11 ; Gemini,
+  OpenCode.
+- Tout le « reste à faire » des sections 9 et 10 demeure, sauf E94 (vérifié) et la suite Mac éveillé (faite).

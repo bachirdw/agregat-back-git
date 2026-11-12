@@ -500,3 +500,25 @@ la page fictive seulement.
 - Jamais fait : le clic réel du propriétaire sur un vrai site ; un essai réel sur SEEK depuis le 11/11 ; Gemini,
   OpenCode.
 - Tout le « reste à faire » des sections 9 et 10 demeure, sauf E94 (vérifié) et la suite Mac éveillé (faite).
+
+## 12. Fin de nuit du 12 au 13/11
+
+Détail complet : `.manager/reports/nuit-12-11-suite.md`.
+
+- **Où est le travail** : branche cto-11-11, local, rien de poussé. Dernier commit du travail de la nuit : 9dacd5e
+  (puis le commit du greffier `[greffier-12-11]`). 12 commits depuis eb421a0 : audit-suite-02 (6), relecture (2),
+  contrat-agents-01 (2), relecture (2).
+- **Suite** (00:00, code 9dacd5e) : unitaires 1116 / 1114 réussis / 0 échec / 2 ignorés ; Chrome réel 225/225 ;
+  check et format:check verts.
+- **Prouvé en réel** (page FICTIVE 4321, vrai relais) : Claude Skill 8c073dbc completed 205 s, Codex libre 102a5ff9
+  completed 70 s, une carte chacun, un envoi fictif chacun (/count 6 -> 8). Trois missions de lecture seule
+  (SEEK Claude, LinkedIn puis Indeed Claude, SEEK Codex) terminées `completed`, aucune carte.
+- **Corrigé** : A10 (carte d'envoi en mode workflow, deux attentes comptées), négation du routeur, Bilan sans
+  rédaction fausse, écriture tardive après clic `candidate`, test du faux exécutable muet, lecteur unique des appels
+  d'outils Claude/Codex, double compte d'un échec ACP + passerelle (M1).
+- **Ouvert / à trancher** : étude `carte-envoi-etude-01.md` (R1/R2/R3, rien d'appliqué, mode d'observation proposé) ;
+  clics plain/widget + écriture tardive ; A7 ; négation aux deux-points dans `truth.js` ; délai `prompt` 600 s non
+  testé ; `bilan-vs-events.mjs` hors dépôt ; Gemini et OpenCode sans fixtures ; aucun clic réel du propriétaire.
+- **Processus laissés** : API 4313 relancée à 23:59 sur le code final (`api-branche.sh`, espace career-ops dans
+  `/private/tmp`, effacé au redémarrage du Mac) ; page fictive 4321 en marche (8 envois fictifs au compteur).
+  API 4310 et fronts non touchés.

@@ -227,6 +227,14 @@ export function loadSkillManifest(packId) {
   return manifest;
 }
 
+// audit-suite-02 : a negation covers its own clause only, as in career-ops/truth.js : it stops at
+// « mais », « puis », « et », a colon or the punctuation, so « Ne lance pas le scan et cherche des
+// offres » keeps « cherche des offres ».
+const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et)(?=$|[^\p{L}]))[^.!?;,:])`;
+const NEGATED = new RegExp(
+  String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*`,
+  'giu',
+);
 function normalize(value) {
   return value
     .normalize('NFD')
@@ -244,7 +252,7 @@ export function selectSkillIntents(prompt, manifests) {
   const objective = normalize(
     prompt
       .replace(/https?:\/\/\S+/giu, ' ')
-      .replace(/(?:\bne\b|\bn['’])[^.!?;,]{0,90}(?:\bpas\b|\brien\b|\baucun\b)[^.!?;,]*/giu, ' ')
+      .replace(NEGATED, ' ')
       .replace(/(?<=\p{L})-(?:moi|toi|nous|vous|lui|leur|les|le|la|en|y)(?![\p{L}\p{N}])/giu, ''),
   );
   const forbidSave =

@@ -522,3 +522,16 @@ Détail complet : `.manager/reports/nuit-12-11-suite.md`.
 - **Processus laissés** : API 4313 relancée à 23:59 sur le code final (`api-branche.sh`, espace career-ops dans
   `/private/tmp`, effacé au redémarrage du Mac) ; page fictive 4321 en marche (8 envois fictifs au compteur).
   API 4310 et fronts non touchés.
+
+## 13. Nuit du 12 au 13/11, seconde partie
+
+Détail complet : `.manager/reports/nuit-12-11-ombre.md`.
+
+- **Dernier commit du travail** : d139ca0 (carte-ombre-01 : 4f6e832, d405107, c8d27f0 ; relecture 3005bfb, d139ca0), puis le commit du greffier `[greffier-12-11]`. Rien de poussé.
+- **Suite** (code d139ca0) : unitaires 1139 / 1137 réussis / 0 échec / 2 ignorés ; Chrome réel 226/226 ; check et format:check verts.
+- **Mode d'observation de la carte d'envoi** : calcule la règle R2 à côté de la décision actuelle et écrit une trace par mission (hôte seulement) dans `<données>/card-shadow/<mission>.jsonl`. Activation : `AGENT_PLATFORM_CARD_SHADOW=1` au lancement de l'API. Lecture : `python3 -I .manager/outils/ombre-cartes.py <port|base> <mission>`. Il ne change aucune décision (test Chrome jouant la même mission avec et sans). Désactivé sur l'API laissée en marche.
+- **Mesures** (4 missions réelles, 445 écritures) : aucun désaccord entre l'actuelle et R2, aucun `unknown`.
+- Envois fictifs : 2 cartes (cover/card), lectures SEEK et LinkedIn : 0 carte. Petit échantillon, aucun envoi réel.
+- 185 écritures « blocked » (actuelle) que R2 laisserait passer : cause non établie, à examiner.
+- **Ouvert** : fenêtre de téléversement dans R2 ; délai de lecture du geste (1 s) ; Entrée et téléchargement sans test Chrome ; WebSocket non observés ; aucun clic réel du propriétaire.
+- **Processus laissés** : API 4313 relancée à 01:31 SANS observation (`api-branche.sh`, espace career-ops dans `/private/tmp`) ; page fictive 4321 en marche (au moins 10 envois fictifs au compteur) ; API 4310 non touchée.

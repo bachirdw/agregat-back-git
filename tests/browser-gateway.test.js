@@ -976,10 +976,18 @@ test('Chrome isolé : délai du faux exécutable muet et nettoyage explicite de 
     { mode: 0o755 },
   );
   const provider = new CdpBrowser({ launch: { executablePath }, startupTimeoutMs: 1000 });
+  // audit-suite-02 : under load, Node can start the fixture after the 1 s deadline ; its PID file
+  // then appears after the rejection. Wait for it (bounded) instead of reading it at once, so the
+  // proof of a real start and the cleanup of that process do not depend on the machine's load.
+  const pidWritten = async () => {
+    for (let until = Date.now() + 15000; !existsSync(pidFile) && Date.now() < until; )
+      await new Promise((r) => setTimeout(r, 25));
+    return existsSync(pidFile);
+  };
   t.after(async () => {
     // This fixture ignores even Browser.close. Playwright rejects on deadline, but its graceful
     // shutdown cannot stop a binary that speaks no CDP at all. Kill only our known fixture PID.
-    if (existsSync(pidFile)) {
+    if (await pidWritten()) {
       try {
         process.kill(Number(readFileSync(pidFile, 'utf8')), 'SIGKILL');
       } catch (e) {
@@ -995,7 +1003,7 @@ test('Chrome isolé : délai du faux exécutable muet et nettoyage explicite de 
     /Timeout 1000ms exceeded|Délai de démarrage navigateur dépassé/,
   );
   assert.ok(Date.now() - started < 5000, 'la deadline rejette sans attendre un pair muet');
-  assert.ok(existsSync(pidFile), 'le faux Chrome a réellement démarré');
+  assert.ok(await pidWritten(), 'le faux Chrome a réellement démarré');
 });
 
 test('Chrome isolé : délai de démarrage strictement positif et entier', () => {

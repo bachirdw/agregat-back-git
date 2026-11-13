@@ -25,7 +25,6 @@ import {
   gmailCompose,
   linkedInDraft,
 } from './sends.js';
-import { NAVIGATE_URL_MAX } from '../capability-registry/index.js';
 const exec = promisify(execFile);
 // 08/11 : a script that asks at the keyboard (contact-extract « Save this contact? [y/N] », any
 // readline prompt) reads end of input at once, as in a shell without a terminal, instead of waiting
@@ -801,6 +800,25 @@ export function scriptLimits(
       positive(maxBuffer) ??
       positive(env.RELAY_CAREER_SCRIPT_MAX_BUFFER) ??
       (ownerMode ? OWNER_SCRIPT_BUFFER : DEFAULT_SCRIPT_BUFFER),
+  };
+}
+// review-freins-01 : en mode propriétaire, un script n'est plus arrêté avant 5 Mo de sortie, mais
+// une sortie de plusieurs Mo rendue entière dépasse le contexte d'un agent (et le plafond de 256 Kio
+// d'un événement du journal). Au-delà de SCRIPT_OUTPUT_SHOWN caractères (la sortie que rendait un
+// script avant le sprint), la réponse garde le début et la fin, et dit la taille totale. Le script
+// a tourné jusqu'au bout ; exitCode et les autres champs sont inchangés.
+const SCRIPT_OUTPUT_SHOWN = 200000;
+export function boundScriptOutput(result, shown = SCRIPT_OUTPUT_SHOWN) {
+  const text = result?.text;
+  if (typeof text !== 'string' || text.length <= shown) return result;
+  const head = text.slice(0, Math.ceil(shown / 2));
+  const tail = text.slice(text.length - Math.floor(shown / 2));
+  const omitted = text.length - head.length - tail.length;
+  return {
+    ...result,
+    text: `${head}\n[Sortie de ${text.length} caractères (${Buffer.byteLength(text)} octets) : début et fin montrés, ${omitted} caractères du milieu omis ; le script a tourné jusqu'au bout.]\n${tail}`,
+    outputChars: text.length,
+    outputOmitted: omitted,
   };
 }
 // A script cut short : the partial output stays readable, with a plain message (never an opaque
@@ -1628,10 +1646,18 @@ export function registerCareerTools(
         command: z.string().min(1).max(200),
         query: z.string().max(500).default(''),
         path: pathSchema.optional(),
-        args: z.array(z.string().max(1000)).max(30).default([]),
+        // review-freins-01 : le schéma MCP bornait encore à 30 valeurs de 1 000 caractères ; en mode
+        // propriétaire, il suit les bornes de la classe (OWNER_SCRIPT_ARGS, OWNER_SCRIPT_ARG_CHARS).
+        args: z
+          .array(z.string().max(ownerMode ? OWNER_SCRIPT_ARG_CHARS : 1000))
+          .max(ownerMode ? OWNER_SCRIPT_ARGS : 30)
+          .default([]),
       })
       .strict(),
-    (args, signal) => tools.script(args, signal),
+    async (args, signal) => {
+      const result = await tools.script(args, signal);
+      return ownerMode ? boundScriptOutput(result) : result;
+    },
   );
   // contacts-courriel-01 : sans SMTP, le brouillon prérempli s'ouvre dans le navigateur du
   // propriétaire, comme linkedin_draft ouvre le profil ; rien n'est envoyé. Avec SMTP, aucune
@@ -1648,15 +1674,11 @@ export function registerCareerTools(
         return { ...result, opened: false, openError: `${kept} (aucun navigateur)` };
       // relance-01 : au-delà du seuil, la composition s'ouvre avec destinataire et objet seuls ; le
       // texte complet reste dans drafts/<id>.json. freins-01 : seuil COMPOSE_URL_MAX (8 000, non
-      // mesuré), sous la limite de browser.navigate (NAVIGATE_URL_MAX, 16 384).
+      // mesuré), sous la limite de browser.navigate (NAVIGATE_URL_MAX, 16 384). review-freins-01 : le
+      // lien court (objet ≤ 500, destinataire ≤ 254 : moins de 5 400 caractères encodés) tient
+      // toujours sous ces deux bornes ; la branche « même le lien court dépasse » est retirée.
       const bodyOmitted = result.composeUrl.length > COMPOSE_URL_MAX;
       const target = bodyOmitted ? gmailCompose(args, { withBody: false }) : result.composeUrl;
-      if (target.length > NAVIGATE_URL_MAX)
-        return {
-          ...result,
-          opened: false,
-          openError: `${kept} (lien de ${target.length} caractères même sans le texte, ${NAVIGATE_URL_MAX} au plus pour le navigateur)`,
-        };
       try {
         await openProfile(target);
       } catch {

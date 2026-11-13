@@ -8,9 +8,10 @@ const url = z.string().min(1).max(2048);
 const selector = z.string().min(1).max(500);
 const waitForText = z.string().trim().min(2).max(200);
 const scrollMode = z.enum(['bottom', 'page']);
-// E27 : a snapshot is paged like career_read (E7): 24 000 characters by default, 48 000 at most.
+// E27 : a snapshot is paged like career_read (E7): 24 000 characters by default. freins-01 (13/11) :
+// 200 000 at most (48 000 before).
 const snapshotOffset = z.number().int().min(0).default(0);
-const snapshotChars = z.number().int().min(1).max(48000).default(24000);
+const snapshotChars = z.number().int().min(1).max(200000).default(24000);
 const ref = z
   .string({ error: 'ref requise : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot' })
   .regex(
@@ -32,7 +33,7 @@ export const capabilities = [
     effect: 'read',
     meter: 'browser_action',
     description:
-      'Arbre d’accessibilité avec références [ref=eN] et [ref=fNeN] réutilisables dans les actions sur la page courante. Capture par pages de maxChars caractères (24 000 par défaut, 48 000 au plus) : si truncated est vrai, recapturer avec offset=nextOffset ; les références valent pour toute la page. Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom : jusqu’en bas, page : d’une hauteur d’écran). À utiliser quand un texte attendu manque à la capture ou que la page charge au défilement.',
+      'Arbre d’accessibilité avec références [ref=eN] et [ref=fNeN] réutilisables dans les actions sur la page courante. Capture par pages de maxChars caractères (24 000 par défaut, 200 000 au plus) : si truncated est vrai, recapturer avec offset=nextOffset ; les références valent pour toute la page. Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom : jusqu’en bas, page : d’une hauteur d’écran). À utiliser quand un texte attendu manque à la capture ou que la page charge au défilement.',
     schema: z
       .object({
         url: url.optional(),

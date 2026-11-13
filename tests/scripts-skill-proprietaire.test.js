@@ -125,7 +125,8 @@ test('E59 FICTIF : seuls les chemins hors de l’espace et les valeurs malformé
     /Arguments refusés/,
   );
   await assert.rejects(
-    tools.script({ command: 'merge-tracker', args: Array(31).fill('--dry-run') }),
+    // freins-01 : 200 valeurs au plus (ancien attendu : refus à 31).
+    tools.script({ command: 'merge-tracker', args: Array(201).fill('--dry-run') }),
     /Arguments refusés/,
   );
   await assert.rejects(
@@ -204,4 +205,31 @@ test('E59 FICTIF : un chemin qui sort de l’espace par un lien symbolique est r
   symlinkSync(join(root, 'output'), join(root, 'data/interne'));
   const args = ['export', '--out', 'data/interne/suivi-fictif.csv'];
   assert.deepEqual((await run(tools, 'tracker', args)).args, args);
+});
+
+// freins-01 (13/11) : en mode propriétaire, un script reçoit jusqu'à 200 valeurs de 10 000 caractères
+// (30 valeurs de 1 000 avant), à la racine du Skill comme sous scripts/. Valeurs FICTIVES.
+test('freins-01 FICTIF : mode propriétaire, 200 arguments de 10 000 caractères passent', async (t) => {
+  const { root, tools } = workspace(t);
+  const long = 'u'.repeat(10000);
+  const many = Array.from({ length: 200 }, (_, i) => `https://jobs.example.test/o/${i}`);
+  assert.deepEqual((await run(tools, 'check-liveness', many)).args, many);
+  assert.deepEqual((await run(tools, 'set-status', ['--note', long])).args, ['--note', long]);
+  await assert.rejects(
+    tools.script({ command: 'set-status', args: ['--note', `${long}u`] }),
+    /200 valeurs au plus, chacune une chaîne non vide de 10000 caractères au plus/,
+  );
+  mkdirSync(join(root, 'scripts'));
+  writeFileSync(
+    join(root, 'scripts/outil-fictif.mjs'),
+    'console.log(JSON.stringify({ args: process.argv.slice(2) }))',
+  );
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  tools.approve = async () => true;
+  const args = [...many.slice(0, 199), long];
+  assert.deepEqual((await run(tools, 'scripts/outil-fictif.mjs', args)).args, args);
+  await assert.rejects(
+    tools.script({ command: 'scripts/outil-fictif.mjs', args: [...many, 'x'] }),
+    /Arguments de script invalides/,
+  );
 });

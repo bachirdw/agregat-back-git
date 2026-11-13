@@ -717,7 +717,9 @@ test('Lecture privée paginée et script annulé : sortie bornée, processus arr
   assert.equal(last.truncated, false);
   assert.equal(last.nextOffset, null);
   assert.equal('notice' in last, false);
-  assert.throws(() => tools.read('cv.md', { maxChars: 48001 }));
+  // freins-01 : maxChars va jusqu'à 200 000 (ancien attendu : refus à 48 001).
+  assert.equal(tools.read('cv.md', { maxChars: 48001 }).text.length, 48001);
+  assert.throws(() => tools.read('cv.md', { maxChars: 200001 }));
   assert.throws(() => tools.read('cv.md', { offset: -1 }));
   mkdirSync(join(root, 'relay'));
   writeFileSync(join(root, 'find.mjs'), 'setInterval(() => {}, 1000)');

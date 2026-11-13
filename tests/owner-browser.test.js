@@ -1684,7 +1684,8 @@ test(
     assert.ok(ref, 'référence du bouton au-delà de la coupure');
     await gateway.call('browser.click', { ref });
     assert.equal(await provider.page.locator('body').getAttribute('data-fin'), 'oui');
-    await assert.rejects(gateway.call('browser.snapshot', { maxChars: 48001 }));
+    // freins-01 : borne portée à 200 000 (ancien attendu : refus à 48 001).
+    await assert.rejects(gateway.call('browser.snapshot', { maxChars: 200001 }));
     await assert.rejects(gateway.call('browser.snapshot', { offset: -1 }));
   },
 );

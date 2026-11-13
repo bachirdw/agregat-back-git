@@ -93,3 +93,27 @@ test('Bilan : « délai dépassé » distinct d’un échec du script', () => {
   assert.equal(first.cause, 'délai dépassé');
   assert.equal(second.cause, 'échec signalé par l’outil');
 });
+
+// freins-01 (13/11) : en mode propriétaire, la sortie d'un script garde jusqu'à 5 Mo (200 ko avant,
+// qui reste la borne hors de ce mode). Sortie FICTIVE de 1 Mo.
+test('freins-01 FICTIF : mode propriétaire, sortie de script jusqu’à 5 Mo', async (t) => {
+  assert.equal(scriptLimits('find', { env: {}, ownerMode: true }).maxBuffer, 5000000);
+  assert.equal(scriptLimits('find', { env: {}, ownerMode: false }).maxBuffer, 200000);
+  // Une valeur explicite ou la variable d'environnement priment toujours.
+  assert.equal(scriptLimits('find', { env: {}, ownerMode: true, maxBuffer: 1000 }).maxBuffer, 1000);
+  assert.equal(
+    scriptLimits('find', { env: { RELAY_CAREER_SCRIPT_MAX_BUFFER: '300000' }, ownerMode: true })
+      .maxBuffer,
+    300000,
+  );
+  const root = workspace(t, `process.stdout.write('x'.repeat(1000000));`);
+  const owner = new CareerTools({ path: () => root }, { ownerMode: true, env: {} });
+  const whole = await owner.script({ command: 'find', query: 'FICTIF' });
+  assert.equal(whole.exitCode, 0);
+  assert.equal(whole.truncated, undefined);
+  assert.equal(whole.text.length, 1000000);
+  const other = new CareerTools({ path: () => root }, { env: {} });
+  const cut = await other.script({ command: 'find', query: 'FICTIF' });
+  assert.equal(cut.truncated, true);
+  assert.match(cut.text, /Sortie tronquée : plus de 200000 octets/);
+});

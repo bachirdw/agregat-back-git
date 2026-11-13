@@ -69,7 +69,9 @@ test('E46 FICTIF : les fichiers que le Skill fait lire sont lisibles, marqués n
   assert.equal(page.text, '# Mac');
   assert.equal(page.truncated, true);
   assert.equal(page.nextOffset, 5);
-  assert.throws(() => tools.read('config/cv-facts.json', { maxChars: 48001 }), /Pagination/);
+  // freins-01 : borne portée à 200 000 (ancien attendu : refus à 48 001).
+  assert.equal(tools.read('config/cv-facts.json', { maxChars: 48001 }).truncated, false);
+  assert.throws(() => tools.read('config/cv-facts.json', { maxChars: 200001 }), /Pagination/);
 });
 
 test('E46 FICTIF : l’écriture de ces chemins reste refusée, career_write inchangé', (t) => {

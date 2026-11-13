@@ -5,8 +5,13 @@
 #
 #   python3 -I .manager/outils/demo-candidature.py <port> skill|libre [délai_s]
 #   python3 -I .manager/outils/demo-candidature.py <port> libre-cv <délai_s> <cv.pdf>   (sans Skill, CV joint)
+#   python3 -I .manager/outils/demo-candidature.py <port> deux [délai_s]   (deux candidatures d'affilée)
 # Variables facultatives : DEMO_BROWSER (isolated par défaut ; playwriter = Chrome du propriétaire par le
 # relais), DEMO_AGENT (claude), DEMO_MODEL (sonnet ; vide pour le modèle par défaut de l'agent), DEMO_PROMPT.
+# DEMO_GRANT=1 (accord-mission-01) : la PREMIÈRE carte d'envoi, si et seulement si sa cible est 127.0.0.1,
+# reçoit « Autoriser tous les envois de cette mission » (allow_mission) ; le script ne doit plus voir de
+# carte ensuite : toute carte suivante est laissée en attente et le script s'arrête. Le mode `deux` passe
+# par le pack career-ops (seul pack qui déclare sendGrant ; sans lui l'option n'est pas proposée).
 import json, os, sys, time, urllib.request
 
 port = sys.argv[1]
@@ -24,6 +29,15 @@ PROMPTS = {
     "disponibilité immédiate, motivation : deux phrases sur mon intérêt pour un poste d'ingénieur IA. "
     "Pas de CV à joindre. Va jusqu'au bout et clique sur Envoyer.",
 }
+PROMPTS['deux'] = (
+    "Fais deux candidatures FICTIVES d'affilée sur le formulaire FICTIF http://127.0.0.1:4321/, dans "
+    "cette même mission. Première : nom Alex Martin, e-mail alex.martin@example.test, téléphone "
+    "0400 000 000, disponibilité immédiate, motivation : deux phrases sur un poste d'ingénieur IA ; "
+    "pas de CV ; va jusqu'au bout et clique sur Envoyer. Ensuite rouvre http://127.0.0.1:4321/ et fais "
+    "la seconde : nom Sam Durand, e-mail sam.durand@example.test, téléphone 0400 000 001, "
+    "disponibilité sous un mois, motivation : deux phrases sur un poste de data scientist ; pas de CV ; "
+    "va jusqu'au bout et clique sur Envoyer."
+)
 PROMPTS['libre-cv'] = PROMPTS['libre'].replace(
     'Pas de CV à joindre.', 'Joins le CV fourni en pièce jointe.'
 )
@@ -56,7 +70,11 @@ if mode == 'libre-cv':
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         body['attachments'] = [json.loads(r.read())['id']]
-body.update({'pack': 'career-ops', 'workspace': 'career-ops'} if mode == 'skill' else {'pack': 'core'})
+body.update(
+    {'pack': 'career-ops', 'workspace': 'career-ops'} if mode in ('skill', 'deux') else {'pack': 'core'}
+)
+grant = os.environ.get('DEMO_GRANT') == '1'
+cards = 0
 run = call('/api/runs', body)
 rid = run.get('id') or run['run']['id']
 print('mission', rid, time.strftime('%H:%M:%S'))
@@ -76,8 +94,14 @@ while time.time() - t0 < limit:
         if '127.0.0.1:' not in preview:
             print('carte NON fictive laissée en attente :', preview[:200])
             break
-        print(time.strftime('%H:%M:%S'), 'carte accordée (FICTIF) :', preview[:160])
-        call(f"/api/permissions/{p['id']}", {'optionId': 'allow'})
+        cards += 1
+        if grant and cards > 1:
+            print('carte inattendue après l’accord de mission, laissée en attente :', preview[:200])
+            break
+        option = 'allow_mission' if grant else 'allow'
+        label = 'carte accordée (FICTIF, accord de mission) :' if grant else 'carte accordée (FICTIF) :'
+        print(time.strftime('%H:%M:%S'), label, preview[:160])
+        call(f"/api/permissions/{p['id']}", {'optionId': option})
     elif r.get('state') in ('completed', 'failed', 'cancelled', 'interrupted'):
         summary = (r.get('result') or {}).get('summary') or r.get('error') or ''
         print(time.strftime('%H:%M:%S'), 'état final :', r['state'], f'({int(time.time() - t0)} s)')

@@ -8,10 +8,18 @@ export const SENSITIVE_WORDS =
 
 // Audit du 10/11 (constat 2) : labels of a final send that SENSITIVE_WORDS misses (conjugated
 // verbs, other phrasings). Used for the agent's clicks only, never for request paths.
+// carte-r1-01 (E100, règle R1 de carte-envoi-etude-01) : verbs only. Action nouns (« Date de
+// publication », « Soumission facile », « Envoi », « Validation », « Confirmation ») name a filter,
+// a tab or a status, not a send : they made E93 and E100 cards. A submission trigger of a form and
+// a write to a submission path keep their card whatever the label.
 export const SEND_LABEL_WORDS =
-  /\b(postul\p{L}*|candidate[rz]|je candidate|soumet\p{L}*|soumis|soumission|transmet\p{L}*|envoi\p{L}*|envoy\p{L}*|termin(?:er|ez|é|ée)|finalis\p{L}*|finaliz\p{L}*|finish|submit\p{L}*|send\p{L}*|valid\p{L}*|confirm\p{L}*|d[ée]pos\p{L}*|publi\p{L}*|r[ée]pond\p{L}*|reply|post|done)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
+  /\b(postul(?:er|ez|e|es|ent|ons)?|candidate[rz]|je candidate|soumet\p{L}*|soumis|transmet\p{L}*|envoi(?:e|es|ent)|envoy\p{L}*|termin(?:er|ez|é|ée)|finalis(?:er|ez|e|es|ent|ons)?|finaliz(?:e|es|ed|ing)?|finish|submit\p{L}*|send(?:s|ing)?|valid(?:er|ez|e|es|ent|ons|ate|ates)?|confirm(?:er|ez|e|es|ent|ons|s|ed)?|d[ée]pos(?:er|ez|e|es|ent|ons)?|publi(?:er|ez|e|es|ent|ons|sh|shes)|r[ée]pond(?:re|ez|s|ons|e|es|ent)?|reply|post|done)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
 // Relecture fix5 (constat 3) : conjugated and other final-send labels (« Envoyez ma candidature »,
 // « Validez », « Je confirme », « Déposer », « Publier », « Terminé », « Done », « Répondre »).
+// carte-r1-01 : the action nouns R1 took out of SEND_LABEL_WORDS still deny a step : « Continuer
+// la soumission », « Ajouter un envoi » are no step (as before R1), they never make a send.
+const ACTION_NOUNS =
+  /\b(?:soumissions?|envois?|validations?|confirmations?|finalisations?|finalizations?|publications?)\b/iu;
 // Moving between the steps of a multi-step form, or filling it, is not a send. Audit du 10/11
 // (constat 1) : found anywhere in the label of a control that does not submit its form (« Ajouter
 // une expérience » of type button), a send word in the same label still wins.
@@ -225,7 +233,8 @@ export class RunPolicy {
     if (SENSITIVE_WORDS.test(d.formAction ?? '')) return false;
     const buttonish = ['button', 'a', 'input'].includes(d.tag) || d.role === 'button';
     if (buttonish && STRICT_STEP_LABEL.test(stepLabel(label))) return true;
-    if (SENSITIVE_WORDS.test(label) || SEND_LABEL_WORDS.test(label)) return false;
+    if (SENSITIVE_WORDS.test(label) || SEND_LABEL_WORDS.test(label) || ACTION_NOUNS.test(label))
+      return false;
     if (['label', 'select', 'option', 'textarea'].includes(d.tag)) return true;
     if (d.tag === 'input' && !['submit', 'button', 'image'].includes(d.inputType))
       return FIELD_INPUTS.has(d.inputType);
@@ -285,15 +294,17 @@ export class RunPolicy {
     }
     const role = String(d.role ?? '').toLowerCase();
     // Choosing an option, a box, a tab is never a send.
-    if (WIDGET_ROLES.has(role) && role !== 'menuitem') return 'widget';
+    // carte-r1-01 (R1) : nor is a menu entry or a button that opens a menu, a list or a panel,
+    // whatever its label (« Date de publication » filter, « Envoyer » opening a confirmation : the
+    // send is the control of what it opens). Only the submission trigger of a form, tested above,
+    // stays the send. A write such a click triggers to a submission path of the page's own site
+    // still waits for the card (cdp.js).
     if (
-      role === 'menuitem' ||
+      WIDGET_ROLES.has(role) ||
       (d.ariaHasPopup && d.ariaHasPopup !== 'false') ||
       (d.ariaExpanded !== null && d.ariaExpanded !== undefined)
     )
-      // A menu entry or a disclosure button that says a send (« Envoyer » opening a confirmation)
-      // : any write it triggers waits for the card.
-      return sendLabel ? 'candidate' : 'widget';
+      return 'widget';
     // Relecture fix5 (constat 3) : a button of a form that is no step (« Publier » of type button,
     // an icon) is at least a candidate : any write it triggers waits for the card ; one that writes
     // nothing passes.

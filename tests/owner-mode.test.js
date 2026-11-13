@@ -449,10 +449,12 @@ test('Audit 10/11 (constat 1) : seul un vrai déclencheur d’envoi est un envoi
     { tag: 'input', inputType: 'submit', inForm: true, text: 'OK', role: 'menuitem' },
   ])
     assert.equal(kind(d), 'submit', JSON.stringify(d));
-  // Un menu qui dit un envoi : ses écritures attendent la carte.
+  // carte-r1-01 (R1) : un bouton à menu ou une entrée de menu n'est jamais un envoi, même s'il dit
+  // « Envoyer » (avant R1 : `candidate`) ; l'envoi est le contrôle de ce qu'il ouvre, et une
+  // écriture vers un chemin de soumission du site attend toujours la carte (cdp.js).
   for (const d of [
     { tag: 'button', buttonType: 'button', text: 'Envoyer', ariaHasPopup: 'menu' },
     { tag: 'div', role: 'menuitem', text: 'Envoyer le message' },
   ])
-    assert.equal(kind(d), 'candidate', JSON.stringify(d));
+    assert.equal(kind(d), 'widget', JSON.stringify(d));
 });

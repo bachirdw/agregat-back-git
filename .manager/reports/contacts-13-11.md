@@ -334,6 +334,19 @@ Consigne de travail : le manager délègue, la limite d'usage n'est plus un frei
   Claude ; non joué avec Codex ni sur un vrai site.
 - 17:18 Guet terminé (16:00 → 17:02, coupure de connexion de 16:33 comprise) : une seule mission observée
   (e3fe5047), aucune carte, aucun envoi sans carte ; notes dans `guet-13-11.md`.
+- 17:38 **Freins levés, relus et intégrés** (`freins-01` et `review-freins-01`, repris dans `contacts-13-11` :
+  `7d059cf` à `9001bf6`) : motif ou préfixe à un seul fichier lu directement ; tout fichier de l'espace
+  lisible en mode propriétaire (hors `.env*`, noms en « . », `relay/agent-homes/`) ; lectures et captures à
+  200 000 caractères ; scripts à 200 arguments de 10 000 caractères, sortie jusqu'à 5 Mo rendue début et fin
+  au-delà de 200 000 caractères ; formulaires, saisies, listes ×10 ; adresse de navigation à 16 384 ; lien de
+  composition complet jusqu'à 8 000 (non mesuré sur la messagerie) ; touches Backspace, Delete, PageUp,
+  PageDown. Corrigé par le relecteur : le schéma MCP de `career_script` gardait l'ancienne borne.
+  Non levé : la liste d'un dossier reste un refus (le crédit d'une lecture se décide sur le chemin demandé,
+  dans `orchestrator/skill-router.js:564-567` : moteur). Un conflit de fusion dans
+  `tests/career-sends.test.js` (deux tests ajoutés au même endroit), résolu par le manager en gardant les deux.
+- 17:38 **Suite complète sur le code intégré** (`9001bf6`, 17:26 → 17:38, plafond de phase à 900 s) : unitaires
+  1 222 tests, 1 220 réussis, 0 échec, 2 ignorés ; **Chrome 229 sur 229** ; `check` et `format:check` verts.
+  Aucune mission lancée sur 4314 ni 4313 pendant la suite (vérifié à la fin). API 4314 relancée sur ce code.
 
 ## Bilan de la session (15:16)
 

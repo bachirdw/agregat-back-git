@@ -745,3 +745,44 @@ réseau professionnel n'a pas de carte (si le site envoie l'invitation dès ce c
 non prouvé, antérieur à la session) ; filtre « Easy Apply » encore `candidate` ; E100 non éprouvé en réel
 (aucun clic sur un filtre pendant les essais) ; lien de composition court jamais joué en réel.
 
+## 17. Suite du 13/11 (15:45 → 17:40) — décisions du propriétaire : accord par mission, ne plus brider l'agent
+
+Journal : `contacts-13-11.md`, sous-section « Suite de la session avec le propriétaire ».
+
+### Décisions du propriétaire
+
+- **Ne plus brider l'agent** : « que ça marche ; enlève tout ce qui bride l'agent, tous les trucs de sécurité » ;
+  la sécurité se traitera plus tard. Pas de relecture orientée sécurité, pas de garde nouvelle.
+- **Carte d'envoi : un clic par mission.** Un seul clic du propriétaire peut valoir pour tous les envois de la
+  mission en cours (« pas qu'à chaque candidature on me le redemande »). Portée choisie : par mission, pas
+  permanente. Remplace, pour la portée, « une carte par envoi » de la section 1 ; l'envoi reste tracé et dit au
+  Bilan. `CLAUDE.md` dit encore l'ancienne règle : à mettre à jour par le propriétaire ou sur son ordre.
+
+### Ce qui a été fait (tout relu, intégré dans `contacts-13-11` et `e104-13-11`)
+
+- **Accord de mission** : option `allow_mission` (« Autoriser tous les envois de cette mission ») sur une carte
+  d'envoi par le navigateur, quand le manifeste du pack le déclare (`sendGrant: { channels: [browser] }`) ;
+  événements `send_grant` et `send_auto` ; Bilan « … dont 1 par le propriétaire et N par son accord de mission
+  (cibles : …) ». Sans le clic, chemin inchangé. E-mail SMTP : carte à chaque envoi. Une reprise n'hérite pas
+  de l'accord. **La plateforme ne distingue pas une candidature d'un message ou d'une invitation dans le
+  navigateur : l'accord couvre tout envoi par le navigateur de la mission, fausses cartes comprises.**
+  Essai réel : mission 0aa53e1d (deux candidatures FICTIVES, une carte, deux envois reçus).
+- **Freins levés** (mode propriétaire) : lecture par motif ou préfixe, tout fichier de l'espace lisible (hors
+  `.env*`, noms en « . », `relay/agent-homes/`), `writing-samples/`, tailles et limites relevées, adresse de
+  navigation à 16 384 caractères, touches d'édition. Essai réel : mission 69d7a3a3 (lectures au premier appel).
+- **Front** : bloc « Autres pages lues » (pages lues écartées des preuves par une redirection), bouton de
+  l'accord de mission, journal, mention « Accord de mission actif ».
+- **Suite complète sur le tout** (17:26 → 17:38) : unitaires 1 222 tests, 1 220 réussis, 0 échec, 2 ignorés ;
+  Chrome 229 sur 229 ; `check` et `format:check` verts ; front 211 tests.
+
+### Restes proposés, non faits
+
+- Lister un dossier par `career_read` rend encore un refus : le lever demande que le crédit d'une lecture se
+  fonde sur le chemin lu (`orchestrator/skill-router.js:564-567`, `truth.js`, passerelle).
+- Touche Espace et combinaisons avec modificateur (leur classement se décide dans `browser-gateway`) ; clic
+  forcé sur un élément masqué ; réseau privé ; revue de la source du Skill qui bloque les scripts ; mode de
+  Codex ; délais par défaut.
+- Bilan d'un workflow à étapes : aucune ligne d'envoi (antérieur) ; les envois accordés n'y apparaissent pas.
+- E102, E103, avertissement d'E105, E54, E108 : toujours ouverts (section 16).
+- Arbres de travail à ranger : `agregat-back-contacts`, `agregat-back-freins`, `agregat-front-preuves`.
+

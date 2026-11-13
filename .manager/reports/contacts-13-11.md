@@ -347,6 +347,13 @@ Consigne de travail : le manager délègue, la limite d'usage n'est plus un frei
 - 17:38 **Suite complète sur le code intégré** (`9001bf6`, 17:26 → 17:38, plafond de phase à 900 s) : unitaires
   1 222 tests, 1 220 réussis, 0 échec, 2 ignorés ; **Chrome 229 sur 229** ; `check` et `format:check` verts.
   Aucune mission lancée sur 4314 ni 4313 pendant la suite (vérifié à la fin). API 4314 relancée sur ce code.
+- 17:40 **Mission réelle de lecture, 69d7a3a3** (Claude Sonnet, API 4314 sur `9001bf6`) : `completed` en 45 s.
+  `career_read reports/017` et `career_read reports/011` (préfixes) réussissent chacun au premier appel :
+  **frein levé constaté en réel** (le matin, la même forme était refusée puis rejouée). À noter : le prompt du
+  manager contenait « prise de contact » et a été rangé dans l'intention `linkedin` ; le Bilan dit donc
+  « étape du Skill non exécutée : Consulter le carnet de contacts » pour une simple comparaison de deux
+  rapports (famille E102 : intention choisie par mots). Un appel `career_offer_save` de l'agent avec un
+  argument factice a échoué à la validation : geste de l'agent, pas un frein.
 
 ## Bilan de la session (15:16)
 

@@ -1,0 +1,29 @@
+✔ E46 FICTIF : les fichiers personnels de la couche utilisateur se lisent et s’écrivent (8.189667ms)
+✔ E46 FICTIF : en mode propriétaire, les repères de marché s’écrivent, jamais cv-facts.json (1.640916ms)
+✔ E46 FICTIF : écrire la couche utilisateur laisse la revue des sources valide (33.542667ms)
+✔ E46 FICTIF : traversées, scripts et autres configurations restent hors périmètre (1.262708ms)
+✖ ecrits-01 FICTIF : un lien symbolique dans writing-samples/ est refusé (2.78225ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 295.901791
+
+✖ failing tests:
+
+test at tests/couche-utilisateur.test.js:93:1
+✖ ecrits-01 FICTIF : un lien symbolique dans writing-samples/ est refusé (2.78225ms)
+  Error: Fichier hors du périmètre career-ops
+      at validatePath (file://<depot>/packages/career-ops/tools.js:592:11)
+      at CareerTools.read (file://<depot>/packages/career-ops/tools.js:796:7)
+      at TestContext.<anonymous> (file://<depot>/tests/couche-utilisateur.test.js:103:11)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)

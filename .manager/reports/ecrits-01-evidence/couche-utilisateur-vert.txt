@@ -1,0 +1,13 @@
+✔ E46 FICTIF : les fichiers personnels de la couche utilisateur se lisent et s’écrivent (9.626667ms)
+✔ E46 FICTIF : en mode propriétaire, les repères de marché s’écrivent, jamais cv-facts.json (2.392ms)
+✔ E46 FICTIF : écrire la couche utilisateur laisse la revue des sources valide (34.563917ms)
+✔ E46 FICTIF : traversées, scripts et autres configurations restent hors périmètre (1.516459ms)
+✔ ecrits-01 FICTIF : un lien symbolique dans writing-samples/ est refusé (5.511792ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 309.2515

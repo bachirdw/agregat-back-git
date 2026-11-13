@@ -1,0 +1,15 @@
+✔ E71 FICTIF : un dossier du périmètre nomme ses fichiers lisibles (5.745959ms)
+✔ E71 FICTIF : un motif nomme les fichiers qui y répondent (3.126667ms)
+✔ E71 FICTIF : hors du périmètre, rien n’est nommé (2.617792ms)
+✔ E71 FICTIF : un motif à étoiles répétées répond aussitôt (2.539541ms)
+✔ E71 FICTIF : un dossier atteint par un lien symbolique n’est pas listé (2.402417ms)
+✔ mode propriétaire FICTIF : un script ou un guide à la racine du Skill se lit, ne s’écrit pas (1.663041ms)
+✔ ecrits-01 FICTIF : le dossier des échantillons d’écriture nomme ses fichiers (1.682208ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 272.269041

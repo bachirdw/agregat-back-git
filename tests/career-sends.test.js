@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import {
+  COMPOSE_URL_MAX,
   EmailGateway,
   gmailCompose,
   linkedInDraft,
@@ -493,7 +494,8 @@ test('email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitte
   const career = fixture(t);
   const opened = [];
   const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
-  const text = 'Texte FICTIF accentué é. '.repeat(120);
+  // freins-01 : texte plus long (ancien : 120 répétitions, sous le nouveau seuil de 8 000).
+  const text = 'Texte FICTIF accentué é. '.repeat(600);
   const args = { ...draftArgs(), text };
   const result = await tool.call(args);
   assert.equal(result.sent, false);
@@ -502,7 +504,7 @@ test('email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitte
   assert.equal(result.openError, undefined);
   assert.equal(opened.length, 1);
   assert.equal(result.composeUrl, opened[0]);
-  assert.ok(opened[0].length <= 2048);
+  assert.ok(opened[0].length <= COMPOSE_URL_MAX);
   const compose = new URL(opened[0]);
   assert.deepEqual([...compose.searchParams.keys()].sort(), ['fs', 'su', 'to', 'view']);
   assert.equal(compose.searchParams.get('to'), args.to);
@@ -524,21 +526,24 @@ test('email_send FICTIF sans SMTP : texte court → lien complet, sans bodyOmitt
   assert.equal(result.note, undefined);
   assert.equal(new URL(opened[0]).searchParams.get('body'), 'Message FICTIF.');
 });
-test('email_send FICTIF sans SMTP : objet démesuré, même le lien court dépasse → rien n’est ouvert', async (t) => {
+// freins-01 : ancien attendu « objet démesuré, même le lien court dépasse → rien n'est ouvert » (lien
+// court > 2 048). L'adresse de navigation admet désormais 16 384 caractères : un objet de 500
+// caractères accentués (le maximum du schéma) tient dans le lien court, qui s'ouvre.
+test('email_send FICTIF sans SMTP : objet démesuré, le lien court s’ouvre quand même', async (t) => {
   const career = fixture(t);
   const opened = [];
   const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
   const result = await tool.call({
     ...draftArgs(),
     subject: 'é'.repeat(500),
-    text: 'Texte FICTIF accentué é. '.repeat(120),
+    text: 'Texte FICTIF accentué é. '.repeat(600),
   });
   assert.equal(result.sent, false);
-  assert.equal(result.opened, false);
-  assert.equal(result.bodyOmitted, undefined);
-  assert.ok(result.composeUrl.length > 2048);
-  assert.match(result.openError, /brouillon gardé.*sans le texte.*2048 au plus/i);
-  assert.deepEqual(opened, []);
+  assert.equal(result.opened, true);
+  assert.equal(result.bodyOmitted, true);
+  assert.ok(result.composeUrl.length > 2048 && result.composeUrl.length <= 16384);
+  assert.deepEqual(opened, [result.composeUrl]);
+  assert.equal(new URL(opened[0]).searchParams.get('su'), 'é'.repeat(500));
   assert.match(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'), /FICTIF/);
 });
 // Relecture contacts-courriel-01 : l'adresse, l'objet et le texte passent encodés dans le lien ouvert
@@ -577,7 +582,8 @@ test('email_send FICTIF sans SMTP : lien court encodé, note sans donnée de l�
     id: randomUUID(),
     to: 'fictif+relance@example.test',
     subject: 'Relance FICTIVE & suivi #3 ?cc=autre@example.test = 100 %',
-    text: 'Corps FICTIF unique-7Q & bcc=autre@example.test #x\n'.repeat(60),
+    // freins-01 : 200 répétitions (ancien : 60, désormais sous le seuil de 8 000 du lien complet).
+    text: 'Corps FICTIF unique-7Q & bcc=autre@example.test #x\n'.repeat(200),
   };
   const result = await tool.call(args);
   assert.equal(result.bodyOmitted, true);
@@ -593,13 +599,15 @@ test('email_send FICTIF sans SMTP : lien court encodé, note sans donnée de l�
   const draft = JSON.parse(readFileSync(join(career.root, `drafts/${args.id}.json`), 'utf8'));
   assert.deepEqual(draft, { ...args, attachments: [] });
 });
-// review-relance-01 : à 2 048 caractères pile, le lien complet s'ouvre (inchangé) ; à 2 049, le court.
-test('email_send FICTIF sans SMTP : borne de 2 048 caractères, lien complet jusqu’à la limite', async (t) => {
+// review-relance-01 : à la borne pile, le lien complet s'ouvre ; un caractère de plus, le court.
+// freins-01 : borne portée de 2 048 à COMPOSE_URL_MAX (8 000 ; ancien attendu : 2 048 / 2 049).
+test('email_send FICTIF sans SMTP : borne de 8 000 caractères, lien complet jusqu’à la limite', async (t) => {
   const career = fixture(t);
   const base = { ...draftArgs(), text: '' };
   const size = (n) => gmailCompose({ ...base, text: 'a'.repeat(n) }).length;
-  const n = 2048 - size(1) + 1;
-  assert.equal(size(n), 2048);
+  assert.equal(COMPOSE_URL_MAX, 8000);
+  const n = COMPOSE_URL_MAX - size(1) + 1;
+  assert.equal(size(n), COMPOSE_URL_MAX);
   for (const [length, omitted] of [
     [n, undefined],
     [n + 1, true],
@@ -623,7 +631,8 @@ test('email_send FICTIF sans SMTP : échec d’ouverture du lien court, rien n�
       throw new Error('navigateur FICTIF fermé');
     },
   });
-  const result = await tool.call({ ...draftArgs(), text: 'Texte FICTIF. '.repeat(200) });
+  // freins-01 : 800 répétitions (ancien : 200), pour rester au-delà du seuil du lien complet.
+  const result = await tool.call({ ...draftArgs(), text: 'Texte FICTIF. '.repeat(800) });
   assert.equal(result.opened, false);
   assert.match(result.openError, /brouillon gardé.*échec de l’ouverture/i);
   assert.equal(result.bodyOmitted, undefined);
@@ -678,4 +687,22 @@ test('Accord de mission : email.send garde sa carte quand le manifeste dit brows
     0,
     'aucun e-mail accordé par l’accord de mission',
   );
+});
+
+// freins-01 (13/11) : un e-mail de longueur courante (environ 3 000 caractères accentués, lien
+// complet entre 2 048 et 8 000 caractères) s'ouvre désormais avec son texte dans la fenêtre de
+// composition, au lieu du lien court. Le seuil de 8 000 est prudent, non mesuré sur la messagerie.
+test('freins-01 FICTIF : texte courant → lien complet ouvert avec le corps, sans bodyOmitted', async (t) => {
+  const career = fixture(t);
+  const opened = [];
+  const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+  const text = 'Texte FICTIF accentué é. '.repeat(120);
+  const result = await tool.call({ ...draftArgs(), text });
+  assert.ok(result.composeUrl.length > 2048 && result.composeUrl.length <= COMPOSE_URL_MAX);
+  assert.equal(result.opened, true);
+  assert.equal(result.bodyOmitted, undefined);
+  assert.equal(result.note, undefined);
+  assert.deepEqual(opened, [result.composeUrl]);
+  assert.equal(new URL(opened[0]).searchParams.get('body'), text);
+  assert.match(tool.description, /dépasse 8000 caractères/);
 });

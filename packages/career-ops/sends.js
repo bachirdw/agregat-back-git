@@ -48,7 +48,11 @@ export function smtpConfig(env = process.env) {
   };
 }
 // relance-01 : `withBody: false` donne le lien court (destinataire et objet seuls), ouvert quand le
-// lien complet dépasse la limite d'adresse du navigateur ; le texte reste dans drafts/<id>.json.
+// lien complet est trop long ; le texte reste dans drafts/<id>.json. freins-01 (13/11) : le lien
+// complet s'ouvre tant qu'il tient dans COMPOSE_URL_MAX caractères (2 048 avant, la limite d'adresse
+// du navigateur d'alors). 8 000 est un seuil prudent pour la messagerie, NON MESURÉ : la longueur
+// qu'elle accepte réellement n'a pas été éprouvée.
+export const COMPOSE_URL_MAX = 8000;
 export function gmailCompose(email, { withBody = true } = {}) {
   return (
     'https://mail.google.com/mail/?' +

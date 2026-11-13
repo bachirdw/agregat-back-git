@@ -172,3 +172,24 @@ test('MCP réel : browser_snapshot expose maxChars (défaut 24 000, max 200 000)
   );
   assert.equal(simulated.inputSchema.properties.maxChars.maximum, 48000);
 });
+
+// freins-01 (13/11) : une adresse de navigation va jusqu'à 16 384 caractères (2 048 avant), pour
+// browser_navigate comme pour la capture simulée de la passerelle de fixture.
+test('freins-01 FICTIF : adresse de navigation jusqu’à 16 384 caractères', async (t) => {
+  const client = await fixture(t, 'isolated', 'core', ['browser.navigate', 'browser.snapshot']);
+  const tools = (await client.listTools()).tools;
+  const navigate = tools.find((entry) => entry.name === 'browser_navigate');
+  assert.equal(navigate.inputSchema.properties.url.maxLength, 16384);
+  const long = `https://jobs.example.test/recherche?q=${'a'.repeat(16384 - 38)}`;
+  assert.equal(long.length, 16384);
+  const response = await client.callTool({
+    name: 'browser_navigate',
+    arguments: { url: `${long}a` },
+  });
+  assert.equal(response.isError, true);
+  assert.match(response.content[0].text, /validation/i);
+  const simulated = (await (await fixture(t, 'fixture')).listTools()).tools.find(
+    (entry) => entry.name === 'browser_snapshot',
+  );
+  assert.equal(simulated.inputSchema.properties.url.maxLength, 16384);
+});

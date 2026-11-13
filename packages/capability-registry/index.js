@@ -4,7 +4,10 @@ import { z } from 'zod';
 // concrete provider (fixture, Playwriter relay, isolated Chrome, future cloud browser).
 // effect: read = no external side effect; write = changes page/session state; sensitive = may
 // submit, pay, send or apply — always requires a human decision at the gateway.
-const url = z.string().min(1).max(2048);
+// freins-01 (13/11) : une adresse de navigation va jusqu'à 16 384 caractères (2 048 avant) : liens de
+// recherche longs, liens de composition d'e-mail avec leur texte.
+export const NAVIGATE_URL_MAX = 16384;
+const url = z.string().min(1).max(NAVIGATE_URL_MAX);
 const selector = z.string().min(1).max(500);
 const waitForText = z.string().trim().min(2).max(200);
 const scrollMode = z.enum(['bottom', 'page']);

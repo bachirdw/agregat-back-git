@@ -18,7 +18,14 @@ import { readConfined, writeConfined } from '../policy-engine/files.js';
 import { buildChildEnv } from '../agent-runtime/env.js';
 import { validatePortalsConfig } from './providers.js';
 import { inboxEntries } from './inbox.js';
-import { emailSchema, EmailGateway, gmailCompose, linkedInDraft } from './sends.js';
+import {
+  COMPOSE_URL_MAX,
+  emailSchema,
+  EmailGateway,
+  gmailCompose,
+  linkedInDraft,
+} from './sends.js';
+import { NAVIGATE_URL_MAX } from '../capability-registry/index.js';
 const exec = promisify(execFile);
 // 08/11 : a script that asks at the keyboard (contact-extract « Save this contact? [y/N] », any
 // readline prompt) reads end of input at once, as in a shell without a terminal, instead of waiting
@@ -1631,7 +1638,7 @@ export function registerCareerTools(
   // ouverture : l'envoi attend la carte d'approbation, comme avant.
   register(
     'email_send',
-    'Préparer un e-mail (id : UUID propre à ce message, clé anti-doublon : un id déjà envoyé est refusé ; to, subject, text). Sans SMTP configuré : brouillon gardé (drafts/<id>.json) et lien de composition Gmail prérempli (composeUrl) ouvert dans le navigateur du propriétaire ; opened dit s’il s’est ouvert ; si le lien complet dépasse 2048 caractères, il s’ouvre avec destinataire et objet seuls (bodyOmitted vrai, texte complet dans le brouillon, à saisir par les outils navigateur) ; rien n’est envoyé, le bouton Envoyer reste au propriétaire. Avec SMTP : envoi seulement après approbation du propriétaire, un message à la fois.',
+    'Préparer un e-mail (id : UUID propre à ce message, clé anti-doublon : un id déjà envoyé est refusé ; to, subject, text). Sans SMTP configuré : brouillon gardé (drafts/<id>.json) et lien de composition Gmail prérempli (composeUrl) ouvert dans le navigateur du propriétaire ; opened dit s’il s’est ouvert ; si le lien complet dépasse 8000 caractères, il s’ouvre avec destinataire et objet seuls (bodyOmitted vrai, texte complet dans le brouillon, à saisir par les outils navigateur) ; rien n’est envoyé, le bouton Envoyer reste au propriétaire. Avec SMTP : envoi seulement après approbation du propriétaire, un message à la fois.',
     emailSchema,
     async (args, signal) => {
       const result = await email.send(args, signal);
@@ -1639,16 +1646,16 @@ export function registerCareerTools(
       const kept = 'Brouillon gardé ; lien de composition non ouvert dans le navigateur';
       if (!openProfile)
         return { ...result, opened: false, openError: `${kept} (aucun navigateur)` };
-      // Relecture contacts-courriel-01 : browser.navigate n'admet que 2 048 caractères
-      // (packages/capability-registry/index.js:7). relance-01 : au-delà, la composition s'ouvre avec
-      // destinataire et objet seuls ; le texte complet reste dans drafts/<id>.json.
-      const bodyOmitted = result.composeUrl.length > 2048;
+      // relance-01 : au-delà du seuil, la composition s'ouvre avec destinataire et objet seuls ; le
+      // texte complet reste dans drafts/<id>.json. freins-01 : seuil COMPOSE_URL_MAX (8 000, non
+      // mesuré), sous la limite de browser.navigate (NAVIGATE_URL_MAX, 16 384).
+      const bodyOmitted = result.composeUrl.length > COMPOSE_URL_MAX;
       const target = bodyOmitted ? gmailCompose(args, { withBody: false }) : result.composeUrl;
-      if (target.length > 2048)
+      if (target.length > NAVIGATE_URL_MAX)
         return {
           ...result,
           opened: false,
-          openError: `${kept} (lien de ${target.length} caractères même sans le texte, 2048 au plus pour le navigateur)`,
+          openError: `${kept} (lien de ${target.length} caractères même sans le texte, ${NAVIGATE_URL_MAX} au plus pour le navigateur)`,
         };
       try {
         await openProfile(target);
@@ -1661,7 +1668,7 @@ export function registerCareerTools(
         composeUrl: target,
         opened: true,
         bodyOmitted: true,
-        note: `Composition ouverte avec destinataire et objet seulement : le lien complet dépasse 2048 caractères, le texte n’est donc pas dans la fenêtre. Texte complet dans drafts/${result.draft}.json (champ text) ; les outils navigateur peuvent le saisir dans le corps de la fenêtre ouverte. Rien n’est envoyé : le bouton Envoyer reste au propriétaire.`,
+        note: `Composition ouverte avec destinataire et objet seulement : le lien complet dépasse ${COMPOSE_URL_MAX} caractères, le texte n’est donc pas dans la fenêtre. Texte complet dans drafts/${result.draft}.json (champ text) ; les outils navigateur peuvent le saisir dans le corps de la fenêtre ouverte. Rien n’est envoyé : le bouton Envoyer reste au propriétaire.`,
       };
     },
   );

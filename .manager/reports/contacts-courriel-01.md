@@ -32,3 +32,26 @@ commit de départ `694e0a2`). Données de test toutes FICTIVES.
   « tous les outils nommés existent sur le serveur MCP du pack » couvre aussi les trois nouveaux rôles (vert).
 - Non-régression lancée : career-skill-production 8/8, career-skill-suivi 12/12, skill-router 41/41,
   contacts-courriel 12/12.
+
+## Point 2 — phrases de l'intention `email` (13:53 → 14:00)
+
+- Test d'abord : table prompt → intention dans `tests/contacts-courriel.test.js` (8 prompts naturels FR/EN,
+  non-régressions `apply` et `search`, les prompts `EMAIL` et `CONTACTO` déjà là, deux prompts anglais déjà
+  `email`). Rouge : les 8 prompts naturels → « aucune » (diagnostic confirmé), non-régressions déjà vertes
+  (`p2-rouge.txt`).
+- Neuf phrases ajoutées (21 → 30, le plafond) : `mail au recruteur`, `email au recruteur`,
+  `courriel au recruteur`, `mail au hiring manager`, `email au hiring manager`, `écris un e-mail`,
+  `écris un mail`, `email the recruiter`, `email the hiring manager`. « mail au … » couvre « e-mail au … »
+  (la normalisation fait de « e-mail » les mots « e mail »). Vert (`p2-vert.txt`). `.slice(0, 1)` inchangé.
+- Effet de bord constaté sur `tests/intention-50-prompts.test.js` (relecture du 10/11) : trois prompts changent
+  d'intention. **Décision à trancher par le manager** ; j'ai mis à jour la colonne « attendu maintenant » :
+  - « Envoie un e-mail au recruteur pour candidater » : aucune → `email` ;
+  - « Envoie un e-mail au recruteur avec ma candidature » : `apply` → `email` (e-mail 65 passe devant apply 60
+    dès que les deux sont nommés) ;
+  - « Rédige un e-mail au recruteur pour dire que je suis candidate » : aucune → `email`.
+  Raison : la même table attend déjà `email` pour « Write an email to the hiring manager, I plan to apply », et
+  le brief demande `email` pour « Envoie un email au recruteur ». Si le manager veut garder `apply` pour « avec ma
+  candidature », il faut une règle de boost côté pack (non faite).
+- Tous les fichiers de test qui importent `selectSkillIntents` (24) relancés : verts.
+- Limite : « Trouve le décideur … et écris-lui un e-mail » ne retient que `email` ; l'étape `find` de
+  `linkedin` n'est donc pas suivie pour ce prompt (suivi multi-intentions hors périmètre).

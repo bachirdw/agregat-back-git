@@ -54,8 +54,10 @@ const PROMPTS = [
   ["Envoie un message LinkedIn au recruteur d'Acme", 'linkedin', 'linkedin', 'linkedin'],
   ['Écris un message LinkedIn au recruteur avant de postuler', 'linkedin', 'linkedin', 'linkedin'],
   ['Écris un message LinkedIn au recruteur, je vais postuler', 'linkedin', 'apply', 'linkedin'],
-  ['Envoie un e-mail au recruteur pour candidater', null, null, null],
-  ['Envoie un e-mail au recruteur avec ma candidature', 'apply', 'apply', 'apply'],
+  // contacts-courriel-01 (13/11) : « e-mail au recruteur » est une demande d'e-mail (phrase du pack),
+  // comme « Write an email to the hiring manager, I plan to apply » ci-dessous ; à trancher par le manager.
+  ['Envoie un e-mail au recruteur pour candidater', null, null, 'email'],
+  ['Envoie un e-mail au recruteur avec ma candidature', 'apply', 'apply', 'email'],
   ['Envoie ma candidature par e-mail à jobs@acme.com', 'apply', 'apply', 'apply'],
   ['Génère mon CV en PDF', null, null, null],
   ['Apply to this job https://acme.com/jobs/3', 'apply', 'apply', 'apply'],
@@ -88,7 +90,7 @@ const PROMPTS = [
   ['Candidate chez Acme avec mon CV', null, 'apply', 'apply'],
   ['Score this job and if good apply for it https://acme.com/jobs/5', 'apply', 'apply', 'evaluate'],
   ["Write a cover letter showing I'm the ideal candidate for Acme", null, 'apply', 'documents'],
-  ['Rédige un e-mail au recruteur pour dire que je suis candidate', null, 'apply', null],
+  ['Rédige un e-mail au recruteur pour dire que je suis candidate', null, 'apply', 'email'],
   [
     'Adapte mon CV : je candidate chez Acme la semaine prochaine',
     'documents',

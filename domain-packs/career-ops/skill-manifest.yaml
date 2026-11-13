@@ -864,6 +864,17 @@ intents:
         write an email to the hiring manager,
         recruiter email,
         email to the recruiter,
+        # contacts-courriel-01 (13/11) : prompts naturels qui ne retenaient aucune intention.
+        # « mail au … » couvre aussi « e-mail au … » (mots comparés après normalisation).
+        mail au recruteur,
+        email au recruteur,
+        courriel au recruteur,
+        mail au hiring manager,
+        email au hiring manager,
+        écris un e-mail,
+        écris un mail,
+        email the recruiter,
+        email the hiring manager,
       ]
     keywords: [gmail]
     # Audit EN2 : « by email » oriente vers l'e-mail avant LinkedIn (66), sous documents (70) et apply.

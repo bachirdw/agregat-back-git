@@ -104,6 +104,35 @@ test('email FICTIF : le mode email du Skill est suivi, sans étape d’envoi exi
   }
 });
 
+// contacts-courriel-01 (13/11) : rejoués sur le code du 13/11, ces prompts naturels ne retenaient
+// AUCUNE intention. Une seule intention reste retenue (un autre sprint traitera le suivi de
+// plusieurs) : « trouve le décideur … et écris-lui un e-mail » va à l'e-mail. Entreprises FICTIVES.
+const ROUTES = [
+  ['Trouve le décideur chez Entreprise FICTIVE et écris-lui un e-mail.', 'email'],
+  ['Écris un mail au recruteur FICTIF.', 'email'],
+  ['Rédige un courriel au recruteur FICTIF.', 'email'],
+  ['Envoie un email au recruteur FICTIF.', 'email'],
+  ['Rédige un e-mail au hiring manager de Entreprise FICTIVE.', 'email'],
+  ['Écris un e-mail au recruteur de Entreprise FICTIVE.', 'email'],
+  ['Email the recruiter at FICTIVE Corp about my application.', 'email'],
+  ['Email the hiring manager at FICTIVE Corp.', 'email'],
+  // Non-régressions.
+  ['Postule à cette offre FICTIVE et envoie-la.', 'apply'],
+  ['Cherche des jobs sur LinkedIn FICTIFS.', 'search'],
+  ...EMAIL.map((prompt) => [prompt, 'email']),
+  ...CONTACTO.map((prompt) => [prompt, 'linkedin']),
+  ['Write an email to the recruiter at FICTIVE Corp.', 'email'],
+  ['Draft an email to the hiring manager at FICTIVE Corp.', 'email'],
+];
+test('contacts-courriel-01 FICTIF : table prompt → intention, e-mails naturels et non-régressions', () => {
+  const wrong = ROUTES.filter(([prompt, expected]) => intentOf(prompt)?.id !== expected).map(
+    ([prompt, expected]) => `${prompt} → ${intentOf(prompt)?.id ?? 'aucune'} (attendu ${expected})`,
+  );
+  assert.deepEqual(wrong, []);
+  // Le plafond du schéma (30 phrases par intention) tient.
+  assert.ok(career.intents.find((intent) => intent.id === 'email').phrases.length <= 30);
+});
+
 test('contacto FICTIF : data/contacts.tsv absent est un état normal du Skill', () => {
   assert.ok(pack.optionalFiles.includes('data/contacts.tsv'));
 });

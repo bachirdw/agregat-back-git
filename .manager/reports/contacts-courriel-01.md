@@ -1,6 +1,6 @@
 # Sprint contacts-courriel-01 — décideur LinkedIn par le navigateur, e-mail préparé dans la messagerie
 
-Arbre : `/Users/diaw/Downloads/agregat-back-contacts`, branche `contacts-courriel-01` (depuis `contacts-13-11`,
+Arbre : `~/Downloads/agregat-back-contacts`, branche `contacts-courriel-01` (depuis `contacts-13-11`,
 commit de départ `694e0a2`). Données de test toutes FICTIVES.
 
 ## Journal

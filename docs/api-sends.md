@@ -21,7 +21,9 @@ carte à chaque envoi. `allow_mission` approuve cet envoi et pose un accord sur 
 sans carte ni attente : événement `send_auto` `{capability, target: {method?, host, path} | null, label,
 grant: "mission"}` (cible sans requête ni corps, libellé de 80 caractères au plus), issue suivie comme
 après un clic. L’accord est suspendu (la carte revient, avec ses trois options) tant qu’un envoi d’un
-autre appel de la mission est d’issue incertaine (écriture bloquée comprise) ou sans issue connue. Il
+autre appel de la mission est d’issue incertaine (écriture bloquée comprise) ou que cet appel n’est pas
+encore revenu ; un envoi demandé après le retour de son appel (écriture tardive, message WebSocket) ne
+la suspend pas. Un envoi sans identifiant d’appel est accordé et tracé comme les autres. Il
 meurt avec la mission : une reprise ne le reprend pas, une autre mission ne l’a pas. `Refuser` ne pose
 rien. `allow_always` reste refusé. Bilan : « Envoi par la plateforme : N approuvé(s), dont A par le
 propriétaire et B par son accord de mission (cibles : hôte/chemin, … et K autres) » ; sans envoi accordé

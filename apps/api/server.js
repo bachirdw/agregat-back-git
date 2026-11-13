@@ -536,6 +536,9 @@ export function createApp({
           return json(res, 200, { ok: true });
         }
         control.toolDelivered?.(null, 'gateway');
+        // review-accord-mission-01 : the calls that have returned, so that a send asked after its
+        // call returned never holds the mission's send grant (see otherSendOpen).
+        if (body.toolCallId != null) (control.callsReported ??= new Set()).add(body.toolCallId);
         if (store.get(id)?.workspace === 'career-ops')
           control.turnTruth.recordGatewayTool(body.name, body.status, {
             jdRead: body.jdRead === true,

@@ -169,11 +169,15 @@ function grantTarget(request) {
     (typeof request.page === 'string' ? at(request.page) : null)
   );
 }
-// A send of ANOTHER call of the mission whose outcome is uncertain (blocked included) or not yet
-// known : a second send could double the first one, so the grant waits and the card comes back.
+// A send of ANOTHER call of the mission whose outcome is uncertain (blocked included) or whose call
+// is still in flight : a second send could double the first one, so the grant waits and the card
+// comes back. review-accord-mission-01 : a send asked after its call returned (late write, WebSocket
+// message) stays « unknown » in `sendCalls` until a late status, which a WebSocket never gives ; it
+// no longer holds the grant for the rest of the mission (its call is in `callsReported`).
 function otherSendOpen(mission, callId) {
   for (const control of mission?.sendControls ?? []) {
-    for (const id of control.sendCalls ?? []) if (id !== callId) return true;
+    for (const id of control.sendCalls ?? [])
+      if (id !== callId && !control.callsReported?.has(id)) return true;
     for (const [id, outcome] of control.sendSettled ?? [])
       if (id !== callId && outcome === 'uncertain') return true;
   }
@@ -562,7 +566,9 @@ export class Orchestrator {
       typeof request.callId === 'string' && GATEWAY_CALL_ID.test(request.callId)
         ? request.callId
         : null;
-    if (grantable && mission?.sendGrant && callId && !otherSendOpen(mission, callId)) {
+    // review-accord-mission-01 : without a call identifier the send is granted and traced all the
+    // same, as an owner's click without one is approved (its outcome is not followed either).
+    if (grantable && mission?.sendGrant && !otherSendOpen(mission, callId)) {
       // E64 : a request the gateway no longer waits for sends nothing and is never counted.
       if (abandoned?.aborted) return { approved: false };
       const label = redact(
@@ -584,7 +590,7 @@ export class Orchestrator {
       control.sendsGranted = (control.sendsGranted ?? 0) + 1;
       (control.grantedTargets ??= []).push(target);
       // E66 : the outcome of this very call is followed exactly as after the owner's click.
-      (control.sendCalls ??= new Set()).add(callId);
+      if (callId) (control.sendCalls ??= new Set()).add(callId);
       (mission.sendControls ??= new Set()).add(control);
       return { approved: true };
     }

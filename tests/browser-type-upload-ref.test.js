@@ -28,6 +28,17 @@ test('contrats FICTIFS : saisie, touche, upload et téléchargement par ref seul
     assert.ok(getCapability('browser.press').schema.parse({ ref: 'e1', key }));
 });
 
+// freins-01 (13/11) : touches d'édition et de défilement qui ne peuvent rien soumettre. Espace et
+// combinaisons avec modificateur restent refusées (elles peuvent activer un bouton d'envoi).
+test('freins-01 FICTIF : Retour arrière, Suppr, PagePrécédente et PageSuivante admises', () => {
+  const press = getCapability('browser.press');
+  for (const key of ['Backspace', 'Delete', 'PageUp', 'PageDown', 'Home', 'End'])
+    assert.equal(press.schema.parse({ ref: 'e1', key }).key, key);
+  for (const key of [' ', 'Space', 'Control+Enter', 'Meta+Enter', 'Shift+Tab', 'Control+a'])
+    assert.throws(() => press.schema.parse({ ref: 'e1', key }), /Touche non autorisée/, key);
+  assert.match(press.description, /Retour arrière, Suppr/);
+});
+
 test('refs FICTIVES : seules les refs de la structure du snapshot sont retenues', () => {
   const refs = snapshotRefs(
     [
@@ -109,6 +120,13 @@ test(
       (await gateway.call('browser.press', { ref: ref('Ville'), key: 'ArrowDown' })).mode,
       'keyboard',
     );
+    // freins-01 : Retour arrière, dans un onglet visible, efface le dernier caractère (vraie frappe).
+    await provider.page.locator('#name').fill('FICTIF');
+    assert.equal(
+      (await gateway.call('browser.press', { ref: ref('Nom'), key: 'Backspace' })).mode,
+      'keyboard',
+    );
+    assert.equal(await value('name'), 'FICTI');
     // SIMULATION of Playwriter's background tab: only visibilityState is forced here.
     await provider.page.evaluate(() =>
       Object.defineProperty(document, 'visibilityState', {

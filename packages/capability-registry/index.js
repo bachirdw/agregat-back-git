@@ -217,11 +217,14 @@ export const capabilities = [
     effect: 'write',
     meter: 'browser_action',
     description:
-      'Envoyer une touche à l’élément ref : flèches, Échap, Début, Fin, Tab (champ suivant) ou Entrée (valider une autocomplétion, une étape). Entrée qui soumettrait le formulaire d’envoi final est traitée comme le clic sur son bouton d’envoi (accord du propriétaire) ; depuis une liste d’autocomplétion, cette soumission est retenue et signalée (submitBlocked). Pour un select natif, utilise browser_select ; pour écrire, utilise browser_type.',
+      'Envoyer une touche à l’élément ref : flèches, Échap, Début, Fin, PagePrécédente, PageSuivante, Retour arrière, Suppr, Tab (champ suivant) ou Entrée (valider une autocomplétion, une étape). Entrée qui soumettrait le formulaire d’envoi final est traitée comme le clic sur son bouton d’envoi (accord du propriétaire) ; depuis une liste d’autocomplétion, cette soumission est retenue et signalée (submitBlocked). Pour un select natif, utilise browser_select ; pour écrire, utilise browser_type.',
     schema: z
       .object({
         ref,
-        // Audit du 10/11 (constat 14) : Tab and Enter validate autocompletions.
+        // Audit du 10/11 (constat 14) : Tab and Enter validate autocompletions. freins-01 (13/11) :
+        // editing and scrolling keys that cannot submit anything (Backspace, Delete, PageUp,
+        // PageDown). Space and modifier combinations stay out : they can activate a send button,
+        // and their classification belongs to browser-gateway.
         key: z.enum(
           [
             'ArrowDown',
@@ -231,12 +234,16 @@ export const capabilities = [
             'Escape',
             'Home',
             'End',
+            'PageUp',
+            'PageDown',
+            'Backspace',
+            'Delete',
             'Tab',
             'Enter',
           ],
           {
             error:
-              'Touche non autorisée : ArrowDown, ArrowUp, ArrowLeft, ArrowRight, Escape, Home, End, Tab ou Enter',
+              'Touche non autorisée : ArrowDown, ArrowUp, ArrowLeft, ArrowRight, Escape, Home, End, PageUp, PageDown, Backspace, Delete, Tab ou Enter',
           },
         ),
       })

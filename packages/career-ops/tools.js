@@ -1504,11 +1504,26 @@ export function registerCareerTools(
       .strict(),
     (args, signal) => tools.script(args, signal),
   );
+  // contacts-courriel-01 : sans SMTP, le brouillon prérempli s'ouvre dans le navigateur du
+  // propriétaire, comme linkedin_draft ouvre le profil ; rien n'est envoyé. Avec SMTP, aucune
+  // ouverture : l'envoi attend la carte d'approbation, comme avant.
   register(
     'email_send',
-    'Préparer un email ; SMTP uniquement après approbation humaine un par un. Sans SMTP : brouillon Gmail manuel.',
+    'Préparer un e-mail (to, subject, text ; id facultatif, créé par le serveur s’il manque). Sans SMTP configuré : brouillon gardé (drafts/<id>.json) et lien de composition Gmail prérempli (composeUrl) ouvert dans le navigateur du propriétaire ; opened dit s’il s’est ouvert ; rien n’est envoyé, le bouton Envoyer reste au propriétaire. Avec SMTP : envoi seulement après approbation du propriétaire, un message à la fois.',
     emailSchema,
-    (args, signal) => email.send(args, signal),
+    async (args, signal) => {
+      const result = await email.send(args, signal);
+      if (result.sent !== false || !result.composeUrl) return result;
+      const kept = 'Brouillon gardé ; lien de composition non ouvert dans le navigateur';
+      if (!openProfile)
+        return { ...result, opened: false, openError: `${kept} (aucun navigateur)` };
+      try {
+        await openProfile(result.composeUrl);
+        return { ...result, opened: true };
+      } catch {
+        return { ...result, opened: false, openError: `${kept} (échec de l’ouverture)` };
+      }
+    },
   );
   register(
     'linkedin_draft',

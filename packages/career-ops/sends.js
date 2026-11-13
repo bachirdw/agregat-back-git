@@ -1,6 +1,6 @@
 import { openSync, closeSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import { readConfined, writeConfined, safeDirectory } from '../policy-engine/files.js';
@@ -14,7 +14,8 @@ const address = z
   .refine((s) => !/[\r\n]/.test(s));
 export const emailSchema = z
   .object({
-    id: z.string().uuid(),
+    // contacts-courriel-01 : facultatif ; sans lui, le serveur en crée un (send).
+    id: z.string().uuid().optional(),
     to: address,
     subject: z
       .string()
@@ -87,7 +88,8 @@ export class EmailGateway {
     return this.config === undefined ? smtpConfig() : this.config;
   }
   async send(raw, signal) {
-    const email = emailSchema.parse(raw);
+    const parsed = emailSchema.parse(raw);
+    const email = { ...parsed, id: parsed.id ?? randomUUID() };
     const root = this.career.path();
     // Owner mode adds no restriction: any address is accepted, the final approval card shows it.
     if (!this.ownerMode && !recipientInCareerSources(root, email.to))

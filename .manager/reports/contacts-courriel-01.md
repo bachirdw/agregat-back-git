@@ -87,3 +87,25 @@ commit de départ `694e0a2`). Données de test toutes FICTIVES.
   le mécanisme de visite (E41) peut créditer `find` sur cette page lue — toujours une page lue, jamais une
   recherche seule.
 - 25 fichiers de test du routage et du manifeste relancés : verts.
+
+## Point 4 — outil `email_send` (14:00 → 14:10)
+
+- Tests d'abord (`tests/career-sends.test.js`, handler réel enregistré par `registerCareerTools` avec un faux
+  serveur MCP) : sans SMTP, la fausse ouverture reçoit `composeUrl` (to et body vérifiés), `opened: true`, id
+  UUID créé par le serveur, id fourni conservé, description sans « manuel » ; échec d'ouverture → brouillon
+  gardé, `opened: false`, `openError` sans le texte de l'erreur ; sans navigateur → `opened: false` dit ;
+  avec SMTP (serveur SMTP FICTIF local) → carte `email.send` demandée, refus = 0 message, accord = 1, aucune
+  ouverture, pas de champ `opened`. Rouge : 3/3 (ZodError sur `id` absent, `p4-rouge.txt`) ; vert 12/12 du
+  fichier (`p4-vert.txt`).
+- Code : `sends.js` (`id` facultatif, `randomUUID()` sinon) ; `tools.js` (handler qui ouvre le lien par la même
+  fonction que `linkedin_draft`, `openProfile` = `browser.navigate` de la passerelle ; description neutre).
+  Chemin SMTP inchangé (le handler rend son résultat tel quel quand `sent !== false`).
+- Effet de bord : `tests/career-offer-contract.test.js` exigeait `id` obligatoire (« clé d'idempotence d'un
+  résultat SMTP incertain »). Mis à jour sur ordre du brief. **Point pour le manager** : sans id fourni par
+  l'agent, une relance après un SMTP incertain crée un nouvel id et redemande la carte ; le clic du propriétaire
+  reste le seul garde contre un double envoi dans ce cas.
+- Fichiers touchant e-mail/brouillons relancés (18 fichiers) : verts. `npm run check` et `npm run format:check` :
+  verts.
+- Non vérifié : l'ouverture réelle de Gmail dans le Chrome du propriétaire (politique d'hôtes du mode
+  propriétaire, effet des enregistrements automatiques de brouillon de Gmail sur le journal des écritures
+  réseau) ; rien n'a été lancé en réel.

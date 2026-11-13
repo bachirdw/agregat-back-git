@@ -1,0 +1,105 @@
+(node:34627) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id créé par le serveur (3.473167ms)
+✖ email_send FICTIF sans SMTP : un échec d’ouverture garde le brouillon et le dit (1.838958ms)
+✖ email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est demandée (4.925917ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 465.337208
+
+✖ failing tests:
+
+test at tests/career-sends.test.js:402:1
+✖ email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id créé par le serveur (3.473167ms)
+  ZodError: [
+    {
+      "expected": "string",
+      "code": "invalid_type",
+      "path": [
+        "id"
+      ],
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+      at EmailGateway.send (file://./packages/career-ops/sends.js:90:31)
+      at file://./packages/career-ops/tools.js:1511:29
+      at file://./packages/career-ops/tools.js:1442:30
+      at Object.call (file://./tests/career-sends.test.js:394:51)
+      at TestContext.<anonymous> (file://./tests/career-sends.test.js:412:29)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+test at tests/career-sends.test.js:431:1
+✖ email_send FICTIF sans SMTP : un échec d’ouverture garde le brouillon et le dit (1.838958ms)
+  ZodError: [
+    {
+      "expected": "string",
+      "code": "invalid_type",
+      "path": [
+        "id"
+      ],
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
+      at EmailGateway.send (file://./packages/career-ops/sends.js:90:31)
+      at file://./packages/career-ops/tools.js:1511:29
+      at file://./packages/career-ops/tools.js:1442:30
+      at Object.call (file://./tests/career-sends.test.js:394:51)
+      at TestContext.<anonymous> (file://./tests/career-sends.test.js:439:32)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+
+test at tests/career-sends.test.js:451:1
+✖ email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est demandée (4.925917ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /refusé/. Input:
+  
+  '[\n' +
+    '  {\n' +
+    '    "expected": "string",\n' +
+    '    "code": "invalid_type",\n' +
+    '    "path": [\n' +
+    '      "id"\n' +
+    '    ],\n' +
+    '    "message": "Invalid input: expected string, received undefined"\n' +
+    '  }\n' +
+    ']'
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file://./tests/career-sends.test.js:466:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ZodError: [
+      {
+        "expected": "string",
+        "code": "invalid_type",
+        "path": [
+          "id"
+        ],
+        "message": "Invalid input: expected string, received undefined"
+      }
+    ]
+        at EmailGateway.send (file://./packages/career-ops/sends.js:90:31)
+        at file://./packages/career-ops/tools.js:1511:29
+        at file://./packages/career-ops/tools.js:1442:30
+        at Object.call (file://./tests/career-sends.test.js:394:51)
+        at TestContext.<anonymous> (file://./tests/career-sends.test.js:466:29)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    expected: /refusé/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

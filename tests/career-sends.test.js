@@ -11,6 +11,7 @@ import { EmailGateway, linkedInDraft, smtpConfig } from '../packages/career-ops/
 import { BrowserGateway, FixturePageProvider } from '../packages/browser-gateway/index.js';
 import { RunPolicy } from '../packages/policy-engine/run-policy.js';
 import { createApp } from '../apps/api/server.js';
+import { registerCareerTools } from '../packages/career-ops/tools.js';
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'relay-send-FICTIF-')));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -369,4 +370,109 @@ test('EmailGateway : un CAREER_SMTP_HOST sans CAREER_SMTP_FROM ne casse pas la c
   delete process.env.CAREER_SMTP_FROM;
   const gateway = new EmailGateway({ career });
   await assert.rejects(gateway.send(email()), /Configuration SMTP invalide/);
+});
+
+// contacts-courriel-01, point 4 (13/11) : sans SMTP, email_send écrivait drafts/<id>.json et rendait un
+// lien de composition sans l'ouvrir, alors que linkedin_draft ouvre le profil. Il ouvre désormais ce
+// lien dans le navigateur du propriétaire (même chemin que linkedin_draft) et le dit (opened). Avec SMTP,
+// rien ne s'ouvre : la carte d'envoi est demandée comme avant. L'envoi reste au clic du propriétaire.
+function emailTool(career, options) {
+  const handlers = new Map();
+  const descriptions = new Map();
+  registerCareerTools(
+    {
+      registerTool: (name, definition, handler) => {
+        handlers.set(name, handler);
+        descriptions.set(name, definition.description);
+      },
+    },
+    { career, ...options },
+  );
+  return {
+    description: descriptions.get('email_send'),
+    call: async (args) => JSON.parse((await handlers.get('email_send')(args, {})).content[0].text),
+  };
+}
+const draftArgs = () => ({
+  to: 'fictif@example.test',
+  subject: 'Candidature FICTIVE',
+  text: 'Message FICTIF.',
+});
+test('email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id créé par le serveur', async (t) => {
+  const career = fixture(t);
+  const opened = [];
+  const tool = emailTool(career, {
+    config: null,
+    approve: () => {
+      throw new Error('Aucune carte sans SMTP');
+    },
+    openProfile: async (url) => opened.push(url),
+  });
+  const result = await tool.call(draftArgs());
+  assert.equal(result.sent, false);
+  assert.equal(result.opened, true);
+  assert.deepEqual(opened, [result.composeUrl]);
+  const compose = new URL(result.composeUrl);
+  assert.equal(compose.searchParams.get('to'), 'fictif@example.test');
+  assert.equal(compose.searchParams.get('body'), 'Message FICTIF.');
+  // id facultatif : un UUID créé côté serveur, celui du brouillon gardé.
+  assert.match(
+    result.draft,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  assert.match(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'), /FICTIF/);
+  // Un id donné par l'agent reste le sien.
+  const id = randomUUID();
+  assert.equal((await tool.call({ ...draftArgs(), id })).draft, id);
+  // Description neutre et exacte : plus de « brouillon Gmail manuel ».
+  assert.doesNotMatch(tool.description, /manuel/);
+  assert.match(tool.description, /navigateur du propriétaire/);
+  assert.match(tool.description, /id facultatif/);
+  assert.match(tool.description, /approbation du propriétaire/);
+});
+test('email_send FICTIF sans SMTP : un échec d’ouverture garde le brouillon et le dit', async (t) => {
+  const career = fixture(t);
+  const failing = emailTool(career, {
+    config: null,
+    openProfile: async () => {
+      throw new Error('Onglet FICTIF fermé');
+    },
+  });
+  const result = await failing.call(draftArgs());
+  assert.equal(result.sent, false);
+  assert.equal(result.opened, false);
+  assert.match(result.openError, /brouillon gardé/i);
+  assert.doesNotMatch(result.openError, /Onglet FICTIF/);
+  assert.ok(result.composeUrl);
+  assert.match(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'), /FICTIF/);
+  // Sans navigateur du tout : rien d'ouvert, et c'est dit aussi.
+  const none = await emailTool(career, { config: null }).call(draftArgs());
+  assert.equal(none.opened, false);
+  assert.match(none.openError, /brouillon gardé/i);
+});
+test('email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est demandée', async (t) => {
+  const career = fixture(t),
+    { messages, config } = await smtp(t);
+  const opened = [];
+  const cards = [];
+  let approved = false;
+  const tool = emailTool(career, {
+    config,
+    approve: async (request) => {
+      cards.push(request.capability);
+      return approved;
+    },
+    meter: () => {},
+    openProfile: async (url) => opened.push(url),
+  });
+  await assert.rejects(tool.call(draftArgs()), /refusé/);
+  assert.deepEqual(cards, ['email.send']);
+  assert.equal(messages.length, 0);
+  approved = true;
+  const sent = await tool.call(draftArgs());
+  assert.equal(sent.sent, true);
+  assert.equal(sent.opened, undefined);
+  assert.equal(messages.length, 1);
+  assert.deepEqual(cards, ['email.send', 'email.send']);
+  assert.deepEqual(opened, []);
 });

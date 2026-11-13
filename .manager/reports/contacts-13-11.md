@@ -277,6 +277,48 @@ Consigne de travail : le manager délègue, la limite d'usage n'est plus un frei
   « attente : 29,8 s » : **E104 vu à l'écran sur une mission réelle**. Extraits de missions supprimés du
   scratchpad ; la copie de l'espace career-ops y reste (nécessaire à l'API 4314, effacée au redémarrage).
 
+### Suite de la session avec le propriétaire (à partir de 15:45)
+
+- 15:55-16:10 Le propriétaire essaie lui-même. Sur 5176 (API 4313, ancien code), mission 8bcfe729 : deux
+  recherches web, lecture de la seule annonce, aucune cible, et pourtant « Trouver et confirmer une cible ·
+  Faite » (faux crédit de l'ancien code). Sur 5177 (API 4314, nouveau code), mission e3fe5047 (Codex) : profil
+  et publication lus dans son Chrome, `find` créditée par le profil, brouillon gardé, aucune carte.
+- 16:10 Deux points creusés à sa demande (lecteur Opus) : (1) les preuves du profil existent
+  (`missionProof.reads`, 8 lectures) mais `verifiedBrowserVisit` les écarte de `result.evidence` quand
+  l'adresse change après la navigation ; (2) `writing-samples/` est refusé par `career_read` par oubli du
+  correctif E46, sans effet aujourd'hui (le dossier ne contient que son README).
+- 16:20-16:30 Correctif du front (sprint `preuves-13-11`, relu) : bloc « Autres pages lues · N » sous les
+  preuves ; intégré dans `e104-13-11` (`3bb0996`, `86968ec`) ; 198 tests réussis ; vu à l'écran sur e3fe5047
+  (2 pages). Correctif du pack (sprint `ecrits-01`, branche `ecrits-01` dans `agregat-back-contacts`) :
+  `writing-samples/*.md|txt` lisible en lecture seule ; relecture en cours.
+- 16:30 **Consigne du propriétaire** : ne rien ajouter qui restreigne l'agent, la sécurité plus tard ; puis :
+  « que ça marche ; enlève tout ce qui bride l'agent, tous les trucs de sécurité ». Mandat du relecteur du
+  pack réduit en conséquence (aucune garde nouvelle). Lecteur Opus lancé : inventaire de tout ce qui refuse,
+  bloque ou ralentit l'agent en mode propriétaire, d'abord ce qui l'a gêné dans les missions du jour.
+- 16:33 Deux agents (relecteur du pack, guetteur) tombés sur une erreur de connexion à l'API ; repris.
+- 16:37 **Décision du propriétaire sur la carte d'envoi** : un seul clic doit valoir pour toutes les candidatures,
+  et non une carte par candidature ; portée choisie : **par mission**. Architecte Opus lancé (plan, lecture
+  seule) ; rien de codé. Remplace, pour la portée, la règle « une carte par envoi » ; l'envoi reste tracé et
+  dit au Bilan.
+- 16:42 Correctif `writing-samples/` relu (`ca73152`, aucune garde ajoutée, fichier absent rendu « absent ») et
+  intégré dans `contacts-13-11` (`3abfa59`, `85cef67`, `ccc8a95`) ; 20 tests du périmètre relancés par le
+  manager, `check` et `format:check` verts ; vérifié sur la copie de l'espace (README lu, fichier absent
+  propre, dossier listé). API 4314 relancée sur ce code (aucune mission en cours).
+- 16:42 Retour de l'architecte (accord de mission). Points retenus : aucun accord durable n'existe aujourd'hui
+  (`allow_always` refusé exprès) ; la plateforme distingue un e-mail SMTP d'un envoi par le navigateur, mais
+  PAS une candidature d'un message ou d'une invitation dans le navigateur : **l'accord de mission couvrira
+  tout envoi par le navigateur de la mission, fausses cartes comprises** ; e-mail SMTP : carte à chaque
+  envoi ; accord suspendu (carte normale) tant qu'un envoi précédent est d'issue incertaine, pour ne pas
+  doubler ; une reprise ne reprend pas l'accord. Codeurs Opus lancés : back (`accord-mission-01`, arbre
+  `agregat-back-contacts`) et front (`accord-mission-front`, arbre `agregat-front-preuves`).
+- 16:42 Retour de l'inventaire des freins. Constaté dans les 10 missions du jour : aucun blocage de mission ;
+  13 appels `career_read` refusés (motif avec étoile 6, `writing-samples` 4, dossier 1, préfixe 1), chacun
+  suivi d'un second appel. Codeur Opus lancé (`freins-01`, arbre `agregat-back-freins`) : motif à un seul
+  fichier lu directement, liste rendue comme un succès, tout fichier de l'espace lisible en mode
+  propriétaire (hors `.env*`), tailles et limites relevées, adresse de navigation à 16 384 caractères,
+  touches d'édition. Laissés pour décision : touche Espace et combinaisons (peuvent envoyer), clic forcé,
+  réseau privé, revue de la source du Skill, mode de Codex, délais par défaut.
+
 ## Bilan de la session (15:16)
 
 Fait et vérifié

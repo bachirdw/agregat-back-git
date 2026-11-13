@@ -630,3 +630,52 @@ test('email_send FICTIF sans SMTP : échec d’ouverture du lien court, rien n�
   assert.equal(result.note, undefined);
   assert.ok(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8').length > 2000);
 });
+
+// accord-mission-01 : le manifeste career-ops dit `sendGrant: { channels: [browser] }`. L'accord de
+// mission posé sur un envoi par le navigateur ne couvre jamais l'e-mail : `email.send` garde sa carte,
+// sans l'option de mission.
+test('Accord de mission : email.send garde sa carte quand le manifeste dit browser seul', async (t) => {
+  const career = fixture(t);
+  const app = createApp({ dataDir: join(career.root, 'platform'), career, ownerMode: true });
+  const id = randomUUID();
+  app.store.create({ id, state: 'running', budgetCents: 0, pack: 'career-ops' });
+  const control = { abort: new AbortController() };
+  app.engine.active.set(id, control);
+  app.engine.approvalTokens.set(id, 'FICTIF-token');
+  t.after(async () => {
+    app.engine.clearPermissions(id);
+    app.engine.active.delete(id);
+    await app.close();
+  });
+  const click = app.engine.gatewayApproval(id, 'FICTIF-token', {
+    capability: 'browser.click',
+    actionClass: 'send',
+    element: { text: 'Envoyer FICTIF' },
+    callId: randomUUID(),
+  });
+  const [card] = app.engine.permissions.values();
+  assert.equal(card.options.at(-1).optionId, 'allow_mission');
+  app.engine.decide(card.id, 'allow_mission');
+  assert.deepEqual(await click, { approved: true });
+  assert.deepEqual(control.sendGrant, { scope: 'mission' });
+  const mail = app.engine.gatewayApproval(id, 'FICTIF-token', {
+    capability: 'email.send',
+    actionClass: 'send',
+    args: { text: 'APERÇU PRIVÉ FICTIF' },
+    callId: randomUUID(),
+  });
+  assert.equal(app.engine.permissions.size, 1, 'l’e-mail attend sa carte');
+  const [mailCard] = app.engine.permissions.values();
+  assert.deepEqual(
+    mailCard.options.map((o) => o.optionId),
+    ['allow', 'deny'],
+  );
+  assert.throws(() => app.engine.decide(mailCard.id, 'allow_mission'), /option interdite/);
+  app.engine.decide(mailCard.id, 'deny');
+  assert.deepEqual(await mail, { approved: false });
+  assert.equal(
+    app.store.events(id).filter((e) => e.type === 'send_auto').length,
+    0,
+    'aucun e-mail accordé par l’accord de mission',
+  );
+});

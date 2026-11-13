@@ -136,6 +136,49 @@ function sendTarget(permission) {
     return null;
   }
 }
+// accord-mission-01 (décision du propriétaire du 13/11) : one click grants every send of the mission
+// in progress, on the channels the pack's manifest names (`sendGrant.channels`). The channel of a
+// send is its capability's family (`browser.click` → browser, `email.send` → email) : no site, no rule.
+const sendChannel = (capability) => String(capability ?? '').split('.')[0];
+const GATEWAY_CALL_ID = /^[a-f0-9-]{36}$/;
+// Where a send granted by the mission's grant went : method, host and path (never the query nor the
+// body), from the network request, else the form's action, else the page.
+function grantTarget(request) {
+  const at = (raw, method) => {
+    try {
+      const url = new URL(raw);
+      return {
+        ...(method ? { method: String(method).toUpperCase().slice(0, 12) } : {}),
+        host: url.host,
+        path: url.pathname.slice(0, 160),
+      };
+    } catch {
+      return null;
+    }
+  };
+  const submission = request.preview?.submission;
+  return (
+    (typeof request.args?.url === 'string' ? at(request.args.url, request.args.method) : null) ??
+    (submission?.action?.host
+      ? {
+          ...(submission.method ? { method: String(submission.method).slice(0, 12) } : {}),
+          host: String(submission.action.host).slice(0, 260),
+          path: String(submission.action.path ?? '').slice(0, 160),
+        }
+      : null) ??
+    (typeof request.page === 'string' ? at(request.page) : null)
+  );
+}
+// A send of ANOTHER call of the mission whose outcome is uncertain (blocked included) or not yet
+// known : a second send could double the first one, so the grant waits and the card comes back.
+function otherSendOpen(mission, callId) {
+  for (const control of mission?.sendControls ?? []) {
+    for (const id of control.sendCalls ?? []) if (id !== callId) return true;
+    for (const [id, outcome] of control.sendSettled ?? [])
+      if (id !== callId && outcome === 'uncertain') return true;
+  }
+  return false;
+}
 // Owner mode: network writes granted without a question are counted from the traces (permission_auto
 // with capability browser.send), next to the owner's own approvals.
 export function formatAutoSendLine(events) {
@@ -490,10 +533,46 @@ export class Orchestrator {
     )
       .trim()
       .slice(0, 400);
+    // accord-mission-01 : the grant lives on the mission's own control, never on a step's attempt.
+    const mission = this.active.get(runId);
+    const grantable =
+      request.actionClass === 'send' &&
+      this.sendGrantChannels(runId).includes(sendChannel(request.capability));
+    const callId =
+      typeof request.callId === 'string' && GATEWAY_CALL_ID.test(request.callId)
+        ? request.callId
+        : null;
+    if (grantable && mission?.sendGrant && callId && !otherSendOpen(mission, callId)) {
+      // E64 : a request the gateway no longer waits for sends nothing and is never counted.
+      if (abandoned?.aborted) return { approved: false };
+      const label = redact(
+        String(
+          submission?.label ?? request.element?.text ?? request.submitter?.text ?? title ?? '',
+        ),
+      )
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
+      const target = grantTarget(request);
+      this.store.event(runId, 'send_auto', {
+        capability: String(request.capability).slice(0, 60),
+        target,
+        label,
+        grant: 'mission',
+      });
+      control.sendsApproved = (control.sendsApproved ?? 0) + 1;
+      control.sendsGranted = (control.sendsGranted ?? 0) + 1;
+      (control.grantedTargets ??= []).push(target);
+      // E66 : the outcome of this very call is followed exactly as after the owner's click.
+      (control.sendCalls ??= new Set()).add(callId);
+      (mission.sendControls ??= new Set()).add(control);
+      return { approved: true };
+    }
     const outcome = await this.permission(
       runId,
       {
         actionClass: request.actionClass,
+        ...(grantable ? { missionGrant: true } : {}),
         toolCall: {
           toolCallId: 'gateway-' + randomUUID(),
           title,
@@ -512,6 +591,15 @@ export class Orchestrator {
             kind: 'allow_once',
           },
           { optionId: 'deny', name: 'Refuser', kind: 'reject_once' },
+          ...(grantable
+            ? [
+                {
+                  optionId: 'allow_mission',
+                  name: 'Autoriser tous les envois de cette mission',
+                  kind: 'allow_mission',
+                },
+              ]
+            : []),
         ],
       },
       false,
@@ -522,7 +610,15 @@ export class Orchestrator {
     );
     if (this.bridgeControl(runId, token) !== control) return { approved: false };
     // E64 : an approval the gateway is no longer waiting for sends nothing and is never counted.
-    const approved = outcome.outcome?.optionId === 'allow' && !abandoned?.aborted;
+    const chosen = outcome.outcome?.optionId;
+    const approved =
+      (chosen === 'allow' || (grantable && chosen === 'allow_mission')) && !abandoned?.aborted;
+    // accord-mission-01 : « Autoriser tous les envois de cette mission » approves this send and grants
+    // the next ones of the same mission (dies with it ; a resume starts without it).
+    if (approved && chosen === 'allow_mission' && mission && !mission.sendGrant) {
+      mission.sendGrant = { scope: 'mission' };
+      this.store.event(runId, 'send_grant', { scope: 'mission' });
+    }
     // Audit du 10/11 (constat 8) : any mission that asked a send approval gets the Bilan's send line.
     if (request.actionClass === 'send' && !abandoned?.aborted)
       control.sendsAsked = (control.sendsAsked ?? 0) + 1;
@@ -532,11 +628,17 @@ export class Orchestrator {
       // tool-outcome route, same identifier) tells whether the approved action took place.
       if (typeof request.callId === 'string' && /^[a-f0-9-]{36}$/.test(request.callId))
         (control.sendCalls ??= new Set()).add(request.callId);
+      if (mission) (mission.sendControls ??= new Set()).add(control);
     }
     return {
       approved,
       ...(this.expiredOutcomes.has(outcome) ? { expired: true } : {}),
     };
+  }
+  // accord-mission-01 : the send channels the mission's pack lets a mission-wide grant cover.
+  sendGrantChannels(runId) {
+    const packId = this.store.get(runId)?.pack;
+    return packs.find((pack) => pack.id === packId)?.skillManifest?.sendGrant?.channels ?? [];
   }
   stepDecision(runId, stepId, { approved, action, note } = {}) {
     const control = this.active.get(runId);

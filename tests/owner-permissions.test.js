@@ -424,3 +424,262 @@ test('accord de mission : une option allow_mission venue de l’agent est écart
   app.engine.decide(waiting.id, 'no');
   await pending;
 });
+
+// accord-mission-01 (décision du propriétaire du 13/11) : un clic « Autoriser tous les envois de cette
+// mission » vaut pour les envois suivants de la MÊME mission, sur les canaux que le manifeste du pack
+// nomme (career-ops : navigateur). Par le vrai pont (gatewayApproval) et la vraie route d'issue
+// (/api/internal/tool-outcome). Données FICTIVES.
+const SEND_OPTIONS = [
+  { optionId: 'allow', name: 'Approuver l’envoi', kind: 'allow_once' },
+  { optionId: 'deny', name: 'Refuser', kind: 'reject_once' },
+  {
+    optionId: 'allow_mission',
+    name: 'Autoriser tous les envois de cette mission',
+    kind: 'allow_mission',
+  },
+];
+async function grantSetup(t, { pack = 'career-ops' } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'accord-mission-FICTIF-'));
+  const app = createApp({ dataDir: root, ownerMode: true });
+  await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
+  const missions = [];
+  t.after(async () => {
+    for (const m of missions) {
+      app.engine.clearPermissions(m.run.id);
+      app.engine.active.delete(m.run.id);
+    }
+    await app.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+  const mission = () => {
+    const run = { id: randomUUID(), state: 'running', cwd: root, budgetCents: 0, pack };
+    app.store.create(run);
+    const control = { abort: new AbortController(), promptStarted: true };
+    app.engine.active.set(run.id, control);
+    const token = 'JETON_FICTIF_' + randomUUID();
+    app.engine.approvalTokens.set(run.id, token);
+    const m = { run, control, token };
+    missions.push(m);
+    return m;
+  };
+  const send = (m, extra = {}) =>
+    app.engine.gatewayApproval(
+      m.run.id,
+      m.token,
+      {
+        capability: 'browser.click',
+        actionClass: 'send',
+        sensitive: true,
+        element: { text: 'Envoyer FICTIF' },
+        page: 'https://emplois.example.test/candidature/fictive?jeton=SECRET',
+        callId: randomUUID(),
+        ...extra,
+      },
+      extra.abandoned,
+    );
+  const waiting = async (m) => {
+    for (let i = 0; i < 100; i++) {
+      const p = [...app.engine.permissions.values()].find((x) => x.runId === m.run.id);
+      if (p) return p;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    return null;
+  };
+  const outcome = (m, toolCallId, status = 'completed', extra = {}) =>
+    fetch(`http://127.0.0.1:${app.server.address().port}/api/internal/tool-outcome/${m.run.id}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-platform-request': '1',
+        'x-relay-token': m.token,
+      },
+      body: JSON.stringify({ name: 'browser_click', status, toolCallId, ...extra }),
+    }).then((r) => assert.equal(r.status, 200));
+  const events = (m, type) => app.store.events(m.run.id).filter((e) => e.type === type);
+  // Première carte accordée par « Autoriser tous les envois de cette mission », issue rapportée.
+  const grant = async (m) => {
+    const callId = randomUUID();
+    const decision = send(m, { callId });
+    const card = await waiting(m);
+    app.engine.decide(card.id, 'allow_mission');
+    assert.equal((await decision).approved, true);
+    await outcome(m, callId);
+    return callId;
+  };
+  return { app, mission, send, waiting, outcome, events, grant };
+}
+
+test('accord de mission : sans accord, la carte d’envoi attend avec ses options d’aujourd’hui plus la nouvelle', async (t) => {
+  const { app, mission, send, waiting, events } = await grantSetup(t);
+  const m = mission();
+  const decision = send(m);
+  const card = await waiting(m);
+  assert.ok(card, 'la carte attend');
+  assert.deepEqual(card.options, SEND_OPTIONS);
+  assert.equal(app.store.get(m.run.id).state, 'waiting_permission');
+  assert.deepEqual(events(m, 'permission')[0].data.options, SEND_OPTIONS);
+  app.engine.decide(card.id, 'allow');
+  assert.deepEqual(await decision, { approved: true });
+  // « Approuver l’envoi » reste un accord ponctuel : la carte suivante attend encore.
+  assert.equal(events(m, 'send_grant').length, 0);
+  const next = send(m);
+  assert.ok(await waiting(m), 'sans accord de mission, chaque envoi attend sa carte');
+  app.engine.decide((await waiting(m)).id, 'deny');
+  assert.deepEqual(await next, { approved: false });
+  assert.equal(events(m, 'send_auto').length, 0);
+});
+
+test('accord de mission : deux envois suivants passent sans attente, deux événements send_auto', async (t) => {
+  const { app, mission, send, outcome, events, grant } = await grantSetup(t);
+  const m = mission();
+  await grant(m);
+  assert.deepEqual(
+    events(m, 'send_grant').map((e) => e.data),
+    [{ scope: 'mission' }],
+  );
+  for (const extra of [
+    {},
+    {
+      capability: 'browser.send',
+      element: undefined,
+      args: { url: 'https://emplois.example.test/api/envoi?jeton=SECRET', method: 'post' },
+    },
+  ]) {
+    const callId = randomUUID();
+    const decision = send(m, { callId, ...extra });
+    assert.equal(app.engine.permissions.size, 0, 'aucune carte posée');
+    assert.deepEqual(await decision, { approved: true });
+    await outcome(m, callId);
+  }
+  assert.equal(events(m, 'permission').length, 1, 'une seule carte, la première');
+  assert.deepEqual(
+    events(m, 'send_auto').map((e) => e.data),
+    [
+      {
+        capability: 'browser.click',
+        target: { host: 'emplois.example.test', path: '/candidature/fictive' },
+        label: 'Envoyer FICTIF',
+        grant: 'mission',
+      },
+      {
+        capability: 'browser.send',
+        target: { method: 'POST', host: 'emplois.example.test', path: '/api/envoi' },
+        label: 'ACTION SENSIBLE · browser.send',
+        grant: 'mission',
+      },
+    ],
+  );
+  assert.doesNotMatch(JSON.stringify(events(m, 'send_auto')), /SECRET|jeton/);
+  assert.equal(events(m, 'permission_auto').length, 0, 'jamais confondu avec permission_auto');
+  assert.equal(m.control.sendsApproved, 3);
+  assert.equal(m.control.sendsGranted, 2);
+  assert.equal(m.control.sendCalls.size, 0, 'issues suivies comme après un clic');
+  assert.equal(m.control.grantedTargets.length, 2);
+  assert.notEqual(app.store.get(m.run.id).state, 'waiting_permission');
+});
+
+test('accord de mission : une autre mission attend toujours sa carte', async (t) => {
+  const { app, mission, send, waiting, events, grant } = await grantSetup(t);
+  const first = mission();
+  await grant(first);
+  const other = mission();
+  const decision = send(other);
+  const card = await waiting(other);
+  assert.ok(card, 'la carte de l’autre mission attend');
+  assert.deepEqual(card.options, SEND_OPTIONS);
+  assert.equal(events(other, 'send_auto').length, 0);
+  app.engine.decide(card.id, 'deny');
+  assert.deepEqual(await decision, { approved: false });
+});
+
+test('accord de mission : « Refuser » reste un refus et ne pose aucun accord', async (t) => {
+  const { app, mission, send, waiting, events } = await grantSetup(t);
+  const m = mission();
+  const decision = send(m);
+  app.engine.decide((await waiting(m)).id, 'deny');
+  assert.deepEqual(await decision, { approved: false });
+  assert.equal(m.control.sendGrant, undefined);
+  assert.equal(events(m, 'send_grant').length, 0);
+  const next = send(m);
+  const card = await waiting(m);
+  assert.ok(card, 'la carte suivante attend');
+  app.engine.decide(card.id, 'deny');
+  await next;
+  assert.equal(m.control.sendsApproved ?? 0, 0);
+});
+
+test('accord de mission : une issue incertaine ou inconnue d’un autre appel fait revenir la carte', async (t) => {
+  const { app, mission, send, waiting, outcome, events, grant } = await grantSetup(t);
+  const m = mission();
+  await grant(m);
+  // Envoi accordé dont l'issue n'est pas encore rapportée : le suivant, d'un autre appel, attend.
+  const open = randomUUID();
+  assert.deepEqual(await send(m, { callId: open }), { approved: true });
+  // Le même appel qui écrit une seconde fois reste couvert (il ne double rien d'autre).
+  assert.deepEqual(await send(m, { callId: open }), { approved: true });
+  const blocked = send(m);
+  const card = await waiting(m);
+  assert.ok(card, 'issue inconnue : la carte revient');
+  assert.deepEqual(card.options, SEND_OPTIONS);
+  app.engine.decide(card.id, 'deny');
+  assert.deepEqual(await blocked, { approved: false });
+  // Issue incertaine (échec après le début de l'action) : la carte revient encore.
+  await outcome(m, open, 'failed');
+  assert.equal(m.control.sendsUncertain, 1);
+  const again = send(m);
+  const card2 = await waiting(m);
+  assert.ok(card2, 'issue incertaine : la carte revient');
+  app.engine.decide(card2.id, 'deny');
+  await again;
+  // Écriture vers un autre site bloquée (A8) : incertaine aussi.
+  const m2 = mission();
+  await grant(m2);
+  const cut = randomUUID();
+  assert.deepEqual(await send(m2, { callId: cut }), { approved: true });
+  await outcome(m2, cut, 'completed', { approvedSendBlocked: ['autre.example.test'] });
+  const third = send(m2);
+  const card3 = await waiting(m2);
+  assert.ok(card3, 'écriture bloquée : la carte revient');
+  app.engine.decide(card3.id, 'deny');
+  await third;
+  assert.equal(events(m, 'send_auto').length, 2);
+  assert.equal(events(m2, 'send_auto').length, 1);
+});
+
+test('accord de mission : un appel abandonné par la passerelle n’envoie rien', async (t) => {
+  const { mission, send, events, grant } = await grantSetup(t);
+  const m = mission();
+  await grant(m);
+  const abandoned = new AbortController();
+  abandoned.abort();
+  assert.deepEqual(await send(m, { abandoned: abandoned.signal }), { approved: false });
+  assert.equal(events(m, 'send_auto').length, 0);
+  assert.equal(m.control.sendsGranted ?? 0, 0);
+});
+
+test('accord de mission : une reprise (nouveau contrôle de mission) n’a pas d’accord', async (t) => {
+  const { app, mission, send, waiting, events, grant } = await grantSetup(t);
+  const m = mission();
+  await grant(m);
+  // resume et resumeWorkflow posent un contrôle neuf ({ abort, runtime }) pour la mission reprise.
+  m.control = { abort: new AbortController(), promptStarted: true, runtime: null };
+  app.engine.active.set(m.run.id, m.control);
+  const decision = send(m);
+  const card = await waiting(m);
+  assert.ok(card, 'la reprise demande de nouveau la carte');
+  app.engine.decide(card.id, 'deny');
+  await decision;
+  assert.equal(events(m, 'send_auto').length, 0);
+});
+
+test('accord de mission : un pack sans sendGrant ne propose pas l’option', async (t) => {
+  const { app, mission, send, waiting } = await grantSetup(t, { pack: 'core' });
+  const m = mission();
+  const decision = send(m);
+  const card = await waiting(m);
+  assert.deepEqual(card.options, SEND_OPTIONS.slice(0, 2));
+  assert.throws(() => app.engine.decide(card.id, 'allow_mission'), /option interdite/);
+  app.engine.decide(card.id, 'allow');
+  await decision;
+  assert.equal(m.control.sendGrant, undefined);
+});

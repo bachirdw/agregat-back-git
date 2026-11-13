@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerTools, sourceSnapshot } from '../packages/career-ops/tools.js';
@@ -78,4 +86,47 @@ test('E46 FICTIF : traversées, scripts et autres configurations restent hors p�
     'config/../.env',
   ])
     assert.throws(() => tools.write(path, 'FICTIF'), /hors du périmètre|traversée/, path);
+});
+
+// ecrits-01 (13/11) : writing-samples/ (couche utilisateur, DATA_CONTRACT.md) se lit sans jamais
+// suivre un lien symbolique, ni vers l'extérieur de l'espace ni vers un fichier de l'espace.
+test('ecrits-01 FICTIF : un lien symbolique dans writing-samples/ est refusé', (t) => {
+  const { root, tools } = workspace(t, true);
+  const outside = realpathSync(mkdtempSync(join(tmpdir(), 'ecrits-hors-FICTIF-')));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  writeFileSync(join(outside, 'hors.md'), 'FICTIF hors espace\n');
+  mkdirSync(join(root, 'writing-samples'));
+  writeFileSync(join(root, 'writing-samples/vrai-fictif.md'), 'Phrase inventée. Autre phrase.\n');
+  symlinkSync(join(outside, 'hors.md'), join(root, 'writing-samples/lien-dehors.md'));
+  symlinkSync(join(root, 'article-digest.md'), join(root, 'writing-samples/lien-dedans.md'));
+  assert.equal(
+    tools.read('writing-samples/vrai-fictif.md').text,
+    'Phrase inventée. Autre phrase.\n',
+  );
+  for (const path of ['writing-samples/lien-dehors.md', 'writing-samples/lien-dedans.md'])
+    assert.throws(
+      () => tools.read(path),
+      (error) => error.code === 'ELOOP',
+      path,
+    );
+  // Un dossier writing-samples/ qui est lui-même un lien n'est ni lu ni listé : vers l'extérieur,
+  // refus nu (comme reports/lien-hors-espace, E71) ; vers l'intérieur, refus qui nomme le lien.
+  const other = workspace(t, true);
+  mkdirSync(join(outside, 'ecrits'));
+  writeFileSync(join(outside, 'ecrits/x.md'), 'FICTIF hors espace\n');
+  symlinkSync(join(outside, 'ecrits'), join(other.root, 'writing-samples'));
+  assert.throws(
+    () => other.tools.read('writing-samples/x.md'),
+    (error) => !String(error.message).includes('FICTIF hors espace'),
+  );
+  assert.throws(
+    () => other.tools.read('writing-samples'),
+    /^Error: Fichier hors du périmètre career-ops$/,
+  );
+  const inner = workspace(t, true);
+  mkdirSync(join(inner.root, 'interview-prep'));
+  writeFileSync(join(inner.root, 'interview-prep/y.md'), 'FICTIF\n');
+  symlinkSync(join(inner.root, 'interview-prep'), join(inner.root, 'writing-samples'));
+  assert.throws(() => inner.tools.read('writing-samples/y.md'));
+  assert.throws(() => inner.tools.read('writing-samples'), /lien symbolique/);
 });

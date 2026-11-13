@@ -237,8 +237,10 @@ function checkPipelineInbox(root, text) {
 // (Machine Summary schema, modes/oferta.md) and config/cv-facts.json (the owner's CV facts); the
 // read perimeter takes batch/*.md, config/*.(json|yml|yaml), docs/*.md and the whole templates/ and
 // references/ trees (text files only). Never written: career_write keeps userPath alone.
+// ecrits-01 : writing-samples/*.(md|txt), one level (modes/_writing.md calibrates the voice on
+// them, DATA_CONTRACT.md puts them in the user layer), read-only like config/cv-facts.json.
 const systemPath =
-  /^(AGENTS\.md|DATA_CONTRACT\.md|modes\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml)|(?:templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|yaml|json|html|tex|css)|batch\/[\p{L}\p{N}_ .-]+\.md|config\/[\p{L}\p{N}_ .-]+\.(?:json|yml|yaml)|docs\/[\p{L}\p{N}_ .-]+\.md)$/u;
+  /^(AGENTS\.md|DATA_CONTRACT\.md|modes\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml)|(?:templates|references)\/[\p{L}\p{N}_ /.-]+\.(?:md|txt|yml|yaml|json|html|tex|css)|batch\/[\p{L}\p{N}_ .-]+\.md|config\/[\p{L}\p{N}_ .-]+\.(?:json|yml|yaml)|docs\/[\p{L}\p{N}_ .-]+\.md|writing-samples\/[\p{L}\p{N}_ .-]+\.(?:md|txt))$/u;
 const attachmentPath = /^inputs\/[a-f0-9-]{36}\.md$/;
 // Audited entry points of the Skill (scripts at the root of the reviewed clone). Each one has its
 // own closed argument grammar, taken from the script's own flag list: flags it does not name are

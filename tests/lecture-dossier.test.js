@@ -131,3 +131,40 @@ test('mode propriétaire FICTIF : un script ou un guide à la racine du Skill se
   assert.throws(() => owner.write('outil-fictif.mjs', '// réécrit'), /hors du périmètre/);
   assert.throws(() => new CareerTools(career).read('outil-fictif.mjs'), /hors du périmètre/);
 });
+
+// ecrits-01 (13/11) : « career_read writing-samples/ » répondait « Fichier hors du périmètre » nu ;
+// le dossier nomme désormais ses fichiers lisibles (.md et .txt d'un seul niveau), comme les autres
+// dossiers connus. Échantillons FICTIFS.
+test('ecrits-01 FICTIF : le dossier des échantillons d’écriture nomme ses fichiers', (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'ecrits-dossier-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'writing-samples/sous'), { recursive: true });
+  writeFileSync(join(root, 'writing-samples/a-fictif.md'), 'Phrase inventée. Autre phrase.\n');
+  writeFileSync(join(root, 'writing-samples/b-fictif.txt'), 'Phrase inventée. Autre phrase.\n');
+  writeFileSync(join(root, 'writing-samples/c-fictif.mjs'), '');
+  writeFileSync(join(root, 'writing-samples/sous/d-fictif.md'), 'FICTIF\n');
+  writeFileSync(join(root, 'cv.md'), '# CV FICTIF\n');
+  const tools = new CareerTools({ path: () => root });
+  for (const path of ['writing-samples', 'writing-samples/'])
+    assert.throws(
+      () => tools.read(path),
+      (error) =>
+        /Dossier « writing-samples » : career_read lit un seul fichier/.test(error.message) &&
+        error.message.includes(
+          '(2) : writing-samples/a-fictif.md, writing-samples/b-fictif.txt.',
+        ) &&
+        !/c-fictif|d-fictif|hors du périmètre/.test(error.message),
+      path,
+    );
+  assert.throws(
+    () => tools.read('writing-samples/*.txt'),
+    (error) => error.message.includes('(1) : writing-samples/b-fictif.txt.'),
+  );
+  assert.throws(() => tools.read('writing-samples/../cv.md'), /traversée/);
+  for (const path of [
+    'writing-samples/sous/d-fictif.md',
+    'writing-samples/sous',
+    'writing-samples/sous/',
+  ])
+    assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
+});

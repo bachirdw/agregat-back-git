@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerTools } from '../packages/career-ops/tools.js';
@@ -93,4 +93,65 @@ test('E46 FICTIF : secrets, dépendances, scripts et traversées restent hors le
     'references/x.mjs',
   ])
     assert.throws(() => tools.read(path), /hors du périmètre|traversée/, path);
+});
+
+// ecrits-01 (constaté sur trois missions réelles du 13/11) : le Skill lit writing-samples/ pour
+// calibrer le style (modes/_writing.md : tous les fichiers sauf README.md ; DATA_CONTRACT.md : couche
+// utilisateur), mais career_read le refusait « hors du périmètre ». Les fichiers .md et .txt de ce
+// dossier, un seul niveau, se lisent désormais ; jamais ils ne s'écrivent. Échantillon FICTIF.
+const SAMPLE = 'Phrase inventée numéro un. Phrase inventée numéro deux.\n';
+const samples = (t, ownerMode = false) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'ecrits-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'writing-samples'));
+  writeFileSync(join(root, 'writing-samples/exemple-fictif.md'), SAMPLE);
+  writeFileSync(join(root, 'writing-samples/note fictive_2.txt'), SAMPLE);
+  writeFileSync(join(root, 'cv.md'), '# CV FICTIF\n');
+  return { root, tools: new CareerTools({ path: () => root }, { ownerMode }) };
+};
+
+test('ecrits-01 FICTIF : un échantillon d’écriture se lit, marqué non fiable', (t) => {
+  for (const ownerMode of [false, true]) {
+    const { tools } = samples(t, ownerMode);
+    for (const path of [
+      'writing-samples/exemple-fictif.md',
+      'writing-samples/note fictive_2.txt',
+    ]) {
+      const read = tools.read(path);
+      assert.equal(read.text, SAMPLE, path);
+      assert.equal(read.untrusted, true, path);
+    }
+  }
+});
+
+test('ecrits-01 FICTIF : un échantillon d’écriture ne s’écrit jamais', (t) => {
+  for (const ownerMode of [false, true]) {
+    const { root, tools } = samples(t, ownerMode);
+    for (const path of [
+      'writing-samples/exemple-fictif.md',
+      'writing-samples/nouveau-fictif.md',
+      'writing-samples/note fictive_2.txt',
+    ])
+      assert.throws(
+        () => tools.write(path, 'réécrit'),
+        /^Error: Fichier hors du périmètre career-ops$/,
+        path,
+      );
+    assert.equal(readFileSync(join(root, 'writing-samples/exemple-fictif.md'), 'utf8'), SAMPLE);
+  }
+});
+
+test('ecrits-01 FICTIF : les refus existants ne bougent pas', (t) => {
+  const { tools } = samples(t);
+  for (const path of [
+    'writing-samples/x.mjs',
+    'writing-samples/x.json',
+    'writing-samples/sous/x.md',
+    'writing-sample/x.md',
+    'scripts/x.mjs',
+    'voice-dna.txt',
+  ])
+    assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
+  for (const path of ['writing-samples/../cv.md', 'writing-samples/.cache.md'])
+    assert.throws(() => tools.read(path), /traversée/, path);
 });

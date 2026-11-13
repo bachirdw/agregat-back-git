@@ -5,6 +5,7 @@ Relecteur Opus, seul écrivain de l'arbre, branche `accord-mission-01` (commits 
 en marche, aucun processus arrêté ni relancé.
 
 ## Journal
+
 - **13/11 17:01** Lecture d'AGENTS.md, section 1 de `passation.md`, rapport `accord-mission-01.md`, diff complet.
   Lecture du chemin réel : `mcp-gateway/server.js` (`approve`, `reportToolOutcome`, `reportLateSubmission`),
   `mcp-gateway/calls.js` (`approvalCall`, `CallRegistry`), `browser-gateway/cdp.js` (écritures réseau, WebSocket,
@@ -19,7 +20,9 @@ en marche, aucun processus arrêté ni relancé.
   Fichiers Chrome lancés un par un, rien d'autre en même temps.
 
 ## Constats
+
 Faux, corrigé :
+
 1. **Suspension qui ne se lève jamais** (`packages/orchestrator/index.js:177`). `otherSendOpen` tenait pour « ouvert »
    tout appel resté dans `sendCalls`. Or un envoi demandé APRÈS le retour de son appel (écriture réseau tardive dans la
    fenêtre du clic, message WebSocket ; la passerelle nomme alors l'appel du clic, `approvalCall`) entre dans
@@ -38,6 +41,7 @@ Faux, corrigé :
    `docs/api-sends.md` mis à jour.
 
 Fragile, laissé (dit, non codé) :
+
 - Une issue d'appel jamais rapportée (POST d'issue échoué ou au-delà de 5 s, `reportToolOutcome(...).catch`) laisse
   l'appel « en vol » : l'accord reste suspendu pour la mission. Rare ; non mesuré en réel.
 - Une écriture tardive HTTP dont la réponse est encore attendue ne suspend plus l'accord ; si elle finit sans réponse,
@@ -52,6 +56,7 @@ Fragile, laissé (dit, non codé) :
   Avec `DEMO_GRANT=1` et un mode `skill`/`libre` (pack core), `allow_mission` serait refusé par l'API (option absente).
 
 Correct (vérifié par lecture et test) :
+
 - Chemin par défaut : même suite d'événements (`state, state, permission, state, permission_resolved`), mêmes deux
   premières options (identifiants, noms, sortes), état `waiting_permission`, pas d'expiration en mode propriétaire,
   mêmes compteurs, même ligne du Bilan caractère pour caractère, sur base et branche (pack core et career-ops ; seule
@@ -67,6 +72,7 @@ Correct (vérifié par lecture et test) :
 - `demo-candidature.py` sans `DEMO_GRANT` : sortie et réponses inchangées.
 
 ## Résultats réels
+
 - Ciblés : `review-accord-mission`, `owner-permissions`, `career-sends`, `envoi-approuve-effectue`, `platform`,
   `bilan-vs-events` : 86 tests, 86 réussis.
 - Phase unitaire complète (159 fichiers hors `BROWSER`, `--test-concurrency=4 --test-timeout=120000`) : 1213 tests,
@@ -76,6 +82,7 @@ Correct (vérifié par lecture et test) :
   envoi-issue 9/9, audit-nav-carte-envoi 6/6, audit-ws 20/20, owner-browser 42/42 (17:12).
 
 ## Non vérifié
+
 - Aucun essai avec un agent réel ni par `demo-candidature.py` ; WebSocket tardif non rejoué dans Chrome (prouvé par la
   route d'issue et le pont seulement).
 - Bilan d'une mission complète (`execute`) avec accord ; workflow/DAG avec accord.

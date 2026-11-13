@@ -42,6 +42,22 @@ test('gateway refuse écriture, exfiltration et URLs ambiguës', () => {
   ])
     assert.throws(() => browserPolicy(action, 'https://jobs.example.test'));
   assert.equal(allowedPermission([{ kind: 'allow_always', optionId: 'all' }], 'all'), false);
+  // accord-mission-01 : l'accord de mission est admis ; l'accord permanent reste refusé.
+  assert.equal(
+    allowedPermission([{ kind: 'allow_mission', optionId: 'allow_mission' }], 'allow_mission'),
+    true,
+  );
+  assert.equal(allowedPermission([{ kind: 'allow_mission', optionId: 'm' }], 'autre'), false);
+  assert.equal(
+    allowedPermission(
+      [
+        { kind: 'allow_mission', optionId: 'allow_mission' },
+        { kind: 'allow_always', optionId: 'all' },
+      ],
+      'all',
+    ),
+    false,
+  );
 });
 test('ledger refuse budget négatif/dépassement sans inscription partielle', () => {
   const store = new Store(join(temporary(), 'db'));

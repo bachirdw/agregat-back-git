@@ -1899,8 +1899,12 @@ export class Orchestrator {
       // E64 : the agent's turn deadline (ACP prompt) waits for the owner's click as well.
       const pausedRuntime = suspended ? paused?.runtime : null;
       pausedRuntime?.pauseDeadlines?.();
-      const options = p.options.filter((o) =>
-        ['allow_once', 'reject_once', 'reject_always'].includes(o.kind),
+      // accord-mission-01 : `allow_mission` only on a card the platform built itself (gatewayApproval
+      // sets `missionGrant`) ; an agent's own ACP option of that kind is dropped like any other.
+      const options = p.options.filter(
+        (o) =>
+          ['allow_once', 'reject_once', 'reject_always'].includes(o.kind) ||
+          (o.kind === 'allow_mission' && p.missionGrant === true),
       );
       const tool = {
         ...(p.toolCall ?? {}),

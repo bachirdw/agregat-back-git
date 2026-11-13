@@ -400,3 +400,27 @@ test('Bilan : ligne générique des requêtes réseau d’envoi accordées autom
     "Requêtes réseau d'envoi : 2 accordées automatiquement (mode propriétaire).",
   );
 });
+
+// accord-mission-01 : une option `allow_mission` proposée par l'agent lui-même (ACP) est écartée ;
+// seule la plateforme peut l'offrir, sur une carte d'envoi qu'elle construit.
+test('accord de mission : une option allow_mission venue de l’agent est écartée', async (t) => {
+  const { app, run, signal } = setup(t, { ownerMode: false });
+  const pending = app.engine.permission(
+    run.id,
+    {
+      toolCall: { toolCallId: 'm1', title: 'outil' },
+      options: [...options, { optionId: 'tout', name: 'Tout', kind: 'allow_mission' }],
+    },
+    false,
+    signal,
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  const [waiting] = app.engine.permissions.values();
+  assert.deepEqual(
+    waiting.options.map((o) => o.optionId),
+    ['yes', 'no'],
+  );
+  assert.throws(() => app.engine.decide(waiting.id, 'tout'), /option interdite/);
+  app.engine.decide(waiting.id, 'no');
+  await pending;
+});

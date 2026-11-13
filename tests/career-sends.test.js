@@ -481,17 +481,58 @@ test('email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est dem
   assert.deepEqual(cards, ['email.send', 'email.send']);
   assert.deepEqual(opened, []);
 });
-// Relecture contacts-courriel-01 : browser.navigate n'admet que 2 048 caractères ; un long texte
-// garde le brouillon, n'appelle pas le navigateur et dit pourquoi.
-test('email_send FICTIF sans SMTP : un lien de composition trop long le dit, rien n’est ouvert', async (t) => {
+// relance-01 : browser.navigate n'admet que 2 048 caractères ; un texte long ouvrait rien du tout.
+// Désormais la composition s'ouvre avec destinataire et objet seuls (lien court), le brouillon complet
+// reste dans drafts/<id>.json et le résultat dit que le texte n'est pas dans la fenêtre.
+test('email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitted, brouillon complet gardé', async (t) => {
   const career = fixture(t);
   const opened = [];
   const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
-  const result = await tool.call({ ...draftArgs(), text: 'Texte FICTIF accentué é. '.repeat(120) });
+  const text = 'Texte FICTIF accentué é. '.repeat(120);
+  const args = { ...draftArgs(), text };
+  const result = await tool.call(args);
+  assert.equal(result.sent, false);
+  assert.equal(result.opened, true);
+  assert.equal(result.bodyOmitted, true);
+  assert.equal(result.openError, undefined);
+  assert.equal(opened.length, 1);
+  assert.equal(result.composeUrl, opened[0]);
+  assert.ok(opened[0].length <= 2048);
+  const compose = new URL(opened[0]);
+  assert.deepEqual([...compose.searchParams.keys()].sort(), ['fs', 'su', 'to', 'view']);
+  assert.equal(compose.searchParams.get('to'), args.to);
+  assert.equal(compose.searchParams.get('su'), args.subject);
+  assert.match(result.note, new RegExp(`drafts/${args.id}\\.json`));
+  assert.match(result.note, /outils navigateur/);
+  assert.match(result.note, /bouton Envoyer reste au propriétaire/);
+  const draft = JSON.parse(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'));
+  assert.equal(draft.text, text);
+  assert.match(tool.description, /bodyOmitted/);
+});
+test('email_send FICTIF sans SMTP : texte court → lien complet, sans bodyOmitted', async (t) => {
+  const career = fixture(t);
+  const opened = [];
+  const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+  const result = await tool.call(draftArgs());
+  assert.equal(result.opened, true);
+  assert.equal(result.bodyOmitted, undefined);
+  assert.equal(result.note, undefined);
+  assert.equal(new URL(opened[0]).searchParams.get('body'), 'Message FICTIF.');
+});
+test('email_send FICTIF sans SMTP : objet démesuré, même le lien court dépasse → rien n’est ouvert', async (t) => {
+  const career = fixture(t);
+  const opened = [];
+  const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+  const result = await tool.call({
+    ...draftArgs(),
+    subject: 'é'.repeat(500),
+    text: 'Texte FICTIF accentué é. '.repeat(120),
+  });
   assert.equal(result.sent, false);
   assert.equal(result.opened, false);
+  assert.equal(result.bodyOmitted, undefined);
   assert.ok(result.composeUrl.length > 2048);
-  assert.match(result.openError, /brouillon gardé.*2048 au plus/i);
+  assert.match(result.openError, /brouillon gardé.*sans le texte.*2048 au plus/i);
   assert.deepEqual(opened, []);
   assert.match(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'), /FICTIF/);
 });

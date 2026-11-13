@@ -47,10 +47,18 @@ export function smtpConfig(env = process.env) {
     from: env.CAREER_SMTP_FROM,
   };
 }
-export function gmailCompose(email) {
+// relance-01 : `withBody: false` donne le lien court (destinataire et objet seuls), ouvert quand le
+// lien complet dépasse la limite d'adresse du navigateur ; le texte reste dans drafts/<id>.json.
+export function gmailCompose(email, { withBody = true } = {}) {
   return (
     'https://mail.google.com/mail/?' +
-    new URLSearchParams({ view: 'cm', fs: '1', to: email.to, su: email.subject, body: email.text })
+    new URLSearchParams({
+      view: 'cm',
+      fs: '1',
+      to: email.to,
+      su: email.subject,
+      ...(withBody ? { body: email.text } : {}),
+    })
   );
 }
 export function linkedInDraft({ url, text }) {

@@ -1,0 +1,64 @@
+(node:52819) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SMTP FICTIF : refus = zéro, approbation = exactement un, répétition et reprise refusées (17.290458ms)
+✔ SMTP : double demande, annulation, budget et résultat incertain ne relancent jamais (5.3625ms)
+✔ SMTP : sans configuration brouillon et URL Gmail, aucune approbation ni transmission (2.019292ms)
+✔ Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn autorisé sur décision (7.033417ms)
+✔ Pont : envoi obligatoire même propriétaire, aperçu absent du journal persistant, refus et annulation (7.14925ms)
+✔ API propriétaire → deux MCP → SMTP FICTIF : refus puis course interprocessus, un seul message (501.723542ms)
+✔ email_send : destinataire absent des sources refusé hors mode propriétaire, accepté en mode propriétaire (2.477917ms)
+✔ linkedin_draft : les sous-domaines de pays (fr.linkedin.com) sont admis, les faux domaines refusés (0.212458ms)
+✔ EmailGateway : un CAREER_SMTP_HOST sans CAREER_SMTP_FROM ne casse pas la construction, seul l’envoi échoue (1.159708ms)
+✔ email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id exigé (2.533166ms)
+✔ email_send FICTIF sans SMTP : un échec d’ouverture garde le brouillon et le dit (2.7025ms)
+✔ email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est demandée (13.593916ms)
+✖ email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitted, brouillon complet gardé (2.833542ms)
+✔ email_send FICTIF sans SMTP : texte court → lien complet, sans bodyOmitted (2.686625ms)
+✖ email_send FICTIF sans SMTP : objet démesuré, même le lien court dépasse → rien n’est ouvert (2.3965ms)
+✔ email_send FICTIF sans SMTP : lien de composition encodé, valeurs rendues à l’identique (1.769ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 14
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1016.731792
+
+✖ failing tests:
+
+test at tests/career-sends.test.js:487:1
+✖ email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitted, brouillon complet gardé (2.833542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file://./tests/career-sends.test.js:495:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/career-sends.test.js:522:1
+✖ email_send FICTIF sans SMTP : objet démesuré, même le lien court dépasse → rien n’est ouvert (2.3965ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /brouillon gardé.*sans le texte.*2048 au plus/i. Input:
+  
+  'Brouillon gardé ; lien de composition non ouvert dans le navigateur (lien de 7277 caractères, 2048 au plus pour le navigateur)'
+  
+      at TestContext.<anonymous> (file://./tests/career-sends.test.js:535:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Brouillon gardé ; lien de composition non ouvert dans le navigateur (lien de 7277 caractères, 2048 au plus pour le navigateur)',
+    expected: /brouillon gardé.*sans le texte.*2048 au plus/i,
+    operator: 'match',
+    diff: 'simple'
+  }

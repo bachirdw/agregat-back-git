@@ -318,6 +318,22 @@ Consigne de travail : le manager délègue, la limite d'usage n'est plus un frei
   propriétaire (hors `.env*`), tailles et limites relevées, adresse de navigation à 16 384 caractères,
   touches d'édition. Laissés pour décision : touche Espace et combinaisons (peuvent envoyer), clic forcé,
   réseau privé, revue de la source du Skill, mode de Codex, délais par défaut.
+- 17:18 **Accord par mission intégré** : back relu (`0088697` : un envoi tardif d'un appel revenu ne suspend plus
+  l'accord ; un envoi sans identifiant d'appel est accordé et tracé) repris dans `contacts-13-11` (`a46b191` à
+  `69b25a9`) ; front relu repris dans `e104-13-11` (`bb34d47`, `87a7c2b`). Contrôle du manager : 86 tests
+  ciblés du back, 211 tests du front, `check`, `format:check`, `tsc` verts. API 4314 relancée sur ce code.
+  Suite Chrome complète pas encore rejouée sur le code intégré (huit fichiers de la carte lancés un par un
+  par le relecteur, verts).
+- 17:18 **Essai réel de l'accord, mission 0aa53e1d** (Claude Sonnet, Chrome du propriétaire, page FICTIVE, script
+  `demo-candidature.py` avec `DEMO_GRANT=1`, mode `deux`) : `completed` en 190 s. Événements : 1 `permission`
+  (carte du premier « Envoyer », répondue `allow_mission` par le script, cible locale), 1 `send_grant`,
+  1 `send_auto` (`browser.click`, POST 127.0.0.1:4321/submit, libellé « Envoyer »), aucune seconde carte ;
+  compteur de la page 12 → 14. Bilan : « Envoi par la plateforme : 2 approuvé(s), dont 1 par le propriétaire
+  et 1 par son accord de mission (cibles : 127.0.0.1:4321/submit). » Ligne vue entière à l'écran (front 5177).
+  **Constaté : une seule carte pour deux candidatures dans la mission.** Une seule mission, page fictive,
+  Claude ; non joué avec Codex ni sur un vrai site.
+- 17:18 Guet terminé (16:00 → 17:02, coupure de connexion de 16:33 comprise) : une seule mission observée
+  (e3fe5047), aucune carte, aucun envoi sans carte ; notes dans `guet-13-11.md`.
 
 ## Bilan de la session (15:16)
 

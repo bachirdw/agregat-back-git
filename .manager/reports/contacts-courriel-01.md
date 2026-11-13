@@ -88,7 +88,7 @@ commit de départ `694e0a2`). Données de test toutes FICTIVES.
   recherche seule.
 - 25 fichiers de test du routage et du manifeste relancés : verts.
 
-## Point 4 — outil `email_send` (14:00 → 14:10)
+## Point 4 — outil `email_send` (14:00 → 14:04)
 
 - Tests d'abord (`tests/career-sends.test.js`, handler réel enregistré par `registerCareerTools` avec un faux
   serveur MCP) : sans SMTP, la fausse ouverture reçoit `composeUrl` (to et body vérifiés), `opened: true`, id
@@ -109,3 +109,17 @@ commit de départ `694e0a2`). Données de test toutes FICTIVES.
 - Non vérifié : l'ouverture réelle de Gmail dans le Chrome du propriétaire (politique d'hôtes du mode
   propriétaire, effet des enregistrements automatiques de brouillon de Gmail sur le journal des écritures
   réseau) ; rien n'a été lancé en réel.
+
+## Point 5 et état final (14:05)
+
+- Tests demandés : (a) `formatToolRoles` du vrai manifeste → `doubt-tools.test.js` ; (b) consignes reçues par
+  fake-acp pour un prompt contacto → `doubt-tools.test.js` ; (c) passerelle MCP de fixture → route tool-outcome →
+  `find` → `contacts-courriel.test.js` ; (d) `email_send` sans SMTP, avec SMTP, échec d'ouverture →
+  `career-sends.test.js`. Chacun rouge avant, vert après (preuves dans `contacts-courriel-01-evidence/`).
+- Dernier passage : `node --test` sur les 7 fichiers touchés ou proches → 104/104 ; `npm run check` et
+  `npm run format:check` verts. `npm test` complet NON lancé (consigne).
+- Opérationnel par test seulement. Rien n'est vérifié en réel sur LinkedIn ni Gmail ; personne ne sait si les
+  rôles suffisent à faire préférer le navigateur à un agent réel (Claude charge les outils MCP en différé).
+- Hors périmètre croisé : `.slice(0, 1)` (une intention), `followup`, E102/E103/E105, run-policy.js : non touchés.
+- Points pour le manager : les trois prompts de `intention-50-prompts` passés à `email` ; `id` facultatif et
+  idempotence SMTP ; motif `in` sans hôte (schéma `urlPattern`).

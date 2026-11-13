@@ -666,3 +666,82 @@ Rien ne presse côté code. La suite utile dépend des décisions 1 et 2 ; sans 
 toucher à l'architecture est de rejouer en réel ce qui ne l'a jamais été (Codex, lettre, autre site), toujours
 avec le propriétaire devant son Chrome pour la carte. Avant tout lancement : `date`, usage de la limite, et
 vérifier que l'API 4313 tourne encore (sinon `api-branche.sh 4313 <copie de l'espace>`, voir section 7).
+
+## 16. Session du 13/11 après-midi (13:36 → 15:16) — défauts avérés, décideurs LinkedIn, e-mails
+
+Journal complet, erreurs comprises : `contacts-13-11.md`. La session suivante repart d'ici, puis de la section 1.
+
+### État laissé (vérifié à 15:16)
+
+- **Back** : branche `contacts-13-11`, partie de `cto-11-11` (d88d490), 20 commits et plus, **extraite dans
+  `~/Downloads/agregat-back-essai-13-11`** (et non dans `agregat-back-cto`, remis sur `cto-11-11` : c'est le
+  dossier d'où tourne l'API 4313, voir E110). Rien poussé, rien fusionné. Code touché : quatre fichiers
+  (`domain-packs/career-ops/skill-manifest.yaml`, `packages/career-ops/{sends,tools}.js`,
+  `packages/policy-engine/run-policy.js`) ; le reste est tests et rapports. Arbre de travail des sprints du
+  pack : `~/Downloads/agregat-back-contacts` (branche `contacts-courriel-01`, tout est repris par `cherry-pick`).
+- **Front** : branche `e104-13-11` dans `agregat-front-cto` (commits `d14976d`, `bb23091`), partie de
+  `transcription-11-11`. Le front 5176 du propriétaire tourne depuis ce dossier et sert donc ce code.
+- **Suite** (sur le code final, 15:01 → 15:12, puis phase unitaire rejouée après un test corrigé) : unitaires
+  1 174 tests, 1 172 réussis, 0 échec, 2 ignorés ; Chrome 226 sur 226 ; `check` et `format:check` verts. Lancée
+  avec `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000` : au plafond par défaut, la phase Chrome expire quand la
+  machine est chargée (E109).
+- **Processus** : API 4313, front 5176, page fictive 4321 (12 envois comptés), relais 19988, API 4310 et
+  front 5173 : jamais arrêtés. L'API d'essai 4314 de la session est arrêtée ; sa base est dans
+  `agregat-back-essai-13-11/.data` (Skill career-ops importé, relu et activé, même empreinte que sur 4313).
+
+### Ce que la session a fait
+
+1. **E104 (front)** corrigé et relu : durée d'un groupe d'outils sans l'attente du propriétaire, avis de
+   silence retiré quand la mission attend ou que l'agent reparle.
+2. **E100, règle R1** (décision du propriétaire, « Oui, R1 ») : listes de mots d'envoi resserrées aux verbes.
+   Le manager a fait garder la carte sur les menus et panneaux à verbe d'envoi (R1 à la lettre la retirait) :
+   **à confirmer par le propriétaire**. Le relecteur a aussi rendu leur carte à « Terminé », « Renvoyer »,
+   « Republier » (défauts antérieurs) et à « Programmer l'envoi ».
+3. **Pack, contacts et e-mails** (aucun fichier du moteur) : trois rôles d'outils (confirmer une personne par
+   le navigateur du propriétaire, préparer un e-mail, garder un message LinkedIn) ; étape `find` créditée
+   seulement par la lecture d'un profil ; phrases de l'intention `email` ; `email_send` ouvre le brouillon
+   dans la messagerie (lien court si le corps est trop long) ; intention `followup`.
+4. **Essais réels** par l'API d'essai 4314, Chrome du propriétaire, aucune carte accordée par le manager hors
+   page fictive locale :
+
+| Mission | Agent | Demande | Issue |
+|---|---|---|---|
+| f5298353 | Claude Sonnet | candidature, page FICTIVE | `completed` 210 s, une carte, CV adapté joint |
+| c54b62e0 | Codex | candidature, page FICTIVE | `completed` 436 s, une carte, CV adapté joint |
+| cbcec574 | Claude Sonnet | décideur sur LinkedIn puis e-mail | `completed`, profil lu dans le navigateur, `find` faite, message préparé, e-mail rédigé sans adresse (question posée) |
+| a3ddfb7e | Codex | décideur sur LinkedIn, message | `completed` 145 s, profil lu, `find` faite, message préparé |
+| 92a4af8b | Claude Sonnet | e-mail vers une adresse d'essai | `completed` 135 s, `email_send` `opened: true` |
+| 82987d00 | Codex | idem, avec relecture de la fenêtre | `completed` 150 s, destinataire, objet et corps relus dans la composition |
+| 952c59a6 | Claude Sonnet | relances en retard | `completed` 105 s, cadence et silence lus, aucun brouillon |
+| 74f0aba3 | Gemini (flash-lite) | relances en retard, trois lignes | `completed` 15 s, cadence lue |
+
+   Une mission par cas : le parcours tient, ce n'est pas une mesure de fiabilité. Effets réels : deux profils
+   consultés depuis le compte du propriétaire, deux brouillons vers une adresse `example.test` dans sa
+   messagerie (s'ils ont été enregistrés), deux envois sur la page fictive. Rien d'envoyé à un tiers.
+
+### Décisions qui attendent le propriétaire
+
+1. **Carte sur les menus « Envoyer »** : garder le choix prudent du manager, ou revenir à R1 strict.
+2. **E54, plusieurs intentions par mission** : condition du correctif de structure d'E102 et du suivi complet
+   de « décideur puis e-mail » ; touche le moteur de suivi, non fait en son absence. Brief prêt (diagnostic
+   dans `contacts-13-11.md`).
+3. **E102, seconde cause** : compter un clic comme « champs préparés » dans une candidature (manifeste `apply`).
+4. **E103 et E105 (Bilan)** : nouvelle ligne « Fichier joint par la plateforme : aucun … » ; avertissement
+   quand l'agent dit « confirmée » sans page lue (moteur).
+5. **Écart avec E39** : l'en-tête des rôles d'outils dit « le rôle s'applique » ; le rôle « Confirmer une
+   personne » fait donc passer l'agent par le navigateur alors que le Skill dit « via WebSearch ». Fait à la
+   demande expresse du propriétaire le 13/11 ; à valider tel quel ou à adoucir.
+6. **Ajouts au pack proposés, non faits** : intentions `interview-prep` et `agent-inbox`, étapes facultatives
+   de `apply` (doublon, statut « Applied », relance semée) ; YAML prêt dans le retour du lecteur.
+7. **Fusion** : `contacts-13-11` (back) et `e104-13-11` (front) s'ajoutent à la chaîne de branches non
+   fusionnées ; relancer l'API 4313 sur le nouveau code est à sa main.
+8. Les décisions 3 à 8 de la section 15 restent ouvertes.
+
+### Défauts ouverts à connaître
+
+E102, E103 (non touchés) ; E105 en partie ; E108 (libellé « ignorée » de l'étape du lien de composition) ;
+E109 (plafond de la phase Chrome) ; E111 (Codex et le pilotage d'écran natif) ; « Se connecter » sur un
+réseau professionnel n'a pas de carte (si le site envoie l'invitation dès ce clic, elle part sans accord ;
+non prouvé, antérieur à la session) ; filtre « Easy Apply » encore `candidate` ; E100 non éprouvé en réel
+(aucun clic sur un filtre pendant les essais) ; lien de composition court jamais joué en réel.
+

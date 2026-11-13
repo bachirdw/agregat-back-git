@@ -261,6 +261,29 @@ Consigne de travail : le manager délègue, la limite d'usage n'est plus un frei
   Aucune mission n'a été lancée sur 4313 pendant la session (vérifié : 47 missions, aucune en cours).
   Correction : rapport commité, puis `agregat-back-cto` remis sur `cto-11-11` (le code que 4313 a chargé) ;
   la branche `contacts-13-11` est désormais extraite dans `~/Downloads/agregat-back-essai-13-11`.
+- 15:16 **Suite complète sur le code final** (`133a51c`, arbre d'essai, 15:01 → 15:12, plafond de phase relevé à
+  900 s) : unitaires 1 174 tests, 1 171 réussis, **1 échec**, 2 ignorés ; Chrome 226 sur 226 ; `check` et
+  `format:check` verts. L'échec : `tests/apply-01-bilan.test.js` fige la liste des intentions du manifeste, que
+  l'ajout de `followup` allonge ; ni le codeur ni le relecteur du sprint relance n'avaient ce fichier dans
+  leurs tests ciblés. Corrigé par le manager (liste attendue complétée, commit `a8b9c83`) ; vérifié par
+  comparaison des deux manifestes : intentions `evaluate`, `search`, `pipeline`, `documents`, `apply`
+  identiques à `d88d490`. Phase unitaire rejouée : 1 174 tests, 1 172 réussis, 0 échec, 2 ignorés. La phase
+  Chrome n'a pas été rejouée après ce changement, qui ne touche qu'un fichier de test unitaire.
+- 15:16 Registre mis à jour (E100, E104, E105 ; E106 à E111), section 16 de la passation, HANDOFF.
+
+## Bilan de la session (15:16)
+
+Fait et vérifié
+- E104 (front) : corrigé, relu, 190 tests de rendu ; non vu à l'écran sur la mission d'origine.
+- E100 (R1) : codé, relu, 226 tests Chrome ; non éprouvé en réel (aucun clic sur un filtre pendant les essais).
+- Décideurs LinkedIn : constaté en réel avec Claude et Codex (profil lu dans le Chrome du propriétaire).
+- E-mails : constaté en réel avec Claude et Codex (brouillon ouvert, champs relus avec Codex).
+- Relances : intention `followup`, constatée en réel avec Claude et Gemini.
+- Candidature : non-régression constatée en réel sur la page fictive avec Claude et Codex.
+
+Non fait, en attente du propriétaire
+- E102 (structure), E103, avertissement d'E105, E54 : moteur de suivi et Bilan, jugés sensibles en son absence.
+- E108 (libellé du Bilan), intentions `interview-prep` et `agent-inbox`, étapes facultatives de `apply`.
 
 ## Erreurs et problèmes rencontrés (tenu à jour, demandé par le propriétaire à 14:03)
 
@@ -314,3 +337,9 @@ Ce qui n'est pas vérifié
     sur 4313 entre 13:38 et 15:00 aurait tourné sur un mélange d'ancien et de nouveau code. Aucune ne l'a été.
     Dossier remis sur `cto-11-11`. La même remarque vaut pour les sessions précédentes qui commitaient dans
     ce dossier pendant que 4313 tournait.
+19. (15:16) Échec de test introduit par le sprint relance et non vu par ses deux agents (liste d'intentions figée
+    dans `apply-01-bilan.test.js`) : trouvé seulement par la suite complète du manager. Leçon : la suite
+    unitaire complète se relance après chaque intégration, pas seulement les tests ciblés des sprints.
+20. (15:16) Mesures absentes : usage de la limite jamais relevé pendant la session (le propriétaire avait levé la
+    contrainte) ; coûts fournisseurs des huit missions non mesurés ; `.manager/api-usage.md` non complété.
+

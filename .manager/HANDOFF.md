@@ -1,11 +1,11 @@
 # Passation — Relay (point d'entrée unique)
 
-Mis à jour le 13/11/2026 (branche `cto-11-11`). Ce fichier ne porte que des pointeurs ; l'état est dans la passation.
+Mis à jour le 13/11/2026 après-midi (branche `contacts-13-11`, extraite dans `~/Downloads/agregat-back-essai-13-11`). Ce fichier ne porte que des pointeurs ; l'état est dans la passation.
 
 ## À lire, dans l'ordre
 1. [`reports/passation.md`](reports/passation.md) : **la** passation consolidée (règles du propriétaire, branches,
-   chronologie, ce qui marche ou non, décisions, environnements, outils). **Reprendre par sa section 15** (passation de la session du 12 au 13/11 : état laissé, décisions prises et en attente). Ses sections 9 à 14 (11/11, soirée du 11/11, nuit du 12/11 et ses deux suites, premier envoi réel du 13/11) sont tenues à jour ; pour la nuit du 12 au 13/11, lire aussi `reports/nuit-12-11.md` (diagnostic, questions au propriétaire), `nuit-12-11-suite.md`, `nuit-12-11-ombre.md` et `carte-envoi-etude-01.md`.
-2. [`reports/registre-erreurs.md`](reports/registre-erreurs.md) : défauts E1 à E101 avec degré de certitude.
+   chronologie, ce qui marche ou non, décisions, environnements, outils). **Reprendre par sa section 16** (session du 13/11 après-midi : défauts avérés, décideurs LinkedIn, e-mails, essais réels, décisions en attente), puis la section 15 (session du 12 au 13/11). Ses sections 9 à 14 (11/11, soirée du 11/11, nuit du 12/11 et ses deux suites, premier envoi réel du 13/11) sont tenues à jour ; pour la nuit du 12 au 13/11, lire aussi `reports/nuit-12-11.md` (diagnostic, questions au propriétaire), `nuit-12-11-suite.md`, `nuit-12-11-ombre.md` et `carte-envoi-etude-01.md`.
+2. [`reports/registre-erreurs.md`](reports/registre-erreurs.md) : défauts E1 à E111 avec degré de certitude.
 3. [`reports/audit-10-11/SYNTHESE.md`](reports/audit-10-11/SYNTHESE.md) : audit de la nuit du 10/11 (le plus récent).
 
 ## Journaux conservés

@@ -586,9 +586,9 @@ aucun secret, e-mail ni téléphone), a choisi de pousser en public. Back : `cto
 part, avec la synthèse `synthese-05-11-au-13-11.md`. Front : `transcription-11-11` poussée à 13:31 (9ee30ad, cinq
 commits du 11/11, crible vide). Rien n'est fusionné dans `main` ni `dev`, aucune demande de fusion ouverte.
 
-## 15. Passation de la session du 12 au 13/11 (13:35)
+## 15. Passation de la session du 12 au 13/11 (13:33)
 
-Session du manager ouverte le 12/11 à 19:22, compactée une fois, close le 13/11 à 13:35 à la demande du
+Session du manager ouverte le 12/11 à 19:22, compactée une fois, close le 13/11 à 13:33 à la demande du
 propriétaire. La suivante repart d'ici. Ordre de lecture : cette section, puis la section 1 (règles), puis les
 sections 11 à 14 pour le détail, puis `synthese-05-11-au-13-11.md` pour la vue d'ensemble depuis le 05/11.
 
@@ -613,9 +613,10 @@ sections 11 à 14 pour le détail, puis `synthese-05-11-au-13-11.md` pour la vue
 1. Audit CTO à plusieurs agents (12 constats A1 à A12), diagnostic et sept questions au propriétaire : `nuit-12-11.md`.
 2. Correctifs du manager : E97 (garde « outil figé » et Codex), E98, E99, E89 bis, A1, A5, A9 ; script
    `api-branche.sh` (E101).
-3. Trois sprints codeur Opus puis relecteur Opus : `envoi-issue-01`, `audit-suite-02`, `contrat-agents-01`,
+3. Quatre sprints codeur Opus puis relecteur Opus : `envoi-issue-01`, `audit-suite-02`, `contrat-agents-01`,
    `carte-ombre-01` ; étude de la carte d'envoi (`carte-envoi-etude-01.md`, règles R1 à R3, rien d'appliqué).
-4. Seize missions réelles sans envoi réel (dix envois fictifs par le vrai relais, six lectures), puis **le premier
+4. Dix-sept missions réelles sans envoi réel (dix envois fictifs par le vrai relais, sept lectures dont une en
+   échec, E101), puis **le premier
    envoi réel** par le propriétaire (section 14).
 5. Relecture de la mission 0c7e33b2 (brouillons d'e-mail et de message, contact non confirmé) : E104, E105.
 6. Envoi des deux branches sur GitHub et synthèse du 05/11 au 13/11.

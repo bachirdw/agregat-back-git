@@ -24,6 +24,7 @@ const host = (url) => {
 export function analyseRun(run, events) {
   const calls = new Map();
   let jdRead = false;
+  let grantedSends = 0;
   for (const event of events) {
     if (event.type === 'agent') {
       const update = event.data ?? {};
@@ -39,6 +40,11 @@ export function analyseRun(run, events) {
       const path = update.rawInput?.path ?? update.rawInput?.arguments?.path;
       if (name === 'career_read' && /^jds\//.test(String(path ?? ''))) jdRead = true;
       calls.set(update.toolCallId, entry);
+    } else if (event.type === 'send_auto') {
+      // accord-mission-01 : envoi accordé par l'accord de mission du propriétaire (sans carte).
+      const name = toolName(event.data?.capability);
+      if (name) calls.set(`grant-${calls.size}`, { name, status: 'approved' });
+      grantedSends += 1;
     } else if (event.type === 'permission_auto') {
       const name = toolName(event.data?.capability);
       const id = event.data?.toolCallId ?? `auto-${calls.size}`;
@@ -72,6 +78,12 @@ export function analyseRun(run, events) {
   for (const name of completed)
     if (/^(career_offer_save|email_send|career_write)$/.test(name) && !successes.includes(name))
       contradictions.push(`appel terminé ${name} absent des « Actions réussies » du Bilan`);
+  // accord-mission-01 : le Bilan doit nommer chaque envoi accordé par l'accord de mission.
+  const grantedInBilan = Number(summary.match(/ et (\d+) par son accord de mission/u)?.[1] ?? 0);
+  if (grantedSends !== grantedInBilan)
+    contradictions.push(
+      `${grantedSends} envoi(s) accordé(s) par l’accord de mission (send_auto), ${grantedInBilan} au Bilan`,
+    );
   if (run.state === 'completed' && incomplete)
     contradictions.push('état « completed » alors que le résumé dit « Mission incomplète »');
   if (incomplete && /aucune action demandée identifiable/u.test(missing ?? ''))
@@ -87,6 +99,7 @@ export function analyseRun(run, events) {
     id: run.id,
     state: run.state,
     calls: [...calls.values()].map((c) => `${c.name}:${c.status}`),
+    grantedSends,
     readablePages: readable,
     questions,
     answers,

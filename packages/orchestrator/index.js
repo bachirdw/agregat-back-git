@@ -194,6 +194,21 @@ export function formatAutoSendLine(events) {
 // (audit du 10/11, second tour) : the HTTP statuses of approved submissions the site refused.
 // `blocked` (envoi-issue-01, A8) : per approved send whose only write went to another site and was
 // cancelled by the platform, the hosts of that write.
+// `granted` (accord-mission-01) : of the approved sends, those the owner's mission-wide grant covered,
+// with their `targets` ({ host, path }). Without any, the line is the very same as before.
+const GRANTED_TARGETS_SHOWN = 5;
+function grantedTargetsText(targets) {
+  const names = [
+    ...new Set(
+      targets.map((target) =>
+        target?.host ? `${target.host}${target.path ?? ''}`.slice(0, 200) : 'cible inconnue',
+      ),
+    ),
+  ];
+  const shown = names.slice(0, GRANTED_TARGETS_SHOWN).join(', ');
+  const more = names.length - GRANTED_TARGETS_SHOWN;
+  return more > 0 ? `${shown} et ${more} autre${more > 1 ? 's' : ''}` : shown;
+}
 export function formatSendLine(
   approved,
   failed = 0,
@@ -201,6 +216,8 @@ export function formatSendLine(
   unknown = 0,
   refused = [],
   blocked = [],
+  granted = 0,
+  grantedTargets = [],
 ) {
   if (!approved) return '\nEnvoi par la plateforme : aucun approuvé.';
   const notes = [
@@ -224,7 +241,10 @@ export function formatSendLine(
         ]
       : []),
   ];
-  return `\nEnvoi par la plateforme : ${approved} approuvé(s) par le propriétaire${
+  const who = granted
+    ? `, dont ${approved - granted} par le propriétaire et ${granted} par son accord de mission (cibles : ${grantedTargetsText(grantedTargets)})`
+    : ' par le propriétaire';
+  return `\nEnvoi par la plateforme : ${approved} approuvé(s)${who}${
     notes.length ? `, dont ${notes.join(', dont ')}` : ''
   }.`;
 }
@@ -1733,6 +1753,8 @@ export class Orchestrator {
           control.sendCalls?.size ?? 0,
           control.sendsRefused ?? [],
           [...(control.sendsBlocked?.values() ?? [])],
+          control.sendsGranted ?? 0,
+          control.grantedTargets ?? [],
         );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));

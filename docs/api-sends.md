@@ -10,6 +10,22 @@ sont proposés. L’utilisateur copie le texte et envoie manuellement dans Chrom
 Le frontend consomme les événements `permission` existants et les demandes en cours dans
 `GET /api/runs/:id`. Boutons `Approuver l’envoi` / `Refuser`, un par demande.
 `POST /api/permissions/:id` avec `{optionId: "allow"}` ou `{optionId: "deny"}`.
+
+Accord de mission (décision du propriétaire du 13/11) : quand le manifeste du pack de la mission déclare
+`sendGrant: { channels: [...] }` et que le canal de l’envoi y figure (`browser` pour `browser.click`,
+`browser.press`, `browser.send` ; `email` pour `email.send`), la carte d’envoi porte une troisième option
+`{optionId: "allow_mission", name: "Autoriser tous les envois de cette mission", kind: "allow_mission"}`,
+après les deux autres, inchangées. career-ops déclare `channels: [browser]` : l’e-mail par SMTP garde sa
+carte à chaque envoi. `allow_mission` approuve cet envoi et pose un accord sur la mission (événement
+`send_grant` `{scope: "mission"}`). Les envois suivants de la même mission, sur un canal couvert, passent
+sans carte ni attente : événement `send_auto` `{capability, target: {method?, host, path} | null, label,
+grant: "mission"}` (cible sans requête ni corps, libellé de 80 caractères au plus), issue suivie comme
+après un clic. L’accord est suspendu (la carte revient, avec ses trois options) tant qu’un envoi d’un
+autre appel de la mission est d’issue incertaine (écriture bloquée comprise) ou sans issue connue. Il
+meurt avec la mission : une reprise ne le reprend pas, une autre mission ne l’a pas. `Refuser` ne pose
+rien. `allow_always` reste refusé. Bilan : « Envoi par la plateforme : N approuvé(s), dont A par le
+propriétaire et B par son accord de mission (cibles : hôte/chemin, … et K autres) » ; sans envoi accordé
+par la mission, la ligne est inchangée.
 Hors mode propriétaire : expiration après 60 secondes. En mode propriétaire, l’accord `send` n’expire
 pas (plafond seulement si `AGENT_PLATFORM_SEND_TIMEOUT_MS` est fixé, en ms) ; les délais « outil sans
 mise à jour », « agent inactif » et de mission sont suspendus pendant l’attente et reprennent avec le
@@ -18,7 +34,8 @@ sont accordés automatiquement en mode propriétaire. Annulation du run = refus.
 
 `GET /api/runs/:id` expose `pendingPermission` (`null` sinon) :
 `{id, capability, actionClass: "send", toolCallId, askedAt, preview}` ; `preview` est le titre de
-l’action sans secret, en mémoire seulement. Répondre par `POST /api/permissions/:id`. Aucun accord global ou permanent.
+l’action sans secret, en mémoire seulement. Répondre par `POST /api/permissions/:id`. Aucun accord global ou
+permanent ; le seul accord qui couvre plusieurs envois est l’accord de mission ci-dessus, borné à la mission.
 Les aperçus complets sont en mémoire pendant la demande et ne sont pas persistés dans SQLite.
 Après redémarrage, aucune demande d’envoi n’est réapprouvée automatiquement.
 

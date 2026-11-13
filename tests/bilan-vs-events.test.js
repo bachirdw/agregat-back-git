@@ -113,3 +113,27 @@ test('Mission à question FICTIVE : les appels des deux tours figurent au Bilan,
   );
   assert.ok(lastTurnOnly.contradictions.some((line) => line.includes('career_write absent')));
 });
+
+// accord-mission-01 : chaque envoi accordé par l'accord de mission (send_auto) doit être compté au Bilan.
+test('Accord de mission FICTIF : send_auto comptés contre la ligne d’envoi du Bilan', () => {
+  const auto = (path) => ({
+    type: 'send_auto',
+    data: {
+      capability: 'browser.click',
+      target: { host: '127.0.0.1:4321', path },
+      label: 'Envoyer',
+      grant: 'mission',
+    },
+  });
+  const line =
+    '\nEnvoi par la plateforme : 3 approuvé(s), dont 1 par le propriétaire et 2 par son accord de mission (cibles : 127.0.0.1:4321/submit).';
+  const ok = analyseRun(run('completed', 'Fait.' + line), [auto('/submit'), auto('/submit')]);
+  assert.equal(ok.grantedSends, 2);
+  assert.deepEqual(ok.contradictions, []);
+  assert.deepEqual(ok.calls, ['browser_click:approved', 'browser_click:approved']);
+  const off = analyseRun(run('completed', 'Fait.' + line), [auto('/submit')]);
+  assert.ok(off.contradictions.some((c) => c.includes('1 envoi(s) accordé(s)')));
+  const none = analyseRun(run('completed', 'Fait.'), []);
+  assert.equal(none.grantedSends, 0);
+  assert.deepEqual(none.contradictions, []);
+});

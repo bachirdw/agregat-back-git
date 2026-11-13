@@ -152,3 +152,46 @@ test('Troisième relecture : un accord non obtenu porte la marque « non effectu
     (error) => /Accord non obtenu/.test(error.message) && error.actionDone === false,
   );
 });
+
+// accord-mission-01 : sans envoi couvert par l'accord de mission (granted = 0), la ligne est la même
+// qu'avant, caractère pour caractère ; sinon elle dit le total, la part du clic du propriétaire, celle
+// de son accord de mission, et nomme les cibles accordées (hôte et chemin), bornées proprement.
+test('accord de mission : ligne d’envoi identique sans accord, détaillée avec', () => {
+  const cases = [
+    [[0, 0, 0], '\nEnvoi par la plateforme : aucun approuvé.'],
+    [[1], '\nEnvoi par la plateforme : 1 approuvé(s) par le propriétaire.'],
+    [
+      [3, 1, 1],
+      '\nEnvoi par la plateforme : 3 approuvé(s) par le propriétaire, dont 1 sans effet (arrêtée avant d’agir après l’accord : rien n’a été envoyé), dont 1 à l’issue incertaine (échec après le début de l’action : vérifier sur le site).',
+    ],
+    [
+      [2, 0, 0, 0, [422], [['autre.example.test']]],
+      '\nEnvoi par la plateforme : 2 approuvé(s) par le propriétaire, dont 1 refusé(s) par le site (HTTP 422), dont 1 à l’issue incertaine (écriture vers autre.example.test bloquée par la plateforme : vérifier sur le site).',
+    ],
+  ];
+  for (const [args, expected] of cases) {
+    const padded = [...args, ...Array(6 - args.length).fill(undefined)];
+    assert.equal(formatSendLine(...args), expected);
+    assert.equal(formatSendLine(...padded, 0, []), expected, 'granted = 0 : chaîne identique');
+  }
+  const target = (path) => ({ method: 'POST', host: '127.0.0.1:4321', path });
+  assert.equal(
+    formatSendLine(5, 0, 0, 0, [], [], 4, [
+      target('/submit'),
+      target('/submit'),
+      target('/autre'),
+      { host: 'emplois.example.test', path: '/candidature' },
+    ]),
+    '\nEnvoi par la plateforme : 5 approuvé(s), dont 1 par le propriétaire et 4 par son accord de mission (cibles : 127.0.0.1:4321/submit, 127.0.0.1:4321/autre, emplois.example.test/candidature).',
+  );
+  assert.equal(
+    formatSendLine(3, 0, 1, 0, [], [], 2, [target('/submit'), null]),
+    '\nEnvoi par la plateforme : 3 approuvé(s), dont 1 par le propriétaire et 2 par son accord de mission (cibles : 127.0.0.1:4321/submit, cible inconnue), dont 1 à l’issue incertaine (échec après le début de l’action : vérifier sur le site).',
+  );
+  const many = Array.from({ length: 8 }, (_, i) => target(`/offre-${i + 1}`));
+  assert.equal(
+    formatSendLine(9, 0, 0, 0, [], [], 8, many),
+    '\nEnvoi par la plateforme : 9 approuvé(s), dont 1 par le propriétaire et 8 par son accord de mission (cibles : 127.0.0.1:4321/offre-1, 127.0.0.1:4321/offre-2, 127.0.0.1:4321/offre-3, 127.0.0.1:4321/offre-4, 127.0.0.1:4321/offre-5 et 3 autres).',
+  );
+  assert.match(formatSendLine(7, 0, 0, 0, [], [], 6, many.slice(0, 6)), /offre-5 et 1 autre\)\.$/);
+});

@@ -29,6 +29,8 @@ const BROWSER = new Set([
   'envoi-issue.test.js',
   // carte-ombre-01 : mode d'observation de la carte d'envoi.
   'carte-ombre-chrome.test.js',
+  // accord-mission-01 : deux candidatures dans une même mission, un seul clic du propriétaire.
+  'accord-mission-chrome.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

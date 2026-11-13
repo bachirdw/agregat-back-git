@@ -936,6 +936,11 @@ intents:
   # nomme son canal (« relance par email », « e-mail de relance ») garde l'intention de ce canal.
   # « Relance » veut aussi dire « relancer la mission » : avec « là où elle s'est arrêtée »,
   # « reprends », « formulaire »…, l'intention retombe à 59, sous apply (60), comme avant ce sprint.
+  # review-relance-01 : « relance ma candidature », « relance cette candidature » et « relance mes
+  # candidatures » nus RETIRÉS : « Relance ma candidature chez Acme, elle a planté » (reprise) passait
+  # à followup, aucune liste de mots de reprise ne les couvre tous. Ces prompts restent à apply (ou à
+  # aucune intention), comme avant ce sprint ; une relance s'y dit « relances », « en retard », « mode
+  # followup » ou passe par son canal (e-mail, LinkedIn).
   - id: followup
     title: Suivre et relancer les candidatures (mode followup)
     priority: 59
@@ -950,10 +955,8 @@ intents:
         relances de candidature,
         relances de mes candidatures,
         prépare les relances,
-        relance mes candidatures,
-        relance ma candidature,
-        relance cette candidature,
-        relancer mes candidatures,
+        relance mes candidatures en retard,
+        relancer mes candidatures en retard,
         follow up on my applications,
         follow-up cadence,
         overdue follow-ups,
@@ -994,7 +997,10 @@ intents:
         argument: followup-cadence
         precondition: Suivi activé (config/profile.yml, follow_ups.enabled) ; args [] (JSON, par défaut) ou ["--summary"]
         done: Sortie de followup-cadence lue (urgent, en retard, en attente, froid) ; aucune entrée à relancer est une réponse
-        optional: false
+        # review-relance-01 : facultative. Le mode ne lance pas ce script quand le suivi est désactivé
+        # (étape 0) ni pour enregistrer une relance déjà envoyée (étape 5) ; non facultative, le Bilan
+        # disait « étape du Skill non exécutée » dans ces cas prévus par le mode.
+        optional: true
       - id: latency
         title: Vérifier le silence après entretien (rejection-latency)
         tool: career_script

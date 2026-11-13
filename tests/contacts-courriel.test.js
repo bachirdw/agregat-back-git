@@ -644,7 +644,49 @@ const KEPT = [
   ['Write a follow-up email for my application', 'email'],
   ['Relance le recruteur sur LinkedIn', 'linkedin'],
   ['Relance le recruteur FICTIF par un message LinkedIn', 'linkedin'],
+  // review-relance-01 : « relance » au sens de « reprends » reste une candidature, comme avant le
+  // sprint (relance-01 envoyait ces prompts à followup par « relance ma/cette candidature »).
+  ['Relance cette candidature', 'apply'],
+  ['Relance ma candidature', 'apply'],
+  ['Relance ma candidature chez Acme', 'apply'],
+  ['Relance ma candidature chez Acme, elle a planté', 'apply'],
+  ['Relance ma candidature chez Acme qui a planté', 'apply'],
+  ["Relance ma candidature, la mission s'est interrompue", 'apply'],
+  ['Relance ma candidature interrompue chez Acme', 'apply'],
+  ["Relance ma candidature bloquée sur l'étape 2", 'apply'],
+  ['Relance cette candidature, elle a crashé', 'apply'],
+  ['Relance ma candidature depuis le début', 'apply'],
+  ['Relance ma candidature encore une fois', 'apply'],
+  ['Relance ma candidature, réessaie', 'apply'],
+  ['Relance ma candidature avec mon nouveau CV', 'apply'],
+  ['Relance ma candidature pour Acme et adapte la lettre', 'apply'],
+  ['Relance cette candidature sans scan', 'apply'],
+  ['Relance la candidature qui a planté', 'apply'],
+  ['Postule et prévois une relance', 'apply'],
+  ["Postule à l'offre du rapport 005 et note une relance", 'apply'],
+  ['Relance le scan', 'search'],
+  ['Relance la recherche d’offres', 'search'],
+  ['Relance la génération du CV adapté', 'documents'],
+  ['Envoie un message LinkedIn de relance à la recruteuse', 'linkedin'],
 ];
+// review-relance-01 : reprises sans intention avant le sprint, toujours sans intention (jamais followup).
+const NO_FOLLOWUP = [
+  'Relance la mission',
+  'Relance-la',
+  "Relance l'envoi du formulaire",
+  'Relance mes candidatures',
+  'Relance mes candidatures qui ont échoué',
+  'Relancer mes candidatures en erreur',
+  'Retry my application',
+  'Restart the application',
+  'Candidate puis programme le follow-up',
+];
+test('review-relance-01 FICTIF : une reprise de mission ou de candidature ne part jamais en followup', () => {
+  assert.deepEqual(
+    NO_FOLLOWUP.filter((prompt) => intentOf(prompt)?.id === 'followup'),
+    [],
+  );
+});
 test('relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documents, ni recherche', () => {
   const wrong = KEPT.filter(([prompt, expected]) => intentOf(prompt)?.id !== expected).map(
     ([prompt, expected]) => `${prompt} → ${intentOf(prompt)?.id ?? 'aucune'} (attendu ${expected})`,
@@ -656,9 +698,8 @@ test('relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documen
 // intention : « relance cette candidature » allait à apply (nom « candidature »), « quelles relances
 // sont en retard » à aucune. Entreprises FICTIVES.
 const FOLLOWUP = [
-  'Relance cette candidature',
-  'Relance ma candidature chez Acme',
   'Relance mes candidatures en retard',
+  'Fais le point sur la cadence de relance',
   'Quelles relances sont en retard ?',
   'Quelles relances de candidature sont en retard ?',
   'Prépare les relances de la semaine',
@@ -676,11 +717,13 @@ test('relance-01 FICTIF : table prompt → followup, et le mode followup est sui
   assert.deepEqual(wrong, []);
   const intent = intentOf(FOLLOWUP_PROMPT);
   assert.ok(intent.phrases.length <= 30);
-  // Étape 1 du mode : followup-cadence d'abord, seule étape non facultative ; rien n'est exigé
-  // (`required`), aucun `proves` non facultatif : « aucune relance à faire » ne rend rien incomplet.
+  // Étape 1 du mode : followup-cadence d'abord ; rien n'est exigé (`required`), aucun `proves` non
+  // facultatif : « aucune relance à faire » ne rend rien incomplet. review-relance-01 : la cadence est
+  // facultative, le mode ne la lance pas quand le suivi est désactivé (étape 0).
   const cadence = stepOf(intent, 'career_script', 'followup-cadence');
   assert.equal(intent.steps.indexOf(cadence), 0);
-  assert.equal(cadence.optional, false);
+  assert.equal(cadence.optional, true);
+  assert.ok(intent.steps.every((step) => step.optional));
   for (const step of intent.steps) {
     assert.notEqual(step.required, true, step.id);
     if (step.proves) assert.equal(step.optional, true, step.id);
@@ -732,6 +775,23 @@ test('relance-01 FICTIF : cadence créditée par career_script followup-cadence 
   assert.notEqual(before.result.steps.find((step) => step.id === 'draft').state, 'done');
   const after = run([cadenceCall, viaAcp('mcp__career-ops__email_send', {})]);
   assert.equal(after.result.steps.find((step) => step.id === 'draft').state, 'done');
+});
+
+test('review-relance-01 FICTIF : suivi désactivé (étape 0 du mode), le Bilan ne dit pas la cadence non exécutée', () => {
+  for (const prompt of [FOLLOWUP_PROMPT, 'Quelles relances sont en retard ?']) {
+    const progress = new SkillProgress(selectSkillIntents(prompt, [career]));
+    progress.start();
+    // Rien d'appelé : l'agent a lu follow_ups.enabled: false et s'est arrêté, comme le mode le dit.
+    for (const steps of [progress.finish().steps]) {
+      assert.deepEqual(progress.incomplete(), []);
+      const bilan = formatCareerBilan(prompt, createTurnTruth(), career, steps);
+      assert.doesNotMatch(bilan, /non exécutée/u);
+      assert.match(
+        bilan,
+        /^- Non exécuté : aucune action demandée identifiable comme manquante\.$/mu,
+      );
+    }
+  }
 });
 
 test('relance-01 FICTIF : followup-cadence passe par career_script en mode propriétaire, sans SKILL_ENTRIES', async (t) => {

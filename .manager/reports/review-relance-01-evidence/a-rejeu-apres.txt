@@ -1,0 +1,49 @@
+corpus strings: 4874, changed: 5
+apply     -> apply     :: Relance la candidature qui a planté
+-         -> -         :: Relance la mission
+search    -> search    :: Relance le scan
+-         -> -         :: Relance l'envoi du formulaire
+-         -> -         :: Relance-la
+-         -> -         :: Retry my application
+-         -> -         :: Restart the application
+apply     -> apply     :: Relance ma candidature
+apply     -> apply     :: Relance cette candidature
+apply     -> apply     :: Relance ma candidature chez Acme
+apply     -> apply     :: Relance ma candidature chez Acme, elle a planté
+apply     -> apply     :: Relance ma candidature chez Acme qui a planté
+apply     -> apply     :: Relance ma candidature, la mission s'est interrompue
+apply     -> apply     :: Relance ma candidature interrompue chez Acme
+apply     -> apply     :: Relance ma candidature bloquée sur l'étape 2
+apply     -> apply     :: Relance cette candidature, elle a crashé
+apply     -> apply     :: Relance ma candidature depuis le début
+apply     -> apply     :: Relance ma candidature encore une fois
+apply     -> apply     :: Relance ma candidature avec mon nouveau CV
+-         -> -         :: Relance mes candidatures qui ont échoué
+-         -> -         :: Relancer mes candidatures en erreur
+apply     -> apply     :: Relance la candidature d'hier qui n'est pas allée au bout
+apply     -> apply     :: Relance ma candidature sur le formulaire FICTIF http://127.0.0.1:4321/
+apply     -> apply     :: Postule et prévois une relance
+-         -> -         :: Candidate puis programme le follow-up
+apply     -> apply     :: Postule chez Acme puis relance dans une semaine
+apply     -> apply     :: Postule à l'offre du rapport 005 et note une relance
+search    -> search    :: Relance le scan des portails
+-         -> -         :: Relance l'évaluation de l'offre 005
+documents -> documents :: Relance la génération du CV adapté
+search    -> search    :: Relance la recherche d'offres
+email     -> email     :: Écris un e-mail de relance au recruteur d'Acme
+email     -> email     :: Relance le recruteur par email
+email     -> email     :: Relance ma candidature chez Acme par e-mail
+linkedin  -> linkedin  :: Relance le recruteur sur LinkedIn
+linkedin  -> linkedin  :: Envoie un message LinkedIn de relance à la recruteuse
+-         -> followup  :: Quelles relances sont en retard ?
+-         -> followup  :: Prépare les relances de la semaine
+-         -> followup  :: Relance mes candidatures en retard
+-         -> followup  :: Which applications need a follow-up?
+-         -> followup  :: Draft follow-ups for my overdue applications
+-         -> followup  :: Follow up on my applications
+-         -> followup  :: Fais le point sur la cadence de relance
+-         -> -         :: Relance mes candidatures
+apply     -> apply     :: Relance ma candidature, réessaie
+apply     -> apply     :: Retente ma candidature chez Acme
+apply     -> apply     :: Relance ma candidature pour Acme et adapte la lettre
+apply     -> apply     :: Relance cette candidature sans scan

@@ -1,0 +1,29 @@
+✖ review-relance-01 FICTIF : une reprise de mission ou de candidature ne part jamais en followup (6.283875ms)
+✖ relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documents, ni recherche (64.160042ms)
+✖ relance-01 FICTIF : table prompt → followup, et le mode followup est suivi sans étape exigée (7.832375ms)
+✖ review-relance-01 FICTIF : suivi désactivé (étape 0 du mode), le Bilan ne dit pas la cadence non exécutée (1.175417ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 20
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1047.38375
+✖ failing tests:
+✖ review-relance-01 FICTIF : une reprise de mission ou de candidature ne part jamais en followup (6.283875ms)
+  + actual - expected
+    actual: [ 'Relance mes candidatures', 'Relance mes candidatures qui ont échoué', 'Relancer mes candidatures en erreur' ],
+    expected: [],
+✖ relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documents, ni recherche (64.160042ms)
+  + actual - expected
+    actual: [ 'Relance cette candidature → followup (attendu apply)', 'Relance ma candidature → followup (attendu apply)', 'Relance ma candidature chez Acme → followup (attendu apply)', 'Relance ma candidature chez Acme, elle a planté → followup (attendu apply)', 'Relance ma candidature chez Acme qui a planté → followup (attendu apply)', "Relance ma candidature, la mission s'est interrompue → followup (attendu apply)", 'Relance ma candidature interrompue chez Acme → followup (attendu apply)', "Relance ma candidature bloquée sur l'étape 2 → followup (attendu apply)", 'Relance cette candidature, elle a crashé → followup (attendu apply)', 'Relance ma candidature depuis le début → followup (attendu apply)', 'Relance ma candidature encore une fois → followup (attendu apply)', 'Relance ma candidature, réessaie → followup (attendu apply)', 'Relance ma candidature avec mon nouveau CV → followup (attendu apply)', 'Relance ma candidature pour Acme et adapte la lettre → followup (attendu apply)', 'Relance cette candidature sans scan → followup (attendu apply)' ],
+    expected: [],
+✖ relance-01 FICTIF : table prompt → followup, et le mode followup est suivi sans étape exigée (7.832375ms)
+    actual: false,
+    expected: true,
+✖ review-relance-01 FICTIF : suivi désactivé (étape 0 du mode), le Bilan ne dit pas la cadence non exécutée (1.175417ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /non exécutée/u. Input:
+    '- Non exécuté : étape du Skill non exécutée : Lire la cadence de relance (followup-cadence).'
+    actual: 'Bilan\n- Actions réussies : aucune observée.\n- Actions échouées : aucune observée.\n- Résultats mixtes : aucun.\n- Non exécuté : étape du Skill non exécutée : Lire la cadence de relance (followup-cadence).',
+    expected: /non exécutée/u,

@@ -7,7 +7,12 @@ import { mkdtempSync, realpathSync, rmSync, readFileSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
-import { EmailGateway, linkedInDraft, smtpConfig } from '../packages/career-ops/sends.js';
+import {
+  EmailGateway,
+  gmailCompose,
+  linkedInDraft,
+  smtpConfig,
+} from '../packages/career-ops/sends.js';
 import { BrowserGateway, FixturePageProvider } from '../packages/browser-gateway/index.js';
 import { RunPolicy } from '../packages/policy-engine/run-policy.js';
 import { createApp } from '../apps/api/server.js';
@@ -556,4 +561,72 @@ test('email_send FICTIF sans SMTP : lien de composition encodé, valeurs rendues
   assert.equal(compose.searchParams.get('su'), args.subject);
   assert.equal(compose.searchParams.get('body'), args.text);
   assert.equal(result.opened, true);
+});
+// review-relance-01 : lien court (texte long) — adresse avec « + », objet avec « & », « # », « = » :
+// encodés, rendus à l'identique ; composeUrl = le lien ouvert = gmailCompose sans corps ; brouillon
+// identique au message ; la note ne contient ni l'adresse, ni l'objet, ni le texte.
+test('email_send FICTIF sans SMTP : lien court encodé, note sans donnée de l’e-mail, brouillon identique', async (t) => {
+  const career = fixture(t);
+  writeFileSync(
+    join(career.root, 'cv.md'),
+    'CV FICTIF : contact vérifié fictif+relance@example.test',
+  );
+  const opened = [];
+  const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+  const args = {
+    id: randomUUID(),
+    to: 'fictif+relance@example.test',
+    subject: 'Relance FICTIVE & suivi #3 ?cc=autre@example.test = 100 %',
+    text: 'Corps FICTIF unique-7Q & bcc=autre@example.test #x\n'.repeat(60),
+  };
+  const result = await tool.call(args);
+  assert.equal(result.bodyOmitted, true);
+  assert.deepEqual(opened, [result.composeUrl]);
+  assert.equal(result.composeUrl, gmailCompose(args, { withBody: false }));
+  const compose = new URL(opened[0]);
+  assert.equal(compose.hash, '');
+  assert.deepEqual([...compose.searchParams.keys()].sort(), ['fs', 'su', 'to', 'view']);
+  assert.equal(compose.searchParams.get('to'), args.to);
+  assert.equal(compose.searchParams.get('su'), args.subject);
+  for (const secret of [args.to, args.subject, 'unique-7Q', 'example.test'])
+    assert.ok(!result.note.includes(secret), secret);
+  const draft = JSON.parse(readFileSync(join(career.root, `drafts/${args.id}.json`), 'utf8'));
+  assert.deepEqual(draft, { ...args, attachments: [] });
+});
+// review-relance-01 : à 2 048 caractères pile, le lien complet s'ouvre (inchangé) ; à 2 049, le court.
+test('email_send FICTIF sans SMTP : borne de 2 048 caractères, lien complet jusqu’à la limite', async (t) => {
+  const career = fixture(t);
+  const base = { ...draftArgs(), text: '' };
+  const size = (n) => gmailCompose({ ...base, text: 'a'.repeat(n) }).length;
+  const n = 2048 - size(1) + 1;
+  assert.equal(size(n), 2048);
+  for (const [length, omitted] of [
+    [n, undefined],
+    [n + 1, true],
+  ]) {
+    const opened = [];
+    const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+    const result = await tool.call({ ...base, id: randomUUID(), text: 'a'.repeat(length) });
+    assert.equal(result.opened, true);
+    assert.equal(result.bodyOmitted, omitted);
+    assert.equal(new URL(opened[0]).searchParams.has('body'), !omitted);
+    assert.equal(opened[0], result.composeUrl);
+  }
+});
+// review-relance-01 : l'ouverture du lien court échoue → opened faux, brouillon gardé, aucun
+// bodyOmitted ni note (rien n'est ouvert).
+test('email_send FICTIF sans SMTP : échec d’ouverture du lien court, rien n’est dit ouvert', async (t) => {
+  const career = fixture(t);
+  const tool = emailTool(career, {
+    config: null,
+    openProfile: async () => {
+      throw new Error('navigateur FICTIF fermé');
+    },
+  });
+  const result = await tool.call({ ...draftArgs(), text: 'Texte FICTIF. '.repeat(200) });
+  assert.equal(result.opened, false);
+  assert.match(result.openError, /brouillon gardé.*échec de l’ouverture/i);
+  assert.equal(result.bodyOmitted, undefined);
+  assert.equal(result.note, undefined);
+  assert.ok(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8').length > 2000);
 });

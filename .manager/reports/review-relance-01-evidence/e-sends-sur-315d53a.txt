@@ -1,0 +1,28 @@
+✔ SMTP FICTIF : refus = zéro, approbation = exactement un, répétition et reprise refusées (18.422834ms)
+✔ SMTP : double demande, annulation, budget et résultat incertain ne relancent jamais (5.396084ms)
+✔ SMTP : sans configuration brouillon et URL Gmail, aucune approbation ni transmission (2.152375ms)
+✔ Formulaire FICTIF propriétaire : refus, aperçu, mutation et LinkedIn autorisé sur décision (6.555542ms)
+✔ Pont : envoi obligatoire même propriétaire, aperçu absent du journal persistant, refus et annulation (7.960667ms)
+✔ API propriétaire → deux MCP → SMTP FICTIF : refus puis course interprocessus, un seul message (477.877041ms)
+✔ email_send : destinataire absent des sources refusé hors mode propriétaire, accepté en mode propriétaire (2.538ms)
+✔ linkedin_draft : les sous-domaines de pays (fr.linkedin.com) sont admis, les faux domaines refusés (0.1875ms)
+✔ EmailGateway : un CAREER_SMTP_HOST sans CAREER_SMTP_FROM ne casse pas la construction, seul l’envoi échoue (1.209458ms)
+✔ email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id exigé (2.430083ms)
+✔ email_send FICTIF sans SMTP : un échec d’ouverture garde le brouillon et le dit (2.4525ms)
+✔ email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est demandée (12.507084ms)
+✖ email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitted, brouillon complet gardé (2.424666ms)
+✔ email_send FICTIF sans SMTP : texte court → lien complet, sans bodyOmitted (1.969167ms)
+✖ email_send FICTIF sans SMTP : objet démesuré, même le lien court dépasse → rien n’est ouvert (2.093375ms)
+✔ email_send FICTIF sans SMTP : lien de composition encodé, valeurs rendues à l’identique (1.590625ms)
+✖ email_send FICTIF sans SMTP : lien court encodé, note sans donnée de l’e-mail, brouillon identique (1.916917ms)
+✖ email_send FICTIF sans SMTP : borne de 2 048 caractères, lien complet jusqu’à la limite (2.376083ms)
+✖ email_send FICTIF sans SMTP : échec d’ouverture du lien court, rien n’est dit ouvert (1.923791ms)
+ℹ tests 19
+ℹ pass 14
+ℹ fail 5
+✖ failing tests:
+✖ email_send FICTIF sans SMTP : texte long → lien court ouvert, bodyOmitted, brouillon complet gardé (2.424666ms)
+✖ email_send FICTIF sans SMTP : objet démesuré, même le lien court dépasse → rien n’est ouvert (2.093375ms)
+✖ email_send FICTIF sans SMTP : lien court encodé, note sans donnée de l’e-mail, brouillon identique (1.916917ms)
+✖ email_send FICTIF sans SMTP : borne de 2 048 caractères, lien complet jusqu’à la limite (2.376083ms)
+✖ email_send FICTIF sans SMTP : échec d’ouverture du lien court, rien n’est dit ouvert (1.923791ms)

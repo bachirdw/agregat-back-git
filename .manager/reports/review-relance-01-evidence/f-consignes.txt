@@ -1,0 +1,12 @@
+IDENTIQUE apply -> apply (1651 octets) :: Postule à l'offre
+IDENTIQUE apply -> apply (1651 octets) :: Candidate à l'off
+IDENTIQUE apply -> apply (1651 octets) :: Postule chez Acme 
+IDENTIQUE apply -> apply (1651 octets) :: Relance ma candida
+IDENTIQUE documents -> documents (2416 octets) :: Adapte mon
+IDENTIQUE documents -> documents (2416 octets) :: Rédige un
+IDENTIQUE documents -> documents (2416 octets) :: Relance la
+IDENTIQUE search -> search (1128 octets) :: Lance le scan de
+IDENTIQUE search -> search (1128 octets) :: Cherche des offr
+IDENTIQUE search -> search (1128 octets) :: Relance le scan
+IDENTIQUE search -> search (1018 octets) :: Cherche des offr
+IDENTIQUE evaluate -> evaluate (3578 octets) :: Évalue cett

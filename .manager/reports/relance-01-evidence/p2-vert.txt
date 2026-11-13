@@ -1,0 +1,53 @@
+(node:53430) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ contacto FICTIF : la mission suit le mode contacto du Skill, pas un brouillon imposé (9.562084ms)
+✔ email FICTIF : le mode email du Skill est suivi, sans étape d’envoi exigée (5.49775ms)
+✔ contacts-courriel-01 FICTIF : table prompt → intention, e-mails naturels et non-régressions (14.2445ms)
+✔ contacto FICTIF : data/contacts.tsv absent est un état normal du Skill (0.088708ms)
+✔ contacto FICTIF : les appels de contacts et de rapport portent leur argument au suivi (0.144208ms)
+✔ contacto FICTIF : un script qui attend le clavier reçoit une fin d’entrée, pas un délai (42.943459ms)
+✔ Bilan FICTIF : contact consulté, message rédigé, contact enregistré, rien envoyé (17.655791ms)
+✔ contacto FICTIF : la passerelle lit « Saved. » dans la sortie de contact-extract (0.404625ms)
+✔ Bilan FICTIF : une mission contacto sans enregistrement garde ses lignes de contacts (1.21375ms)
+✔ email FICTIF : un lien de composition prérempli prépare l’e-mail (étape créditée) (3.29375ms)
+✔ Bilan FICTIF : brouillon prérempli ouvert dit « préparé », « e-mail de candidature » n’est pas un formulaire (1.274417ms)
+✔ Bilan FICTIF : e-mail préparé dans le navigateur ou en brouillon, sans envoi (0.99025ms)
+✔ Bilan FICTIF : avec l’intention email, « la note » et « candidature complète » ne réclament rien (2.209333ms)
+✔ contacto FICTIF : la consigne de « find » nomme l’ouverture du profil et un motif de page (0.846334ms)
+✔ contacto FICTIF : « find » créditée par la lecture d’un profil, jamais par recherche ni navigation seules (5.405417ms)
+✔ contacto FICTIF : passerelle MCP de fixture → route tool-outcome → « find » créditée sur le profil lu (413.483667ms)
+✔ relecture FICTIF : « find » non créditée par /signin, /login, /inbox, /linkedin/ ni par un paramètre « in » (7.932375ms)
+✔ relecture FICTIF : contacto avec deux recherches web seules, « find » ignorée, mission non incomplète (1.74225ms)
+✔ relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documents, ni recherche (38.836167ms)
+✔ relance-01 FICTIF : table prompt → followup, et le mode followup est suivi sans étape exigée (9.219791ms)
+✔ relance-01 FICTIF : cadence créditée par career_script followup-cadence ; « aucune relance » n’est pas incomplet (3.070667ms)
+✔ relance-01 FICTIF : followup-cadence passe par career_script en mode propriétaire, sans SKILL_ENTRIES (63.66225ms)
+(node:53431) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (career-ops) (266.455125ms)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (général (core)) (211.120292ms)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (Najah) (187.718959ms)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (navigateur (mode propriétaire)) (164.560958ms)
+✔ Règle de doute : un choix d’outil, jamais une demande d’accord pour une action demandée (162.2145ms)
+✔ Règle de doute : définie dans un seul fichier du code (4.34825ms)
+✔ Rôles des outils : le prompt career-ops reçoit ceux que le pack déclare (168.259042ms)
+✔ Rôles des outils FICTIF : un prompt contacto reçoit le rôle personne et la consigne de find (169.612167ms)
+✔ relance-01 FICTIF : un prompt de relance reçoit le mode followup et la cadence est créditée (190.164875ms)
+✔ Rôles des outils : transmis même si aucune intention du Skill ne correspond (167.211209ms)
+✔ Rôles des outils : les packs qui n’en déclarent pas n’en reçoivent aucun (486.897667ms)
+✔ Rôles des outils : le champ est validé par le schéma du manifeste (28.773666ms)
+✔ Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le veut (8.521041ms)
+✔ Rôles des outils FICTIF : formatToolRoles du vrai manifeste porte personne, e-mail et LinkedIn (7.305708ms)
+✔ Rôles des outils : formatage lisible, vide sans rôles ni manifeste (7.530584ms)
+✔ Rôles des outils : tous les outils nommés existent sur le serveur MCP du pack (343.681709ms)
+✔ jobs_search_live se présente comme une recherche de secours limitée (658.035958ms)
+✔ Workflow career-ops : la recherche publique est annoncée comme secours du scan (0.110709ms)
+✔ Consigne navigateur : une question passe par le formulaire ACP ou le champ question (166.895041ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8792.890333

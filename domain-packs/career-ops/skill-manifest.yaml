@@ -929,3 +929,103 @@ intents:
         done: Brouillon ouvert dans la messagerie, bouton d'envoi laissé au propriétaire
         optional: true
         proves: e-mail préparé
+  # relance-01 (13/11) : le mode followup du Skill (modes/followup.md) n'était pas suivi ; « relance
+  # cette candidature » tombait dans apply (« candidature », 60), « quelles relances sont en retard »
+  # dans rien. Priorité 64 (boost) : au-dessus d'apply (60) sans son boost (80, « postule puis
+  # relance » reste une candidature), sous l'e-mail (65, boost 67) et LinkedIn (66) : une relance qui
+  # nomme son canal (« relance par email », « e-mail de relance ») garde l'intention de ce canal.
+  # « Relance » veut aussi dire « relancer la mission » : avec « là où elle s'est arrêtée »,
+  # « reprends », « formulaire »…, l'intention retombe à 59, sous apply (60), comme avant ce sprint.
+  - id: followup
+    title: Suivre et relancer les candidatures (mode followup)
+    priority: 59
+    phrases:
+      &followup-phrases [
+        mode followup,
+        cadence de relance,
+        relances en retard,
+        relances sont en retard,
+        relances à faire,
+        suivi des relances,
+        relances de candidature,
+        relances de mes candidatures,
+        prépare les relances,
+        relance mes candidatures,
+        relance ma candidature,
+        relance cette candidature,
+        relancer mes candidatures,
+        follow up on my applications,
+        follow-up cadence,
+        overdue follow-ups,
+        which applications need a follow-up,
+        draft follow-ups,
+        follow-up for application,
+        follow-up for my application,
+      ]
+    boost:
+      priority: 64
+      phrases: *followup-phrases
+      unlessPhrases:
+        [
+          s'est arrêtée,
+          s'est arrêté,
+          est arrêtée,
+          là où,
+          reprends,
+          reprendre,
+          reprise,
+          recommence,
+          formulaire,
+          a échoué,
+          en échec,
+          where it stopped,
+          where it left off,
+          resume,
+        ]
+    # Ordre du mode : étape 0 (follow_ups.enabled faux : arrêt, aucun script) ; 1. followup-cadence ;
+    # 1b. rejection-latency ; 3. pour chaque entrée en retard ou urgente seulement, rapport lu puis
+    # brouillon ; 4. brouillons montrés ; 5. ligne de data/follow-ups.md seulement pour une relance que
+    # le propriétaire dit avoir envoyée. Aucune étape `required` ni `proves` non facultative : une
+    # réponse « aucune relance à faire » ou le suivi désactivé ne rend pas la mission incomplète.
+    steps:
+      - id: cadence
+        title: Lire la cadence de relance (followup-cadence)
+        tool: career_script
+        argument: followup-cadence
+        precondition: Suivi activé (config/profile.yml, follow_ups.enabled) ; args [] (JSON, par défaut) ou ["--summary"]
+        done: Sortie de followup-cadence lue (urgent, en retard, en attente, froid) ; aucune entrée à relancer est une réponse
+        optional: false
+      - id: latency
+        title: Vérifier le silence après entretien (rejection-latency)
+        tool: career_script
+        argument: rejection-latency
+        precondition: Après la cadence (étape 1b du mode)
+        done: Sortie lue ; un signalement n’est montré qu’après confirmation du propriétaire ; aucune écriture
+        optional: true
+      - id: context
+        title: Lire le rapport de l’offre à relancer
+        tool: career_read
+        argument: reports/
+        precondition: Entrée en retard ou urgente (reportPath de la cadence)
+        done: Rapport lu
+        optional: true
+      - id: draft
+        title: Préparer le brouillon de relance
+        tool: email_send
+        alternativeTools: [linkedin_draft, browser_type, browser_fillForm]
+        requiresStep: cadence
+        precondition: Entrée en retard ou urgente ; destinataire donné par le prompt, tiré des notes ou de data/contacts.tsv
+        done: Brouillon prêt ; bouton d’envoi laissé au propriétaire
+        optional: true
+        proves: relance préparée
+      - id: record
+        title: Enregistrer la relance envoyée (data/follow-ups.md)
+        tool: career_write
+        argument: data/follow-ups.md
+        precondition: Le propriétaire dit l’avoir envoyée ; relire le fichier avant d’écrire (en-tête exact du mode s’il est absent)
+        done: Ligne ajoutée au tableau de data/follow-ups.md
+        optional: true
+        persists: true
+        proof:
+          gain: '^\|\s*\d+\s*\|'
+        proves: relance enregistrée

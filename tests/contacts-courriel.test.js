@@ -627,10 +627,135 @@ const KEPT = [
   // au recruteur où « candidature » n'est qu'un nom ; aucun formulaire nommé.
   ['Envoie un e-mail au recruteur avec ma candidature', 'email'],
   ['Écris un e-mail au recruteur pour relancer ma candidature', 'email'],
+  // relance-01 (13/11) : l'intention followup (mode followup du Skill) ne vole ni une candidature
+  // (« postule puis relance », reprise d'une candidature arrêtée), ni un e-mail ou un message LinkedIn
+  // de relance qui nomme son canal.
+  ['Postule puis relance', 'apply'],
+  ['Postule chez Acme puis relance le recruteur dans une semaine', 'apply'],
+  ['Postule chez Acme puis relance ma candidature dans une semaine', 'apply'],
+  ["Relance ma candidature chez Acme là où elle s'est arrêtée", 'apply'],
+  ["Relance cette candidature, le formulaire s'est arrêté à la page 2", 'apply'],
+  ["Écris un e-mail de relance au recruteur d'Acme", 'email'],
+  ['Écris un e-mail de relance', 'email'],
+  ['Relance le recruteur par email', 'email'],
+  ["Relance par email le recruteur d'Acme", 'email'],
+  ['Relance ma candidature chez Acme par e-mail', 'email'],
+  ['Follow-up email to the recruiter at FICTIVE Corp', 'email'],
+  ['Write a follow-up email for my application', 'email'],
+  ['Relance le recruteur sur LinkedIn', 'linkedin'],
+  ['Relance le recruteur FICTIF par un message LinkedIn', 'linkedin'],
 ];
 test('relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documents, ni recherche', () => {
   const wrong = KEPT.filter(([prompt, expected]) => intentOf(prompt)?.id !== expected).map(
     ([prompt, expected]) => `${prompt} → ${intentOf(prompt)?.id ?? 'aucune'} (attendu ${expected})`,
   );
   assert.deepEqual(wrong, []);
+});
+
+// relance-01 (13/11) : le mode followup du Skill (modes/followup.md) n'était suivi par aucune
+// intention : « relance cette candidature » allait à apply (nom « candidature »), « quelles relances
+// sont en retard » à aucune. Entreprises FICTIVES.
+const FOLLOWUP = [
+  'Relance cette candidature',
+  'Relance ma candidature chez Acme',
+  'Relance mes candidatures en retard',
+  'Quelles relances sont en retard ?',
+  'Quelles relances de candidature sont en retard ?',
+  'Prépare les relances de la semaine',
+  'Mode followup',
+  'Fais le suivi des relances de mes candidatures',
+  'Which applications need a follow-up?',
+  'Draft follow-ups for my overdue applications',
+  'Follow up on my applications',
+];
+const FOLLOWUP_PROMPT = 'Quelles relances sont en retard ? Prépare les brouillons (mode followup).';
+test('relance-01 FICTIF : table prompt → followup, et le mode followup est suivi sans étape exigée', () => {
+  const wrong = [...FOLLOWUP, FOLLOWUP_PROMPT]
+    .filter((prompt) => intentOf(prompt)?.id !== 'followup')
+    .map((prompt) => `${prompt} → ${intentOf(prompt)?.id ?? 'aucune'}`);
+  assert.deepEqual(wrong, []);
+  const intent = intentOf(FOLLOWUP_PROMPT);
+  assert.ok(intent.phrases.length <= 30);
+  // Étape 1 du mode : followup-cadence d'abord, seule étape non facultative ; rien n'est exigé
+  // (`required`), aucun `proves` non facultatif : « aucune relance à faire » ne rend rien incomplet.
+  const cadence = stepOf(intent, 'career_script', 'followup-cadence');
+  assert.equal(intent.steps.indexOf(cadence), 0);
+  assert.equal(cadence.optional, false);
+  for (const step of intent.steps) {
+    assert.notEqual(step.required, true, step.id);
+    if (step.proves) assert.equal(step.optional, true, step.id);
+    assert.doesNotMatch(step.done, /envoy[ée]/iu, step.id);
+  }
+  assert.ok(stepOf(intent, 'career_script', 'rejection-latency'));
+  // Étape 5 : seulement une relance que le propriétaire dit envoyée, en ligne du tableau.
+  const record = stepOf(intent, 'career_write', 'data/follow-ups.md');
+  assert.equal(record.optional, true);
+  assert.equal(record.persists, true);
+  assert.match(
+    '| 3 | 12 | 2026-11-13 | FICTIVE | Rôle | Email | X | n |',
+    new RegExp(record.proof.gain),
+  );
+  assert.doesNotMatch(
+    '| num | appNum | date | company | role | channel | contact | notes |',
+    new RegExp(record.proof.gain),
+  );
+  assert.doesNotMatch('|---|---|---|---|---|---|---|---|', new RegExp(record.proof.gain));
+  assert.equal(stepOf(intent, 'email_send').requiresStep, 'cadence');
+});
+
+test('relance-01 FICTIF : cadence créditée par career_script followup-cadence ; « aucune relance » n’est pas incomplet', () => {
+  const run = (calls) => {
+    const progress = new SkillProgress(selectSkillIntents(FOLLOWUP_PROMPT, [career]));
+    progress.start();
+    for (const call of calls) progress.observe(call);
+    const result = progress.finish();
+    return { result, incomplete: progress.incomplete() };
+  };
+  const cadenceCall = viaAcp('mcp__career-ops__career_script', {
+    command: 'followup-cadence',
+    args: [],
+  });
+  const only = run([cadenceCall]);
+  const state = (id) => only.result.steps.find((step) => step.id === id).state;
+  assert.equal(state('cadence'), 'done');
+  assert.equal(state('draft'), 'skipped');
+  assert.equal(state('record'), 'skipped');
+  assert.deepEqual(only.incomplete, []);
+  // Un autre script ne crédite pas la cadence ; même sans rien (suivi désactivé), rien d'incomplet.
+  const other = run([
+    viaAcp('mcp__career-ops__career_script', { command: 'merge-tracker', args: [] }),
+  ]);
+  assert.notEqual(other.result.steps.find((step) => step.id === 'cadence').state, 'done');
+  assert.deepEqual(other.incomplete, []);
+  // Un brouillon avant la cadence ne crédite pas « draft » (requiresStep) ; après, oui.
+  const before = run([viaAcp('mcp__career-ops__email_send', {}), cadenceCall]);
+  assert.notEqual(before.result.steps.find((step) => step.id === 'draft').state, 'done');
+  const after = run([cadenceCall, viaAcp('mcp__career-ops__email_send', {})]);
+  assert.equal(after.result.steps.find((step) => step.id === 'draft').state, 'done');
+});
+
+test('relance-01 FICTIF : followup-cadence passe par career_script en mode propriétaire, sans SKILL_ENTRIES', async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'relance-FICTIF-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'relay'));
+  mkdirSync(join(root, 'data'));
+  writeFileSync(
+    join(root, 'followup-cadence.mjs'),
+    'console.log(JSON.stringify({ metadata: { actionable: 0 }, entries: [], args: process.argv.slice(2) }));\n',
+  );
+  writeFileSync(join(root, 'relay/source-review.json'), JSON.stringify(sourceSnapshot(root)));
+  const { SKILL_SCRIPT_NAMES } = await import('../packages/career-ops/tools.js');
+  assert.ok(!SKILL_SCRIPT_NAMES.includes('followup-cadence'));
+  const owner = new CareerTools({ path: () => root }, { ownerMode: true, scriptTimeoutMs: 20000 });
+  for (const args of [[], ['--summary']]) {
+    const result = await owner.script({ command: 'followup-cadence', args });
+    assert.equal(result.exitCode, 0);
+    assert.deepEqual(JSON.parse(result.text).args, args);
+  }
+  // Hors mode propriétaire, la grammaire fermée refuse ce script (comportement inchangé).
+  const closed = new CareerTools(
+    { path: () => root },
+    { ownerMode: false, scriptTimeoutMs: 20000 },
+  );
+  await assert.rejects(closed.script({ command: 'followup-cadence', args: [] }), /non autorisée/);
 });

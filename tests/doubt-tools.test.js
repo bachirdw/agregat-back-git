@@ -41,7 +41,7 @@ function fixture(t, { ownerMode = false } = {}) {
   });
   return { root, career, app };
 }
-async function sentPrompt(t, input, { ownerMode = false, reviewed = false } = {}) {
+async function sentPrompt(t, input, { ownerMode = false, reviewed = false, fake = {} } = {}) {
   const { root, career, app } = fixture(t, { ownerMode });
   if (reviewed) reviewCareer(career, app.skills);
   const promptFile = join(root, 'sent-prompt.json');
@@ -56,6 +56,7 @@ async function sentPrompt(t, input, { ownerMode = false, reviewed = false } = {}
         FAKE_ACP: JSON.stringify({
           promptFile,
           result: { simulated: true, summary: 'Réponse FICTIVE', evidence: [] },
+          ...fake,
         }),
       },
     };
@@ -64,7 +65,7 @@ async function sentPrompt(t, input, { ownerMode = false, reviewed = false } = {}
   const run = await app.engine.create({ agent: 'fixture', ...input });
   for (let i = 0; i < 1500 && !terminal.has(app.store.get(run.id).state); i++)
     await new Promise((done) => setTimeout(done, 20));
-  return JSON.parse(readFileSync(promptFile, 'utf8'));
+  return { ...JSON.parse(readFileSync(promptFile, 'utf8')), row: app.store.get(run.id) };
 }
 const occurrences = (text, part) => text.split(part).length - 1;
 
@@ -160,6 +161,50 @@ test('Rôles des outils FICTIF : un prompt contacto reçoit le rôle personne et
     /\d\. Trouver et confirmer une cible avec browser_snapshot ou browser_extract ; précondition : [^;]*; trois recherches au plus \(modes\/contacto\.md\) ; profil de la cible ouvert par browser_navigate ; fait si : Profil de la cible lu/,
   );
   assert.equal(occurrences(instructions, 'Confirmer une personne'), 1);
+});
+
+// relance-01 (13/11) : par le même chemin que l'agent (API → plan → ACP FICTIF), un prompt de relance
+// reçoit les consignes de l'intention followup ; un appel career_script followup-cadence de l'agent
+// crédite l'étape cadence, que le Bilan nomme.
+test('relance-01 FICTIF : un prompt de relance reçoit le mode followup et la cadence est créditée', async (t) => {
+  const { instructions, row } = await sentPrompt(
+    t,
+    { prompt: 'Quelles relances sont en retard ? (mode followup, FICTIF)', pack: 'career-ops' },
+    {
+      reviewed: true,
+      fake: {
+        nativeTools: [
+          {
+            sessionUpdate: 'tool_call',
+            toolCallId: 'relance-FICTIF-1',
+            title: 'mcp__career-ops__career_script',
+            kind: 'execute',
+            status: 'pending',
+            rawInput: { command: 'followup-cadence', args: [] },
+          },
+          {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'relance-FICTIF-1',
+            status: 'completed',
+          },
+        ],
+        result: { simulated: true, summary: 'Aucune relance FICTIVE à faire.', evidence: [] },
+      },
+    },
+  );
+  assert.match(
+    instructions,
+    /career-ops \/ Suivre et relancer les candidatures \(mode followup\) : 1\. Lire la cadence de relance \(followup-cadence\) avec career_script \(followup-cadence\)/,
+  );
+  assert.equal(row.state, 'completed', JSON.stringify(row.error ?? row.result?.summary));
+  const steps = row.skillProgress.steps;
+  assert.ok(steps.every((step) => step.intent === 'followup'));
+  assert.equal(steps.find((step) => step.id === 'cadence').state, 'done');
+  assert.match(
+    row.result.summary,
+    /Étapes du Skill : ✓ Lire la cadence de relance \(followup-cadence\) \(faite\)/,
+  );
+  assert.doesNotMatch(row.result.summary, /Mission incomplète/);
 });
 
 test('Rôles des outils : transmis même si aucune intention du Skill ne correspond', async (t) => {

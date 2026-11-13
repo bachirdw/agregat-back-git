@@ -270,6 +270,12 @@ Consigne de travail : le manager délègue, la limite d'usage n'est plus un frei
   identiques à `d88d490`. Phase unitaire rejouée : 1 174 tests, 1 172 réussis, 0 échec, 2 ignorés. La phase
   Chrome n'a pas été rejouée après ce changement, qui ne touche qu'un fichier de test unitaire.
 - 15:16 Registre mis à jour (E100, E104, E105 ; E106 à E111), section 16 de la passation, HANDOFF.
+- 15:18 Environnement laissé au propriétaire : API 4314 relancée sur le code final (sans clé Gemini) depuis
+  `agregat-back-essai-13-11`, front d'essai 5177 branché dessus (depuis `agregat-front-cto`, branche
+  `e104-13-11`). Vérifié dans le navigateur du manager : le front 5177 liste les huit missions d'essai, sans
+  erreur de console ; sur la mission cbcec574 (une question posée), la ligne de la question affiche
+  « attente : 29,8 s » : **E104 vu à l'écran sur une mission réelle**. Extraits de missions supprimés du
+  scratchpad ; la copie de l'espace career-ops y reste (nécessaire à l'API 4314, effacée au redémarrage).
 
 ## Bilan de la session (15:16)
 

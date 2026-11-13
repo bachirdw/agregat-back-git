@@ -8,6 +8,13 @@ const url = z.string().min(1).max(2048);
 const selector = z.string().min(1).max(500);
 const waitForText = z.string().trim().min(2).max(200);
 const scrollMode = z.enum(['bottom', 'page']);
+// freins-01 (13/11, « enlève tout ce qui bride l'agent ») : bornes des actions de saisie, portées de
+// 30 à 300 champs par fillForm, de 10 000 à 100 000 caractères saisis, de 20 à 200 options d'un
+// select et de 1 000 à 10 000 caractères pour la réponse à un dialogue prompt.
+const MAX_FIELDS = 300;
+const MAX_TEXT = 100000;
+const MAX_OPTIONS = 200;
+const MAX_PROMPT_TEXT = 10000;
 // E27 : a snapshot is paged like career_read (E7): 24 000 characters by default. freins-01 (13/11) :
 // 200 000 at most (48 000 before).
 const snapshotOffset = z.number().int().min(0).default(0);
@@ -105,7 +112,7 @@ export const capabilities = [
             { error: 'values doit être une liste de chaînes, par exemple ["Oui"]' },
           )
           .min(1, 'Au moins une option requise')
-          .max(20, 'Maximum 20 options'),
+          .max(MAX_OPTIONS, `Maximum ${MAX_OPTIONS} options`),
       })
       .strict(),
   },
@@ -129,7 +136,7 @@ export const capabilities = [
                   }),
                   text: z
                     .string({ error: 'text doit être une chaîne' })
-                    .max(10000, 'text : 10 000 caractères maximum')
+                    .max(MAX_TEXT, 'text : 100 000 caractères maximum')
                     .optional()
                     .describe('Requis pour kind text, interdit sinon ; chaîne vide = effacer'),
                   checked: z
@@ -146,7 +153,7 @@ export const capabilities = [
                       },
                     )
                     .min(1, 'Au moins une option requise')
-                    .max(20, 'Maximum 20 options')
+                    .max(MAX_OPTIONS, `Maximum ${MAX_OPTIONS} options`)
                     .optional()
                     .describe('Requis pour kind select (valeurs ou libellés), interdit sinon'),
                 },
@@ -177,7 +184,7 @@ export const capabilities = [
             { error: 'fields doit être une liste de champs' },
           )
           .min(1, 'Au moins un champ requis')
-          .max(30, 'Maximum 30 champs par appel')
+          .max(MAX_FIELDS, `Maximum ${MAX_FIELDS} champs par appel`)
           .refine(
             (fields) => new Set(fields.map((f) => f.ref)).size === fields.length,
             'Une ref ne peut apparaître qu’une fois',
@@ -197,7 +204,7 @@ export const capabilities = [
         ref,
         text: z
           .string({ error: 'text requis (chaîne, vide pour effacer)' })
-          .max(10000, 'text : 10 000 caractères maximum'),
+          .max(MAX_TEXT, 'text : 100 000 caractères maximum'),
       })
       .strict(),
   },
@@ -264,7 +271,10 @@ export const capabilities = [
     schema: z
       .object({
         accept: z.boolean({ error: 'accept doit être un booléen' }),
-        promptText: z.string().max(1000, 'promptText : 1 000 caractères maximum').optional(),
+        promptText: z
+          .string()
+          .max(MAX_PROMPT_TEXT, 'promptText : 10 000 caractères maximum')
+          .optional(),
       })
       .strict(),
   },

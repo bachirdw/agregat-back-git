@@ -14,7 +14,8 @@ test('contrats FICTIFS : schémas stricts et erreurs françaises', () => {
     ['browser.check', { ref: 'e1', checked: 'yes' }, /booléen/],
     ['browser.check', { ref: 'e1', checked: true, selector: '#x' }, /Unrecognized key/],
     ['browser.select', { ref: 'e1', values: [] }, /Au moins une option/],
-    ['browser.select', { ref: 'e1', values: Array(21).fill('x') }, /Maximum 20/],
+    // freins-01 : 200 options au plus (ancien attendu : refus à 21, « Maximum 20 »).
+    ['browser.select', { ref: 'e1', values: Array(201).fill('x') }, /Maximum 200/],
     ['browser.select', { ref: 'e1', values: [42] }, /chaîne/],
     ['browser.select', { ref: 'bad', values: ['x'] }, /Référence invalide/],
   ])

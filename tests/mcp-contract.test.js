@@ -123,7 +123,8 @@ test('MCP réel : browser_dialog publié avec un schéma strict quand il est acc
   assert.ok(tool, 'browser_dialog exposé');
   assert.equal(tool.inputSchema.additionalProperties, false);
   assert.equal(tool.inputSchema.properties.accept.type, 'boolean');
-  assert.equal(tool.inputSchema.properties.promptText.maxLength, 1000);
+  // freins-01 : 10 000 caractères (ancien attendu : 1 000).
+  assert.equal(tool.inputSchema.properties.promptText.maxLength, 10000);
   assert.deepEqual(tool.inputSchema.required, ['accept']);
   assert.match(tool.description, /beforeunload/);
   for (const args of [{}, { accept: 'oui' }, { accept: true, script: 'FICTIF' }]) {

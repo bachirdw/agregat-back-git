@@ -60,7 +60,8 @@ test('contrat FICTIF : fillForm, une clé de valeur par type de champ, erreurs f
   assert.equal(getCapability('browser.fillForm').effect, 'write');
   for (const [fields, message] of [
     [[], /Au moins un champ/],
-    [Array.from({ length: 31 }, (_, i) => ({ ref: `e${i}`, kind: 'radio' })), /Maximum 30/],
+    // freins-01 : 300 champs au plus (ancien attendu : refus à 31, « Maximum 30 »).
+    [Array.from({ length: 301 }, (_, i) => ({ ref: `e${i}`, kind: 'radio' })), /Maximum 300/],
     [[{ ref: 'e1', kind: 'text' }], /text requis pour kind text/],
     [[{ ref: 'e1', kind: 'checkbox', text: 'x' }], /checked requis.*text interdit|text interdit/],
     [[{ ref: 'e1', kind: 'radio', checked: false }], /checked interdit pour kind radio/],
@@ -153,12 +154,13 @@ test('contrat FICTIF : messages français pour les erreurs de forme et de longue
       { fields: [{ ref: 'e1', kind: 'select', values: [1] }] },
       /Chaque option doit être une chaîne/,
     ],
-    [{ fields: [{ ref: 'e1', kind: 'text', text: 'x'.repeat(10001) }] }, /10 000 caractères/],
+    // freins-01 : 100 000 caractères (ancien attendu : refus à 10 001).
+    [{ fields: [{ ref: 'e1', kind: 'text', text: 'x'.repeat(100001) }] }, /100 000 caractères/],
   ])
     assert.throws(() => fill.parse(args), message);
   assert.throws(
-    () => getCapability('browser.type').schema.parse({ ref: 'e1', text: 'x'.repeat(10001) }),
-    /10 000 caractères/,
+    () => getCapability('browser.type').schema.parse({ ref: 'e1', text: 'x'.repeat(100001) }),
+    /100 000 caractères/,
   );
 });
 
@@ -171,4 +173,46 @@ test('contrat FICTIF : le schéma JSON des modèles dit quelle clé de valeur va
   assert.match(field.text.description, /kind text/);
   assert.match(field.checked.description, /kind checkbox/);
   assert.match(field.values.description, /kind select/);
+});
+
+// freins-01 (13/11, « enlève tout ce qui bride l'agent ») : un long formulaire (300 champs), un
+// texte long (100 000 caractères), une liste à choix multiples (200 options) et la réponse à un
+// dialogue prompt (10 000 caractères) passent en un appel. Valeurs FICTIVES.
+test('freins-01 FICTIF : bornes de saisie élargies, en un appel', () => {
+  const fill = getCapability('browser.fillForm').schema;
+  const options = Array.from({ length: 200 }, (_, i) => `Option FICTIVE ${i}`);
+  const fields = Array.from({ length: 300 }, (_, i) =>
+    i === 0
+      ? { ref: 'e0', kind: 'text', text: 'x'.repeat(100000) }
+      : i === 1
+        ? { ref: 'e1', kind: 'select', values: options }
+        : { ref: `e${i}`, kind: 'radio' },
+  );
+  assert.equal(fill.parse({ fields }).fields.length, 300);
+  assert.throws(
+    () =>
+      fill.parse({ fields: [{ ref: 'e1', kind: 'select', values: [...options, 'une de trop'] }] }),
+    /Maximum 200 options/,
+  );
+  assert.equal(
+    getCapability('browser.type').schema.parse({ ref: 'e1', text: 'é'.repeat(100000) }).text.length,
+    100000,
+  );
+  assert.equal(
+    getCapability('browser.select').schema.parse({ ref: 'e1', values: options }).values.length,
+    200,
+  );
+  assert.throws(
+    () => getCapability('browser.select').schema.parse({ ref: 'e1', values: [...options, 'x'] }),
+    /Maximum 200 options/,
+  );
+  const dialog = getCapability('browser.dialog').schema;
+  assert.equal(
+    dialog.parse({ accept: true, promptText: 'p'.repeat(10000) }).promptText.length,
+    10000,
+  );
+  assert.throws(
+    () => dialog.parse({ accept: true, promptText: 'p'.repeat(10001) }),
+    /promptText : 10 000 caractères maximum/,
+  );
 });

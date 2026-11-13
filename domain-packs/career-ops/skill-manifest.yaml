@@ -1,4 +1,9 @@
 pack: career-ops
+# accord-mission-01 (décision du propriétaire du 13/11) : un clic « Autoriser tous les envois de cette
+# mission » peut couvrir les envois faits dans le navigateur. L'e-mail (email.send) n'y est pas : il
+# garde sa carte à chaque envoi.
+sendGrant:
+  channels: [browser]
 # Which tool serves which task. The agent receives this with the mission; the prompt and the Skill
 # still decide first, and a doubt that neither settles is asked in `summary` (never chosen at random).
 toolRoles:

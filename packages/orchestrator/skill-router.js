@@ -187,6 +187,18 @@ export const skillManifestSchema = z
       .min(1)
       .max(30),
     toolRoles: z.array(toolRoleSchema).max(20).default([]),
+    // accord-mission-01 (13/11) : the send channels an owner's mission-wide grant may cover. The pack
+    // decides ; without this key the grant is never offered. `browser` : sends made in the browser
+    // (click, Enter, network write) ; `email` : the `email.send` capability.
+    sendGrant: z
+      .object({
+        channels: z
+          .array(z.enum(['browser', 'email']))
+          .min(1)
+          .max(2),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((manifest, ctx) => {

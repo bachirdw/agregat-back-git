@@ -252,3 +252,26 @@ test('runtime : handshake réel et rejet de reprise non supportée', async () =>
     runtime.close();
   }
 });
+
+// accord-mission-01 (13/11) : le pack dit quels canaux d'envoi l'accord de mission peut couvrir.
+test('manifeste career-ops : sendGrant couvre le navigateur seul, schéma strict', async () => {
+  const { loadSkillManifest, skillManifestSchema } = await import(
+    '../packages/orchestrator/skill-router.js'
+  );
+  const manifest = loadSkillManifest('career-ops');
+  assert.deepEqual(manifest.sendGrant, { channels: ['browser'] });
+  const base = { ...manifest };
+  delete base.sendGrant;
+  assert.equal(skillManifestSchema.safeParse(base).success, true, 'clé facultative');
+  for (const bad of [
+    { channels: [] },
+    { channels: ['sms'] },
+    { channels: ['browser'], sites: ['exemple.invalid'] },
+    { channels: 'browser' },
+  ])
+    assert.equal(
+      skillManifestSchema.safeParse({ ...base, sendGrant: bad }).success,
+      false,
+      JSON.stringify(bad),
+    );
+});

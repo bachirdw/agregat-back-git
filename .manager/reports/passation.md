@@ -579,3 +579,9 @@ Effets réels : une candidature envoyée chez l'employeur du rapport 010. Le sui
 que dans la copie du scratchpad, effacée au redémarrage ; rien n'est écrit dans l'espace career-ops réel du
 propriétaire, qui doit décider de reporter la ligne. Jamais joué : un envoi réel par Codex, une lettre, un fichier
 joint pendant la mission, un autre site.
+
+**Envois sur GitHub du 13/11, sur ordre du propriétaire.** Les deux dépôts sont publics ; le propriétaire, prévenu de
+ce que les rapports contiennent (noms d'employeurs d'offres, trace de la candidature du matin, une URL d'offre,
+aucun secret, e-mail ni téléphone), a choisi de pousser en public. Back : `cto-11-11` poussée à 11:38 comme branche à
+part, avec la synthèse `synthese-05-11-au-13-11.md`. Front : `transcription-11-11` poussée à 13:31 (9ee30ad, cinq
+commits du 11/11, crible vide). Rien n'est fusionné dans `main` ni `dev`, aucune demande de fusion ouverte.

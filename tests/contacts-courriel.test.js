@@ -15,9 +15,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
+import { createApp } from '../apps/api/server.js';
+import { CareerWorkspace } from '../packages/career-ops/workspace.js';
+import { connectMcp } from '../packages/mcp-gateway/client.js';
 import {
   selectSkillIntents,
   skillManifestSchema,
@@ -401,4 +405,135 @@ test('Bilan FICTIF : avec l’intention email, « la note » et « candidature c
     ),
     /candidature \(aucun appel de formulaire\)/,
   );
+});
+
+// contacts-courriel-01, point 3 (13/11) : « Trouver et confirmer une cible » n'est créditée que sur une
+// page LUE (capture ou extraction) dont le chemin est celui d'un profil, motif déclaré par le pack
+// (`urlPattern`). Avant : une recherche web Gemini seule (google_web_search) la créditait, et toute
+// capture aussi. Adresses FICTIVES (jobs.example.test, seul hôte du navigateur de fixture).
+const PROFILE = 'https://jobs.example.test/in/ada-fictive/';
+const PEOPLE = 'https://jobs.example.test/search/results/people/?keywords=FICTIF';
+const CONTACT_PROMPT = CONTACTO[0];
+// Canal passerelle, tel que la route tool-outcome le rejoue : la page lue passe dans rawInput.url.
+const viaGateway = (name, url) => ({
+  sessionUpdate: 'tool_call',
+  toolCallId: randomUUID(),
+  title: name,
+  channel: 'gateway',
+  status: 'completed',
+  rawInput: { command: undefined, path: undefined, url, args: [] },
+});
+// Canal ACP : un outil natif de l'agent (recherche web), ou une capture sans adresse en entrée.
+const viaAcp = (title, rawInput = {}) => ({
+  sessionUpdate: 'tool_call',
+  toolCallId: `acp-${randomUUID()}`,
+  title,
+  status: 'completed',
+  rawInput,
+});
+const findAfter = (calls) => {
+  const progress = new SkillProgress(selectSkillIntents(CONTACT_PROMPT, [career]));
+  progress.start();
+  for (const call of calls) progress.observe(call);
+  return progress.finish().steps.find((step) => step.id === 'find').state;
+};
+
+test('contacto FICTIF : la consigne de « find » nomme l’ouverture du profil et un motif de page', () => {
+  const find = intentOf(CONTACT_PROMPT).steps.find((step) => step.id === 'find');
+  assert.equal(find.tool, 'browser_snapshot');
+  assert.deepEqual(find.alternativeTools, ['browser_extract']);
+  assert.deepEqual(find.urlPattern, { words: ['in'] });
+  assert.match(find.precondition, /browser_navigate/);
+});
+
+test('contacto FICTIF : « find » créditée par la lecture d’un profil, jamais par recherche ni navigation seules', () => {
+  // Deux recherches web (WebSearch natif de Claude, google_web_search de Gemini) : non créditée.
+  assert.notEqual(
+    findAfter([
+      viaAcp('WebSearch', { query: 'décideur Entreprise FICTIVE' }),
+      viaAcp('google_web_search', { query: 'décideur Entreprise FICTIVE' }),
+    ]),
+    'done',
+  );
+  // Navigation seule vers le profil : non créditée.
+  assert.notEqual(findAfter([viaGateway('browser_navigate', PROFILE)]), 'done');
+  // Capture de la recherche de personnes : non créditée (ce n'est pas le profil).
+  assert.notEqual(
+    findAfter([viaGateway('browser_navigate', PEOPLE), viaGateway('browser_snapshot', PEOPLE)]),
+    'done',
+  );
+  // Capture ACP sans adresse : la plateforme ne sait pas quelle page a été lue.
+  assert.notEqual(findAfter([viaAcp('mcp__platform__browser_snapshot')]), 'done');
+  // Navigation puis capture du profil (passerelle) : créditée ; extraction aussi.
+  assert.equal(
+    findAfter([viaGateway('browser_navigate', PROFILE), viaGateway('browser_snapshot', PROFILE)]),
+    'done',
+  );
+  assert.equal(findAfter([viaGateway('browser_extract', PROFILE)]), 'done');
+});
+
+test('contacto FICTIF : passerelle MCP de fixture → route tool-outcome → « find » créditée sur le profil lu', async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'contacto-passerelle-FICTIF-')));
+  mkdirSync(join(root, '.agents/skills/career-ops'), { recursive: true });
+  writeFileSync(
+    join(root, '.agents/skills/career-ops/SKILL.md'),
+    '---\nname: career-ops\ndescription: Routeur de test FICTIF\nlicense: MIT\n---\n# FICTIF\n',
+  );
+  const workspace = new CareerWorkspace({ root, roots: [root] });
+  const app = createApp({ dataDir: join(root, 'platform'), career: workspace });
+  const id = randomUUID();
+  app.store.create({
+    id,
+    state: 'running',
+    prompt: CONTACT_PROMPT,
+    agent: 'fixture',
+    pack: 'career-ops',
+    skills: [],
+    attachments: [],
+    workspace: 'career-ops',
+    cwd: workspace.path(),
+    model: '',
+    budgetCents: 0,
+    mode: 'agent',
+    resumable: false,
+  });
+  const progress = new SkillProgress(selectSkillIntents(CONTACT_PROMPT, [career]));
+  progress.start();
+  const control = {
+    abort: new AbortController(),
+    turnTruth: createTurnTruth(),
+    promptStarted: true,
+    skillProgress: progress,
+  };
+  app.engine.active.set(id, control);
+  app.engine.approvalTokens.set(id, 'JETON_FICTIF');
+  await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+  const client = await connectMcp({
+    command: process.execPath,
+    args: [resolve('packages/mcp-gateway/server.js'), 'career-ops'],
+    env: [
+      { name: 'RELAY_CAREER_WORKSPACE', value: root },
+      { name: 'RELAY_BROWSER', value: 'fixture' },
+      {
+        name: 'RELAY_TOOL_OUTCOME_URL',
+        value: `http://127.0.0.1:${app.server.address().port}/api/internal/tool-outcome/${id}`,
+      },
+      { name: 'RELAY_APPROVAL_TOKEN', value: 'JETON_FICTIF' },
+    ],
+  });
+  // La passerelle d'abord (ses connexions HTTP gardées ouvertes retiendraient la fermeture de l'API).
+  t.after(async () => {
+    await client.close();
+    app.engine.active.delete(id);
+    app.engine.approvalTokens.delete(id);
+    await app.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+  const state = () => progress.current().steps.find((step) => step.id === 'find').state;
+  // La capture de la recherche de personnes passe par la passerelle : pas encore une cible confirmée.
+  await client.callTool({ name: 'browser_snapshot', arguments: { url: PEOPLE } });
+  assert.equal(state(), 'pending');
+  // La capture du profil : la passerelle rapporte la page lue, la route crédite l'étape.
+  await client.callTool({ name: 'browser_snapshot', arguments: { url: PROFILE } });
+  assert.equal(state(), 'done');
 });

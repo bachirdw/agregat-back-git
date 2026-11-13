@@ -33,7 +33,7 @@ commit de départ `694e0a2`). Données de test toutes FICTIVES.
 - Non-régression lancée : career-skill-production 8/8, career-skill-suivi 12/12, skill-router 41/41,
   contacts-courriel 12/12.
 
-## Point 2 — phrases de l'intention `email` (13:53 → 14:00)
+## Point 2 — phrases de l'intention `email` (13:53 → 13:56)
 
 - Test d'abord : table prompt → intention dans `tests/contacts-courriel.test.js` (8 prompts naturels FR/EN,
   non-régressions `apply` et `search`, les prompts `EMAIL` et `CONTACTO` déjà là, deux prompts anglais déjà
@@ -55,3 +55,35 @@ commit de départ `694e0a2`). Données de test toutes FICTIVES.
 - Tous les fichiers de test qui importent `selectSkillIntents` (24) relancés : verts.
 - Limite : « Trouve le décideur … et écris-lui un e-mail » ne retient que `email` ; l'étape `find` de
   `linkedin` n'est donc pas suivie pour ce prompt (suivi multi-intentions hors périmètre).
+
+## Point 3 — étape `find` de l'intention `linkedin` (13:56 → 14:00)
+
+- Décision : le crédit exige une page LUE dont le chemin est celui d'un profil, par le manifeste seul (aucune
+  ligne du moteur changée). `find` : outil `browser_snapshot`, remplaçant `browser_extract` (google_web_search
+  retiré des remplaçants), `urlPattern: { words: [in] }`, précondition qui nomme « profil de la cible ouvert par
+  browser_navigate », `done` « Profil de la cible lu (capture ou extraction de sa page)… ». Le titre reste
+  « Trouver et confirmer une cible ».
+- Pourquoi cela marche sans toucher au moteur : `matches()` compare `urlPattern` à `rawInput.url` ; la route
+  tool-outcome y met la page d'arrivée rapportée par la passerelle (`landedUrl`, qui couvre capture et
+  extraction). Sur le canal ACP, une capture n'a pas d'adresse en entrée : elle ne crédite rien (la passerelle
+  le fait pour le même appel).
+- Tests (rouge `p3-rouge.txt`, vert `p3-vert.txt`, `tests/contacts-courriel.test.js`) :
+  forme de l'étape ; table de crédit (WebSearch + google_web_search → non ; navigation seule → non ; capture de
+  la recherche de personnes → non ; capture ACP sans adresse → non ; navigation + capture du profil par la
+  passerelle → oui ; extraction du profil → oui) ; chemin réel : serveur MCP career-ops en mode fixture lancé
+  comme pour l'agent → `browser_snapshot` → POST réel vers la route tool-outcome d'une API `createApp` →
+  `SkillProgress` : la capture de la recherche de personnes laisse `find` en attente, celle du profil la crédite.
+  Avant correction, la PREMIÈRE capture (recherche de personnes) créditait déjà `find` (rouge constaté).
+- Test (b) par le même chemin que l'agent (`tests/doubt-tools.test.js`, API → plan → fake-acp) : un prompt contacto
+  reçoit le rôle « Confirmer une personne » une seule fois et la consigne de `find` qui nomme browser_navigate.
+  Rouge prouvé en remettant temporairement le manifeste d'avant le sprint (`git show bfb579b^:…`), puis
+  restauré (`p3b-rouge-manifeste-initial.txt`, `p3b-vert.txt`).
+- Incident : le premier test de chemin réel durait 10 s ; mesuré, la fermeture de l'API attendait les connexions
+  HTTP gardées par la passerelle. Fermeture réordonnée (passerelle d'abord) : 0,9 s pour le fichier.
+- Limites : (1) le motif `in` vaut pour tout site dont un segment de chemin est « in », pas seulement LinkedIn
+  (le schéma `urlPattern` n'a pas d'hôte ; en ajouter un serait un changement du moteur) ; (2) une cible
+  confirmée sur une autre page qu'un profil (page équipe d'une entreprise) n'est pas créditée : sous-crédit
+  assumé, l'étape est facultative ; (3) si `linkedin_draft` est appelé sur une page déjà capturée hors motif,
+  le mécanisme de visite (E41) peut créditer `find` sur cette page lue — toujours une page lue, jamais une
+  recherche seule.
+- 25 fichiers de test du routage et du manifeste relancés : verts.

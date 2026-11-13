@@ -142,6 +142,26 @@ test('Rôles des outils : le prompt career-ops reçoit ceux que le pack déclare
   assert.equal(occurrences(instructions, 'Rôles des outils'), 1);
 });
 
+// contacts-courriel-01 (13/11) : par le même chemin que l'agent (API → plan → ACP FICTIF), un prompt
+// du mode contacto reçoit le rôle « Confirmer une personne » et la consigne de l'étape find, qui nomme
+// l'ouverture du profil.
+test('Rôles des outils FICTIF : un prompt contacto reçoit le rôle personne et la consigne de find', async (t) => {
+  const { instructions } = await sentPrompt(
+    t,
+    {
+      prompt: 'Mode contacto : trouve le bon contact chez Entreprise FICTIVE.',
+      pack: 'career-ops',
+    },
+    { reviewed: true },
+  );
+  assert.ok(instructions.includes(CONTACT_ROLE_LINES[0]), instructions);
+  assert.match(
+    instructions,
+    /\d\. Trouver et confirmer une cible avec browser_snapshot ou browser_extract ; précondition : [^;]*; trois recherches au plus \(modes\/contacto\.md\) ; profil de la cible ouvert par browser_navigate ; fait si : Profil de la cible lu/,
+  );
+  assert.equal(occurrences(instructions, 'Confirmer une personne'), 1);
+});
+
 test('Rôles des outils : transmis même si aucune intention du Skill ne correspond', async (t) => {
   const { instructions } = await sentPrompt(
     t,

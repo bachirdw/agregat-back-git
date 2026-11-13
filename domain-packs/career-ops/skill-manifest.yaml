@@ -803,12 +803,17 @@ intents:
         # Variante Greeting du mode : aucune recherche de contact.
         unlessPhrases: [greeting, cold opener, 打招呼]
         proves: carnet consulté
+      # contacts-courriel-01 (13/11) : créditée seulement par une page LUE (capture ou extraction) dont
+      # le chemin est celui d'un profil (« /in/… ») ; ni une recherche web (WebSearch, google_web_search,
+      # toujours permise) ni une navigation seule ni la page de recherche de personnes ne la prouvent.
       - id: find
         title: Trouver et confirmer une cible
         tool: browser_snapshot
-        alternativeTools: [browser_extract, google_web_search]
-        precondition: Aucun contact du carnet retenu ; trois recherches au plus (modes/contacto.md)
-        done: Une cible confirmée (nom, rôle, profil), ou dite introuvable sans deviner
+        alternativeTools: [browser_extract]
+        urlPattern:
+          words: [in]
+        precondition: Aucun contact du carnet retenu ; trois recherches au plus (modes/contacto.md) ; profil de la cible ouvert par browser_navigate
+        done: Profil de la cible lu (capture ou extraction de sa page), ou cible dite introuvable sans deviner
         optional: true
       - id: draft
         title: Rédiger le message de connexion

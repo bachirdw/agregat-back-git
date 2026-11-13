@@ -1,0 +1,93 @@
+(node:33644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ contacto FICTIF : la mission suit le mode contacto du Skill, pas un brouillon imposé (8.438917ms)
+✔ email FICTIF : le mode email du Skill est suivi, sans étape d’envoi exigée (2.41775ms)
+✔ contacts-courriel-01 FICTIF : table prompt → intention, e-mails naturels et non-régressions (14.193708ms)
+✔ contacto FICTIF : data/contacts.tsv absent est un état normal du Skill (0.065708ms)
+✔ contacto FICTIF : les appels de contacts et de rapport portent leur argument au suivi (0.142666ms)
+✔ contacto FICTIF : un script qui attend le clavier reçoit une fin d’entrée, pas un délai (35.192542ms)
+✔ Bilan FICTIF : contact consulté, message rédigé, contact enregistré, rien envoyé (13.835208ms)
+✔ contacto FICTIF : la passerelle lit « Saved. » dans la sortie de contact-extract (0.278167ms)
+✔ Bilan FICTIF : une mission contacto sans enregistrement garde ses lignes de contacts (0.909916ms)
+✔ email FICTIF : un lien de composition prérempli prépare l’e-mail (étape créditée) (1.998375ms)
+✔ Bilan FICTIF : brouillon prérempli ouvert dit « préparé », « e-mail de candidature » n’est pas un formulaire (1.119625ms)
+✔ Bilan FICTIF : e-mail préparé dans le navigateur ou en brouillon, sans envoi (0.916709ms)
+✔ Bilan FICTIF : avec l’intention email, « la note » et « candidature complète » ne réclament rien (1.928208ms)
+✖ contacto FICTIF : la consigne de « find » nomme l’ouverture du profil et un motif de page (1.58625ms)
+✖ contacto FICTIF : « find » créditée par la lecture d’un profil, jamais par recherche ni navigation seules (1.086208ms)
+✖ contacto FICTIF : passerelle MCP de fixture → route tool-outcome → « find » créditée sur le profil lu (10424.968708ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 13
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11000.898791
+
+✖ failing tests:
+
+test at tests/contacts-courriel.test.js:441:1
+✖ contacto FICTIF : la consigne de « find » nomme l’ouverture du profil et un motif de page (1.58625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'browser_extract',
+  +   'google_web_search'
+    ]
+  
+      at TestContext.<anonymous> (file://./tests/contacts-courriel.test.js:444:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'browser_extract', 'google_web_search' ],
+    expected: [ 'browser_extract' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/contacts-courriel.test.js:449:1
+✖ contacto FICTIF : « find » créditée par la lecture d’un profil, jamais par recherche ni navigation seules (1.086208ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'done'
+      at TestContext.<anonymous> (file://./tests/contacts-courriel.test.js:451:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'done',
+    expected: 'done',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/contacts-courriel.test.js:475:1
+✖ contacto FICTIF : passerelle MCP de fixture → route tool-outcome → « find » créditée sur le profil lu (10424.968708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'done' !== 'pending'
+  
+      at TestContext.<anonymous> (file://./tests/contacts-courriel.test.js:536:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'done',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,110 @@
+(node:31512) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (career-ops) (233.491333ms)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (général (core)) (187.704084ms)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (Najah) (166.192666ms)
+✔ Règle de doute : transmise une seule fois dans le prompt réel (navigateur (mode propriétaire)) (183.400708ms)
+✔ Règle de doute : un choix d’outil, jamais une demande d’accord pour une action demandée (164.927541ms)
+✔ Règle de doute : définie dans un seul fichier du code (4.143541ms)
+✔ Rôles des outils : le prompt career-ops reçoit ceux que le pack déclare (170.033208ms)
+✔ Rôles des outils : transmis même si aucune intention du Skill ne correspond (169.93975ms)
+✔ Rôles des outils : les packs qui n’en déclarent pas n’en reçoivent aucun (512.065458ms)
+✖ Rôles des outils : le champ est validé par le schéma du manifeste (9.1325ms)
+✔ Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le veut (9.234459ms)
+✖ Rôles des outils FICTIF : formatToolRoles du vrai manifeste porte personne, e-mail et LinkedIn (6.5295ms)
+✖ Rôles des outils : formatage lisible, vide sans rôles ni manifeste (6.811542ms)
+✔ Rôles des outils : tous les outils nommés existent sur le serveur MCP du pack (340.918417ms)
+✔ jobs_search_live se présente comme une recherche de secours limitée (671.150166ms)
+✔ Workflow career-ops : la recherche publique est annoncée comme secours du scan (0.101708ms)
+✔ Consigne navigateur : une question passe par le formulaire ACP ou le champ question (167.546959ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8345.072292
+
+✖ failing tests:
+
+test at tests/doubt-tools.test.js:162:1
+✖ Rôles des outils : le champ est validé par le schéma du manifeste (9.1325ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'search-offers',
+      'read-offer',
+      'save-offer',
+      'process-inbox',
+  -   'confirm-person',
+  -   'prepare-email',
+  -   'keep-linkedin-message'
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-contacts/tests/doubt-tools.test.js:165:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'search-offers', 'read-offer', 'save-offer', 'process-inbox' ],
+    expected: [ 'search-offers', 'read-offer', 'save-offer', 'process-inbox', 'confirm-person', 'prepare-email', 'keep-linkedin-message' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/doubt-tools.test.js:226:1
+✖ Rôles des outils FICTIF : formatToolRoles du vrai manifeste porte personne, e-mail et LinkedIn (6.5295ms)
+  AssertionError [ERR_ASSERTION]: - Confirmer une personne : browser_navigate avec url du profil ou de la recherche de personnes puis browser_snapshot ; Chrome du propriétaire déjà connecté à LinkedIn ; la recherche web peut donner le nom ; une cible est confirmée par la lecture de son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse.
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-contacts/tests/doubt-tools.test.js:230:49)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/doubt-tools.test.js:236:1
+✖ Rôles des outils : formatage lisible, vide sans rôles ni manifeste (6.811542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+    'Rôles des outils déclarés par le pack career-ops. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :\n' +
+      '- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; repli du Skill si un portail échoue (modes/scan.md) : son API, puis scan_query, puis skipped_error et on continue ; lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué.\n' +
+      '- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante ; si la description manque, recapture avec scroll bottom ou waitForText, puis clique « plus » par sa ref et recapture.\n' +
+      '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.\n' +
+  +   '- Traiter la boîte d’entrée : career_read avec path: "data/pipeline.md" (lignes « - [ ] » de la section Pending) puis career_script puis career_write ; suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée.'
+  -   '- Traiter la boîte d’entrée : career_read avec path: "data/pipeline.md" (lignes « - [ ] » de la section Pending) puis career_script puis career_write ; suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée.\n' +
+  -   '- Confirmer une personne : browser_navigate avec url du profil ou de la recherche de personnes puis browser_snapshot ; Chrome du propriétaire déjà connecté à LinkedIn ; la recherche web peut donner le nom ; une cible est confirmée par la lecture de son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse.\n' +
+  -   '- Préparer un e-mail rédigé : email_send ; destinataire tiré de data/contacts.tsv, de l’offre ou du rapport ; sans adresse, le dire ; le bouton Envoyer reste au propriétaire.\n' +
+  -   '- Garder un message LinkedIn rédigé : linkedin_draft avec url (profil ou conversation) et text.'
+  
+      at TestContext.<anonymous> (file:///Users/diaw/Downloads/agregat-back-contacts/tests/doubt-tools.test.js:240:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Rôles des outils déclarés par le pack career-ops. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :\n- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; repli du Skill si un portail échoue (modes/scan.md) : son API, puis scan_query, puis skipped_error et on continue ; lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué.\n- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante ; si la description manque, recapture avec scroll bottom ou waitForText, puis clique « plus » par sa ref et recapture.\n- Enregistrer une offre : career_offer_save ; après lecture de l’offre.\n- Traiter la boîte d’entrée : career_read avec path: "data/pipeline.md" (lignes « - [ ] » de la section Pending) puis career_script puis career_write ; suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée.',
+    expected: 'Rôles des outils déclarés par le pack career-ops. Le prompt n’y déroge que s’il nomme l’outil, la méthode ou une phrase qu’un rôle reconnaît ; nommer un site, une entreprise ou le résultat attendu n’y déroge pas, et le rôle s’applique :\n- Chercher des offres : career_script avec command: "scan" (sans path ni args) ; repli du Skill si un portail échoue (modes/scan.md) : son API, puis scan_query, puis skipped_error et on continue ; lis ses offres dans le navigateur et dis au Bilan quels portails ont échoué.\n- Lire une offre : browser_navigate puis browser_snapshot ; une page à la fois, attends sa capture avant d’ouvrir la suivante ; si la description manque, recapture avec scroll bottom ou waitForText, puis clique « plus » par sa ref et recapture.\n- Enregistrer une offre : career_offer_save ; après lecture de l’offre.\n- Traiter la boîte d’entrée : career_read avec path: "data/pipeline.md" (lignes « - [ ] » de la section Pending) puis career_script puis career_write ; suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée.\n- Confirmer une personne : browser_navigate avec url du profil ou de la recherche de personnes puis browser_snapshot ; Chrome du propriétaire déjà connecté à LinkedIn ; la recherche web peut donner le nom ; une cible est confirmée par la lecture de son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse.\n- Préparer un e-mail rédigé : email_send ; destinataire tiré de data/contacts.tsv, de l’offre ou du rapport ; sans adresse, le dire ; le bouton Envoyer reste au propriétaire.\n- Garder un message LinkedIn rédigé : linkedin_draft avec url (profil ou conversation) et text.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

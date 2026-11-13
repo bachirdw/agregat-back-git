@@ -165,7 +165,16 @@ test('Rôles des outils : le champ est validé par le schéma du manifeste', () 
   assert.deepEqual(
     parsed.toolRoles.map((role) => role.id),
     // pipeline-01 : rôle process-inbox (boîte d'entrée, modes/pipeline.md).
-    ['search-offers', 'read-offer', 'save-offer', 'process-inbox'],
+    // contacts-courriel-01 : personne confirmée, e-mail préparé, message LinkedIn gardé.
+    [
+      'search-offers',
+      'read-offer',
+      'save-offer',
+      'process-inbox',
+      'confirm-person',
+      'prepare-email',
+      'keep-linkedin-message',
+    ],
   );
   const role = roleOf(base, 'search-offers');
   const reject = (toolRoles) =>
@@ -206,6 +215,24 @@ test('Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le
   assert.match(save.note, /après lecture/);
 });
 
+// contacts-courriel-01 (13/11) : mission réelle 0c7e33b2, l'agent du mode contacto s'est arrêté à deux
+// recherches web sans ouvrir le navigateur ; rien ne lui disait que le Chrome piloté est connecté à
+// LinkedIn, ni quel outil prépare un e-mail. Trois rôles, formulés comme des faits sur les outils.
+const CONTACT_ROLE_LINES = [
+  '- Confirmer une personne : browser_navigate avec url du profil ou de la recherche de personnes puis browser_snapshot ; Chrome du propriétaire déjà connecté à LinkedIn ; la recherche web peut donner le nom ; une cible est confirmée par la lecture de son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse.',
+  '- Préparer un e-mail rédigé : email_send ; destinataire tiré de data/contacts.tsv, de l’offre ou du rapport ; sans adresse, le dire ; le bouton Envoyer reste au propriétaire.',
+  '- Garder un message LinkedIn rédigé : linkedin_draft avec url (profil ou conversation) et text.',
+];
+test('Rôles des outils FICTIF : formatToolRoles du vrai manifeste porte personne, e-mail et LinkedIn', () => {
+  const lines = router
+    .formatToolRoles(router.skillManifestSchema.parse(manifestOf('career-ops')))
+    .split('\n');
+  for (const line of CONTACT_ROLE_LINES) assert.ok(lines.includes(line), line);
+  // Des faits sur les outils, pas des ordres qui contredisent le Skill : WebSearch reste permis.
+  const person = lines.find((line) => line.startsWith('- Confirmer une personne'));
+  assert.doesNotMatch(person, /\b(?:interdit|n’utilise pas|jamais de recherche)/i);
+});
+
 test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () => {
   assert.equal(router.formatToolRoles(undefined), '');
   assert.equal(router.formatToolRoles({ pack: 'watch', toolRoles: [] }), '');
@@ -219,6 +246,7 @@ test('Rôles des outils : formatage lisible, vide sans rôles ni manifeste', () 
       '- Enregistrer une offre : career_offer_save ; après lecture de l’offre.',
       // pipeline-01 : rôle de la boîte d'entrée.
       '- Traiter la boîte d’entrée : career_read avec path: "data/pipeline.md" (lignes « - [ ] » de la section Pending) puis career_script puis career_write ; suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée.',
+      ...CONTACT_ROLE_LINES,
     ].join('\n'),
   );
 });

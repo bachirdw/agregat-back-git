@@ -22,6 +22,23 @@ toolRoles:
     usage: 'path: "data/pipeline.md" (lignes « - [ ] » de la section Pending)'
     then: [career_script, career_write]
     note: 'suis modes/pipeline.md : balayage check-liveness, chaque « - [ ] » évaluée comme une annonce collée, puis cochée « - [x] » ou « - [!] » par career_write ; aucune ligne supprimée'
+  # contacts-courriel-01 (13/11) : mission réelle 0c7e33b2, l'agent du mode contacto s'est arrêté à
+  # deux recherches web sans ouvrir le navigateur. Des faits sur les outils, pas des ordres : la
+  # recherche web reste permise (modes/contacto.md), le Skill décide de la méthode.
+  - id: confirm-person
+    task: Confirmer une personne
+    tool: browser_navigate
+    usage: url du profil ou de la recherche de personnes
+    then: [browser_snapshot]
+    note: 'Chrome du propriétaire déjà connecté à LinkedIn ; la recherche web peut donner le nom ; une cible est confirmée par la lecture de son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse'
+  - id: prepare-email
+    task: Préparer un e-mail rédigé
+    tool: email_send
+    note: destinataire tiré de data/contacts.tsv, de l’offre ou du rapport ; sans adresse, le dire ; le bouton Envoyer reste au propriétaire
+  - id: keep-linkedin-message
+    task: Garder un message LinkedIn rédigé
+    tool: linkedin_draft
+    usage: url (profil ou conversation) et text
 intents:
   - id: evaluate
     title: Évaluer une annonce

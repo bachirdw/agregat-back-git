@@ -1,6 +1,6 @@
 # Synthèse du 05/11 au 13/11/2026 : ce qui a changé depuis le dernier envoi sur GitHub
 
-Rédigée le 13/11/2026 à 11:37 (heure lue avec `date`) par le greffier, relue et corrigée par le manager à 11:41, pour le propriétaire. Aucune donnée personnelle :
+Rédigée le 13/11/2026 à 11:37 (heure lue avec `date`) par le greffier, relue et corrigée par le manager à 11:39, pour le propriétaire. Aucune donnée personnelle :
 employeurs, offres, contacts et chemins locaux sont volontairement absents. Tout vient des rapports du dépôt ; ce qui
 est déduit est marqué « déduit ». Rien n'a été relancé pour l'écrire.
 

@@ -585,3 +585,83 @@ ce que les rapports contiennent (noms d'employeurs d'offres, trace de la candida
 aucun secret, e-mail ni téléphone), a choisi de pousser en public. Back : `cto-11-11` poussée à 11:38 comme branche à
 part, avec la synthèse `synthese-05-11-au-13-11.md`. Front : `transcription-11-11` poussée à 13:31 (9ee30ad, cinq
 commits du 11/11, crible vide). Rien n'est fusionné dans `main` ni `dev`, aucune demande de fusion ouverte.
+
+## 15. Passation de la session du 12 au 13/11 (13:35)
+
+Session du manager ouverte le 12/11 à 19:22, compactée une fois, close le 13/11 à 13:35 à la demande du
+propriétaire. La suivante repart d'ici. Ordre de lecture : cette section, puis la section 1 (règles), puis les
+sections 11 à 14 pour le détail, puis `synthese-05-11-au-13-11.md` pour la vue d'ensemble depuis le 05/11.
+
+### État laissé (vérifié à 13:32)
+
+- **Back** : branche `cto-11-11`, arbre propre, poussée sur GitHub comme branche à part. 35 commits depuis le début
+  de la session (759ca52), 60 fichiers. Aucun fichier de code n'a changé depuis d139ca0 (13/11, 00:57).
+- **Front** : branche `transcription-11-11` (9ee30ad), poussée de même, non modifiée pendant la session.
+- **Rien n'est fusionné** dans `main` ni `dev` ; aucune demande de fusion ouverte. Les deux dépôts sont publics.
+- **Ancien dossier** (`agregat-back`, branche `codex/browser-audit-31-10`) : 45 fichiers modifiés ou non suivis,
+  jamais touchés.
+- **Processus en marche** : API 4313 (lancée à 01:31 par `api-branche.sh`, code final, observation éteinte, copie
+  de l'espace career-ops), front 5176, page fictive 4321 (10 envois comptés), relais 19988 connecté au Chrome du
+  propriétaire ; API 4310 et front 5173 sur l'ancien code, non touchés. Aucune mission en cours, aucun guetteur.
+- **Suite de tests** : dernière relance à 00:57 sur d139ca0 (1 137 unitaires réussis sur 1 139, 2 ignorés ; Chrome
+  226/226 ; contrôle et format verts). Non relancée depuis.
+- **Limite d'usage** (13:33) : 29 % de la fenêtre de 5 h, 65 % de la semaine (70 % pour Fable), remise à zéro
+  hebdomadaire le 14/11 vers 11:00.
+
+### Ce que la session a fait
+
+1. Audit CTO à plusieurs agents (12 constats A1 à A12), diagnostic et sept questions au propriétaire : `nuit-12-11.md`.
+2. Correctifs du manager : E97 (garde « outil figé » et Codex), E98, E99, E89 bis, A1, A5, A9 ; script
+   `api-branche.sh` (E101).
+3. Trois sprints codeur Opus puis relecteur Opus : `envoi-issue-01`, `audit-suite-02`, `contrat-agents-01`,
+   `carte-ombre-01` ; étude de la carte d'envoi (`carte-envoi-etude-01.md`, règles R1 à R3, rien d'appliqué).
+4. Seize missions réelles sans envoi réel (dix envois fictifs par le vrai relais, six lectures), puis **le premier
+   envoi réel** par le propriétaire (section 14).
+5. Relecture de la mission 0c7e33b2 (brouillons d'e-mail et de message, contact non confirmé) : E104, E105.
+6. Envoi des deux branches sur GitHub et synthèse du 05/11 au 13/11.
+
+Fichiers de code touchés pendant la session : `apps/api/server.js` ; `packages/browser-gateway/{cdp,index}.js` et
+`send-shadow.js` (nouveau) ; `packages/orchestrator/{index,tool-guard,skill-router,browser-proof,native-actions,
+workflow-run}.js` et `tool-call.js` (nouveau) ; `packages/mcp-gateway/{outcome,server}.js` ;
+`packages/career-ops/{truth,attachments}.js` ; `packages/policy-engine/run-policy.js` ; `scripts/run-tests.js` ;
+dix-neuf fichiers de tests dont neuf nouveaux et deux fixtures (`tests/fixtures/acp-shapes/`). Outils ajoutés :
+`api-branche.sh`, `ombre-cartes.py`, `guet-lecture.py` (guetteur en lecture seule, n'accorde rien).
+
+### Décisions prises par le propriétaire pendant la session
+
+- Compartiment à éprouver par cycles courts : l'agent qui pilote le navigateur par Playwriter. La question 2 du
+  protocole (« quelle tâche navigateur réussit-il au point que tu ne relis plus sa sortie ? ») reste sans réponse.
+- Des sous-agents vont lire les dépôts de référence ; le projet open source évoqué le 11/11 est abandonné.
+- Économie de la limite : le manager délègue à des sous-agents Opus et Sonnet et n'intervient que sur le complexe.
+- Premier envoi réel joué le 13/11 : prompt et clic du propriétaire, le manager n'accorde jamais une carte.
+- Envoi sur GitHub en public, pour le back puis le front, en connaissance de ce que les rapports contiennent.
+
+### Décisions qui attendent le propriétaire
+
+1. Règle de la carte d'envoi : actuelle, R1, R2 ou R3 (l'étude recommande R3 avec R2 en filet) ; rallumer ou non
+   l'observation sur ses propres missions. Tant que ce n'est pas tranché, E100 et A7 restent ouverts et les listes
+   de mots restent gelées.
+2. Corriger E102 et E103 (Bilan faux lors de l'envoi réel) : proposé à 10:44, sans réponse.
+3. Issue d'un envoi à statuts contraires : « incertaine » (avis du manager) ou « refusé ».
+4. Fusionner la chaîne de branches dans `dev`, ou continuer en branches.
+5. Plafond de mission par défaut : 15 ou 30 min.
+6. Rejouer Gemini et OpenCode, ou rester sur Claude et Codex.
+7. Reporter dans l'espace career-ops réel la ligne « Applied » et la relance du 20/11 : elles n'existent que dans
+   la copie du scratchpad, effacée au redémarrage du Mac.
+8. Trier l'ancien dossier et ses changements non commités.
+
+### Défauts ouverts à connaître
+
+E100 (fausses cartes LinkedIn en lecture seule, troisième cycle) ; E102 et E103 ; E104 (durée et bandeau de
+silence du front pendant l'attente du propriétaire, cause supposée, front non relu) ; E105 (contact dit
+« confirmé » sans profil ouvert ; à la fin de 0c7e33b2 le Bilan range l'étape « Trouver et confirmer une cible »
+en « ignorée », sans avertir) ; A7 ; A11. À vérifier : preuve de mission d'un fil repris, clic final rendu avant
+l'accord sans champ d'issue. Jamais joué : envoi réel par Codex, lettre, fichier joint pendant la mission, autre
+site que SEEK, Gmail sur le code final.
+
+### Par où reprendre
+
+Rien ne presse côté code. La suite utile dépend des décisions 1 et 2 ; sans elles, le travail possible sans
+toucher à l'architecture est de rejouer en réel ce qui ne l'a jamais été (Codex, lettre, autre site), toujours
+avec le propriétaire devant son Chrome pour la carte. Avant tout lancement : `date`, usage de la limite, et
+vérifier que l'API 4313 tourne encore (sinon `api-branche.sh 4313 <copie de l'espace>`, voir section 7).

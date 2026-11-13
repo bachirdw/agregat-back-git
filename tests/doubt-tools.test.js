@@ -239,8 +239,8 @@ test('Rôles des outils : chercher, lire, enregistrer, comme le propriétaire le
 // recherches web sans ouvrir le navigateur ; rien ne lui disait que le Chrome piloté est connecté à
 // LinkedIn, ni quel outil prépare un e-mail. Trois rôles, formulés comme des faits sur les outils.
 const CONTACT_ROLE_LINES = [
-  '- Confirmer une personne : browser_navigate avec url du profil ou de la recherche de personnes puis browser_snapshot ; Chrome du propriétaire déjà connecté à LinkedIn ; la recherche web peut donner le nom ; une cible est confirmée par la lecture de son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse.',
-  '- Préparer un e-mail rédigé : email_send ; destinataire tiré de data/contacts.tsv, de l’offre ou du rapport ; sans adresse, le dire ; le bouton Envoyer reste au propriétaire.',
+  '- Confirmer une personne : browser_navigate avec url du profil ou de la recherche de personnes puis browser_snapshot ; Chrome du propriétaire, avec sa session LinkedIn s’il en a une ; la recherche web peut donner le nom ; cible confirmée en lisant son profil ; ni connexion ni CAPTCHA : un mur se dit dans la réponse.',
+  '- Préparer un e-mail rédigé : email_send ; destinataire donné par le prompt, ou tiré de data/contacts.tsv, de l’offre ou du rapport ; sans adresse, le dire ; le bouton Envoyer reste au propriétaire.',
   '- Garder un message LinkedIn rédigé : linkedin_draft avec url (profil ou conversation) et text.',
 ];
 test('Rôles des outils FICTIF : formatToolRoles du vrai manifeste porte personne, e-mail et LinkedIn', () => {

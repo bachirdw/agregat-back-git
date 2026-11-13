@@ -537,3 +537,100 @@ test('contacto FICTIF : passerelle MCP de fixture → route tool-outcome → « 
   await client.callTool({ name: 'browser_snapshot', arguments: { url: PROFILE } });
   assert.equal(state(), 'done');
 });
+
+// review-contacts-courriel-01 (13/11) : bornes du motif `in` (segment de chemin exact, sans hôte :
+// le schéma `urlPattern` n'en a pas). Adresses FICTIVES.
+test('relecture FICTIF : « find » non créditée par /signin, /login, /inbox, /linkedin/ ni par un paramètre « in »', () => {
+  for (const url of [
+    'https://jobs.example.test/signin',
+    'https://jobs.example.test/login/in-progress',
+    'https://jobs.example.test/inbox/',
+    'https://jobs.example.test/linkedin/ada-fictive',
+    'https://jobs.example.test/search/results/people/?in=ada-fictive',
+    'https://jobs.example.test/company/fictive/people/#/in/',
+  ])
+    assert.notEqual(findAfter([viaGateway('browser_snapshot', url)]), 'done', url);
+  // Majuscules et profil sans barre finale : créditée (lecture d'un profil).
+  assert.equal(
+    findAfter([viaGateway('browser_snapshot', 'https://jobs.example.test/IN/ada-fictive')]),
+    'done',
+  );
+  // Limite connue, laissée : un segment « in » d'un autre site (page pays, offres « /jobs/in/ ») est
+  // crédité, faute d'hôte dans le motif (changement du moteur). Avant le sprint, toute capture
+  // créditait « find » : ce faux crédit est un sous-cas de l'ancien comportement.
+  assert.equal(
+    findAfter([viaGateway('browser_snapshot', 'https://jobs.example.test/jobs/in/fictif')]),
+    'done',
+  );
+});
+
+// review-contacts-courriel-01 (13/11) : « find » reste facultative, sans `required` ni `proves` :
+// l'état final d'une mission contacto ne dépend pas d'elle. Deux recherches web seules laissent
+// « find » ignorée et `incomplete()` vide, comme avant le sprint.
+test('relecture FICTIF : contacto avec deux recherches web seules, « find » ignorée, mission non incomplète', () => {
+  const find = intentOf(CONTACT_PROMPT).steps.find((step) => step.id === 'find');
+  assert.equal(find.optional, true);
+  assert.equal(find.required, undefined);
+  assert.equal(find.proves, undefined);
+  const progress = new SkillProgress(selectSkillIntents(CONTACT_PROMPT, [career]));
+  progress.start();
+  progress.observe(viaAcp('google_web_search', { query: 'décideur Entreprise FICTIVE' }));
+  progress.observe(viaAcp('WebSearch', { query: 'décideur Entreprise FICTIVE' }));
+  const result = progress.finish();
+  assert.equal(result.steps.find((step) => step.id === 'find').state, 'skipped');
+  assert.deepEqual(progress.incomplete(), []);
+});
+
+// review-contacts-courriel-01 (13/11) : les neuf phrases ajoutées à `email` ne volent aucune demande
+// de candidature, de documents, de pipeline, de recherche ni d'évaluation (rejoués aussi sur le
+// manifeste de 694e0a2 : intention identique). Entreprises et adresses FICTIVES.
+const KEPT = [
+  ['Postule à cette offre https://acme.example/jobs/1', 'apply'],
+  ['Postule chez Acme avec mon CV et envoie la candidature', 'apply'],
+  ['Candidate chez Acme et joins mon CV', 'apply'],
+  ["Candidate à l'offre de data engineer chez Acme", 'apply'],
+  ["Reprends ma candidature chez Acme là où elle s'est arrêtée", 'apply'],
+  ['Reprends la candidature commencée hier sur https://acme.example/jobs/2', 'apply'],
+  ['Remplis le formulaire de candidature https://acme.example/apply/3', 'apply'],
+  ['Remplis ma candidature et joins mon CV adapté', 'apply'],
+  ['Joins mon CV au formulaire et postule', 'apply'],
+  ['Envoie ma candidature à Acme', 'apply'],
+  ['Envoie ma candidature par e-mail à jobs@acme.example', 'apply'],
+  ['Envoie ma candidature par mail au recruteur', 'apply'],
+  ['Postule et écris un e-mail au recruteur ensuite', 'apply'],
+  ['Postule chez Acme puis écris un mail au recruteur', 'apply'],
+  ["Soumets ma candidature sur le site d'Acme", 'apply'],
+  ['Dépose ma candidature sur https://acme.example/jobs/4', 'apply'],
+  ['Prépare ma candidature pour Acme et ouvre le formulaire', 'apply'],
+  ['Postuler à cette offre avec mon CV', 'apply'],
+  ['Candidater à cette offre https://acme.example/jobs/5', 'apply'],
+  ["Postule à l'offre et envoie un e-mail au recruteur avec ma candidature", 'apply'],
+  ['Postule, puis mail au recruteur pour le prévenir', 'apply'],
+  ['Apply to this job https://acme.example/jobs/6', 'apply'],
+  ['Apply for the data engineer role at Acme with my CV', 'apply'],
+  ['Submit my application on the Acme portal', 'apply'],
+  ['Fill out the application form and attach my resume', 'apply'],
+  ['Send my application to Acme', 'apply'],
+  ['Apply to Acme and email the recruiter afterwards', 'apply'],
+  ['Apply to this job, then email the hiring manager', 'apply'],
+  ['Submit the application and attach my tailored CV', 'apply'],
+  ['Prepare my application for Acme', 'apply'],
+  ['Apply on LinkedIn Easy Apply for this job', 'apply'],
+  ['Adapte mon CV et écris un e-mail au recruteur', 'documents'],
+  ['Rédige une lettre de motivation et un mail au recruteur', 'documents'],
+  ['Cherche des offres de data engineer et écris un mail au recruteur', 'search'],
+  ['Lance le scan des portails puis écris un e-mail', 'search'],
+  ['Traite ma pipeline et email the recruiter', 'pipeline'],
+  ['Évalue cette offre et écris un e-mail au recruteur https://acme.example/jobs/8', 'evaluate'],
+  ['Envoie un message LinkedIn au recruteur puis un mail au recruteur', 'linkedin'],
+  // Seuls changements d'intention trouvés hors des prompts du sprint (rejeu avant/après) : un e-mail
+  // au recruteur où « candidature » n'est qu'un nom ; aucun formulaire nommé.
+  ['Envoie un e-mail au recruteur avec ma candidature', 'email'],
+  ['Écris un e-mail au recruteur pour relancer ma candidature', 'email'],
+];
+test('relecture FICTIF : les phrases e-mail ne volent ni candidature, ni documents, ni recherche', () => {
+  const wrong = KEPT.filter(([prompt, expected]) => intentOf(prompt)?.id !== expected).map(
+    ([prompt, expected]) => `${prompt} → ${intentOf(prompt)?.id ?? 'aucune'} (attendu ${expected})`,
+  );
+  assert.deepEqual(wrong, []);
+});

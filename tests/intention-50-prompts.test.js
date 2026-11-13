@@ -55,7 +55,9 @@ const PROMPTS = [
   ['Écris un message LinkedIn au recruteur avant de postuler', 'linkedin', 'linkedin', 'linkedin'],
   ['Écris un message LinkedIn au recruteur, je vais postuler', 'linkedin', 'apply', 'linkedin'],
   // contacts-courriel-01 (13/11) : « e-mail au recruteur » est une demande d'e-mail (phrase du pack),
-  // comme « Write an email to the hiring manager, I plan to apply » ci-dessous ; à trancher par le manager.
+  // comme « Write an email to the hiring manager, I plan to apply » ci-dessous. Relecture : gardé, le
+  // prompt ne nomme aucun formulaire et apply n'a aucune étape `required` ; « Envoie ma candidature
+  // par e-mail » et tout verbe de candidature restent apply (tests/contacts-courriel.test.js).
   ['Envoie un e-mail au recruteur pour candidater', null, null, 'email'],
   ['Envoie un e-mail au recruteur avec ma candidature', 'apply', 'apply', 'email'],
   ['Envoie ma candidature par e-mail à jobs@acme.com', 'apply', 'apply', 'apply'],

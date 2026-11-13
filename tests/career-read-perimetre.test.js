@@ -7,6 +7,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -187,23 +188,26 @@ test('review-ecrits-01 FICTIF : échantillon absent, réponse propre et aucun do
   );
 });
 
+const TRAPS = [
+  'writing-samples//exemple-fictif.md',
+  'writing-samples/exemple-fictif.md/',
+  'writing-samples/a/b.md',
+  'writing-samples/exemple-fictif.md ',
+  ' writing-samples/exemple-fictif.md',
+  'writing-samples/x\n.md',
+  'writing-samples/exemple-fictif.md\n',
+  'writing-samples/x\u0000.md',
+  'Writing-Samples/exemple-fictif.md',
+  'writing-samples/exemple-fictif.MD',
+  'writing-samples/exemple-fictif.md.exe',
+  'AGENTS.md|writing-samples/exemple-fictif.md',
+];
 test('review-ecrits-01 FICTIF : formes piégées refusées sous writing-samples/', (t) => {
-  for (const ownerMode of [false, true]) {
+  // freins-01 : hors mode propriétaire seulement (ancien attendu : refus aussi en mode
+  // propriétaire) ; le mode propriétaire est vérifié par le test suivant.
+  for (const ownerMode of [false]) {
     const { tools } = samples(t, ownerMode);
-    for (const path of [
-      'writing-samples//exemple-fictif.md',
-      'writing-samples/exemple-fictif.md/',
-      'writing-samples/a/b.md',
-      'writing-samples/exemple-fictif.md ',
-      ' writing-samples/exemple-fictif.md',
-      'writing-samples/x\n.md',
-      'writing-samples/exemple-fictif.md\n',
-      'writing-samples/x\u0000.md',
-      'Writing-Samples/exemple-fictif.md',
-      'writing-samples/exemple-fictif.MD',
-      'writing-samples/exemple-fictif.md.exe',
-      'AGENTS.md|writing-samples/exemple-fictif.md',
-    ])
+    for (const path of TRAPS)
       assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
     for (const path of [
       'writing-samples/./exemple-fictif.md',
@@ -212,4 +216,116 @@ test('review-ecrits-01 FICTIF : formes piégées refusées sous writing-samples/
     ])
       assert.throws(() => tools.read(path), /traversée/, path);
   }
+});
+
+// freins-01 : en mode propriétaire, tout fichier régulier de l'espace se lit. Les formes piégées
+// ci-dessus lisent donc le même échantillon (le système de fichiers les résout ainsi) ou répondent
+// « absent » ; aucune ne sort de l'espace, ne crée de dossier ni ne livre de chemin absolu, et un
+// caractère de contrôle reste refusé.
+test('freins-01 FICTIF : formes piégées en mode propriétaire, lecture confinée ou absence propre', (t) => {
+  const { root, tools } = samples(t, true);
+  for (const path of TRAPS) {
+    if (/[\u0000-\u001f]/.test(path)) {
+      assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
+      continue;
+    }
+    try {
+      assert.equal(tools.read(path).text, SAMPLE, path);
+    } catch (error) {
+      assert.ok(error.code === 'ENOENT' || /absent/.test(error.message), `${path} : ${error}`);
+      assert.ok(!String(error.message).includes(root), path);
+    }
+  }
+  assert.equal(existsSync(join(root, 'writing-samples/a')), false);
+  for (const path of [
+    'writing-samples/./exemple-fictif.md',
+    'writing-samples/..md',
+    'writing-samples\\exemple-fictif.md',
+  ])
+    assert.throws(() => tools.read(path), /traversée/, path);
+});
+
+// freins-01 (13/11, « enlève tout ce qui bride l'agent ») : en mode propriétaire, tout fichier
+// régulier de l'espace se lit par career_read (sous-dossiers scripts/, lib/… compris), par la même
+// lecture confinée. Aucun secret ne part : ni .env*, ni les domiciles isolés des agents. L'écriture
+// ne change pas. Espace FICTIF.
+const ownerSpace = (t) => {
+  const { root } = workspace(t);
+  for (const dir of ['lib/sous', 'relay/agent-homes/run-fictif/codex', 'data', 'reports'])
+    mkdirSync(join(root, dir), { recursive: true });
+  writeFileSync(join(root, 'lib/sous/outil.js'), '// lib FICTIVE\n');
+  writeFileSync(join(root, 'relay/agent-homes/run-fictif/codex/auth.json'), '{"cle":"FICTIVE"}');
+  writeFileSync(join(root, 'relay/notes.json'), '{"note":"FICTIVE"}');
+  writeFileSync(join(root, 'env.local'), 'pas un secret FICTIF\n');
+  writeFileSync(join(root, 'binaire.bin'), Buffer.from([0xff, 0xfe, 0x00, 0xc3]));
+  symlinkSync(join(root, 'lib/sous/outil.js'), join(root, 'lib/lien.js'));
+  return { root, owner: new CareerTools({ path: () => root }, { ownerMode: true }) };
+};
+
+test('freins-01 FICTIF : mode propriétaire, tout fichier régulier de l’espace se lit', (t) => {
+  const { owner } = ownerSpace(t);
+  for (const [path, text] of [
+    ['scripts/x.mjs', ''],
+    ['node_modules/x/index.js', ''],
+    ['batch/batch-state.tsv', 'a\tb\n'],
+    ['lib/sous/outil.js', '// lib FICTIVE\n'],
+    ['relay/notes.json', '{"note":"FICTIVE"}'],
+    ['env.local', 'pas un secret FICTIF\n'],
+  ]) {
+    const read = owner.read(path);
+    assert.equal(read.path, path);
+    assert.equal(read.text, text, path);
+    assert.equal(read.untrusted, true, path);
+  }
+  // Un dossier se liste (refus qui nomme ses fichiers), un début de nom unique se lit.
+  assert.throws(() => owner.read('lib/sous'), /\(1\) : lib\/sous\/outil\.js\./);
+  assert.equal(owner.read('scripts/x').path, 'scripts/x.mjs');
+  // L'écriture reste celle d'avant : seuls les scripts du Skill écrivent le suivi et les rapports.
+  for (const path of [
+    'scripts/x.mjs',
+    'lib/sous/outil.js',
+    'relay/notes.json',
+    'config/cv-facts.json',
+    'batch/batch-prompt.md',
+  ])
+    assert.throws(() => owner.write(path, 'FICTIF'), /hors du périmètre/, path);
+  assert.throws(() => owner.write('data/pdf-index.tsv', 'x'), /ne s’écrit pas directement/);
+  assert.throws(
+    () => owner.write('data/applications.md', '| 1 | ligne FICTIVE |\n'),
+    /ne s’écrit pas directement/,
+  );
+  assert.throws(() => owner.write('reports/nom-libre.md', 'FICTIF'), /Rapport : nommer/);
+  assert.throws(() => owner.write('batch/autre.tsv', 'FICTIF'), /hors du périmètre/);
+});
+
+test('freins-01 FICTIF : mode propriétaire, secrets, liens et absences', (t) => {
+  const { root, owner } = ownerSpace(t);
+  for (const path of ['.env', 'config/.secret.json', 'config/../.env', 'lib/.env.local'])
+    assert.throws(() => owner.read(path), /traversée/, path);
+  for (const path of [
+    'relay/agent-homes/run-fictif/codex/auth.json',
+    'relay/agent-homes/run-fictif/codex',
+    'relay/agent-homes',
+    'lib/lien.js',
+  ])
+    assert.throws(
+      () => owner.read(path),
+      (error) => !String(error.message).includes('FICTIVE') && /hors du périmètre/.test(error),
+      path,
+    );
+  // Un fichier absent : réponse propre, sans chemin absolu, aucun dossier créé.
+  assert.throws(
+    () => owner.read('nouveau/sous/absent.md'),
+    (error) =>
+      error.code === 'ENOENT' &&
+      error.message === 'Fichier « nouveau/sous/absent.md » absent.' &&
+      !error.message.includes(root),
+  );
+  assert.equal(existsSync(join(root, 'nouveau')), false);
+  // Un fichier binaire : refus clair, pas d'erreur de décodage brute.
+  assert.throws(() => owner.read('binaire.bin'), /n’est pas un fichier texte/);
+  // Hors mode propriétaire : inchangé.
+  const other = new CareerTools({ path: () => root });
+  for (const path of ['lib/sous/outil.js', 'relay/notes.json', 'scripts/x.mjs'])
+    assert.throws(() => other.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
 });

@@ -144,7 +144,10 @@ test('mode propriétaire FICTIF : un script ou un guide à la racine du Skill se
   const owner = new CareerTools(career, { ownerMode: true });
   assert.equal(owner.read('outil-fictif.mjs').text, '// script FICTIF\n');
   assert.throws(() => owner.read('.env'));
-  assert.throws(() => owner.read('src/interne.mjs'), /hors du périmètre/);
+  // freins-01 : tout fichier régulier de l'espace se lit en mode propriétaire (ancien attendu :
+  // refus « hors du périmètre » pour src/interne.mjs) ; il ne s'écrit toujours pas.
+  assert.equal(owner.read('src/interne.mjs').text, '// FICTIF\n');
+  assert.throws(() => owner.write('src/interne.mjs', '// réécrit'), /hors du périmètre/);
   assert.throws(() => owner.write('outil-fictif.mjs', '// réécrit'), /hors du périmètre/);
   assert.throws(() => new CareerTools(career).read('outil-fictif.mjs'), /hors du périmètre/);
 });

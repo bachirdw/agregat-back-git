@@ -54,8 +54,9 @@ test('Audit FICTIF : « Je candidate » est un libellé d’envoi, « View candi
 // carte-r1-01 (E100, étude carte-envoi-etude-01, règle R1) : classification figée des libellés du
 // corpus (registre E89, E93, E100, cas C1 à C25 qui ont un libellé), en français et en anglais.
 // Avant R1, la table figeait le classement d'alors (commit 694e0a2) ; R1 retire les noms d'action
-// des listes (« publication », « soumission », « envoi », « validation »…) et fait d'un bouton à
-// menu un widget, sauf s'il est le bouton de soumission d'un formulaire. Chaque
+// des listes (« publication », « soumission », « envoi », « validation »…). review-carte-r1-01
+// (décision du manager) : un bouton à menu ou une entrée de menu qui dit un VERBE d'envoi reste
+// `candidate` comme avant R1 ; sans verbe d'envoi, c'est un widget. Chaque
 // ligne donne le classement de `ownerClickKind` pour six formes de contrôle, dans cet ordre :
 // 1 bouton hors formulaire ; 2 le même avec aria-expanded="false" (filtre déroulant) ; 3 avec
 // aria-haspopup="menu" ; 4 entrée de menu (role="menuitem") ; 5 bouton type=button dans un
@@ -82,38 +83,38 @@ const codes = (text) =>
   SHAPES.map((shape) => CODE[policy.ownerClickKind({ ...shape, text })]).join('');
 const TABLE = [
   // Vrais gestes d'envoi (C1, C12, C16, C19, C22, A7) : carte gardée.
-  ['Envoyer la candidature', 'cwwwss'],
-  ['Soumettre la candidature', 'cwwwss'],
-  ['Submit application', 'cwwwss'],
-  ['Submit', 'cwwwss'],
-  ['Postuler', 'cwwwss'],
-  ['Publier', 'cwwwss'],
-  ['Envoyer', 'cwwwss'],
-  ['Send', 'cwwwss'],
-  ['Apply', 'cwwwss'],
-  ['Apply now', 'cwwwss'],
-  ['Envoyez ma candidature', 'cwwwss'],
-  ['Je postule', 'cwwwss'],
-  ['Je candidate', 'cwwwss'],
-  ['Terminer', 'cwwwss'],
-  ['Finish', 'cwwwss'],
-  ['Done', 'cwwwss'],
-  ['Valider', 'cwwwss'],
-  ['Validez', 'cwwwss'],
-  ['Confirmer', 'cwwwss'],
-  ['Je confirme', 'cwwwss'],
-  ['Déposer', 'cwwwss'],
-  ['Publish', 'cwwwss'],
-  ['Post', 'cwwwss'],
-  ['Reply', 'cwwwss'],
-  ['Répondre', 'cwwwss'],
-  ['Envoyer le message', 'cwwwss'],
-  ['Send message', 'cwwwss'],
+  ['Envoyer la candidature', 'ccccss'],
+  ['Soumettre la candidature', 'ccccss'],
+  ['Submit application', 'ccccss'],
+  ['Submit', 'ccccss'],
+  ['Postuler', 'ccccss'],
+  ['Publier', 'ccccss'],
+  ['Envoyer', 'ccccss'],
+  ['Send', 'ccccss'],
+  ['Apply', 'ccccss'],
+  ['Apply now', 'ccccss'],
+  ['Envoyez ma candidature', 'ccccss'],
+  ['Je postule', 'ccccss'],
+  ['Je candidate', 'ccccss'],
+  ['Terminer', 'ccccss'],
+  ['Finish', 'ccccss'],
+  ['Done', 'ccccss'],
+  ['Valider', 'ccccss'],
+  ['Validez', 'ccccss'],
+  ['Confirmer', 'ccccss'],
+  ['Je confirme', 'ccccss'],
+  ['Déposer', 'ccccss'],
+  ['Publish', 'ccccss'],
+  ['Post', 'ccccss'],
+  ['Reply', 'ccccss'],
+  ['Répondre', 'ccccss'],
+  ['Envoyer le message', 'ccccss'],
+  ['Send message', 'ccccss'],
   // E100 (C9) : filtres d'une recherche en lecture seule.
   ['Date de publication', 'pwwwcs'],
   ['Toutes les publications', 'pwwwcs'],
   ['Soumission facile', 'pwwwcs'],
-  ['Easy Apply', 'cwwwss'],
+  ['Easy Apply', 'ccccss'],
   ['Candidature simplifiée', 'pwwwcs'],
   ['Date posted', 'pwwwcs'],
   ['All posts', 'pwwwcs'],
@@ -141,7 +142,7 @@ const TABLE = [
   ['Continue', 'tttwtt'],
   ['Ajouter une expérience', 'tttwts'],
   ['Add experience', 'tttwts'],
-  ['Supprimer cette expérience', 'cwwwst'],
+  ['Supprimer cette expérience', 'ccccst'],
   // Étape + nom d'action : jamais une étape (comme avant R1) ; hors formulaire, un clic ordinaire.
   ['Continuer vers la validation', 'pwwwcs'],
   ['Continuer la soumission', 'pwwwcs'],
@@ -151,7 +152,7 @@ const TABLE = [
   ['Ajouter une publication', 'pwwwcs'],
   ['Next: submission', 'tttwts'],
   // E93 (C8) : carte d'offre datée, courte ou de plus de 120 caractères.
-  ['Publication il y a 2 jours · Postuler', 'cwwwss'],
+  ['Publication il y a 2 jours · Postuler', 'ccccss'],
   ['AI Engineer Exemple FICTIF Publication il y a 2 semaines · Candidature simplifiée', 'pwwwcs'],
   [
     'Offre FICTIVE Développeur Exemple FICTIF Sydney (Sur site) Évaluation des candidatures en cours Publication il y a 2 semaines · Candidature simplifiée · Postuler',
@@ -184,10 +185,12 @@ test('carte-r1-01 FICTIF : le bouton de soumission d’un formulaire reste l’e
   // L'exception d'étape (libellé entier) reste.
   assert.equal(kind('Suivant', { buttonType: 'submit', inForm: true }), 'step');
   assert.equal(kind('Valider et continuer', { buttonType: 'submit', inForm: true }), 'step');
-  // R1 : un bouton à menu hors soumission n'est jamais un envoi, même s'il dit « Envoyer ».
-  assert.equal(kind('Envoyer', { ariaHasPopup: 'menu' }), 'widget');
+  // review-carte-r1-01 : un bouton à menu qui dit un verbe d'envoi garde sa carte ; un filtre à
+  // nom d'action (E100) est un widget.
+  assert.equal(kind('Envoyer', { ariaHasPopup: 'menu' }), 'candidate');
   assert.equal(kind('Date de publication', { ariaExpanded: 'false' }), 'widget');
-  assert.equal(kind('Easy Apply', { ariaExpanded: 'true' }), 'widget');
+  // « Easy Apply » à menu : `apply` est un verbe, carte de trop possible (comme avant R1).
+  assert.equal(kind('Easy Apply', { ariaExpanded: 'true' }), 'candidate');
   assert.equal(kind('Candidature simplifiée', { ariaExpanded: 'false' }), 'widget');
   // « Easy Apply » sans attribut de menu : rien ne le distingue du bouton qui ouvre le formulaire.
   assert.equal(kind('Easy Apply'), 'candidate');
@@ -313,7 +316,8 @@ test('carte-r1-01 FICTIF, chemin de l’agent : les filtres E100 ne font plus de
     button('Date de publication'),
     button('Toutes les publications', { ariaExpanded: 'false' }),
     button('Soumission facile'),
-    button('Easy Apply', { ariaExpanded: 'false' }),
+    button('Soumission facile', { ariaExpanded: 'false' }),
+    button('Toutes les publications', { role: 'tab' }),
     button('Candidature simplifiée', { role: 'radio' }),
   ]) {
     const click = await gatewayClick(element);
@@ -350,10 +354,28 @@ test('carte-r1-01 FICTIF, chemin de l’agent : les vrais envois gardent leur ca
     assert.equal(click.approvals, 1, text);
     assert.equal(click.outcome, 'refusé', text);
   }
-  // Bouton à menu (widget) : une écriture vers un chemin de soumission du site attend la carte.
-  const menu = await gatewayClick(button('Envoyer', { ariaHasPopup: 'menu' }));
-  assert.equal(menu.args.clickKind, 'widget');
-  assert.deepEqual(await guardAfterClick(menu.args, `${ORIGIN}/api/messages/send`), {
+  // review-carte-r1-01 : bouton à menu ou entrée de menu qui dit un verbe d'envoi : toute
+  // écriture qu'il déclenche attend la carte, même vers un chemin sans mot d'envoi.
+  for (const element of [
+    button('Envoyer', { ariaHasPopup: 'menu' }),
+    button('Envoyer', { ariaExpanded: 'false' }),
+    { tag: 'div', role: 'menuitem', inForm: false, text: 'Envoyer maintenant' },
+    { tag: 'div', role: 'menuitem', inForm: false, text: 'Send now' },
+    { tag: 'div', role: 'menuitem', inForm: false, text: 'Programmer l’envoi' },
+  ]) {
+    const menu = await gatewayClick(element);
+    assert.equal(menu.args.clickKind, 'candidate', element.text);
+    assert.deepEqual(
+      await guardAfterClick(menu.args, TELEMETRY),
+      { outcome: 'bloquée', card: true },
+      element.text,
+    );
+  }
+  // Un widget (filtre à nom d'action) : une écriture vers un chemin de soumission du site attend
+  // toujours la carte (filet de cdp.js).
+  const filter = await gatewayClick(button('Date de publication', { ariaHasPopup: 'menu' }));
+  assert.equal(filter.args.clickKind, 'widget');
+  assert.deepEqual(await guardAfterClick(filter.args, `${ORIGIN}/api/messages/send`), {
     outcome: 'bloquée',
     card: true,
   });

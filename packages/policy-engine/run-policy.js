@@ -12,8 +12,12 @@ export const SENSITIVE_WORDS =
 // publication », « Soumission facile », « Envoi », « Validation », « Confirmation ») name a filter,
 // a tab or a status, not a send : they made E93 and E100 cards. A submission trigger of a form and
 // a write to a submission path keep their card whatever the label.
+// review-carte-r1-01 : forms R1 had lost or that never matched, all verbs of a send :
+// « Confirming », « Publishing », « Validating » (as before R1) ; « Terminé », « Je termine » (a
+// trailing \b never follows « é ») ; « Renvoyer », « Resend », « Republier », « Repost » ; a send scheduled
+// or started (« Programmer l'envoi », « Planifier l'envoi », « Lancer l'envoi ») is a send.
 export const SEND_LABEL_WORDS =
-  /\b(postul(?:er|ez|e|es|ent|ons)?|candidate[rz]|je candidate|soumet\p{L}*|soumis|transmet\p{L}*|envoi(?:e|es|ent)|envoy\p{L}*|termin(?:er|ez|é|ée)|finalis(?:er|ez|e|es|ent|ons)?|finaliz(?:e|es|ed|ing)?|finish|submit\p{L}*|send(?:s|ing)?|valid(?:er|ez|e|es|ent|ons|ate|ates)?|confirm(?:er|ez|e|es|ent|ons|s|ed)?|d[ée]pos(?:er|ez|e|es|ent|ons)?|publi(?:er|ez|e|es|ent|ons|sh|shes)|r[ée]pond(?:re|ez|s|ons|e|es|ent)?|reply|post|done)\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
+  /\b(postul(?:er|ez|e|es|ent|ons)?|candidate[rz]|je candidate|soumet\p{L}*|soumis|transmet\p{L}*|(?:r[ée]?)?envoi(?:e|es|ent)|(?:r[ée]?)?envoy\p{L}*|termin(?:er|ez|e|es|ent|ons|ée)|finalis(?:er|ez|e|es|ent|ons)?|finaliz(?:e|es|ed|ing)?|finish|(?:re)?submit\p{L}*|(?:re)?send(?:s|ing)?|valid(?:er|ez|e|es|ent|ons|ate|ates|ating)?|confirm(?:er|ez|e|es|ent|ons|s|ed|ing)?|d[ée]pos(?:er|ez|e|es|ent|ons)?|(?:re)?publi(?:er|ez|e|es|ent|ons|sh|shes|shing)|r[ée]pond(?:re|ez|s|ons|e|es|ent)?|reply|(?:re)?post|done)\b|\bterminé(?![\p{L}\p{N}])|\b(?:programmer|planifier|lancer)\s+(?:l['’]\s?|un\s+|les?\s+|mon\s+)?envois?\b|\b(?:complete|compl[eé]ter)\b.{0,30}\b(?:application|candidature|dossier)\b/iu;
 // Relecture fix5 (constat 3) : conjugated and other final-send labels (« Envoyez ma candidature »,
 // « Validez », « Je confirme », « Déposer », « Publier », « Terminé », « Done », « Répondre »).
 // carte-r1-01 : the action nouns R1 took out of SEND_LABEL_WORDS still deny a step : « Continuer
@@ -294,17 +298,18 @@ export class RunPolicy {
     }
     const role = String(d.role ?? '').toLowerCase();
     // Choosing an option, a box, a tab is never a send.
-    // carte-r1-01 (R1) : nor is a menu entry or a button that opens a menu, a list or a panel,
-    // whatever its label (« Date de publication » filter, « Envoyer » opening a confirmation : the
-    // send is the control of what it opens). Only the submission trigger of a form, tested above,
-    // stays the send. A write such a click triggers to a submission path of the page's own site
-    // still waits for the card (cdp.js).
+    if (WIDGET_ROLES.has(role) && role !== 'menuitem') return 'widget';
+    // review-carte-r1-01 (décision du manager, 13/11) : a menu entry or a disclosure button that
+    // says a send (« Envoyer maintenant » of a split button, « Envoyer » with aria-expanded) may
+    // send : any write it triggers waits for the card. Any other (« Date de publication »,
+    // « Soumission facile » : no verb of a send since R1) is a widget. A card too many is better
+    // than a send without one.
     if (
-      WIDGET_ROLES.has(role) ||
+      role === 'menuitem' ||
       (d.ariaHasPopup && d.ariaHasPopup !== 'false') ||
       (d.ariaExpanded !== null && d.ariaExpanded !== undefined)
     )
-      return 'widget';
+      return sendLabel ? 'candidate' : 'widget';
     // Relecture fix5 (constat 3) : a button of a form that is no step (« Publier » of type button,
     // an icon) is at least a candidate : any write it triggers waits for the card ; one that writes
     // nothing passes.

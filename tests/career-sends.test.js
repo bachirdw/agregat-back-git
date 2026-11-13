@@ -394,11 +394,12 @@ function emailTool(career, options) {
   };
 }
 const draftArgs = () => ({
+  id: randomUUID(),
   to: 'fictif@example.test',
   subject: 'Candidature FICTIVE',
   text: 'Message FICTIF.',
 });
-test('email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id créé par le serveur', async (t) => {
+test('email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le navigateur, id exigé', async (t) => {
   const career = fixture(t);
   const opened = [];
   const tool = emailTool(career, {
@@ -408,26 +409,25 @@ test('email_send FICTIF sans SMTP : le lien de composition s’ouvre dans le nav
     },
     openProfile: async (url) => opened.push(url),
   });
-  const result = await tool.call(draftArgs());
+  const args = draftArgs();
+  const result = await tool.call(args);
   assert.equal(result.sent, false);
   assert.equal(result.opened, true);
   assert.deepEqual(opened, [result.composeUrl]);
   const compose = new URL(result.composeUrl);
   assert.equal(compose.searchParams.get('to'), 'fictif@example.test');
   assert.equal(compose.searchParams.get('body'), 'Message FICTIF.');
-  // id facultatif : un UUID créé côté serveur, celui du brouillon gardé.
-  assert.match(
-    result.draft,
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-  );
+  // Relecture : l'id de l'agent est le brouillon gardé ; sans id, refus (clé anti-doublon), rien d'ouvert.
+  assert.equal(result.draft, args.id);
   assert.match(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'), /FICTIF/);
-  // Un id donné par l'agent reste le sien.
-  const id = randomUUID();
-  assert.equal((await tool.call({ ...draftArgs(), id })).draft, id);
+  const { id: _omitted, ...withoutId } = draftArgs();
+  await assert.rejects(tool.call(withoutId));
+  assert.equal(opened.length, 1);
   // Description neutre et exacte : plus de « brouillon Gmail manuel ».
   assert.doesNotMatch(tool.description, /manuel/);
   assert.match(tool.description, /navigateur du propriétaire/);
-  assert.match(tool.description, /id facultatif/);
+  assert.match(tool.description, /anti-doublon/);
+  assert.doesNotMatch(tool.description, /facultatif/);
   assert.match(tool.description, /approbation du propriétaire/);
 });
 test('email_send FICTIF sans SMTP : un échec d’ouverture garde le brouillon et le dit', async (t) => {
@@ -465,14 +465,54 @@ test('email_send FICTIF avec SMTP : aucune ouverture, la carte d’envoi est dem
     meter: () => {},
     openProfile: async (url) => opened.push(url),
   });
-  await assert.rejects(tool.call(draftArgs()), /refusé/);
+  // Relecture : le même id sert à la nouvelle tentative après un refus, puis bloque tout doublon.
+  const args = draftArgs();
+  await assert.rejects(tool.call(args), /refusé/);
   assert.deepEqual(cards, ['email.send']);
   assert.equal(messages.length, 0);
   approved = true;
-  const sent = await tool.call(draftArgs());
+  const sent = await tool.call(args);
   assert.equal(sent.sent, true);
   assert.equal(sent.opened, undefined);
   assert.equal(messages.length, 1);
   assert.deepEqual(cards, ['email.send', 'email.send']);
+  await assert.rejects(tool.call(args), /déjà utilisé/);
+  assert.equal(messages.length, 1);
+  assert.deepEqual(cards, ['email.send', 'email.send']);
   assert.deepEqual(opened, []);
+});
+// Relecture contacts-courriel-01 : browser.navigate n'admet que 2 048 caractères ; un long texte
+// garde le brouillon, n'appelle pas le navigateur et dit pourquoi.
+test('email_send FICTIF sans SMTP : un lien de composition trop long le dit, rien n’est ouvert', async (t) => {
+  const career = fixture(t);
+  const opened = [];
+  const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+  const result = await tool.call({ ...draftArgs(), text: 'Texte FICTIF accentué é. '.repeat(120) });
+  assert.equal(result.sent, false);
+  assert.equal(result.opened, false);
+  assert.ok(result.composeUrl.length > 2048);
+  assert.match(result.openError, /brouillon gardé.*2048 au plus/i);
+  assert.deepEqual(opened, []);
+  assert.match(readFileSync(join(career.root, `drafts/${result.draft}.json`), 'utf8'), /FICTIF/);
+});
+// Relecture contacts-courriel-01 : l'adresse, l'objet et le texte passent encodés dans le lien ouvert
+// (aucun « & », « # » ni saut de ligne ne casse ou n'ajoute un paramètre).
+test('email_send FICTIF sans SMTP : lien de composition encodé, valeurs rendues à l’identique', async (t) => {
+  const career = fixture(t);
+  const opened = [];
+  const tool = emailTool(career, { config: null, openProfile: async (url) => opened.push(url) });
+  const args = {
+    ...draftArgs(),
+    subject: 'Objet FICTIF & co #1 ?x=1',
+    text: 'Ligne 1 & bcc=autre@example.test\nLigne 2 #ancre é',
+  };
+  const result = await tool.call(args);
+  const compose = new URL(opened[0]);
+  assert.equal(compose.hostname, 'mail.google.com');
+  assert.equal(compose.hash, '');
+  assert.deepEqual([...compose.searchParams.keys()].sort(), ['body', 'fs', 'su', 'to', 'view']);
+  assert.equal(compose.searchParams.get('to'), args.to);
+  assert.equal(compose.searchParams.get('su'), args.subject);
+  assert.equal(compose.searchParams.get('body'), args.text);
+  assert.equal(result.opened, true);
 });

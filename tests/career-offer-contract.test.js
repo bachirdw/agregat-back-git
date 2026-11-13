@@ -53,13 +53,8 @@ test('Le schéma MCP accepte une offre découverte sans UUID ni évaluation', as
       .isError,
     true,
   );
-  // contacts-courriel-01 (brief du 13/11) : l'UUID de l'e-mail devient facultatif (créé par le serveur
-  // s'il manque). Donné par l'agent, il reste la clé d'idempotence d'un résultat SMTP incertain
-  // (« déjà utilisé », tests/career-sends.test.js) ; sans lui, une relance redemande la carte d'envoi.
-  const emailInput = listed.find((tool) => tool.name === 'email_send').inputSchema;
-  assert.ok(emailInput.properties.id);
-  assert.ok(!(emailInput.required ?? []).includes('id'));
-  assert.ok(emailInput.required.includes('to'));
+  // Email's UUID remains mandatory: it is the stable idempotency key for uncertain SMTP outcomes.
+  assert.ok(listed.find((tool) => tool.name === 'email_send').inputSchema.required.includes('id'));
   const saved = await client.callTool({ name: 'career_offer_save', arguments: discovered() });
   assert.equal(saved.isError, undefined);
   const id = JSON.parse(saved.content[0].text).id;

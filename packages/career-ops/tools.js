@@ -1509,7 +1509,7 @@ export function registerCareerTools(
   // ouverture : l'envoi attend la carte d'approbation, comme avant.
   register(
     'email_send',
-    'Préparer un e-mail (to, subject, text ; id facultatif, créé par le serveur s’il manque). Sans SMTP configuré : brouillon gardé (drafts/<id>.json) et lien de composition Gmail prérempli (composeUrl) ouvert dans le navigateur du propriétaire ; opened dit s’il s’est ouvert ; rien n’est envoyé, le bouton Envoyer reste au propriétaire. Avec SMTP : envoi seulement après approbation du propriétaire, un message à la fois.',
+    'Préparer un e-mail (id : UUID propre à ce message, clé anti-doublon : un id déjà envoyé est refusé ; to, subject, text). Sans SMTP configuré : brouillon gardé (drafts/<id>.json) et lien de composition Gmail prérempli (composeUrl) ouvert dans le navigateur du propriétaire ; opened dit s’il s’est ouvert ; rien n’est envoyé, le bouton Envoyer reste au propriétaire. Avec SMTP : envoi seulement après approbation du propriétaire, un message à la fois.',
     emailSchema,
     async (args, signal) => {
       const result = await email.send(args, signal);
@@ -1517,6 +1517,14 @@ export function registerCareerTools(
       const kept = 'Brouillon gardé ; lien de composition non ouvert dans le navigateur';
       if (!openProfile)
         return { ...result, opened: false, openError: `${kept} (aucun navigateur)` };
+      // Relecture contacts-courriel-01 : browser.navigate n'admet que 2 048 caractères
+      // (packages/capability-registry/index.js:7) ; un texte long le dit au lieu d'un échec vague.
+      if (result.composeUrl.length > 2048)
+        return {
+          ...result,
+          opened: false,
+          openError: `${kept} (lien de ${result.composeUrl.length} caractères, 2048 au plus pour le navigateur)`,
+        };
       try {
         await openProfile(result.composeUrl);
         return { ...result, opened: true };

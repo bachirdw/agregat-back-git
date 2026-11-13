@@ -801,13 +801,22 @@ export class CareerTools {
       throw folderRefusal(this.career.path(), path) ?? error;
     }
     let bytes;
+    // review-ecrits-01 : writing-samples/ belongs to the owner's layer (DATA_CONTRACT.md), read-only.
+    // An absent file there answered the raw ENOENT, absolute workspace path included ; it now
+    // answers like an optional file of that layer. An absent folder is not created by the read
+    // either (readConfined makes the missing folders of its path).
+    const sample = path.startsWith('writing-samples/');
     try {
+      if (sample) lstatSync(resolve(this.career.path(), 'writing-samples'));
       bytes = readConfined(this.career.path(), path, 10 * 1024 * 1024);
     } catch (e) {
       // A file the pack declares optional, and any file of the owner's layer (article-digest.md,
       // voice-dna.md, data/pipeline.md, data/pdf-index.tsv…: « if exists » in the Skill), is absent
       // until the Skill creates it: a normal state, not a failure. System files stay errors.
-      if (e.code !== 'ENOENT' || !(this.optionalFiles.includes(path) || userPath.test(path)))
+      if (
+        e.code !== 'ENOENT' ||
+        !(this.optionalFiles.includes(path) || userPath.test(path) || sample)
+      )
         throw e;
       return {
         path,

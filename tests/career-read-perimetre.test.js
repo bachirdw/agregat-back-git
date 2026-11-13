@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CareerTools } from '../packages/career-ops/tools.js';
@@ -154,4 +162,54 @@ test('ecrits-01 FICTIF : les refus existants ne bougent pas', (t) => {
     assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
   for (const path of ['writing-samples/../cv.md', 'writing-samples/.cache.md'])
     assert.throws(() => tools.read(path), /traversée/, path);
+});
+
+// review-ecrits-01 : un fichier absent de writing-samples/ répondait l'ENOENT brut de Node, chemin
+// absolu de l'espace compris ; il répond désormais « absent » comme la couche utilisateur, sans créer
+// le dossier quand il manque. Les formes de chemin piégées restent refusées. Données FICTIVES.
+test('review-ecrits-01 FICTIF : échantillon absent, réponse propre et aucun dossier créé', (t) => {
+  for (const ownerMode of [false, true]) {
+    const { root, tools } = samples(t, ownerMode);
+    const read = tools.read('writing-samples/absent-fictif.md');
+    assert.equal(read.absent, true);
+    assert.equal(read.text, '');
+    assert.ok(!JSON.stringify(read).includes(root));
+    rmSync(join(root, 'writing-samples'), { recursive: true });
+    const none = tools.read('writing-samples/absent-fictif.txt');
+    assert.equal(none.absent, true);
+    assert.equal(existsSync(join(root, 'writing-samples')), false);
+  }
+  // Un fichier système absent garde son erreur d'avant.
+  const { tools } = samples(t);
+  assert.throws(
+    () => tools.read('docs/absent-fictif.md'),
+    (error) => error.code === 'ENOENT',
+  );
+});
+
+test('review-ecrits-01 FICTIF : formes piégées refusées sous writing-samples/', (t) => {
+  for (const ownerMode of [false, true]) {
+    const { tools } = samples(t, ownerMode);
+    for (const path of [
+      'writing-samples//exemple-fictif.md',
+      'writing-samples/exemple-fictif.md/',
+      'writing-samples/a/b.md',
+      'writing-samples/exemple-fictif.md ',
+      ' writing-samples/exemple-fictif.md',
+      'writing-samples/x\n.md',
+      'writing-samples/exemple-fictif.md\n',
+      'writing-samples/x\u0000.md',
+      'Writing-Samples/exemple-fictif.md',
+      'writing-samples/exemple-fictif.MD',
+      'writing-samples/exemple-fictif.md.exe',
+      'AGENTS.md|writing-samples/exemple-fictif.md',
+    ])
+      assert.throws(() => tools.read(path), /^Error: Fichier hors du périmètre career-ops$/, path);
+    for (const path of [
+      'writing-samples/./exemple-fictif.md',
+      'writing-samples/..md',
+      'writing-samples\\exemple-fictif.md',
+    ])
+      assert.throws(() => tools.read(path), /traversée/, path);
+  }
 });

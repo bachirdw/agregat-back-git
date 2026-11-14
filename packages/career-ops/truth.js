@@ -385,9 +385,13 @@ const exitFailed = (output) => exitFailedOf(output);
 // A negation (« ne … pas », « n’… rien », « don't ») covers its own clause only: it stops at
 // « mais », « puis », « et », « but », « and » or the punctuation, so « Ne fais pas de brouillon
 // mais envoie l'email » keeps « envoie l'email ».
+// cartes-14-11 (D) : « sans » denies its clause too (« sans rien envoyer », « sans envoyer de
+// courriel ») ; not in the phrases that deny nothing (« sans oublier », « sans faute », « sans
+// attendre », « sans tarder »).
 const CLAUSE = String.raw`(?:(?!(?:^|[^\p{L}])(?:mais|puis|et|but|and)(?=$|[^\p{L}]))[^.!?;,])`;
+const SANS = String.raw`(?<![\p{L}])sans(?=$|[^\p{L}])(?!\s+(?:oublier|faute|attendre|tarder)(?![\p{L}]))`;
 const NEGATED = new RegExp(
-  String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout)(?=$|[^\p{L}])${CLAUSE}*`,
+  String.raw`(?:\bne\b|\bn['’])${CLAUSE}{0,90}?(?:\bpas\b|\brien\b|\baucun\b)${CLAUSE}*|(?:\bdon['’]?t|\bdo not|\bnever|\bwithout|${SANS})(?=$|[^\p{L}])${CLAUSE}*`,
   'giu',
 );
 export const withoutNegations = (prompt) => String(prompt ?? '').replace(NEGATED, ' ');

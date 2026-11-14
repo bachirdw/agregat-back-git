@@ -427,3 +427,44 @@ Ce qui n'est pas vérifié
 20. (15:16) Mesures absentes : usage de la limite jamais relevé pendant la session (le propriétaire avait levé la
     contrainte) ; coûts fournisseurs des huit missions non mesurés ; `.manager/api-usage.md` non complété.
 
+
+## Suite du 14/11 (18:53 → 21:10), avec le propriétaire
+
+Session reprise le 14/11 à 18:53. Le propriétaire teste à la main sur 5177 (API d'essai 4314) ; le manager délègue (codeurs et relecteurs Opus, guetteur Sonnet), contrôle et intègre.
+
+### Fait et intégré dans `contacts-13-11` (back) et `e104-13-11` (front)
+- `64cce94` : CLAUDE.md, règle « un clic par mission ».
+- Sprint `libelles-14-11` + relecture (`9721d88`, `15bc9c1`, `365040b` ; front `43783f7`, `d0d2658`), sur ordre du propriétaire (« Oui, corrige tout ») après enquête sur la mission 1ff79dc2 :
+  1. Bilan : « Écritures réseau de la page (hors envoi final) : N … ; sites : … » au lieu de « Requêtes réseau d'envoi » ; journal du front « Écriture réseau de la page : hôte ».
+  2. `browser_extract` : `[role=X]` trouve aussi le rôle implicite (`<dialog>` natif) ; message clair à l'échéance.
+  3. Pack : phrases « e-mail de prise de contact » sur l'intention `email` ; Bilan : ligne « E-mail : hors du parcours suivi… ». Décision du manager : les phrases génériques « écris un e-mail » ont été retirées (les prompts mixtes restent sur `linkedin`).
+  4. « Envoi par la plateforme : aucun demandé. » quand aucune carte n'a été présentée et qu'aucun envoi n'est ordonné ; le front n'avertit plus.
+- `8d22524` : lanceur `api-branche.sh`, délai maximal d'une mission 30 min → 2 h (la mission de recherche d24511ff a été coupée en plein travail à 20:30, « Délai maximal dépassé »).
+- Sprint `orienter-14-11` + relecture (`3666021`, `d6258d0` ; front `cd8f5bc`, `7b2716c`), demandé par le propriétaire : message du propriétaire pendant une mission. Route `POST /api/runs/:id/message`, événement `owner_message`, remise par l'extension ACP `_session/steering` (Claude, Codex) quand un tour est en cours sans carte ni question, sinon tour supplémentaire en fin de tour dans la même session ; joint au tour de réponse si une question est ouverte ; ligne au Bilan ; `ownerWords()` (prompt + messages remis) pour les détections. Front : « Envoyer à l'agent », bulle « Vous, pendant la mission ». Documentation : `docs/api-message.md`.
+
+### Codé, relu, contrôlé, NON intégré (attend l'accord du propriétaire)
+- Sprint `cartes-14-11` + relecture (arbre `~/Downloads/agregat-back-cartes`, `6f2f291`, `b47bb14`, `cbd94f5`, `5861f20`, `3bf7af7`), E112 à E115 : (A) navigation tierce d'un cadre enfant après un geste qui n'est pas un envoi et sans donnée de l'agent : bloquée en silence ; (B) Entrée dans une zone de recherche d'une ligne : `widget` au lieu de `candidate` ; (C) une saisie de recherche n'arme plus la règle des 100 ko ; (D, commit séparé) « sans » lu comme négation au Bilan. Limite épinglée par un test : un champ de message d'une ligne déclaré zone de recherche qui écrit vers un chemin sans mot d'envoi passe sans carte (avant : carte).
+
+### Contrôles du manager (relances personnelles)
+- libelles : unitaires 1 241 tests, 1 239 réussis, 0 échec, 2 ignorés ; `browser-gateway` 79/79, `owner-browser` 42/42 ; front 215/215 ; check et format verts.
+- orienter : unitaires 1 266 / 1 264 / 0 / 2 ; front 242/242, tsc et prettier verts ; sur l'API relancée : route 404 (mission inconnue) et 409 (mission terminée) constatées.
+- cartes : unitaires 1 257 / 1 255 / 0 / 2 ; `cartes-recherche` 9/9, `review-cartes-recherche` 12/12, `audit-nav-fix5` 17/17, `audit-nav-tour2` 9/9, `accord-mission-chrome` 2/2, `audit-nav-carte-envoi` 6/6 ; check et format verts.
+- NON fait : la suite Chrome complète (`npm test`) n'a pas tourné le 14/11 (le propriétaire avait des missions dans son navigateur) ; la phase unitaire n'a pas été relancée sur la branche après l'intégration d'orienter au-dessus de `8d22524` (les deux ne touchent pas les mêmes fichiers) ; aucun essai réel des correctifs du jour ni du message en cours de mission avec un vrai agent.
+
+### Enquêtes en lecture seule (résultats)
+- Mission 1ff79dc2 (LinkedIn) : étape « enregistrer » non créditée à bon droit (le brouillon écrit dans `output/` n'est pas demandé par le Skill) ; `find` créditée par une vraie lecture de profil ; question au propriétaire légitime.
+- « 3 000 offres » : c'est le total vu par `scan.mjs` sur 29 sites Greenhouse (historique `scan-history.tsv`, 98 % écartées sur le titre ou le lieu), pas la boîte d'entrée (61 en attente). Le scan SEEK du Skill échoue à chaque passage ; Indeed et LinkedIn n'ont pas de fournisseur ; les offres neuves viennent du navigateur. Une mission ne suit qu'une intention : la recherche n'enchaîne pas sur le tri (E54).
+- Mission d24511ff (recherche) : carte d'envoi ouverte à tort sur un traceur publicitaire (formulaire caché d'un cadre vers un tiers après un clic de filtre) ; accord de mission donné par le propriétaire sur cette carte ; 14 `send_auto` vers le site d'emploi après une touche Entrée dans le champ de recherche (aucun envoi réel) ; d'où le sprint `cartes-14-11`.
+
+### Erreurs et problèmes (suite de la numérotation)
+21. L'API d'essai 4314 et le front 5177 étaient tombés avec la session précédente ; relancés à 18:55.
+22. Le guetteur a été arrêté par le mode plan (19:03 → 19:16), puis s'est arrêté sur l'échec de d24511ff (20:31). Son rapport : `guet-14-11.md`. Deux de ses doutes étaient des artefacts de son outil (« aucune page lisible ») : les preuves de lecture existaient.
+23. Le codeur du sprint libellés avait ajouté des phrases « écris un e-mail » qui faisaient basculer des prompts mixtes vers `email` : vu par le relecteur, retiré sur décision du manager.
+24. Le codeur du sprint cartes a failli lancer toute la suite Chrome pendant une mission réelle (commande refusée avant exécution).
+25. Le manager a arrêté l'API 4314 avant d'avoir appliqué son changement du lanceur (modification refusée faute de lecture préalable du fichier) : API indisponible une minute environ vers 20:32, sans mission en cours.
+26. Le manager a lu trop d'événements bruts dans sa propre fenêtre en cherchant le clic de la carte (sortie non bornée) : à déléguer ou borner.
+27. Ouverts, non traités : Bilan d'une mission en échec muet sur les envois accordés (d24511ff : 15 `send_auto`, aucune ligne d'envoi) ; écart de comptes entre le Bilan et `bilan-vs-events.mjs` sur cette mission ; note « lien cité sans lecture prouvée » alors que la page redirigée a été lue (f0beb3b4) ; deux clics en échec sur une case masquée (« élément invisible ou désactivé ») ; routage d'intention qui lit encore « sans » à l'ancienne (`skill-router.js`).
+
+### API et arbres
+- API d'essai 4314 relancée trois fois le 14/11 (20:32, 20:33, 20:54), toujours sans mission en cours. Elle s'arrête avec la session du manager.
+- Arbres de sprint à ranger : `agregat-back-libelles`, `agregat-back-cartes`, `agregat-back-orienter`, `agregat-front-libelles`, `agregat-front-orienter` (en plus de ceux du 13/11).

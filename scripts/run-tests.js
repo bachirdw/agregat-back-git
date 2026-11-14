@@ -33,6 +33,8 @@ const BROWSER = new Set([
   'accord-mission-chrome.test.js',
   // cartes-14-11 : recherche d'offres sans carte (traceur dans un cadre, Entrée de recherche).
   'cartes-recherche.test.js',
+  // review-cartes-14-11 : envois possibles autour d'une recherche, pixel qui recopie la requête.
+  'review-cartes-recherche.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

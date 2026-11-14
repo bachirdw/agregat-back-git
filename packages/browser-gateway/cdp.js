@@ -1571,8 +1571,11 @@ export class CdpBrowser {
           this.sendClick !== true &&
           request.isNavigationRequest() &&
           childFrame(request) &&
+          // review-cartes-14-11 : an ad pixel sends the page's address, which holds the search the
+          // agent typed in a search zone ; that search alone is no data of the agent here (it still
+          // counts everywhere else). A value also typed in any other field counts.
           !carriesAgentData(request, {
-            values: this.agentValues ?? [],
+            values: (this.agentValues ?? []).filter((value) => !this.searchOnlyValues?.has(value)),
             files: this.agentFiles ?? [],
           })
         ) {
@@ -1953,8 +1956,10 @@ export class CdpBrowser {
         (this.agentInputFields ??= new Set()).add(key);
         this.agentInputPage = pageKey(this.page.url());
       }
+      return search;
     } catch {
       /* the action itself reports a missing ref */
+      return false;
     }
   }
   // Relecture fix5 (constat 4) : the frame of the agent's last action (an iframe of another site
@@ -1963,11 +1968,16 @@ export class CdpBrowser {
     this.actionFrameUrl = await locator.evaluate(() => location.href).catch(() => null);
   }
   // A value the agent typed : a third-party frame must not carry it out without a card.
-  #rememberAgentValue(text) {
+  // review-cartes-14-11 : `search` says the value was typed in a one-line field of a search zone
+  // (the reading of #markAgentField) ; such a value alone is left out of decision A of the guard.
+  #rememberAgentValue(text, search = false) {
     if (typeof text !== 'string' || text.trim().length < 3) return;
+    const elsewhere = !!this.agentValues?.includes(text) && !this.searchOnlyValues?.has(text);
     this.agentValues = [...(this.agentValues ?? []).filter((value) => value !== text), text].slice(
       -40,
     );
+    if (search && !elsewhere) (this.searchOnlyValues ??= new Set()).add(text);
+    else this.searchOnlyValues?.delete(text);
   }
   async submissionPreview(target) {
     if (!this.page) return null;
@@ -2321,8 +2331,7 @@ export class CdpBrowser {
     return { selected };
   }
   async #fillText(ref, text) {
-    await this.#markAgentField(ref);
-    this.#rememberAgentValue(text);
+    this.#rememberAgentValue(text, await this.#markAgentField(ref));
     // Filling a field is not a send; same-site autosave stays automatic.
     // fill() works in a hidden tab (it needs no rendering frame), unlike keyboard input.
     const target = await this.targetLocator({ ref: ref });
@@ -3213,6 +3222,7 @@ export class CdpBrowser {
     this.uploadedFile = null;
     this.agentFiles = null;
     this.agentValues = null;
+    this.searchOnlyValues = null;
     this.actionFrameUrl = null;
   }
 }

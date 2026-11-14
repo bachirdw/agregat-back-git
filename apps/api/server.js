@@ -208,7 +208,7 @@ export function createApp({
           store.list().map((run) => ({ ...run, title: run.title ?? missionTitle(run.prompt) })),
         );
       const match = path.match(
-        /^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume|answer))?$/,
+        /^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume|answer|message))?$/,
       );
       if (match) {
         const [, id, action] = match;
@@ -402,6 +402,15 @@ export function createApp({
           throw e;
         }
         return json(res, 200, { ok: true });
+      }
+      if (match?.[2] === 'message') {
+        // orienter-14-11 : a message of the owner to the agent of a running mission.
+        try {
+          return json(res, 202, await engine.message(match[1], body?.text));
+        } catch (e) {
+          if ([400, 404, 409].includes(e.status)) return json(res, e.status, { error: e.message });
+          throw e;
+        }
       }
       if (match?.[2] === 'cancel') {
         engine.cancel(match[1]);

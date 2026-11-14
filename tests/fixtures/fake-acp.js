@@ -12,6 +12,13 @@
 // handler. doneFile: written once the hand-over is complete (decision received, MCP call answered).
 // nativeTools: ACP tool_call updates of the agent's own tools (E63), sent as given before the answer
 // (padBytes: rawOutput of that many bytes).
+// orienter-14-11 : steering: 'injected' | 'promptRequired' | 'startedNewTurn' | 'error' announces
+// `_meta.steering.supported` at initialize and answers each `_session/steering` request so ;
+// steerFile: the steering requests received (JSON array) ; holdTurn: {goFile, releaseOnSteer?} the
+// first turn shows itself (a thought chunk), then stays open until goFile exists (or, with
+// releaseOnSteer, until a message is injected) ; its answer quotes the injected messages.
+// promptsFile: every prompt received (JSON array). A turn {"platform":{"turnKind":"owner_message"}}
+// answers by quoting its ownerMessage.
 import {
   agent,
   methods,
@@ -36,6 +43,9 @@ const state = { mode: null, model: null };
 // MCP servers the platform declared at session/new or session/load (composeTool calls one).
 let mcpServers = [];
 const never = () => new Promise(() => {});
+const steerings = [];
+const steered = [];
+const prompts = [];
 const guard = async (method) => {
   calls.push(method);
   if (cfg.crashOn === method) process.exit(3);
@@ -96,6 +106,7 @@ const app = agent({ name: 'fake-acp' })
         promptCapabilities: {},
         mcpCapabilities: { http: !!cfg.http, sse: false },
       },
+      ...(cfg.steering ? { _meta: { steering: { supported: true } } } : {}),
       authMethods:
         cfg.authRequired || cfg.authMethods ? [{ id: 'fake-key', name: 'Fake key' }] : [],
     };
@@ -160,6 +171,18 @@ const app = agent({ name: 'fake-acp' })
       return {};
     },
   )
+  .onRequest(
+    '_session/steering',
+    z.object({ sessionId: z.string(), prompt: z.array(z.any()) }).passthrough(),
+    async (ctx) => {
+      await guard('_session/steering');
+      steerings.push(ctx.params);
+      if (cfg.steerFile) writeFileSync(cfg.steerFile, JSON.stringify(steerings));
+      if (cfg.steering === 'error') throw new RequestError(-32603, 'Steering FICTIF en échec');
+      if (cfg.steering === 'injected') steered.push(String(ctx.params.prompt[0]?.text ?? ''));
+      return { outcome: cfg.steering };
+    },
+  )
   .onNotification(methods.agent.session.cancel, () => {
     calls.push('session/cancel');
     if (cfg.cancelFile) writeFileSync(cfg.cancelFile, 'session/cancel');
@@ -169,6 +192,46 @@ const app = agent({ name: 'fake-acp' })
     await guard('session/prompt');
     // promptFile: keeps the exact prompt the platform sent, for tests that read what the agent receives.
     if (cfg.promptFile) writeFileSync(cfg.promptFile, ctx.params.prompt[0].text);
+    prompts.push(ctx.params.prompt[0].text);
+    if (cfg.promptsFile) writeFileSync(cfg.promptsFile, JSON.stringify(prompts));
+    let turnRequest = null;
+    try {
+      turnRequest = JSON.parse(String(ctx.params.prompt[0].text));
+    } catch {
+      /* Not JSON. */
+    }
+    if (turnRequest?.platform?.turnKind === 'owner_message') {
+      if (cfg.callsFile) writeFileSync(cfg.callsFile, JSON.stringify(calls));
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: JSON.stringify({
+              simulated: true,
+              summary: `Message reçu FICTIF : ${turnRequest.ownerMessage}`,
+              evidence: [],
+            }),
+          },
+        },
+      });
+      return { stopReason: 'end_turn' };
+    }
+    if (cfg.holdTurn && prompts.length === 1) {
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_thought_chunk',
+          content: { type: 'text', text: 'Je travaille FICTIF.' },
+        },
+      });
+      while (
+        !(cfg.holdTurn.goFile && existsSync(cfg.holdTurn.goFile)) &&
+        !(cfg.holdTurn.releaseOnSteer && steered.length)
+      )
+        await new Promise((r) => setTimeout(r, 20));
+    }
     for (const expected of cfg.expectInstructions ?? [])
       if (!JSON.stringify(ctx.params.prompt).includes(expected))
         throw new RequestError(-32000, 'Consigne absente : ' + expected);
@@ -460,7 +523,17 @@ const app = agent({ name: 'fake-acp' })
       sessionId: ctx.params.sessionId,
       update: {
         sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text: JSON.stringify(cfg.result ?? report) },
+        content: {
+          type: 'text',
+          text: JSON.stringify(
+            cfg.result && steered.length
+              ? {
+                  ...cfg.result,
+                  summary: `${cfg.result.summary} ; orienté : ${steered.join(' | ')}`,
+                }
+              : (cfg.result ?? report),
+          ),
+        },
       },
     });
     if (cfg.stderrSecret) process.stderr.write('leak ' + (process.env.GEMINI_API_KEY ?? '') + '\n');

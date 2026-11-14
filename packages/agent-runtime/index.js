@@ -14,6 +14,10 @@ export { sessionModels, sessionModes, agentCapabilities } from './capabilities.j
 
 // Gemini CLI implements the unstable model switch under this method name (acpRpcDispatcher.ts).
 export const SET_SESSION_MODEL = 'session/set_model';
+// orienter-14-11 : ACP steering extension (claude-agent-acp, codex-acp) : injects an owner's message
+// into the running turn. Announced by `initialize._meta.steering.supported`.
+export const SESSION_STEERING = '_session/steering';
+const STEER_TIMEOUT_MS = 15000;
 
 export class AgentTimeoutError extends Error {
   constructor(method, ms) {
@@ -442,6 +446,56 @@ export class AcpRuntime {
     if (this.stopped || !this.sessionId || this.promptActive) return false;
     this.ready = true;
     return true;
+  }
+  // orienter-14-11 : the agent announces the steering extension at initialize (top-level _meta).
+  get steeringSupported() {
+    return this.info?._meta?.steering?.supported === true;
+  }
+  // Injects `text` into the running turn (`_session/steering`). `idleBehavior: 'promptRequired'`
+  // asks the agent to start nothing when no turn runs (claude-agent-acp honours it ; codex-acp
+  // ignores it and may answer `startedNewTurn`). Never closes the runtime : a timeout, an error or
+  // an exit is answered `failed` and the caller keeps the message for the end of the turn.
+  async steer(text, { timeoutMs = STEER_TIMEOUT_MS } = {}) {
+    if (this.stopped || !this.sessionId || !this.connection) return { outcome: 'unavailable' };
+    if (!this.steeringSupported) return { outcome: 'unsupported' };
+    const local = new AbortController();
+    let timer;
+    try {
+      const response = await Promise.race([
+        this.connection.agent.request(
+          SESSION_STEERING,
+          {
+            sessionId: this.sessionId,
+            prompt: [{ type: 'text', text }],
+            _meta: { steering: { idleBehavior: 'promptRequired' } },
+          },
+          { cancellationSignal: local.signal },
+        ),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('steering : délai dépassé')), timeoutMs);
+          timer.unref?.();
+        }),
+        this.exited,
+      ]);
+      const outcome = typeof response?.outcome === 'string' ? response.outcome : 'unknown';
+      return { outcome };
+    } catch (e) {
+      local.abort();
+      return {
+        outcome: 'failed',
+        error: redact(String(e?.message ?? e), this.secrets).slice(0, 200),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  // orienter-14-11 : stops a turn the agent started on its own from a steering request
+  // (`startedNewTurn`), which no session/prompt of ours follows. Turn state left untouched.
+  cancelDetachedTurn() {
+    if (this.sessionId && !this.stopped)
+      this.connection?.agent
+        .notify(methods.agent.session.cancel, { sessionId: this.sessionId })
+        .catch(() => {});
   }
   cancel() {
     this.promptActive = false;

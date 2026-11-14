@@ -284,6 +284,42 @@ export function verificationScope(packId, simulated, observedBrowser = false) {
 const MAX_QUESTIONS = 10;
 const ANSWER_TURN =
   'Réponse du propriétaire à ta question ; poursuis la mission dans cette session.';
+// orienter-14-11 : messages the owner types while a mission runs (« orienter l'IA »).
+const OWNER_MESSAGE_LABEL = 'Message du propriétaire pendant la mission';
+const OWNER_MESSAGE_TURN =
+  'Message du propriétaire reçu pendant la mission ; tiens-en compte pour la suite de la même mission, dans cette session (ce n’est pas une nouvelle mission). Ta réponse de ce tour remplace la précédente : reprends-y l’essentiel de ce qui a été fait.';
+const ANSWER_WITH_OWNER_MESSAGE =
+  ' Le message du propriétaire joint (ownerMessage) n’est pas la réponse à ta question : tiens-en compte pour la suite de la mission.';
+const MAX_OWNER_MESSAGE_CHARS = 8000;
+// Turns added for owner messages, each carrying every message waiting : at most this many.
+const MAX_OWNER_MESSAGE_TURNS = 20;
+const OWNER_MESSAGE_LINES = 10;
+const clockTime = (iso) => new Date(iso).toTimeString().slice(0, 5);
+const ownerMessageText = (messages) =>
+  messages.map((m) => `${OWNER_MESSAGE_LABEL} (${clockTime(m.at)}) : ${m.text}`).join('\n\n');
+const steeringText = (text) =>
+  `${OWNER_MESSAGE_LABEL} : ${text}\n\nTiens-en compte pour la suite de la même mission, dans cette session (ce n’est pas une nouvelle mission).`;
+const OWNER_MESSAGE_VIA = {
+  steering: 'pendant le tour',
+  turn_end: 'en fin de tour',
+  with_answer: 'avec la réponse',
+};
+// Bilan : one platform line per message, bounded.
+export function formatOwnerMessageLines(messages) {
+  const line = (m) =>
+    m.state === 'delivered'
+      ? `Message du propriétaire reçu à ${clockTime(m.at)}, remis à ${clockTime(m.deliveredAt)} (${OWNER_MESSAGE_VIA[m.via] ?? m.via}).`
+      : `Message du propriétaire reçu à ${clockTime(m.at)}, non remis.`;
+  const shown = messages.slice(0, OWNER_MESSAGE_LINES).map(line);
+  const rest = messages.slice(OWNER_MESSAGE_LINES);
+  if (rest.length) {
+    const delivered = rest.filter((m) => m.state === 'delivered').length;
+    shown.push(
+      `… et ${rest.length} autre(s) message(s) du propriétaire (remis : ${delivered}, non remis : ${rest.length - delivered}).`,
+    );
+  }
+  return shown;
+}
 const SESSION_LOST =
   /invalid session|unknown session|no such session|session[^.]{0,40}(?:not found|introuvable|does not exist)/i;
 // browser_navigate is the MCP spelling of browser.navigate; other tools keep their own name.
@@ -1184,6 +1220,15 @@ export class Orchestrator {
     let gatewayServers = [];
     const observedToolIds = new Set();
     let promptStarted = false;
+    // orienter-14-11 : the owner's messages of this mission ; what the owner asked is the prompt
+    // plus the messages handed over to the agent.
+    control.ownerMessages ??= { list: [], closed: false, steering: null };
+    const ownerWords = () => {
+      const delivered = control.ownerMessages.list
+        .filter((m) => m.state === 'delivered')
+        .map((m) => m.text);
+      return delivered.length ? [run.prompt ?? '', ...delivered].join('\n') : run.prompt;
+    };
     // A reprise continues the same mission: what its earlier executions proved (pages read, a job
     // description read) still counts. A new mission starts from nothing.
     const inherited = (previous?.id && this.store.get(previous.id)?.missionProof) || null;
@@ -1385,6 +1430,9 @@ export class Orchestrator {
           // session/load replays old updates before the new prompt. They are not work,
           // usage, permissions or evidence from this run.
           if (!promptStarted) return;
+          control.lastUpdateAt = Date.now();
+          // A message waiting since before the agent showed its turn is steered once it does.
+          if (control.ownerMessages.list.length) this.flushOwnerMessages(run.id);
           rateLimit =
             rateLimitState(update) ?? (rateLimitState(update) === null ? null : rateLimit);
           if (update.sessionUpdate === 'tool_call' && update.toolCallId) {
@@ -1535,7 +1583,13 @@ export class Orchestrator {
         control.promptStarted = true;
         skillProgress.start();
         armSilence();
-        response = await runtime.prompt(prompt, control.abort.signal);
+        control.turnActive = true;
+        control.turnStartedAt = Date.now();
+        try {
+          response = await runtime.prompt(prompt, control.abort.signal);
+        } finally {
+          control.turnActive = false;
+        }
         clearSilence();
       } catch (e) {
         if (!plan.simulated && AUTH_REFUSAL.test(String(e.message ?? '')))
@@ -1596,10 +1650,56 @@ export class Orchestrator {
       // bilan-06 (E52) : so does a last paragraph that asks the owner to decide, in plain prose.
       const questionCount = { asked: 0, answered: 0 };
       let closingLine = '';
+      // orienter-14-11 : one more turn in the same session, as the answer to a question.
+      const nextTurn = async (payload) => {
+        control.turnActive = true;
+        control.turnStartedAt = Date.now();
+        try {
+          return await runtime.prompt(payload, control.abort.signal);
+        } finally {
+          control.turnActive = false;
+        }
+      };
+      let ownerMessageTurns = 0;
       for (;;) {
+        // A steering request still in flight is answered before the turn is read as over.
+        if (control.ownerMessages.steering) await control.ownerMessages.steering;
         const { question: structured, ...rest } = agentValue;
         const question = structured ?? decisionRequest(rest.summary);
-        if (!question) break;
+        if (!question) {
+          // Messages of the owner not taken into the turn : one more turn carries them all.
+          const waiting = this.pendingOwnerMessages(control);
+          if (!waiting.length || ownerMessageTurns >= MAX_OWNER_MESSAGE_TURNS) break;
+          ownerMessageTurns++;
+          if (!runtime.continueSession())
+            throw new Error('Session de l’agent fermée avant le message du propriétaire');
+          // A turn the agent started on its own from a steering request was stopped : its last
+          // updates are let through before this turn's answer is read (bounded).
+          if (control.detachedTurnAt) {
+            const until = Date.now() + 5000;
+            while (Date.now() < until && Date.now() - (control.lastUpdateAt ?? 0) < 500)
+              await new Promise((done) => setTimeout(done, 50));
+          }
+          text = '';
+          afterTool = false;
+          messageStarts = [];
+          armSilence();
+          const turn = nextTurn(
+            JSON.stringify({
+              ownerMessage: ownerMessageText(waiting),
+              platform: { turnKind: 'owner_message' },
+              instructions: OWNER_MESSAGE_TURN,
+            }),
+          );
+          this.deliverOwnerMessages(run.id, control, waiting, 'turn_end');
+          response = await turn;
+          clearSilence();
+          if (control.abort.signal.aborted) throw control.abort.signal.reason;
+          if (response.stopReason !== 'end_turn')
+            throw new Error(`Agent arrêté : ${response.stopReason}`);
+          agentValue = readResult();
+          continue;
+        }
         const said = rest.summary.trim();
         const close = (line) => {
           closingLine = line;
@@ -1629,20 +1729,27 @@ export class Orchestrator {
         afterTool = false;
         messageStarts = [];
         armSilence();
-        response = await runtime.prompt(
+        // Messages of the owner waiting go with the answer, apart from it : never as the answer.
+        if (control.ownerMessages.steering) await control.ownerMessages.steering;
+        const joined = this.pendingOwnerMessages(control);
+        const answerTurn = nextTurn(
           JSON.stringify({
             answer: reply.content,
+            ...(joined.length ? { ownerMessage: ownerMessageText(joined) } : {}),
             platform: { turnKind: 'answer' },
-            instructions: ANSWER_TURN,
+            instructions: joined.length ? ANSWER_TURN + ANSWER_WITH_OWNER_MESSAGE : ANSWER_TURN,
           }),
-          control.abort.signal,
         );
+        if (joined.length) this.deliverOwnerMessages(run.id, control, joined, 'with_answer');
+        response = await answerTurn;
         clearSilence();
         if (control.abort.signal.aborted) throw control.abort.signal.reason;
         if (response.stopReason !== 'end_turn')
           throw new Error(`Agent arrêté : ${response.stopReason}`);
         agentValue = readResult();
       }
+      // The turns are over : the mission is being closed and takes no more message.
+      this.closeOwnerMessages(run.id, control);
       const value = executionResult(agentValue, plan.agent, {
         fixtureData: plan.dataMode === 'fixture',
       });
@@ -1665,7 +1772,7 @@ export class Orchestrator {
           .map((e) => e.data);
         // A page named by URL must be read; any other answer given without the browser is labelled.
         const answeredWithoutNavigation =
-          (previous || !/https?:\/\//i.test(run.prompt)) &&
+          (previous || !/https?:\/\//i.test(ownerWords())) &&
           !browserToolObserved &&
           observed.length === 0;
         // Audit du 10/11 (constat 3) : checked once the agent has finished, an unproven navigation
@@ -1695,9 +1802,9 @@ export class Orchestrator {
       // page was proven and no send approved : the agent's answer is kept, but the Bilan opens on it
       // and the mission ends `failed` — nothing the platform saw shows the action happened.
       const unprovenAction =
-        unproven && ordersBrowserAction(run.prompt) && !(control.sendsApproved > 0);
+        unproven && ordersBrowserAction(ownerWords()) && !(control.sendsApproved > 0);
       if (unprovenAction) value.summary = `${UNPROVEN_ACTION}.\n${value.summary}`;
-      await verifyPack(plan.pack.id, value, run.prompt);
+      await verifyPack(plan.pack.id, value, ownerWords());
       {
         const observations =
           plan.pack.id === 'career-ops' ? (control.browserEvidence ?? []) : value.evidence;
@@ -1724,7 +1831,7 @@ export class Orchestrator {
         if (
           shortResumeWithoutBrowser({
             previous,
-            prompt: run.prompt,
+            prompt: ownerWords(),
             durationMs: Date.now() - new Date(run.createdAt).getTime(),
             browserObserved:
               browserToolObserved ||
@@ -1740,7 +1847,7 @@ export class Orchestrator {
         // Failed actions are listed once, by the Bilan (E29): no extra line above it.
         const agentAnswer = value.summary.trim();
         const careerBilan =
-          formatCareerBilan(run.prompt, turnTruth, undefined, skillResult.steps) +
+          formatCareerBilan(ownerWords(), turnTruth, undefined, skillResult.steps) +
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
         value.summary += '\n' + careerBilan;
         writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
@@ -1772,7 +1879,7 @@ export class Orchestrator {
         plan.pack.id === 'career-ops' ||
         control.sendsAsked ||
         control.sendsApproved ||
-        (plan.browserWorkflow && ordersAction(run.prompt))
+        (plan.browserWorkflow && ordersAction(ownerWords()))
       )
         value.summary += formatSendLine(
           control.sendsApproved ?? 0,
@@ -1783,7 +1890,7 @@ export class Orchestrator {
           [...(control.sendsBlocked?.values() ?? [])],
           control.sendsGranted ?? 0,
           control.grantedTargets ?? [],
-          noSendAsked(control, run.prompt),
+          noSendAsked(control, ownerWords()),
         );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));
@@ -1813,6 +1920,9 @@ export class Orchestrator {
         (event) => event.type === 'answer' && event.data?.action === 'accept',
       ).length;
       if (asked) value.summary += `\nQuestions : ${asked} posée(s), ${answered} répondue(s).`;
+      // orienter-14-11 : the owner's messages, one platform line each (no text).
+      for (const line of formatOwnerMessageLines(control.ownerMessages.list))
+        value.summary += '\n' + line;
       // E63 : what the agent did with its own tools, counted only (no path, command or URL).
       value.summary += nativeActions.line();
       // bilan-06 (E51) : what the pack says was not reached. Not when the owner was asked and did
@@ -1820,7 +1930,7 @@ export class Orchestrator {
       // Relecture de nuit : every question of the mission counts, a form as well (E60).
       const unreached =
         plan.pack.id === 'career-ops' && asked === answered
-          ? [inboxUnprocessed(turnTruth, run.prompt)].filter(Boolean)
+          ? [inboxUnprocessed(turnTruth, ownerWords())].filter(Boolean)
           : [];
       const incomplete = skillProgress.incomplete(
         readablePages(control.browserEvidence),
@@ -1912,6 +2022,8 @@ export class Orchestrator {
             ? `${cause} ; ${expired.message}`
             : expired.message
           : cause;
+      // orienter-14-11 : messages still waiting were not delivered ; the Bilan says it.
+      this.closeOwnerMessages(run.id, control);
       if (skillProgress.started) {
         const skillResult = skillProgress.finish();
         this.store.update(run.id, {
@@ -1919,8 +2031,13 @@ export class Orchestrator {
           result: {
             simulated: !!plan.simulated,
             summary:
-              (plan.pack.id === 'career-ops' ? formatCareerBilan(run.prompt, turnTruth) : 'Bilan') +
+              (plan.pack.id === 'career-ops'
+                ? formatCareerBilan(ownerWords(), turnTruth)
+                : 'Bilan') +
               (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '') +
+              formatOwnerMessageLines(control.ownerMessages.list)
+                .map((line) => '\n' + line)
+                .join('') +
               '\n- Cause : ' +
               failureMessage,
             evidence: [],
@@ -1949,6 +2066,7 @@ export class Orchestrator {
       clearSilence();
       toolGuard.clear();
       control.abort.signal.removeEventListener('abort', onAbort);
+      this.closeOwnerMessages(run.id, control);
       this.clearPermissions(run.id);
       this.clearQuestions(run.id);
       if (control.abort.signal.aborted && control.runtime?.sessionId)
@@ -2225,6 +2343,8 @@ export class Orchestrator {
     }
     entry.resolve(response);
     if (live) this.openNext(runId);
+    // orienter-14-11 : a message held while a form question was open may now go into the turn.
+    if (live && this.active.get(runId)?.ownerMessages?.list.length) this.flushOwnerMessages(runId);
   }
   answer(runId, body) {
     const entry = this.openQuestion(runId);
@@ -2250,6 +2370,153 @@ export class Orchestrator {
     // The pending question is answered `cancel` before the prompt is cancelled (ACP).
     this.clearQuestions(id);
     c.abort.abort(new Error('Annulée par l’utilisateur'));
+  }
+  // orienter-14-11 : a message of the owner to the agent of a running mission, kept in memory on
+  // the mission's control (as questions are) and handed over in the same session : injected into the
+  // running turn (ACP steering), or carried by one more turn at the end of the turn, or joined to
+  // the turn that carries the answer to a question. It never answers a question nor decides a card.
+  async message(runId, rawText) {
+    const fail = (status, message) => Object.assign(new Error(message), { status });
+    const run = this.store.get(runId);
+    if (!run) throw fail(404, 'Run introuvable');
+    const text = typeof rawText === 'string' ? rawText.trim() : '';
+    if (!text) throw fail(400, 'Message vide');
+    if (text.length > MAX_OWNER_MESSAGE_CHARS)
+      throw fail(400, `Message trop long (${MAX_OWNER_MESSAGE_CHARS} caractères au plus)`);
+    if (run.mode === 'workflow')
+      throw fail(409, 'Message non pris en charge pour un workflow en plusieurs étapes');
+    const control = this.active.get(runId);
+    if (terminal.has(run.state) || !control || control.abort.signal.aborted)
+      throw fail(409, 'Mission terminée : elle ne reçoit plus de message');
+    const box = (control.ownerMessages ??= { list: [], closed: false, steering: null });
+    if (box.closed) throw fail(409, 'Mission en cours de clôture : elle ne reçoit plus de message');
+    box.private = (run.workspace === 'career-ops' || run.pack === 'career-ops') && !this.ownerMode;
+    const entry = {
+      id: randomUUID(),
+      at: new Date().toISOString(),
+      text,
+      state: 'pending',
+      via: null,
+      deliveredAt: null,
+    };
+    box.list.push(entry);
+    // Private missions : the text stays in the mission's workspace, as the prompt does.
+    if (run.workspace === 'career-ops')
+      try {
+        writeConfined(
+          run.cwd,
+          `relay/runs/${runId}-messages.json`,
+          JSON.stringify(box.list.map(({ id, at, text }) => ({ id, at, text }))),
+        );
+      } catch {
+        /* The event below still says the message was received. */
+      }
+    this.ownerMessageEvent(runId, box, entry);
+    // A quick steering answer is given back at once ; otherwise the events tell the rest.
+    const flushed = this.flushOwnerMessages(runId);
+    await Promise.race([flushed, new Promise((done) => setTimeout(done, 1500).unref?.())]);
+    return { id: entry.id, state: entry.state };
+  }
+  ownerMessageEvent(runId, box, entry) {
+    this.store.event(runId, 'owner_message', {
+      id: entry.id,
+      at: entry.at,
+      state: entry.state,
+      via: entry.via,
+      deliveredAt: entry.deliveredAt,
+      ...(box.private ? {} : { text: entry.text }),
+    });
+  }
+  pendingOwnerMessages(control) {
+    return (control.ownerMessages?.list ?? []).filter((m) => m.state === 'pending');
+  }
+  deliverOwnerMessages(runId, control, messages, via) {
+    const at = new Date().toISOString();
+    for (const entry of messages) {
+      if (entry.state !== 'pending') continue;
+      entry.state = 'delivered';
+      entry.via = via;
+      entry.deliveredAt = at;
+      this.ownerMessageEvent(runId, control.ownerMessages, entry);
+    }
+  }
+  // Steering is tried only inside a turn the platform is waiting for, with no question and no
+  // card open : with Claude an injection moves a foreground tool (a card waiting for the click)
+  // to the background.
+  canSteer(runId, control) {
+    const runtime = control.runtime;
+    return (
+      !!control.turnActive &&
+      // The agent has shown this turn (an update since it started) : codex-acp holds a steering
+      // request sent before its turn exists, then starts a turn of its own after ours.
+      (control.lastUpdateAt ?? 0) >= (control.turnStartedAt ?? Infinity) &&
+      !control.steerUnsafe &&
+      !control.abort.signal.aborted &&
+      !control.ownerMessages?.closed &&
+      typeof runtime?.steer === 'function' &&
+      runtime.steeringSupported === true &&
+      runtime.promptActive === true &&
+      !this.openQuestion(runId) &&
+      ![...this.permissions.values()].some((p) => p.runId === runId)
+    );
+  }
+  // Steers the waiting messages in order, one at a time ; stops at the first one that cannot be.
+  flushOwnerMessages(runId) {
+    const control = this.active.get(runId);
+    const box = control?.ownerMessages;
+    if (!box || box.closed) return box?.steering;
+    // A card open (a send waiting for the click) : the messages waiting go at the end of the turn,
+    // never into it : right after the click the approved action still runs in the foreground.
+    if ([...this.permissions.values()].some((p) => p.runId === runId))
+      for (const entry of this.pendingOwnerMessages(control)) entry.noSteer = true;
+    const head = this.pendingOwnerMessages(control)[0];
+    if (!box.steering && (!head || head.noSteer || !this.canSteer(runId, control))) return null;
+    const run = async () => {
+      for (;;) {
+        const entry = this.pendingOwnerMessages(control)[0];
+        if (!entry || entry.noSteer || !this.canSteer(runId, control)) return;
+        const { outcome } = await control.runtime.steer(steeringText(entry.text));
+        if (outcome === 'injected') {
+          if (entry.state === 'pending')
+            this.deliverOwnerMessages(runId, control, [entry], 'steering');
+          continue;
+        }
+        // Not taken into the running turn : the message waits for the end of the turn.
+        entry.noSteer = true;
+        if (outcome === 'startedNewTurn') {
+          // codex-acp : no turn was running any more and the agent started one of its own, that no
+          // session/prompt of ours follows (its end and its answer would not be read, the Bilan could
+          // be written while it acts). It is stopped at once and this mission steers no more : the
+          // message goes by the turn added at the end of the turn, which the platform follows.
+          control.steerUnsafe = true;
+          control.detachedTurnAt = Date.now();
+          control.runtime.cancelDetachedTurn?.();
+          this.store.event(runId, 'owner_message_steering', { outcome: 'startedNewTurn' });
+        }
+        return;
+      }
+    };
+    const chained = (box.steering ?? Promise.resolve()).then(run).catch(() => {});
+    box.steering = chained;
+    chained.finally(() => {
+      if (box.steering === chained) box.steering = null;
+    });
+    return chained;
+  }
+  // No more message once the turns are over : those still waiting are not delivered.
+  closeOwnerMessages(runId, control) {
+    const box = control.ownerMessages;
+    if (!box || box.closed) return;
+    box.closed = true;
+    for (const entry of box.list)
+      if (entry.state === 'pending') {
+        entry.state = 'undelivered';
+        try {
+          this.ownerMessageEvent(runId, box, entry);
+        } catch {
+          /* best effort : the Bilan still says it */
+        }
+      }
   }
   async close() {
     for (const control of this.active.values()) control.abort.abort(new Error(SERVER_STOPPED));

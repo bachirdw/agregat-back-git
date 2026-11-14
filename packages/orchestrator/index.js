@@ -1227,7 +1227,9 @@ export class Orchestrator {
       const delivered = control.ownerMessages.list
         .filter((m) => m.state === 'delivered')
         .map((m) => m.text);
-      return delivered.length ? [run.prompt ?? '', ...delivered].join('\n') : run.prompt;
+      // review-orienter-14-11 : each text is its own sentence (« . ») : a negation of the prompt
+      // (« n’envoie rien ») never reaches into a message (« Postule »), nor the other way round.
+      return delivered.length ? [run.prompt ?? '', ...delivered].join('.\n') : run.prompt;
     };
     // A reprise continues the same mission: what its earlier executions proved (pages read, a job
     // description read) still counts. A new mission starts from nothing.
@@ -1675,9 +1677,14 @@ export class Orchestrator {
             throw new Error('Session de l’agent fermée avant le message du propriétaire');
           // A turn the agent started on its own from a steering request was stopped : its last
           // updates are let through before this turn's answer is read (bounded).
+          // review-orienter-14-11 : read on the runtime's own clock : between our turns the runtime
+          // passes no update on (`promptActive` false), so `control.lastUpdateAt` never moved and the
+          // wait ended at once. 500 ms of silence after the stop at least, 5 s at most.
           if (control.detachedTurnAt) {
             const until = Date.now() + 5000;
-            while (Date.now() < until && Date.now() - (control.lastUpdateAt ?? 0) < 500)
+            const lastSign = () =>
+              Math.max(runtime.lastActivityAt ?? 0, control.detachedTurnAt ?? 0);
+            while (Date.now() < until && Date.now() - lastSign() < 500)
               await new Promise((done) => setTimeout(done, 50));
           }
           text = '';

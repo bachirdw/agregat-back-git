@@ -19,6 +19,11 @@
 // releaseOnSteer, until a message is injected) ; its answer quotes the injected messages.
 // promptsFile: every prompt received (JSON array). A turn {"platform":{"turnKind":"owner_message"}}
 // answers by quoting its ownerMessage.
+// review-orienter-14-11 : steering 'hang' never answers a steering request ; ownerTurn: {result?: the
+// answer of an owner_message turn (a `question` is asked as usual), holdFile?: the turn waits for
+// that file, delayMs?: it lasts that long, error?: the turn fails} ; detachedUpdates: {count, everyMs} after a `startedNewTurn`
+// answer, the detached turn sends that many updates (each logged 'detached-update' in calls) ;
+// afterTurn: the answer waits for the end of the held turn, as codex-acp does.
 import {
   agent,
   methods,
@@ -180,6 +185,30 @@ const app = agent({ name: 'fake-acp' })
       if (cfg.steerFile) writeFileSync(cfg.steerFile, JSON.stringify(steerings));
       if (cfg.steering === 'error') throw new RequestError(-32603, 'Steering FICTIF en échec');
       if (cfg.steering === 'injected') steered.push(String(ctx.params.prompt[0]?.text ?? ''));
+      if (cfg.steering === 'hang') await never();
+      if (cfg.steering === 'startedNewTurn' && cfg.detachedUpdates) {
+        const sessionId = ctx.params.sessionId;
+        // afterTurn : like codex-acp, the answer comes once the running turn is over.
+        if (cfg.detachedUpdates.afterTurn) {
+          while (cfg.holdTurn?.goFile && !existsSync(cfg.holdTurn.goFile))
+            await new Promise((r) => setTimeout(r, 20));
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        const { count = 3, everyMs = 100 } = cfg.detachedUpdates;
+        (async () => {
+          for (let i = 0; i < count; i++) {
+            await new Promise((r) => setTimeout(r, everyMs));
+            calls.push('detached-update');
+            await connection.client.notify(methods.client.session.update, {
+              sessionId,
+              update: {
+                sessionUpdate: 'agent_thought_chunk',
+                content: { type: 'text', text: 'Tour détaché FICTIF.' },
+              },
+            });
+          }
+        })();
+      }
       return { outcome: cfg.steering };
     },
   )
@@ -202,17 +231,23 @@ const app = agent({ name: 'fake-acp' })
     }
     if (turnRequest?.platform?.turnKind === 'owner_message') {
       if (cfg.callsFile) writeFileSync(cfg.callsFile, JSON.stringify(calls));
+      if (cfg.ownerTurn?.holdFile)
+        while (!existsSync(cfg.ownerTurn.holdFile)) await new Promise((r) => setTimeout(r, 20));
+      if (cfg.ownerTurn?.delayMs) await new Promise((r) => setTimeout(r, cfg.ownerTurn.delayMs));
+      if (cfg.ownerTurn?.error) throw new RequestError(-32000, cfg.ownerTurn.error);
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
         update: {
           sessionUpdate: 'agent_message_chunk',
           content: {
             type: 'text',
-            text: JSON.stringify({
-              simulated: true,
-              summary: `Message reçu FICTIF : ${turnRequest.ownerMessage}`,
-              evidence: [],
-            }),
+            text: JSON.stringify(
+              cfg.ownerTurn?.result ?? {
+                simulated: true,
+                summary: `Message reçu FICTIF : ${turnRequest.ownerMessage}`,
+                evidence: [],
+              },
+            ),
           },
         },
       });

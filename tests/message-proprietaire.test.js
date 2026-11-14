@@ -20,16 +20,17 @@ import { formatOwnerMessageLines } from '../packages/orchestrator/index.js';
 const FAKE = resolve('tests/fixtures/fake-acp.js');
 const RESULT = { simulated: true, summary: 'Travail FICTIF terminé', evidence: [] };
 
-async function startMission(cfg = {}, { prompt, workspace, browserWorkflow } = {}) {
+async function startMission(cfg = {}, { prompt, workspace, browserWorkflow, ownerMode } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'orienter-FICTIF-')));
   const files = {
     goFile: join(root, 'go'),
+    ownerGo: join(root, 'owner-go'),
     steerFile: join(root, 'steer.json'),
     promptsFile: join(root, 'prompts.json'),
     callsFile: join(root, 'calls.json'),
   };
   const career = new CareerWorkspace({ root, roots: [root] });
-  const app = createApp({ dataDir: join(root, 'platform'), career });
+  const app = createApp({ dataDir: join(root, 'platform'), career, ownerMode: !!ownerMode });
   await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
   const run = {
     id: randomUUID(),
@@ -65,6 +66,9 @@ async function startMission(cfg = {}, { prompt, workspace, browserWorkflow } = {
           callsFile: files.callsFile,
           ...cfg,
           ...(cfg.holdTurn ? { holdTurn: { goFile: files.goFile, ...cfg.holdTurn } } : {}),
+          ...(cfg.ownerTurn?.hold
+            ? { ownerTurn: { ...cfg.ownerTurn, holdFile: files.ownerGo } }
+            : {}),
         }),
       },
     },
@@ -545,4 +549,269 @@ test('Bilan : lignes bornées quand les messages sont nombreux', () => {
     lines.at(-1),
     /^… et 3 autre\(s\) message\(s\) du propriétaire \(remis : 2, non remis : 1\)\.$/,
   );
+});
+
+// review-orienter-14-11 : cas ajoutés par la relecture indépendante.
+const ownerLines = (row) =>
+  (row.result?.platformNotes ?? []).filter((l) => l.startsWith('Message du propriétaire'));
+
+test('R1. aucun message : un seul tour, aucun steering même annoncé, aucune ligne ni événement', async () => {
+  const m = await startMission({ steering: 'injected' });
+  try {
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'completed', JSON.stringify(row));
+    const calls = m.read(m.files.callsFile);
+    assert.equal(count(calls, 'session/prompt'), 1);
+    assert.ok(!calls.includes('_session/steering'));
+    assert.equal(m.messageEvents().length, 0);
+    assert.doesNotMatch(row.result.summary, /Message du propriétaire/);
+    assert.equal(ownerLines(row).length, 0);
+    assert.doesNotMatch(m.read(m.files.promptsFile)[0], /ownerMessage|owner_message/);
+    assert.equal((await m.say('après coup')).status, 409);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R2. question posée par l’agent pendant un tour owner_message : traitée comme toute question', async () => {
+  const m = await startMission({
+    holdTurn: {},
+    ownerTurn: {
+      result: {
+        simulated: true,
+        summary: '',
+        evidence: [],
+        question: { message: 'Quelle ville FICTIVE ?', options: ['Lyon', 'Lille'] },
+      },
+    },
+  });
+  try {
+    await m.turnShown();
+    await m.say('Change de ville FICTIVE.');
+    m.release();
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    assert.match(m.app.store.get(m.run.id).pendingQuestion.message, /Quelle ville FICTIVE/);
+    const answered = await m.api(`/api/runs/${m.run.id}/answer`, {
+      action: 'accept',
+      content: { reponse: 'Lyon' },
+    });
+    assert.equal(answered.status, 200);
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'completed', JSON.stringify(row));
+    const prompts = m.read(m.files.promptsFile).map((p) => {
+      try {
+        return JSON.parse(p).platform?.turnKind ?? null;
+      } catch {
+        return null;
+      }
+    });
+    assert.deepEqual(prompts, [null, 'owner_message', 'answer']);
+    // The final answer is the last turn's (the answer turn), not the owner_message turn's.
+    assert.match(row.result.summary, /^Travail FICTIF terminé/);
+    assert.match(row.result.summary, /Questions : 1 posée\(s\), 1 répondue\(s\)/);
+    assert.equal(m.messageEvents().at(-1).via, 'turn_end');
+    assert.equal(ownerLines(row).length, 1);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R3. message pendant une question, puis question refusée : non remis, dit au Bilan', async () => {
+  const m = await startMission({ proseQuestion: true });
+  try {
+    await m.waitFor(() => m.app.store.get(m.run.id).state === 'awaiting_owner');
+    assert.equal((await m.say('Message FICTIF avant le refus.')).status, 202);
+    const declined = await m.api(`/api/runs/${m.run.id}/answer`, { action: 'decline' });
+    assert.equal(declined.status, 200);
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'completed', JSON.stringify(row));
+    assert.equal(
+      count(m.read(m.files.callsFile), 'session/prompt'),
+      1,
+      'aucun tour après le refus',
+    );
+    assert.deepEqual(
+      m.messageEvents().map((e) => e.state),
+      ['pending', 'undelivered'],
+    );
+    assert.match(row.result.summary, /Question refusée par le propriétaire/);
+    assert.equal(ownerLines(row).length, 1);
+    assert.match(ownerLines(row)[0], /^Message du propriétaire reçu à \d\d:\d\d, non remis\.$/);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R4. annulation pendant le tour owner_message : message remis (envoyé), mission annulée', async () => {
+  const m = await startMission({ holdTurn: {}, ownerTurn: { hold: true } });
+  try {
+    await m.turnShown();
+    await m.say('Message FICTIF remis puis annulé.');
+    m.release();
+    await m.waitFor(() => m.messageEvents().some((e) => e.state === 'delivered'));
+    await m.waitFor(() => m.control.turnActive);
+    m.app.engine.cancel(m.run.id);
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'cancelled');
+    assert.deepEqual(
+      m.messageEvents().map((e) => e.state),
+      ['pending', 'delivered'],
+      'aucun événement de plus après la remise',
+    );
+    assert.match(row.result.summary, /remis à \d\d:\d\d \(en fin de tour\)\./);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R5. échec de l’agent pendant le tour owner_message : mission en échec, message remis', async () => {
+  const m = await startMission({ holdTurn: {}, ownerTurn: { error: 'Erreur FICTIVE du tour' } });
+  try {
+    await m.turnShown();
+    await m.say('Message FICTIF avant l’erreur.');
+    m.release();
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'failed', JSON.stringify(row));
+    assert.match(row.error, /Erreur FICTIVE du tour/);
+    assert.equal(m.messageEvents().at(-1).state, 'delivered');
+    assert.match(row.result.summary, /remis à \d\d:\d\d \(en fin de tour\)\.\n- Cause : /);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R6. plafond : 20 tours owner_message au plus, les messages suivants non remis', async () => {
+  const m = await startMission({ holdTurn: {}, ownerTurn: { delayMs: 60 } });
+  try {
+    await m.turnShown();
+    assert.equal((await m.say('Message FICTIF 0')).status, 202);
+    m.release();
+    let i = 1;
+    let refused = null;
+    while (!refused) {
+      const res = await m.say(`Message FICTIF ${i++}`);
+      if (res.status !== 202) refused = res;
+      else await new Promise((r) => setTimeout(r, 10));
+    }
+    assert.equal(refused.status, 409);
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'completed', JSON.stringify(row));
+    const kinds = m.read(m.files.promptsFile).filter((p) => /"owner_message"/.test(p));
+    assert.equal(kinds.length, 20);
+    const last = new Map();
+    for (const e of m.messageEvents()) last.set(e.id, e.state);
+    const states = [...last.values()];
+    assert.ok(states.every((s) => s === 'delivered' || s === 'undelivered'));
+    assert.ok(states.includes('undelivered'), 'les messages après le 20e tour ne sont pas remis');
+    assert.equal(states.at(-1), 'undelivered');
+    // Bilan : 10 lines at most plus the remainder line, counts true.
+    const lines = row.result.platformNotes.filter((l) =>
+      /^(?:Message du propriétaire|… et \d+ autre)/.test(l),
+    );
+    assert.equal(lines.length, Math.min(states.length, 10) + (states.length > 10 ? 1 : 0));
+    if (states.length > 10) {
+      const rest = states.slice(10);
+      const delivered = rest.filter((s) => s === 'delivered').length;
+      assert.equal(
+        lines.at(-1),
+        `… et ${rest.length} autre(s) message(s) du propriétaire (remis : ${delivered}, non remis : ${rest.length - delivered}).`,
+      );
+    }
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R7. steering sans réponse de l’adaptateur : 202 sans attendre, runtime intact, remis en fin de tour', async () => {
+  const m = await startMission({ steering: 'hang', holdTurn: {} });
+  try {
+    await m.turnShown();
+    const t0 = Date.now();
+    const res = await m.say('Message FICTIF à un adaptateur muet.');
+    assert.equal(res.status, 202);
+    assert.equal(res.body.state, 'pending');
+    assert.ok(Date.now() - t0 < 3000, 'la route n’attend que 1,5 s');
+    // Another route answers meanwhile : the server is not blocked.
+    assert.equal((await m.api(`/api/runs/${m.run.id}`)).status, 200);
+    m.release();
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'completed', JSON.stringify(row));
+    assert.equal(m.messageEvents().at(-1).via, 'turn_end');
+    assert.equal(count(m.read(m.files.callsFile), 'session/prompt'), 2);
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R8. codex startedNewTurn : le tour owner_message part après les dernières mises à jour du tour détaché', async () => {
+  const m = await startMission({
+    steering: 'startedNewTurn',
+    holdTurn: {},
+    detachedUpdates: { count: 8, everyMs: 150, afterTurn: true },
+  });
+  try {
+    await m.turnShown();
+    await m.say('Message FICTIF arrivé en fin de tour.');
+    await m.waitFor(() => m.read(m.files.steerFile)?.length === 1);
+    m.release();
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.equal(row.state, 'completed', JSON.stringify(row));
+    const calls = m.read(m.files.callsFile);
+    const lastDetached = calls.lastIndexOf('detached-update');
+    const ownerPrompt = calls.lastIndexOf('session/prompt');
+    assert.ok(lastDetached >= 0, JSON.stringify(calls));
+    // The calls file is written when the owner_message turn arrives : every update of the detached
+    // turn came before it.
+    assert.ok(lastDetached < ownerPrompt, `ordre : ${JSON.stringify(calls)}`);
+    assert.equal(count(calls, 'detached-update'), 8, `ordre : ${JSON.stringify(calls)}`);
+    assert.ok(m.control.steerUnsafe);
+    assert.equal(m.messageEvents().at(-1).via, 'turn_end');
+  } finally {
+    await m.finish();
+  }
+});
+
+test('R9. négation du prompt et ordre du message : chacun garde sa phrase', async () => {
+  const prompt = 'Prépare la candidature FICTIVE mais n’envoie rien pour l’instant';
+  const m = await startMission({ holdTurn: {} }, { prompt, browserWorkflow: true });
+  try {
+    await m.turnShown();
+    await m.say('Postule maintenant');
+    m.release();
+    await m.done;
+    const row = m.app.store.get(m.run.id);
+    assert.match(row.result.summary, /Envoi par la plateforme : aucun approuvé\./);
+  } finally {
+    await m.finish();
+  }
+  const n = await startMission({}, { prompt, browserWorkflow: true });
+  try {
+    await n.done;
+    assert.doesNotMatch(n.app.store.get(n.run.id).result.summary, /Envoi par la plateforme/);
+  } finally {
+    await n.finish();
+  }
+});
+
+test('R10. mission privée en mode propriétaire : le texte est dans les événements', async () => {
+  const m = await startMission({ holdTurn: {} }, { workspace: 'career-ops', ownerMode: true });
+  try {
+    await m.turnShown();
+    await m.say('Texte FICTIF visible du propriétaire');
+    m.release();
+    await m.done;
+    const events = m.messageEvents();
+    assert.ok(events.length >= 2);
+    for (const e of events) assert.equal(e.text, 'Texte FICTIF visible du propriétaire');
+  } finally {
+    await m.finish();
+  }
 });

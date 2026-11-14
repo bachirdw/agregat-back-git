@@ -237,7 +237,11 @@ export class AcpRuntime {
     });
     this.connection = client({ name: 'agent-platform' })
       .onNotification(methods.client.session.update, (ctx) => {
-        if (ctx.params.sessionId === this.sessionId) this.handleUpdate(ctx.params.update);
+        if (ctx.params.sessionId !== this.sessionId) return;
+        // review-orienter-14-11 : any activity of the session, a turn of ours or not (a turn the
+        // agent started on its own from a steering request sends updates no turn of ours awaits).
+        this.lastActivityAt = Date.now();
+        this.handleUpdate(ctx.params.update);
       })
       .onRequest(methods.client.session.requestPermission, (ctx) =>
         this.stopped || !this.promptActive || ctx.params.sessionId !== this.sessionId

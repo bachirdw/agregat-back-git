@@ -10,12 +10,12 @@ est remis dans la **même session** de l’agent, sans arrêter ni relancer la m
 
 Corps : `{ "text": "…" }` (8 000 caractères au plus).
 
-| Statut | Corps | Cas |
-| --- | --- | --- |
-| 202 | `{ "id": "<id du message>", "state": "pending" \| "delivered" }` | message reçu |
-| 400 | `{ "error": "…" }` | texte vide ou trop long |
-| 404 | `{ "error": "…" }` | mission inconnue |
-| 409 | `{ "error": "…" }` | mission terminée, en cours de clôture (Bilan en écriture), ou workflow |
+| Statut | Corps                                                            | Cas                                                                    |
+| ------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 202    | `{ "id": "<id du message>", "state": "pending" \| "delivered" }` | message reçu                                                           |
+| 400    | `{ "error": "…" }`                                               | texte vide ou trop long                                                |
+| 404    | `{ "error": "…" }`                                               | mission inconnue                                                       |
+| 409    | `{ "error": "…" }`                                               | mission terminée, en cours de clôture (Bilan en écriture), ou workflow |
 
 ## Événement `owner_message`
 
@@ -46,7 +46,13 @@ reste alors dans l’espace, `relay/runs/<id>-messages.json`, comme le prompt.
   (`platform.turnKind: "owner_message"`) porte tous les messages en attente, avant le Bilan.
 - `with_answer` : une question de l’agent attend le propriétaire ; le message ne répond jamais à la
   question, il est joint au tour qui porte la réponse (`ownerMessage`, à côté de `answer`).
-- `undelivered` : mission annulée, en échec ou close avant la remise.
+- `undelivered` : mission annulée, en échec ou close avant la remise (dont : question de l’agent
+  refusée ou restée sans réponse, aucun tour n’étant ajouté après ; plafond de 20 tours
+  `owner_message` atteint).
+
+Après les tours, les détections de la plateforme (ordre d’envoi, URL nommée, Bilan career-ops) lisent
+le prompt suivi des messages **remis**, chacun comme une phrase à part : une négation du prompt
+(« n’envoie rien ») ne couvre pas un message (« Postule »), ni l’inverse.
 
 Une carte d’envoi n’est résolue que par sa décision (`/api/permissions/...`) : un message « envoie »
 ne remplace pas le clic. Le Bilan porte une ligne par message (bornée à 10) :

@@ -282,6 +282,15 @@ export function isSensitiveRequest(url, body) {
     return false;
   }
 }
+// cartes-14-11 (A) : whether a request is made for a child frame (an iframe), not the tab itself.
+// In doubt (a detached frame), the tab : the card stays.
+function childFrame(request) {
+  try {
+    return request.frame().parentFrame() !== null;
+  } catch {
+    return false;
+  }
+}
 // The page a click was made on, without query or fragment (audit du 10/11).
 function pageKey(url) {
   try {
@@ -1512,8 +1521,11 @@ export class CdpBrowser {
         // has typed or attached something ; elsewhere it is the page's own traffic, as before.
         // Audit du 12/11 (E89 bis) : on the page of that input only ; a search typed on one page
         // made the card come back for the telemetry of every page opened by a click afterwards.
+        // cartes-14-11 (C) : mission réelle du 14/11 : the search the agent typed in a search zone
+        // made the site's later telemetry (more than 100 kB) ask the card. A search zone's field is
+        // no such input ; any other field keeps the rule whole.
         const agentInput =
-          ((this.agentFields?.size ?? 0) > 0 && this.agentFieldsPage === pageKey(pageUrl)) ||
+          ((this.agentInputFields?.size ?? 0) > 0 && this.agentInputPage === pageKey(pageUrl)) ||
           !!this.uploadedFile;
         const large = agentInput && Buffer.byteLength(body) > 100000;
         // audit-suite-02 : the send of a candidate click (no card before it) can leave after the
@@ -1542,6 +1554,28 @@ export class CdpBrowser {
         // After a click, background third-party fetches stay silent and never consume the grant;
         // only a navigation (form posted to another site) can be a cross-site send.
         if (!forceCard && !firstParty && !request.isNavigationRequest()) {
+          this.blockedThirdParty?.add(new URL(request.url()).host);
+          return route.abort('blockedbyclient');
+        }
+        // cartes-14-11 (A) : mission réelle du 14/11 (recherche d'offres, « ne postule à rien ») : the
+        // page's ad script posted a hidden form to a tracker of another site, in a hidden frame, after
+        // an ordinary click (a filter button) ; that navigation asked the owner for a send card. A
+        // form posted into a child frame by another site, after a gesture that is no send (neither an
+        // approved send, a step, nor a send-worded click or key) and carrying nothing the agent typed
+        // or attached, is a background write like the others : blocked silently, host told. Stay on
+        // the card : the top frame's navigation, any navigation after a send gesture (C18), and one
+        // that carries the agent's data.
+        if (
+          !forceCard &&
+          !firstParty &&
+          this.sendClick !== true &&
+          request.isNavigationRequest() &&
+          childFrame(request) &&
+          !carriesAgentData(request, {
+            values: this.agentValues ?? [],
+            files: this.agentFiles ?? [],
+          })
+        ) {
           this.blockedThirdParty?.add(new URL(request.url()).host);
           return route.abort('blockedbyclient');
         }
@@ -1823,6 +1857,7 @@ export class CdpBrowser {
   //   `implicit` a lone text field that submits its form without a button ;
   // - { kind: 'message', autocomplete } : a textarea or a contenteditable outside any form ;
   // - { kind: 'field', autocomplete } : any other field outside a form.
+  // Each field kind also says `search` : the field is in a search zone (cartes-14-11).
   async enterContext(target) {
     if (!this.page) return null;
     const locator = await this.targetLocator(target);
@@ -1848,8 +1883,14 @@ export class CdpBrowser {
         el instanceof HTMLSelectElement ||
         multiline;
       if (!field) return { kind: 'control' };
+      // cartes-14-11 (B) : a field of a search zone, as the page states it (a search landmark,
+      // a <search> element, a search field or searchbox) ; never guessed from a label.
+      const search =
+        !!el.closest('[role="search" i], search') ||
+        role === 'searchbox' ||
+        (el instanceof HTMLInputElement && el.type === 'search');
       const form = el.form ?? el.closest('form');
-      if (!form) return { kind: multiline ? 'message' : 'field', autocomplete };
+      if (!form) return { kind: multiline ? 'message' : 'field', autocomplete, search };
       const elements = Array.from(form.elements);
       const button = elements.find(submitControl);
       const implicit =
@@ -1862,6 +1903,7 @@ export class CdpBrowser {
         autocomplete,
         multiline,
         implicit,
+        search,
         // Relecture fix5 (constat 8) : only a stated GET is a search.
         method: form.getAttribute('method')?.trim().toLowerCase() || null,
         hasButton: !!button && !button.disabled,
@@ -1891,13 +1933,26 @@ export class CdpBrowser {
         const field = el.matches('input, select, textarea')
           ? el
           : (el.control ?? el.querySelector('input, select, textarea') ?? el);
-        return { name: field.name || field.id || null, frame: location.href };
+        // cartes-14-11 (C) : a one-line field of a search zone (same reading as enterContext).
+        const search =
+          !(field instanceof HTMLTextAreaElement || field.isContentEditable) &&
+          (!!field.closest('[role="search" i], search') ||
+            (field.getAttribute('role') ?? '').toLowerCase() === 'searchbox' ||
+            (field instanceof HTMLInputElement && field.type === 'search'));
+        return { name: field.name || field.id || null, frame: location.href, search };
       });
       // Relecture fix5 (constat 4) : the frame the agent acts in.
       this.actionFrameUrl = key.frame;
+      const search = key.search === true;
       key = key.name;
       if (key) (this.agentFields ??= new Set()).add(key);
       if (key) this.agentFieldsPage = pageKey(this.page.url());
+      // cartes-14-11 (C) : the input that makes a large write a possible send (a search typed in a
+      // search zone is not one).
+      if (key && !search) {
+        (this.agentInputFields ??= new Set()).add(key);
+        this.agentInputPage = pageKey(this.page.url());
+      }
     } catch {
       /* the action itself reports a missing ref */
     }
@@ -2458,6 +2513,7 @@ export class CdpBrowser {
       this.uploadedFile = null;
       // Constats 9 et 11 : the fields the agent filled belong to the page it leaves.
       this.agentFields = null;
+      this.agentInputFields = null;
       try {
         // A fragment-only goto is a same-document navigation and would never consume the route.
         if (landing && page.url().split('#')[0] === url.split('#')[0])

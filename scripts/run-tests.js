@@ -31,6 +31,8 @@ const BROWSER = new Set([
   'carte-ombre-chrome.test.js',
   // accord-mission-01 : deux candidatures dans une même mission, un seul clic du propriétaire.
   'accord-mission-chrome.test.js',
+  // cartes-14-11 : recherche d'offres sans carte (traceur dans un cadre, Entrée de recherche).
+  'cartes-recherche.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

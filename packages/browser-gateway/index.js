@@ -369,6 +369,22 @@ export class BrowserGateway {
       else if (enterContext.kind === 'field') pressKind = socketRisk ? 'submit' : 'candidate';
       // Unknown (a provider that cannot tell) : in doubt, the owner's card.
       else pressKind = 'submit';
+      // cartes-14-11 (B) : mission réelle du 14/11 (recherche d'offres) : Enter in the search field of
+      // a job site opened the send window, and the site's own writes (its results, its telemetry)
+      // were taken for sends. Enter in a one-line field of a search zone, with no send-worded
+      // default button, is choosing what to see : a widget. A write it triggers to a submission path
+      // of the site still waits for the card (widget rule of the guard) ; a message (textarea,
+      // contenteditable), a form whose button is the send, a socket at risk keep theirs.
+      if (
+        pressKind === 'candidate' &&
+        !guardSubmit &&
+        enterContext.search === true &&
+        !enterContext.multiline &&
+        ['form', 'field'].includes(enterContext.kind) &&
+        (!submitter ||
+          (this.policy.ownerClickKind(submitter) === 'candidate' && !sendHint(submitter)))
+      )
+        pressKind = 'widget';
     } else if (enterContext)
       pressKind = submitter
         ? this.policy.isFormStep(submitter)

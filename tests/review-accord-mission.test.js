@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../apps/api/server.js';
-import { formatSendLine } from '../packages/orchestrator/index.js';
+import { formatSendLine, noSendAsked } from '../packages/orchestrator/index.js';
 import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { reviewCareer } from '../packages/career-ops/integration.js';
 
@@ -297,4 +297,90 @@ test('relecture accord : une reprise par la route de l’API n’hérite pas de 
   assert.equal(fresh.sendGrant, undefined);
   assert.equal(app.engine.active.get(id), undefined);
   app.engine.cancel(resumed.id);
+});
+
+// review-libelles-14-11 : « aucun demandé » seulement sans carte d'envoi montrée, sans envoi accordé
+// par la mission et sans envoi ordonné ; une carte refusée, restée sans réponse ou abandonnée par la
+// passerelle, un envoi par accord de mission ou un prompt qui ordonne l'envoi gardent « aucun approuvé »
+// ou le compte des envois. Une demande d'une autre classe que `send` n'est pas une carte d'envoi.
+test('relecture libellés : « aucun demandé » contre les cartes réellement montrées', async (t) => {
+  const { app, mission, send, waiting, grant } = await setup(t);
+  const PROMPT = 'Rédige un e-mail FICTIF de prise de contact, sans rien envoyer';
+  const line = (m, prompt = PROMPT) =>
+    formatSendLine(
+      m.control.sendsApproved ?? 0,
+      m.control.sendsFailed ?? 0,
+      m.control.sendsUncertain ?? 0,
+      m.control.sendCalls?.size ?? 0,
+      [],
+      [],
+      m.control.sendsGranted ?? 0,
+      m.control.grantedTargets ?? [],
+      noSendAsked(m.control, prompt),
+    );
+  // Rien montré : « aucun demandé » ; le même prompt qui ordonne l'envoi : « aucun approuvé ».
+  const quiet = mission();
+  assert.equal(line(quiet), '\nEnvoi par la plateforme : aucun demandé.');
+  assert.equal(
+    line(quiet, 'Postule à l’offre FICTIVE'),
+    '\nEnvoi par la plateforme : aucun approuvé.',
+  );
+  // Une écriture d'une autre classe (réseau) accordée sans question n'est pas une carte d'envoi.
+  const network = await app.engine.gatewayApproval(quiet.run.id, quiet.token, {
+    capability: 'browser.send',
+    actionClass: 'network',
+    sensitive: false,
+    args: { host: 'collector.example.test' },
+  });
+  assert.equal(network.approved, true);
+  assert.equal(quiet.control.sendsPresented, undefined);
+  assert.equal(line(quiet), '\nEnvoi par la plateforme : aucun demandé.');
+
+  // Carte refusée.
+  const refused = mission();
+  const denied = send(refused);
+  app.engine.decide((await waiting(refused)).id, 'deny');
+  assert.equal((await denied).approved, false);
+  assert.equal(refused.control.sendsPresented, 1);
+  assert.equal(line(refused), '\nEnvoi par la plateforme : aucun approuvé.');
+
+  // Carte restée sans réponse à la fin de la mission.
+  const pending = mission();
+  const unanswered = send(pending);
+  assert.ok(await waiting(pending));
+  assert.equal(pending.control.sendsAsked, undefined);
+  assert.equal(line(pending), '\nEnvoi par la plateforme : aucun approuvé.');
+  app.engine.clearPermissions(pending.run.id);
+  await unanswered;
+
+  // Carte abandonnée par la passerelle (E64) : jamais comptée comme demandée, mais montrée.
+  const dropped = mission();
+  const gaveUp = new AbortController();
+  const abandoned = app.engine.gatewayApproval(
+    dropped.run.id,
+    dropped.token,
+    {
+      capability: 'browser.click',
+      actionClass: 'send',
+      sensitive: true,
+      element: { text: 'Envoyer FICTIF' },
+      callId: randomUUID(),
+    },
+    gaveUp.signal,
+  );
+  assert.ok(await waiting(dropped));
+  gaveUp.abort(Object.assign(new Error('abandon FICTIF'), { code: 'approval_abandoned' }));
+  assert.equal((await abandoned).approved, false);
+  assert.equal(dropped.control.sendsAsked, undefined);
+  assert.equal(line(dropped), '\nEnvoi par la plateforme : aucun approuvé.');
+
+  // Envoi accordé par l'accord de mission (send_auto) sans nouvelle carte : compté, jamais « aucun ».
+  const granted = mission();
+  await grant(granted);
+  const presented = granted.control.sendsPresented;
+  assert.equal((await send(granted)).approved, true);
+  assert.equal(granted.control.sendsPresented, presented, 'send_auto ne montre aucune carte');
+  assert.match(line(granted), /2 approuvé\(s\), dont 1 par le propriétaire et 1 par son accord/);
+  // Le seul envoi par accord de mission (compteurs d'un envoi automatique isolé) n'est pas « aucun ».
+  assert.equal(noSendAsked({ sendsApproved: 1, sendsGranted: 1 }, PROMPT), false);
 });

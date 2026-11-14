@@ -2565,10 +2565,18 @@ export class CdpBrowser {
         const role = args.ref ? null : selectorRole(args.selector);
         const bySelector = (selector) =>
           role ? page.locator(selector).or(page.getByRole(role)) : page.locator(selector);
-        const unmatched = (error) => {
+        // review-libelles-14-11 : `limit > 1` waits for the first match to be visible ; a hidden first
+        // match (a modal template) is said as such, never as « no element ».
+        const unmatched = async (error) => {
           if (error?.name !== 'TimeoutError' || args.ref || !args.selector) return error;
+          const selector = String(args.selector).slice(0, 120);
+          const found = await bySelector(args.selector)
+            .count()
+            .catch(() => 0);
           return new Error(
-            `Aucun élément ne correspond au sélecteur « ${String(args.selector).slice(0, 120)} » dans la page actuelle : prends un browser_snapshot et utilise la ref de l’élément.`,
+            found
+              ? `${found} élément(s) correspondent au sélecteur « ${selector} », mais le premier est resté masqué : prends un browser_snapshot et utilise la ref de l’élément visible.`
+              : `Aucun élément ne correspond au sélecteur « ${selector} » dans la page actuelle : prends un browser_snapshot et utilise la ref de l’élément.`,
             { cause: error },
           );
         };
@@ -2603,7 +2611,7 @@ export class CdpBrowser {
             ).slice(0, args.maxChars),
           };
         } catch (error) {
-          throw unmatched(error);
+          throw await unmatched(error);
         }
       }
       case 'browser.click':

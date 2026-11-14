@@ -138,6 +138,24 @@ test('libelles-14-11 : e-mail de prise de contact → email, message LinkedIn �
     CONTACT_PROMPTS,
   );
 });
+// review-libelles-14-11 : les nouvelles phrases ne font pas basculer vers email des demandes qui
+// suivaient une autre intention en 64cce94 (mêmes résultats avant et après). Données FICTIVES.
+const UNCHANGED_PROMPTS = [
+  ['Écris un message LinkedIn et un e-mail au recruteur', 'linkedin'],
+  ['Postule et écris un e-mail au recruteur', 'apply'],
+  ['Écris un mail au recruteur et postule', 'apply'],
+  ['Évalue cette offre puis écris un mail', 'evaluate'],
+  ['Adapte mon CV puis écris un e-mail au recruteur', 'documents'],
+  ['Scanne les offres puis écris un mail au recruteur', 'search'],
+  ['Relance par e-mail le recruteur', 'email'],
+  ["Ne m'écris pas un e-mail, envoie un message LinkedIn de prise de contact", 'linkedin'],
+];
+test('relecture libellés : demandes mêlant un e-mail à une autre intention, inchangées', () => {
+  assert.deepEqual(
+    UNCHANGED_PROMPTS.map(([prompt]) => [prompt, intentOf(prompt)]),
+    UNCHANGED_PROMPTS,
+  );
+});
 const intentOf = (prompt) => selectSkillIntents(prompt, [manifest])[0]?.intent.id ?? null;
 
 test('relecture 10/11 : 50 prompts FR/EN, intention attendue', () => {

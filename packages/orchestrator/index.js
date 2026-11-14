@@ -204,6 +204,10 @@ export function formatAutoSendLine(events) {
   if (hosts.has('') && named.length) shown.push(`hôte non relevé (${hosts.get('')})`);
   return `Écritures réseau de la page (hors envoi final) : ${writes.length} accordées automatiquement (mode propriétaire)${shown.length ? ` ; sites : ${shown.join(', ')}` : ''}.`;
 }
+// libelles-14-11 : « aucun demandé » : no send card shown to the owner (answered, left unanswered or
+// given up by the gateway), none granted by the mission and none ordered by the prompt.
+export const noSendAsked = (control, prompt) =>
+  !control.sendsApproved && !control.sendsAsked && !control.sendsPresented && !ordersAction(prompt);
 // E66 : the owner's approvals of a send, and what became of the approved actions : an approval is
 // not a send. `failed` : the gateway stopped before acting (nothing sent) ; `uncertain` : the
 // action failed after it started (something may have left : to check on the site). `unknown`
@@ -1779,7 +1783,7 @@ export class Orchestrator {
           [...(control.sendsBlocked?.values() ?? [])],
           control.sendsGranted ?? 0,
           control.grantedTargets ?? [],
-          !control.sendsAsked && !control.sendsPresented && !ordersAction(run.prompt),
+          noSendAsked(control, run.prompt),
         );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));

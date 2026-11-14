@@ -364,6 +364,17 @@ function site() {
         '<!doctype html><title>Fenêtre FICTIVE</title><p>Fond</p><dialog open><h2>Coordonnées FICTIVES</h2><p>Courriel : nom@example.test</p></dialog><div role="dialog">Seconde fenêtre FICTIVE</div>',
       );
     }
+    // review-libelles-14-11 : fenêtre ARIA avant la native, une fenêtre ARIA masquée, un rôle inconnu.
+    if (req.url.startsWith('/dialog-order')) {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      return res.end(
+        '<!doctype html><title>Ordre FICTIF</title>' +
+          (req.url.includes('visible=1')
+            ? ''
+            : '<div role="dialog" style="display:none">Modèle masqué FICTIF</div>') +
+          '<div role="dialog">Première fenêtre ARIA FICTIVE <p>Paragraphe intérieur FICTIF</p></div><dialog open>Fenêtre native FICTIVE</dialog><div role="foo">Rôle inconnu FICTIF</div>',
+      );
+    }
     if (req.url === '/script') {
       res.setHeader('content-type', 'text/html');
       return res.end(
@@ -464,6 +475,44 @@ test(
         /Aucun élément ne correspond au sélecteur « #absent-fictif »/.test(error.message) &&
         /browser_snapshot/.test(error.message) &&
         !/locator\./.test(error.message),
+    );
+  },
+);
+
+// review-libelles-14-11 : `[role=dialog]` rend le premier élément dans l'ordre du document, sans
+// doublon ; un sélecteur composé et un rôle inconnu ne passent pas par getByRole ; une fenêtre ARIA
+// masquée reste un élément qui correspond (seul `limit > 1` attend un élément visible).
+test(
+  'Chrome réel : extraction [role=X], ordre du document, sélecteur composé, rôle inconnu',
+  { skip: !hasChrome && 'Chrome absent' },
+  async (t) => {
+    const { gw, origin } = await realGateway(t);
+    await gw.call('browser.navigate', { url: origin + '/dialog-order' });
+    // Le premier élément (masqué) n'est pas dit absent : `limit > 1` attend qu'il soit visible.
+    await assert.rejects(
+      gw.call('browser.extract', { selector: '[role=dialog]', limit: 10 }),
+      (error) =>
+        /3 élément\(s\) correspondent au sélecteur « \[role=dialog\] », mais le premier est resté masqué/.test(
+          error.message,
+        ) && !/Aucun élément/.test(error.message),
+    );
+    // Un seul élément : le premier dans l'ordre du document, ici le modèle masqué (comme avant).
+    const first = await gw.call('browser.extract', { selector: '[role=dialog]' });
+    assert.doesNotMatch(first.text, /Fenêtre native FICTIVE|Première fenêtre/);
+    await gw.call('browser.navigate', { url: origin + '/dialog-order?visible=1' });
+    const all = await gw.call('browser.extract', { selector: '[role=dialog]', limit: 10 });
+    // Première ARIA (correspond aux deux branches) puis native : deux éléments, une fois chacun.
+    assert.equal(all.count, 2);
+    assert.match(all.text, /Première fenêtre ARIA FICTIVE[\s\S]*Fenêtre native FICTIVE/);
+    const one = await gw.call('browser.extract', { selector: '[role=dialog]' });
+    assert.match(one.text, /^Première fenêtre ARIA FICTIVE/);
+    const inner = await gw.call('browser.extract', { selector: 'div[role=dialog] p' });
+    assert.equal(inner.text, 'Paragraphe intérieur FICTIF');
+    const unknown = await gw.call('browser.extract', { selector: '[role=foo]' });
+    assert.equal(unknown.text, 'Rôle inconnu FICTIF');
+    await assert.rejects(
+      gw.call('browser.extract', { selector: '[role=alertdialog]', limit: 2 }),
+      /Aucun élément ne correspond au sélecteur « \[role=alertdialog\] »/,
     );
   },
 );

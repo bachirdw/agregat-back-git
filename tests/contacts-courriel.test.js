@@ -867,3 +867,39 @@ test('Bilan FICTIF : e-mail demandé hors de l’intention suivie, dit sans doub
   assert.match(followed, /\n- E-mail du Skill : /);
   assert.doesNotMatch(followed, /\n- E-mail : /);
 });
+
+// review-libelles-14-11 : la ligne « E-mail : » dit l'issue du dernier email_send réussi (envoyé ou
+// statut inconnu), un échec seul reste « échoué », et un e-mail seulement demandé à quelqu'un d'autre
+// (« demande-lui son e-mail ») n'en fait pas apparaître. Données FICTIVES.
+test('Bilan FICTIF : e-mail hors parcours, issue envoyée, inconnue, échec puis réussite', () => {
+  const linkedinIntent = intentOf(CONTACTO[0]);
+  const asked = 'Écris un message LinkedIn FICTIF et un e-mail au recruteur FICTIF';
+  assert.equal(intentOf(asked).id, 'linkedin');
+  const bilanOf = (truth) => formatCareerBilan(asked, truth, undefined, steps(linkedinIntent));
+  const sent = createTurnTruth();
+  sent.recordGatewayTool('email_send', 'completed', { sent: true });
+  assert.match(
+    bilanOf(sent),
+    /\n- E-mail : hors du parcours suivi par cette mission ; email_send appelé \(envoyé\)\./,
+  );
+  const unknown = createTurnTruth();
+  unknown.recordGatewayTool('email_send', 'completed', {});
+  assert.match(bilanOf(unknown), /email_send appelé \(statut d’envoi inconnu\)\./);
+  const retried = createTurnTruth();
+  retried.recordGatewayTool('email_send', 'failed', {});
+  retried.recordGatewayTool('email_send', 'completed', { sent: false });
+  const line = bilanOf(retried).match(/\n- E-mail : .*/)?.[0];
+  assert.equal(
+    line,
+    '\n- E-mail : hors du parcours suivi par cette mission ; email_send appelé (brouillon, non envoyé).',
+  );
+  assert.doesNotMatch(
+    formatCareerBilan(
+      'Trouve le contact FICTIF sur LinkedIn',
+      createTurnTruth(),
+      undefined,
+      steps(linkedinIntent),
+    ),
+    /\n- E-mail :/,
+  );
+});

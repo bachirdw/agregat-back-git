@@ -29,7 +29,7 @@ rien. `allow_always` reste refusé. Bilan : « Envoi par la plateforme : N appro
 propriétaire et B par son accord de mission (cibles : hôte/chemin, … et K autres) » ; sans envoi accordé
 par la mission, la ligne est inchangée. Sans envoi approuvé : « aucun demandé » quand aucune carte
 d'envoi n'a été présentée et que le prompt n'ordonne aucun envoi (14/11), sinon « aucun approuvé »
-(envoi refusé, carte restée sans réponse, ou envoi ordonné sans carte).
+(envoi refusé, carte restée sans réponse ou abandonnée par la passerelle, ou envoi ordonné sans carte).
 Hors mode propriétaire : expiration après 60 secondes. En mode propriétaire, l’accord `send` n’expire
 pas (plafond seulement si `AGENT_PLATFORM_SEND_TIMEOUT_MS` est fixé, en ms) ; les délais « outil sans
 mise à jour », « agent inactif » et de mission sont suspendus pendant l’attente et reprennent avec le

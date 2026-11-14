@@ -17,6 +17,7 @@ Le propriétaire gère seul cette application. Tout ce qui sert à automatiser l
 - Aucun processus ne doit rester bloqué sur une autorisation répétée ou expirée.
 - Le prompt de l'utilisateur décide de ce qui est fait, le Skill de la manière ; la plateforme fournit les outils et rapporte.
 - Exception : l'envoi final (candidature, e-mail, message) attend le clic du propriétaire, même si le prompt dit « envoie ». Tout le reste passe sans clic.
+- Un clic par mission (décision du 13/11/2026) : sur la première carte d'envoi d'une mission, « Autoriser tous les envois de cette mission » vaut pour tous les envois suivants de la même mission, sans nouvelle demande. Portée : la mission en cours, jamais permanente ; une reprise redemande le clic. L'accord couvre tout envoi par le navigateur (la plateforme ne distingue pas une candidature d'un message ou d'une invitation) ; l'e-mail par SMTP garde une carte par envoi. Chaque envoi reste tracé et dit au Bilan. Sans ce clic, une carte par envoi, comme avant.
 - Restent : aucun contournement de CAPTCHA ni de détection de robots, aucun secret exposé, Bilan fidèle aux actions réelles, robustesse technique (chemins confinés, outil figé arrêté), budget, aucun push ni merge sans ordre, bibliothèque career-ops, Skill et CV intouchés.
 
 ## Branches et dossiers (décision du propriétaire, 05/11/2026)

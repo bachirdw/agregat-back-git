@@ -903,15 +903,13 @@ intents:
           recruiter email,
           # libelles-14-11 : « écris-lui un e-mail de prise de contact » est un e-mail, devant la
           # phrase « prise de contact » de linkedin (66). « mail … » couvre aussi « e-mail … » (mots
-          # comparés après normalisation) ; « -lui » est retiré du prompt avant la comparaison.
+          # comparés après normalisation). review-libelles-14-11 (décision du manager) : pas de
+          # phrase générique « écris un e-mail » : une demande mêlant message LinkedIn et e-mail
+          # reste linkedin, l'e-mail laissé de côté est dit au Bilan (« E-mail : hors du parcours »).
           e-mail de prise de contact,
           mail de prise de contact,
           email de prise de contact,
           courriel de prise de contact,
-          écris un e-mail,
-          écris un mail,
-          écris un email,
-          écris un courriel,
         ]
     # Ordre du Skill (modes/email.md) : contexte (rapport, CV adapté de data/pdf-index.tsv), type
     # d'e-mail, liste des pièces, brouillon. « Never send » est la règle du Skill ; la plateforme

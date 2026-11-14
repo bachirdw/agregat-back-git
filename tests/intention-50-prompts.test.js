@@ -149,7 +149,20 @@ const UNCHANGED_PROMPTS = [
   ['Scanne les offres puis écris un mail au recruteur', 'search'],
   ['Relance par e-mail le recruteur', 'email'],
   ["Ne m'écris pas un e-mail, envoie un message LinkedIn de prise de contact", 'linkedin'],
+  // Décision du manager (14/11) : sans phrase générique « écris un e-mail », les demandes mêlant
+  // message LinkedIn et e-mail restent linkedin, comme en 64cce94.
+  ['Rédige un message LinkedIn et écris un e-mail au recruteur', 'linkedin'],
+  ['Écris un message LinkedIn au recruteur et écris un mail au DRH', 'linkedin'],
+  ['Fais une demande de connexion LinkedIn et écris un e-mail', 'linkedin'],
+  ['Trouve le recruteur et écris-lui un email', 'linkedin'],
 ];
+// Résultat réel épinglé (non visé) : les deux « … de prise de contact » cités, l'e-mail l'emporte.
+test('relecture libellés : message LinkedIn et mail, tous deux « de prise de contact »', () => {
+  assert.equal(
+    intentOf('Rédige un message LinkedIn de prise de contact et un mail de prise de contact'),
+    'email',
+  );
+});
 test('relecture libellés : demandes mêlant un e-mail à une autre intention, inchangées', () => {
   assert.deepEqual(
     UNCHANGED_PROMPTS.map(([prompt]) => [prompt, intentOf(prompt)]),

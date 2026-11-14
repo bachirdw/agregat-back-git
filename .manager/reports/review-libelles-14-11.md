@@ -126,4 +126,27 @@ Front : `[review-libelles-14-11]` (deux fichiers de test).
 - Erreur non `TimeoutError` (page fermée, navigation) pendant l'extraction : vérifiée par lecture du code
   seulement.
 
-Fin : 14/11 20:01 (AEDT, lu par `date`).
+Fin de la première passe : 14/11 20:00 (AEDT, lu par `date`).
+
+## Suite : décision du manager sur le routage (14/11 20:01)
+
+- `domain-packs/career-ops/skill-manifest.yaml` : retrait des quatre phrases génériques « écris un
+  e-mail / mail / email / courriel » de l'intention `email` ; seules restent « e-mail / mail / email /
+  courriel de prise de contact ».
+- Intentions obtenues après retrait (vraie `selectSkillIntents`), épinglées dans
+  `tests/intention-50-prompts.test.js` :
+  - prompt type (« Trouve sur LinkedIn le décideur… écris-lui un e-mail de prise de contact, sans rien
+    envoyer ») → email ;
+  - « Rédige un message LinkedIn et écris un e-mail au recruteur » → linkedin ;
+  - « Écris un message LinkedIn au recruteur et écris un mail au DRH » → linkedin ;
+  - « Fais une demande de connexion LinkedIn et écris un e-mail » → linkedin ;
+  - « Trouve le recruteur et écris-lui un email » → linkedin ;
+  - « Rédige un message LinkedIn de prise de contact et un mail de prise de contact » → email (résultat
+    réel, épinglé sans chercher à le changer : « mail de prise de contact » reste une phrase email, 67).
+  - Inchangés : « Écris-lui un mail pour Acme » → email (déjà email en 64cce94), « Écris-lui un email
+    de prise de contact » et « Prépare un courriel de prise de contact… » → email.
+- 20:02-20:04 phase unitaire seule (même commande, 157 fichiers) : 1229 tests, 1227 réussis, 0 échec,
+  2 ignorés. `npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : conforme.
+- Point « sans » non touché (décision du propriétaire).
+
+Fin : 14/11 20:04 (AEDT, lu par `date`).

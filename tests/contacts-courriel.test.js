@@ -819,3 +819,51 @@ test('relance-01 FICTIF : followup-cadence passe par career_script en mode propr
   );
   await assert.rejects(closed.script({ command: 'followup-cadence', args: [] }), /non autorisée/);
 });
+
+// libelles-14-11 : un e-mail demandé hors de l'intention suivie (une seule par mission) est dit au
+// Bilan avec ce que montrent les appels ; aucune ligne quand le prompt ne parle pas d'e-mail, aucun
+// doublon avec « E-mail du Skill » quand l'intention email est suivie. Données FICTIVES.
+test('Bilan FICTIF : e-mail demandé hors de l’intention suivie, dit sans doublon', () => {
+  const linkedinIntent = intentOf(CONTACTO[0]);
+  assert.equal(linkedinIntent.id, 'linkedin');
+  const asked =
+    "Trouve sur LinkedIn le décideur de l'offre FICTIVE puis écris-lui un e-mail de prise de contact, sans rien envoyer";
+  const outside = formatCareerBilan(asked, createTurnTruth(), undefined, steps(linkedinIntent));
+  assert.match(
+    outside,
+    /\n- E-mail : hors du parcours suivi par cette mission ; email_send non appelé \(texte éventuel dans la réponse\)\./,
+  );
+  assert.doesNotMatch(outside, /E-mail du Skill/);
+
+  const drafted = createTurnTruth();
+  drafted.recordGatewayTool('email_send', 'completed', { sent: false });
+  assert.match(
+    formatCareerBilan(asked, drafted, undefined, steps(linkedinIntent)),
+    /\n- E-mail : hors du parcours suivi par cette mission ; email_send appelé \(brouillon, non envoyé\)\./,
+  );
+  const failed = createTurnTruth();
+  failed.recordGatewayTool('email_send', 'failed', {});
+  assert.match(
+    formatCareerBilan(asked, failed, undefined, steps(linkedinIntent)),
+    /email_send appelé, échoué\./,
+  );
+
+  // Sans e-mail dans le prompt (ou seulement nié, ou un champ e-mail) : aucune ligne.
+  for (const prompt of [
+    CONTACTO[0],
+    "Trouve le bon contact FICTIF, n'écris pas d'e-mail.",
+    'Remplis le champ e-mail du formulaire FICTIF.',
+  ])
+    assert.doesNotMatch(
+      formatCareerBilan(prompt, createTurnTruth(), undefined, steps(linkedinIntent)),
+      /\n- E-mail :/,
+      prompt,
+    );
+
+  // Intention email suivie : seule la ligne « E-mail du Skill ».
+  const emailIntent = intentOf(asked);
+  assert.equal(emailIntent.id, 'email');
+  const followed = formatCareerBilan(asked, createTurnTruth(), undefined, steps(emailIntent));
+  assert.match(followed, /\n- E-mail du Skill : /);
+  assert.doesNotMatch(followed, /\n- E-mail : /);
+});

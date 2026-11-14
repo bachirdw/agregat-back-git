@@ -118,6 +118,26 @@ const PROMPTS = [
   ],
 ];
 const manifest = getPack('career-ops').skillManifest;
+// libelles-14-11 : un e-mail de prise de contact demandé après une recherche sur LinkedIn suit
+// l'intention email ; un message LinkedIn de prise de contact reste linkedin. Données FICTIVES.
+const CONTACT_PROMPTS = [
+  [
+    'Trouve sur LinkedIn le décideur de cette offre puis écris-lui un e-mail de prise de contact, sans rien envoyer',
+    'email',
+  ],
+  ['Écris-lui un email de prise de contact', 'email'],
+  ['Écris-lui un mail pour Acme', 'email'],
+  ['Prépare un courriel de prise de contact pour le recruteur', 'email'],
+  ['Rédige un message LinkedIn de prise de contact', 'linkedin'],
+  ['Trouve le bon contact pour une prise de contact', 'linkedin'],
+  ['Rédige une demande de connexion LinkedIn au recruteur', 'linkedin'],
+];
+test('libelles-14-11 : e-mail de prise de contact → email, message LinkedIn → linkedin', () => {
+  assert.deepEqual(
+    CONTACT_PROMPTS.map(([prompt]) => [prompt, intentOf(prompt)]),
+    CONTACT_PROMPTS,
+  );
+});
 const intentOf = (prompt) => selectSkillIntents(prompt, [manifest])[0]?.intent.id ?? null;
 
 test('relecture 10/11 : 50 prompts FR/EN, intention attendue', () => {

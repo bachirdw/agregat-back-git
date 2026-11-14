@@ -892,8 +892,7 @@ intents:
     # Audit EN2 : « by email » oriente vers l'e-mail avant LinkedIn (66), sous documents (70) et apply.
     boost:
       priority: 67
-      phrases:
-        [
+      phrases: [
           by email,
           by e-mail,
           via email,
@@ -902,6 +901,17 @@ intents:
           par e-mail,
           par mail,
           recruiter email,
+          # libelles-14-11 : « écris-lui un e-mail de prise de contact » est un e-mail, devant la
+          # phrase « prise de contact » de linkedin (66). « mail … » couvre aussi « e-mail … » (mots
+          # comparés après normalisation) ; « -lui » est retiré du prompt avant la comparaison.
+          e-mail de prise de contact,
+          mail de prise de contact,
+          email de prise de contact,
+          courriel de prise de contact,
+          écris un e-mail,
+          écris un mail,
+          écris un email,
+          écris un courriel,
         ]
     # Ordre du Skill (modes/email.md) : contexte (rapport, CV adapté de data/pdf-index.tsv), type
     # d'e-mail, liste des pièces, brouillon. « Never send » est la règle du Skill ; la plateforme

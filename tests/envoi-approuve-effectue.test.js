@@ -20,6 +20,15 @@ const temporary = () => mkdtempSync(join(tmpdir(), 'envoi-effectue-'));
 test('E66 : la ligne d’envoi distingue l’accord, l’arrêt avant d’agir et l’issue incertaine', () => {
   assert.equal(formatSendLine(0, 0, 0), '\nEnvoi par la plateforme : aucun approuvé.');
   assert.equal(formatSendLine(1), '\nEnvoi par la plateforme : 1 approuvé(s) par le propriétaire.');
+  // libelles-14-11 : sans carte d'envoi ni envoi ordonné (noneAsked), rien n'a été refusé.
+  const none = [0, 0, 0, 0, [], [], 0, []];
+  assert.equal(formatSendLine(...none, true), '\nEnvoi par la plateforme : aucun demandé.');
+  assert.equal(formatSendLine(...none, false), '\nEnvoi par la plateforme : aucun approuvé.');
+  // An approved send is said as before whatever the flag.
+  assert.equal(
+    formatSendLine(1, 0, 0, 0, [], [], 0, [], true),
+    '\nEnvoi par la plateforme : 1 approuvé(s) par le propriétaire.',
+  );
   assert.equal(
     formatSendLine(3, 1, 1),
     '\nEnvoi par la plateforme : 3 approuvé(s) par le propriétaire, dont 1 sans effet (arrêtée avant d’agir après l’accord : rien n’a été envoyé), dont 1 à l’issue incertaine (échec après le début de l’action : vérifier sur le site).',

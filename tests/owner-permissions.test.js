@@ -397,8 +397,37 @@ test('Bilan : ligne générique des requêtes réseau d’envoi accordées autom
   assert.equal(formatAutoSendLine([auto('browser.navigate'), { type: 'permission' }]), '');
   assert.equal(
     formatAutoSendLine([auto('browser.send'), auto('browser.navigate'), auto('browser.send')]),
-    "Requêtes réseau d'envoi : 2 accordées automatiquement (mode propriétaire).",
+    'Écritures réseau de la page (hors envoi final) : 2 accordées automatiquement (mode propriétaire).',
   );
+});
+
+// libelles-14-11 : la ligne dit ce que sont ces écritures et les sites portés par les traces.
+test('Bilan : écritures réseau de la page avec leurs sites, bornés à trois', () => {
+  const auto = (host) => ({
+    type: 'permission_auto',
+    data: { capability: 'browser.send', ...(host ? { host } : {}) },
+  });
+  const events = [
+    ...Array.from({ length: 10 }, () => auto('collector.example.test')),
+    ...Array.from({ length: 7 }, () => auto('jobs.example.test')),
+  ];
+  assert.equal(
+    formatAutoSendLine(events),
+    'Écritures réseau de la page (hors envoi final) : 17 accordées automatiquement (mode propriétaire) ; sites : collector.example.test (10), jobs.example.test (7).',
+  );
+  const line = formatAutoSendLine([
+    auto('a.example.test'),
+    auto('b.example.test'),
+    auto('b.example.test'),
+    auto('c.example.test'),
+    auto('d.example.test'),
+    auto(),
+  ]);
+  assert.equal(
+    line,
+    'Écritures réseau de la page (hors envoi final) : 6 accordées automatiquement (mode propriétaire) ; sites : b.example.test (2), a.example.test (1), c.example.test (1), …, hôte non relevé (1).',
+  );
+  assert.doesNotMatch(line, /Requêtes réseau d'envoi/);
 });
 
 // accord-mission-01 : une option `allow_mission` proposée par l'agent lui-même (ACP) est écartée ;

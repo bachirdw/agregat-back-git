@@ -27,7 +27,9 @@ la suspend pas. Un envoi sans identifiant d’appel est accordé et tracé comme
 meurt avec la mission : une reprise ne le reprend pas, une autre mission ne l’a pas. `Refuser` ne pose
 rien. `allow_always` reste refusé. Bilan : « Envoi par la plateforme : N approuvé(s), dont A par le
 propriétaire et B par son accord de mission (cibles : hôte/chemin, … et K autres) » ; sans envoi accordé
-par la mission, la ligne est inchangée.
+par la mission, la ligne est inchangée. Sans envoi approuvé : « aucun demandé » quand aucune carte
+d'envoi n'a été présentée et que le prompt n'ordonne aucun envoi (14/11), sinon « aucun approuvé »
+(envoi refusé, carte restée sans réponse, ou envoi ordonné sans carte).
 Hors mode propriétaire : expiration après 60 secondes. En mode propriétaire, l’accord `send` n’expire
 pas (plafond seulement si `AGENT_PLATFORM_SEND_TIMEOUT_MS` est fixé, en ms) ; les délais « outil sans
 mise à jour », « agent inactif » et de mission sont suspendus pendant l’attente et reprennent avec le
@@ -91,7 +93,12 @@ Décision du propriétaire du 05/11 : le seul clic humain est celui qui précèd
   chargement de page, clic sur un élément qui n’est pas un formulaire, étape intermédiaire. Elle est
   accordée automatiquement et tracée : événement `permission_auto` avec la capacité `browser.send`
   (hôte seulement, jamais l’URL, le corps ni la requête), `networkSends` dans le résultat de l’outil
-  navigateur, et ligne du Bilan « Requêtes réseau d'envoi : n accordées automatiquement (mode propriétaire) ».
+  navigateur, et ligne du Bilan « Écritures réseau de la page (hors envoi final) : n accordées
+  automatiquement (mode propriétaire) ; sites : hôte (nombre), … » (trois hôtes au plus, puis « … » ;
+  « hôte non relevé (k) » pour les traces sans hôte). Avant le 14/11 la ligne disait « Requêtes réseau
+  d'envoi : n accordées automatiquement (mode propriétaire) ». Ces écritures ne sont pas des envois
+  approuvés ; la ligne ne dit pas non plus qu'aucune ne porte de données saisies par l'agent (une étape
+  intermédiaire de formulaire peut en poster).
 - Restent bloqués sans question : les POST tiers hors navigation (traceurs), les corps de plus de 100 Ko
   non approuvés, tout CAPTCHA ou détection de robot (aucun contournement).
 - Hors mode propriétaire rien ne change : chaque écriture demande l’accord.

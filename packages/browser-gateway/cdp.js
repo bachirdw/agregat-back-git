@@ -215,6 +215,13 @@ export function isGraphqlRead(body) {
     return false;
   }
 }
+// libelles-14-11 : the role X of a selector written exactly `[role=X]` (quoted or not), else null.
+export function selectorRole(selector) {
+  const match = String(selector ?? '')
+    .trim()
+    .match(/^\[\s*role\s*=\s*(?:"([a-z]+)"|'([a-z]+)'|([a-z]+))\s*\]$/i);
+  return match ? (match[1] ?? match[2] ?? match[3]).toLowerCase() : null;
+}
 function refMissing(ref, cause) {
   return new Error(`Référence ${ref} introuvable dans la page actuelle : reprends un snapshot.`, {
     cause,
@@ -2553,31 +2560,51 @@ export class CdpBrowser {
         const readDeadline = Date.now() + 10000;
         const { loading, ...extras } = await prepareCapture(page, args);
         const readTimeout = () => Math.max(2000, readDeadline - Date.now());
-        if ((args.limit ?? 1) > 1) {
-          const matches = page.locator(args.selector ?? 'body');
-          await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
-          const count = Math.min(await matches.count(), args.limit);
-          const texts = [];
-          for (let i = 0; i < count; i++)
-            texts.push(await matches.nth(i).innerText({ timeout: readTimeout() }));
+        // libelles-14-11 : `[role=dialog]` also finds the elements whose role is implicit (a native
+        // <dialog open>), and nothing found in time is said plainly instead of Playwright's message.
+        const role = args.ref ? null : selectorRole(args.selector);
+        const bySelector = (selector) =>
+          role ? page.locator(selector).or(page.getByRole(role)) : page.locator(selector);
+        const unmatched = (error) => {
+          if (error?.name !== 'TimeoutError' || args.ref || !args.selector) return error;
+          return new Error(
+            `Aucun élément ne correspond au sélecteur « ${String(args.selector).slice(0, 120)} » dans la page actuelle : prends un browser_snapshot et utilise la ref de l’élément.`,
+            { cause: error },
+          );
+        };
+        try {
+          if ((args.limit ?? 1) > 1) {
+            const matches = bySelector(args.selector ?? 'body');
+            await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
+            const count = Math.min(await matches.count(), args.limit);
+            const texts = [];
+            for (let i = 0; i < count; i++)
+              texts.push(await matches.nth(i).innerText({ timeout: readTimeout() }));
+            return {
+              url: page.url(),
+              text: texts.join('\n').slice(0, args.maxChars),
+              count,
+              loading,
+              ...extras,
+            };
+          }
           return {
             url: page.url(),
-            text: texts.join('\n').slice(0, args.maxChars),
-            count,
             loading,
             ...extras,
+            text: (
+              await (
+                role
+                  ? bySelector(args.selector).first()
+                  : await this.targetLocator(
+                      args.ref ? { ref: args.ref } : (args.selector ?? 'body'),
+                    )
+              ).innerText({ timeout: readTimeout() })
+            ).slice(0, args.maxChars),
           };
+        } catch (error) {
+          throw unmatched(error);
         }
-        return {
-          url: page.url(),
-          loading,
-          ...extras,
-          text: (
-            await (
-              await this.targetLocator(args.ref ? { ref: args.ref } : (args.selector ?? 'body'))
-            ).innerText({ timeout: readTimeout() })
-          ).slice(0, args.maxChars),
-        };
       }
       case 'browser.click':
         // Resolve first: a stale ref must not open the post-click send window.

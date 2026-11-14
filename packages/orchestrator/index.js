@@ -184,12 +184,25 @@ function otherSendOpen(mission, callId) {
   return false;
 }
 // Owner mode: network writes granted without a question are counted from the traces (permission_auto
-// with capability browser.send), next to the owner's own approvals.
+// with capability browser.send), next to the owner's own approvals. libelles-14-11 : these are the
+// page's own writes outside a final send click (trackers, telemetry, intermediate steps), said as
+// such with the hosts the traces carry ; nothing here tells whether one carried what the agent typed.
+const AUTO_SEND_HOSTS_SHOWN = 3;
 export function formatAutoSendLine(events) {
-  const n = events.filter(
+  const writes = events.filter(
     (event) => event.type === 'permission_auto' && event.data?.capability === 'browser.send',
-  ).length;
-  return n ? `Requêtes réseau d'envoi : ${n} accordées automatiquement (mode propriétaire).` : '';
+  );
+  if (!writes.length) return '';
+  const hosts = new Map();
+  for (const event of writes) {
+    const host = typeof event.data?.host === 'string' && event.data.host ? event.data.host : '';
+    hosts.set(host, (hosts.get(host) ?? 0) + 1);
+  }
+  const named = [...hosts].filter(([host]) => host).sort((a, b) => b[1] - a[1]);
+  const shown = named.slice(0, AUTO_SEND_HOSTS_SHOWN).map(([host, n]) => `${host} (${n})`);
+  if (named.length > AUTO_SEND_HOSTS_SHOWN) shown.push('…');
+  if (hosts.has('') && named.length) shown.push(`hôte non relevé (${hosts.get('')})`);
+  return `Écritures réseau de la page (hors envoi final) : ${writes.length} accordées automatiquement (mode propriétaire)${shown.length ? ` ; sites : ${shown.join(', ')}` : ''}.`;
 }
 // E66 : the owner's approvals of a send, and what became of the approved actions : an approval is
 // not a send. `failed` : the gateway stopped before acting (nothing sent) ; `uncertain` : the
@@ -222,7 +235,10 @@ export function formatSendLine(
   blocked = [],
   granted = 0,
   grantedTargets = [],
+  noneAsked = false,
 ) {
+  // libelles-14-11 : no send card shown and none ordered by the prompt : nothing was refused.
+  if (!approved && noneAsked) return '\nEnvoi par la plateforme : aucun demandé.';
   if (!approved) return '\nEnvoi par la plateforme : aucun approuvé.';
   const notes = [
     ...(refused.length
@@ -594,6 +610,8 @@ export class Orchestrator {
       (mission.sendControls ??= new Set()).add(control);
       return { approved: true };
     }
+    // libelles-14-11 : a send card shown, even one the gateway gave up on, is a send asked.
+    if (request.actionClass === 'send') control.sendsPresented = (control.sendsPresented ?? 0) + 1;
     const outcome = await this.permission(
       runId,
       {
@@ -1761,6 +1779,7 @@ export class Orchestrator {
           [...(control.sendsBlocked?.values() ?? [])],
           control.sendsGranted ?? 0,
           control.grantedTargets ?? [],
+          !control.sendsAsked && !control.sendsPresented && !ordersAction(run.prompt),
         );
       if (this.ownerMode) {
         const autoSendLine = formatAutoSendLine(this.store.events(run.id));

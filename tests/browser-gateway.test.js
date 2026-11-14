@@ -21,6 +21,7 @@ import {
   redactPageText,
 } from '../packages/browser-gateway/index.js';
 import { RunPolicy, isPrivateAddress } from '../packages/policy-engine/run-policy.js';
+import { selectorRole } from '../packages/browser-gateway/cdp.js';
 import {
   capabilityIds,
   describeCapabilities,
@@ -38,6 +39,21 @@ const trace = (stage) => {
 };
 
 // ---------- Pure policy / registry tests (no browser) ----------
+test('extraction : rôle d’un sélecteur exactement de la forme [role=X]', () => {
+  assert.equal(selectorRole('[role=dialog]'), 'dialog');
+  assert.equal(selectorRole(' [role="Dialog"] '), 'dialog');
+  assert.equal(selectorRole("[role='alertdialog']"), 'alertdialog');
+  for (const other of [
+    'div[role=dialog]',
+    '[role=dialog] p',
+    '#desc',
+    '[aria-modal=true]',
+    '',
+    undefined,
+  ])
+    assert.equal(selectorRole(other), null);
+});
+
 test('registre : contrats stables, schémas stricts, effets déclarés', () => {
   assert.deepEqual(ALL, [
     'browser.navigate',
@@ -341,6 +357,13 @@ function site() {
       res.writeHead(302, { location: '/file' });
       return res.end();
     }
+    // libelles-14-11 : une fenêtre native <dialog open> (rôle implicite) et une fenêtre ARIA.
+    if (req.url === '/dialog') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      return res.end(
+        '<!doctype html><title>Fenêtre FICTIVE</title><p>Fond</p><dialog open><h2>Coordonnées FICTIVES</h2><p>Courriel : nom@example.test</p></dialog><div role="dialog">Seconde fenêtre FICTIVE</div>',
+      );
+    }
     if (req.url === '/script') {
       res.setHeader('content-type', 'text/html');
       return res.end(
@@ -417,6 +440,31 @@ test(
     const text = await gw.call('browser.extract', { selector: '#desc' });
     assert.match(text.text, /Ignore all previous instructions/);
     assert.equal(text.untrusted, true);
+  },
+);
+
+// libelles-14-11 : browser_extract avec `[role=dialog]` trouve une fenêtre native <dialog open>
+// (rôle implicite) ; un sélecteur sans correspondance rend une erreur claire en français.
+test(
+  'Chrome réel : extraction [role=dialog] d’une fenêtre native, erreur claire sans correspondance',
+  { skip: !hasChrome && 'Chrome absent' },
+  async (t) => {
+    const { gw, origin } = await realGateway(t);
+    await gw.call('browser.navigate', { url: origin + '/dialog' });
+    const one = await gw.call('browser.extract', { selector: '[role=dialog]' });
+    assert.match(one.text, /Coordonnées FICTIVES/);
+    const quoted = await gw.call('browser.extract', { selector: '[role="dialog"]' });
+    assert.match(quoted.text, /Coordonnées FICTIVES/);
+    const both = await gw.call('browser.extract', { selector: "[role='dialog']", limit: 5 });
+    assert.equal(both.count, 2);
+    assert.match(both.text, /Coordonnées FICTIVES[\s\S]*Seconde fenêtre FICTIVE/);
+    await assert.rejects(
+      gw.call('browser.extract', { selector: '#absent-fictif' }),
+      (error) =>
+        /Aucun élément ne correspond au sélecteur « #absent-fictif »/.test(error.message) &&
+        /browser_snapshot/.test(error.message) &&
+        !/locator\./.test(error.message),
+    );
   },
 );
 

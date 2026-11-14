@@ -878,12 +878,21 @@ const EMAIL_OF_APPLICATION = new RegExp(
   'giu',
 );
 const MAIL_WORD = new RegExp(String.raw`\b${MAIL}\b`, 'iu');
-function emailSendRequested(text) {
-  const plain = String(text ?? '')
+const withoutMailFields = (text) =>
+  String(text ?? '')
     .replace(SEND_BUTTON, ' ')
     .replace(FIELD_MAIL, ' ');
+function emailSendRequested(text) {
+  const plain = withoutMailFields(text);
   return SEND_WORD.test(plain) && MAIL_WORD.test(plain);
 }
+// libelles-14-11 : an e-mail to write or prepare (« écris-lui un e-mail », « prépare un courriel »),
+// or to send ; denied clauses are already gone, form fields and send buttons ask for no e-mail.
+const WRITE_VERB =
+  /(?:^|[^\p{L}])(?:écri(?:s|re|vez)|rédig(?:e|er|ez)|prépar(?:e|er|ez)|draft|write|compose)(?=$|[^\p{L}])/iu;
+const emailWritingRequested = (text) =>
+  emailSendRequested(text) ||
+  (WRITE_VERB.test(withoutMailFields(text)) && MAIL_WORD.test(withoutMailFields(text)));
 
 // `skillSteps`: the steps of the selected intent as the engine published them (title, state,
 // optional, exempt): a step neither optional nor waived that never ran is said as missing.
@@ -1122,6 +1131,24 @@ export function formatCareerBilan(prompt, truth, manifest = defaultManifest(), s
             : linked
               ? 'préparé dans le navigateur (brouillon prérempli ouvert)'
               : 'texte seulement dans la réponse (aucune préparation observée)'
+      }.`,
+    );
+  }
+  // libelles-14-11 : an e-mail the prompt asks for, outside the intent this mission follows (one
+  // intent per mission) : said with what the calls show, never claimed from the agent's answer.
+  if (
+    !skillSteps.some((step) => step.proves === EMAIL_PREPARED) &&
+    emailWritingRequested(requested)
+  ) {
+    const mails = outcomes.filter((item) => item.name === 'email_send');
+    const last = mails.filter((item) => item.status === 'completed').at(-1);
+    contactLines.push(
+      `\n- E-mail : hors du parcours suivi par cette mission ; ${
+        last
+          ? `email_send appelé (${last.sent === true ? 'envoyé' : last.sent === false ? 'brouillon, non envoyé' : 'statut d’envoi inconnu'})`
+          : mails.length
+            ? 'email_send appelé, échoué'
+            : 'email_send non appelé (texte éventuel dans la réponse)'
       }.`,
     );
   }

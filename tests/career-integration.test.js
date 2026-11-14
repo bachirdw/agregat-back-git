@@ -1204,17 +1204,17 @@ test('Véracité FICTIVE : action échouée et note sans source restent visibles
     // E29 : the Bilan is the only place that lists failed actions (no duplicated line above it).
     assert.doesNotMatch(privateResult.summary, /Action\(s\) échouée\(s\)/);
     assert.match(privateResult.summary, /Bilan\n- Actions réussies : career_read/);
-    assert.match(
-      app.store.get(run.id).result.summary,
-      /Envoi par la plateforme : aucun approuvé\./,
-    );
+    // libelles-14-11 : « aucun approuvé » quand le prompt ordonne un envoi (« postule »), sinon
+    // « aucun demandé » (aucune carte d'envoi, aucun envoi ordonné).
+    const sendLine = `Envoi par la plateforme : ${/postule/.test(prompt) ? 'aucun approuvé' : 'aucun demandé'}.`;
+    assert.ok(app.store.get(run.id).result.summary.includes(sendLine), sendLine);
     assert.match(privateResult.summary, /- Actions échouées :/);
     assert.match(privateResult.summary, /- Non exécuté :/);
     // Front du 11/11 : the private result holds the lines written after the Bilan too, and the
     // public result gives the platform's lines apart from the agent's answer.
-    assert.match(privateResult.summary, /Envoi par la plateforme : aucun approuvé\./);
+    assert.ok(privateResult.summary.includes(sendLine), sendLine);
     const publicResult = app.store.get(run.id).result;
-    assert.ok(publicResult.platformNotes.includes('Envoi par la plateforme : aucun approuvé.'));
+    assert.ok(publicResult.platformNotes.includes(sendLine));
     assert.ok(publicResult.platformNotes.includes('Bilan'));
     assert.equal(typeof publicResult.answer, 'string');
     assert.ok(!publicResult.platformNotes.some((line) => line === publicResult.answer));

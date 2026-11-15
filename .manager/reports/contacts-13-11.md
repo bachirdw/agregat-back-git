@@ -468,3 +468,6 @@ Session reprise le 14/11 à 18:53. Le propriétaire teste à la main sur 5177 (A
 ### API et arbres
 - API d'essai 4314 relancée trois fois le 14/11 (20:32, 20:33, 20:54), toujours sans mission en cours. Elle s'arrête avec la session du manager.
 - Arbres de sprint à ranger : `agregat-back-libelles`, `agregat-back-cartes`, `agregat-back-orienter`, `agregat-front-libelles`, `agregat-front-orienter` (en plus de ceux du 13/11).
+
+### 15/11, 19:20 → 19:27 : intégration du sprint `cartes-14-11`
+Sur l'accord du propriétaire (« Oui, intègre »), les cinq commits de `cartes-14-11` et de sa relecture sont repris dans `contacts-13-11` (`f7efee3`, `dbac4dc`, `92996bf`, `52da27e`, `0c43990`), sans conflit. API d'essai 4314 relancée à 19:21, sans mission en cours, 16 missions conservées. Phase unitaire relancée par le manager sur la branche réunie (libellés + message en cours de mission + cartes) : 163 fichiers, 1 282 tests, 1 280 réussis, 0 échec, 2 ignorés ; `npm run check` et `npm run format:check` verts. Toujours NON fait : la suite Chrome complète sur la branche réunie, et tout essai réel des correctifs des 14 et 15/11.

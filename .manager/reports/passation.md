@@ -856,3 +856,6 @@ Arbres de sprint à ranger (tous intégrés) : `agregat-back-libelles`, `agregat
 - Lire un fichier avant de l'éditer hors du dossier de travail, et n'arrêter un serveur qu'une fois le changement appliqué.
 - Travailler dans un arbre isolé par sprint, n'intégrer et ne relancer l'API que sans mission en cours.
 - Une reprise n'est pas une suite : pour corriger une mission en cours, « Envoyer à l'agent » ; pour une mission finie, une nouvelle mission avec le prompt complet.
+
+### 18.9 Ajout du 16/11 à 18:55
+Rapport du guetteur (détail dans `guet-16-11.md`) : trois missions Claude le 16/11. 05f068a7 (recherche sur trois sites, 11 min) : aucune carte, conforme. 0e397f84 (reprise : notation, CV, lettres, sans postuler ; 19 min, deux questions répondues) : rien à signaler, 8 CV générés. f70f2d13 (reprise : « postuler à toutes les annonces avec CV et lettre ») : en attente d'une réponse du propriétaire depuis 18:25, aucune carte ni envoi à ce stade ; les cartes d'envoi y seront légitimes. Les deux reprises ont travaillé dans le bon dossier et fait ce qui était demandé, contrairement à la reprise Codex bcbedbb6 du 15/11 (qui reprenait une mission d'avant la copie durable). Le guetteur est relancé sur f70f2d13. Toujours aucun `owner_message` : le message en cours de mission reste non éprouvé en réel.

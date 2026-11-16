@@ -45,7 +45,8 @@ import {
   usageLimitMessage,
 } from './failure.js';
 import { missionTitle } from './title.js';
-import { resumeCheckpoint } from './checkpoint.js';
+import { checkpointLine, resumeCheckpoint } from './checkpoint.js';
+import { HISTORY_LIMITS, boundedHistory, changedFiles, executionEntry } from './resume-history.js';
 import {
   createTurnTruth,
   formatCareerBilan,
@@ -974,19 +975,77 @@ export class Orchestrator {
       return null;
     }
   }
-  // Resume context: the conversation's first request and the owner's previous message.
+  // A private mission's file of the platform (`relay/runs/<id>-<name>.json`), null when absent.
+  privateRunFile(run, name, maxBytes = 200000) {
+    if (run?.workspace !== 'career-ops' || !run.id) return null;
+    try {
+      return JSON.parse(
+        readConfined(this.careerOf(run).path(), `relay/runs/${run.id}-${name}.json`, maxBytes),
+      );
+    } catch {
+      return null;
+    }
+  }
+  // reprise-16-11 : files created or changed in the mission folder during this execution, kept at
+  // its end (a later execution may touch the same files). A private mission keeps the list in its
+  // workspace, as its prompt ; any other mission on its record.
+  observedFilesFor(run) {
+    try {
+      const observed = changedFiles(run.cwd, Date.parse(run.createdAt));
+      if (run.workspace !== 'career-ops') return { observedFiles: observed };
+      writeConfined(run.cwd, `relay/runs/${run.id}-observed.json`, JSON.stringify(observed));
+    } catch {
+      /* The checkpoint then says the list is unavailable. */
+    }
+    return {};
+  }
+  // The model's own last answer, apart from the platform's Bilan when the result keeps it so.
+  modelAnswerOf(run) {
+    const kept = this.privateRunFile(run, 'result', 2000000);
+    if (typeof kept?.answer === 'string' && kept.answer) return kept.answer;
+    if (typeof run.result?.answer === 'string' && run.result.answer) return run.result.answer;
+    // Older results mix the answer and the Bilan ; a failed execution's result is the Bilan alone.
+    if (run.state === 'completed') return String(kept?.summary ?? run.result?.summary ?? '');
+    return '';
+  }
+  // Resume context: the conversation's first request, the owner's previous message, and (since
+  // reprise-16-11) the previous executions of the chain : the owner's answers and messages, what
+  // the platform observed, the model's last answer apart from the Bilan.
   checkpointFor(previous) {
-    let first = previous;
+    const chain = [previous];
     const seen = new Set([previous.id]);
+    let first = previous;
     while (first.resumedFrom && !seen.has(first.resumedFrom) && seen.size < 200) {
       const parent = this.store.get(first.resumedFrom);
       if (!parent) break;
       seen.add(parent.id);
+      chain.unshift(parent);
       first = parent;
     }
+    const detailed = chain.slice(-HISTORY_LIMITS.executions);
+    const history = boundedHistory(
+      detailed.map((run) => {
+        const events = run.id ? this.store.events(run.id) : [];
+        const messages = this.privateRunFile(run, 'messages');
+        return executionEntry(run, {
+          events: events.filter((e) => ['question', 'answer', 'owner_message'].includes(e.type)),
+          ownerMessage: this.turnObjective(run),
+          observed:
+            run.workspace === 'career-ops'
+              ? this.privateRunFile(run, 'observed')
+              : (run.observedFiles ?? null),
+          privateTexts: new Map(
+            Array.isArray(messages) ? messages.map((m) => [m?.id, m?.text]) : [],
+          ),
+        });
+      }),
+      chain.length - detailed.length,
+    );
     return resumeCheckpoint(previous, {
       missionObjective: this.turnObjective(first),
       previousOwnerMessage: this.turnObjective(previous),
+      previousAnswer: this.modelAnswerOf(previous),
+      history,
     });
   }
   async create(input, previous = null) {
@@ -1211,6 +1270,7 @@ export class Orchestrator {
     let messageStarts = [];
     let browserToolObserved = false;
     let sessionReset = false;
+    let checkpoint = null;
     let rateLimit = null;
     this.expiredPermissions.delete(run.id);
     const toolTitles = new Map();
@@ -1544,9 +1604,10 @@ export class Orchestrator {
         });
       // Which tool serves which task is declared by the pack, never coded in the engine.
       const toolRoles = formatToolRoles(plan.pack.skillManifest);
+      checkpoint = previous ? this.checkpointFor(previous) : null;
       const prompt = JSON.stringify({
         objective: run.prompt,
-        ...(previous ? { checkpoint: this.checkpointFor(previous) } : {}),
+        ...(checkpoint ? { checkpoint } : {}),
         attachments:
           run.workspace !== 'career-ops'
             ? (run.missionFiles ?? [])
@@ -1857,8 +1918,13 @@ export class Orchestrator {
           formatCareerBilan(ownerWords(), turnTruth, undefined, skillResult.steps) +
           (skillResult.steps.length ? '\n' + formatSkillBilan(skillResult) : '');
         value.summary += '\n' + careerBilan;
-        writeConfined(run.cwd, `relay/runs/${run.id}-result.json`, JSON.stringify(value));
-        privateResult = { ...value };
+        writeConfined(
+          run.cwd,
+          `relay/runs/${run.id}-result.json`,
+          JSON.stringify({ ...value, answer: agentSaid }),
+        );
+        // reprise-16-11 : the agent's own answer, apart from the Bilan, for the next reprise.
+        privateResult = { ...value, answer: agentSaid };
         value.summary =
           (agentAnswer
             ? this.ownerMode
@@ -1910,8 +1976,10 @@ export class Orchestrator {
       if (sessionReset)
         value.summary +=
           sessionReset === 'unqualified'
-            ? '\nSession : reprise exacte non qualifiée ; session neuve depuis un point de reprise. Historique non rejoué, effets antérieurs non vérifiés : ne pas les répéter.'
+            ? '\nSession : reprise exacte non qualifiée ; session neuve depuis un point de reprise. Conversation non rejouée, effets antérieurs non vérifiés : ne pas les répéter.'
             : `\nSession : la session précédente ${sessionReset === 'lost' ? 'était introuvable' : 'n’a pas pu être rechargée'}, nouvelle session depuis un point de reprise.`;
+      // reprise-16-11 : what the new session was sent, nothing more.
+      if (sessionReset && checkpoint) value.summary += '\n' + checkpointLine(checkpoint);
       if (this.store.events(run.id).some((event) => event.type === 'browser_fallback'))
         value.summary +=
           '\nNavigateur : Chrome isolé, non connecté à vos comptes (extension Playwriter indisponible). Il est invisible, aucune connexion n’y est possible : ouvrir Chrome avec l’extension, puis relancer.';
@@ -2003,6 +2071,7 @@ export class Orchestrator {
         ...(incompleteMessage ? { error: incompleteMessage } : {}),
         result: value,
         missionProof: missionProof(),
+        ...this.observedFilesFor(run),
         finishedAt: new Date().toISOString(),
       });
     } catch (e) {
@@ -2066,6 +2135,7 @@ export class Orchestrator {
         state: control.cancelled ? 'cancelled' : 'failed',
         error: failureMessage,
         missionProof: missionProof(),
+        ...this.observedFilesFor(run),
         finishedAt: new Date().toISOString(),
       });
     } finally {

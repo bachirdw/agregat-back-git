@@ -125,7 +125,8 @@ test('reprise : l’agent reçoit l’objectif de départ et le dernier message 
   assert.equal(checkpoint.missionObjective, 'FICTIF objectif de départ');
   assert.equal(checkpoint.previousOwnerMessage, 'FICTIF deuxième message');
   assert.equal(checkpoint.sourceRunId, second.run.id);
-  assert.equal(checkpoint.previousAnswer, second.run.result.summary);
+  // reprise-16-11 : the model’s own answer, apart from the platform’s Bilan lines.
+  assert.equal(checkpoint.previousAnswer, second.run.result.answer);
   assert.equal(checkpoint.untrusted, true);
   assert.equal(checkpoint.effects, 'unverified');
   assert.equal(checkpoint.provenance.missionObjective, 'propriétaire');

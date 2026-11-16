@@ -34,7 +34,8 @@ import {
 import { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 import { spawn } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve as resolvePath } from 'node:path';
 import { connectMcp } from '../../packages/mcp-gateway/client.js';
 const cfg = JSON.parse(process.env.FAKE_ACP ?? '{}');
 const grandchild = cfg.grandchild
@@ -488,6 +489,52 @@ const app = agent({ name: 'fake-acp' })
                 ? `Il me manque une précision FICTIVE.\n${JSON.stringify({ question: reply.question })}`
                 : JSON.stringify(reply),
           },
+        },
+      });
+      return { stopReason: 'end_turn' };
+    }
+    // reprise-16-11 : askQuestions: [{message, requestedSchema}] forms asked one after the other in
+    // the first turn ; writeFiles: [{path, text}] files written (relative to the agent's folder) with
+    // a native `edit` tool call ; then finalText (prose, a draft for instance) ends the turn, or
+    // turnError fails it.
+    if (
+      (cfg.askQuestions || cfg.writeFiles || cfg.finalText || cfg.turnError) &&
+      !turnRequest?.platform
+    ) {
+      const answers = [];
+      for (const [index, form] of (cfg.askQuestions ?? []).entries())
+        answers.push(
+          await connection.client.request(methods.client.elicitation.create, {
+            sessionId: ctx.params.sessionId,
+            toolCallId: `FICTIF-ask-${index}`,
+            mode: 'form',
+            message: form.message,
+            requestedSchema: form.requestedSchema,
+          }),
+        );
+      if (cfg.answerFile) writeFileSync(cfg.answerFile, JSON.stringify(answers));
+      for (const [index, file] of (cfg.writeFiles ?? []).entries()) {
+        mkdirSync(dirname(resolvePath(process.cwd(), file.path)), { recursive: true });
+        writeFileSync(resolvePath(process.cwd(), file.path), file.text ?? 'FICTIF');
+        for (const status of ['in_progress', 'completed'])
+          await connection.client.notify(methods.client.session.update, {
+            sessionId: ctx.params.sessionId,
+            update: {
+              sessionUpdate: status === 'in_progress' ? 'tool_call' : 'tool_call_update',
+              toolCallId: `FICTIF-write-${index}`,
+              title: 'Write',
+              kind: 'edit',
+              status,
+              locations: [{ path: file.path }],
+            },
+          });
+      }
+      if (cfg.turnError) throw new RequestError(-32000, cfg.turnError);
+      await connection.client.notify(methods.client.session.update, {
+        sessionId: ctx.params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: cfg.finalText ?? 'Tour FICTIF terminé.' },
         },
       });
       return { stopReason: 'end_turn' };

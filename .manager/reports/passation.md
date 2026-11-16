@@ -787,7 +787,7 @@ Journal : `contacts-13-11.md`, sous-section « Suite de la session avec le propr
 - Arbres de travail à ranger : `agregat-back-contacts`, `agregat-back-freins`, `agregat-front-preuves`.
 
 
-## 18. Passation du 16/11 (17:50) — sessions des 14, 15 et 16/11
+## 18. Passation du 16/11 (17:49) — sessions des 14, 15 et 16/11
 
 Écrite à la demande du propriétaire pour une nouvelle discussion. Lire cette section, puis la section 1 (règles), puis au besoin les sections 17 et 16. Le journal détaillé et la liste numérotée des erreurs sont dans `contacts-13-11.md` (sections « Suite du 14/11 » et suivantes).
 

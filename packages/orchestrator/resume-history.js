@@ -130,6 +130,11 @@ export function questionsOf(events, limits = HISTORY_LIMITS) {
             (Array.isArray(value) && !value.length);
           return {
             title: bounded(schema?.title ?? key, limits.title),
+            // review-reprise-16-11 : Claude's form puts several questions in one form, the
+            // question's text in the field's description and a short header in its title.
+            ...(typeof schema?.description === 'string' && schema.description
+              ? { description: bounded(schema.description, limits.question) }
+              : {}),
             answer: empty ? null : bounded(shown(value, schema), limits.answer),
           };
         }),

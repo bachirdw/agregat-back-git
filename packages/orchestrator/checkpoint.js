@@ -51,6 +51,10 @@ export function resumeCheckpoint(
         ? {
             'history.executions[].ownerMessage': 'propriétaire',
             'history.executions[].questions[].question': 'déclaré par le modèle (question posée)',
+            'history.executions[].questions[].fields[].title':
+              'déclaré par le modèle (question posée)',
+            'history.executions[].questions[].fields[].description':
+              'déclaré par le modèle (question posée)',
             'history.executions[].questions[].fields[].answer': 'propriétaire',
             'history.executions[].ownerMessages': 'propriétaire',
             'history.executions[].platform': 'constaté par la plateforme',

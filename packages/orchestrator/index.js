@@ -1000,10 +1000,13 @@ export class Orchestrator {
     return {};
   }
   // The model's own last answer, apart from the platform's Bilan when the result keeps it so.
+  // review-reprise-16-11 : an `answer` field that is there but empty means the platform found no
+  // answer of the model ; the summary is then the Bilan alone and is never handed over as his.
   modelAnswerOf(run) {
     const kept = this.privateRunFile(run, 'result', 2000000);
-    if (typeof kept?.answer === 'string' && kept.answer) return kept.answer;
-    if (typeof run.result?.answer === 'string' && run.result.answer) return run.result.answer;
+    if (typeof kept?.answer === 'string') return kept.answer;
+    if (typeof run.result?.answer === 'string' && (run.result.answer || !kept))
+      return run.result.answer;
     // Older results mix the answer and the Bilan ; a failed execution's result is the Bilan alone.
     if (run.state === 'completed') return String(kept?.summary ?? run.result?.summary ?? '');
     return '';

@@ -786,3 +786,73 @@ Journal : `contacts-13-11.md`, sous-section « Suite de la session avec le propr
 - E102, E103, avertissement d'E105, E54, E108 : toujours ouverts (section 16).
 - Arbres de travail à ranger : `agregat-back-contacts`, `agregat-back-freins`, `agregat-front-preuves`.
 
+
+## 18. Passation du 16/11 (17:50) — sessions des 14, 15 et 16/11
+
+Écrite à la demande du propriétaire pour une nouvelle discussion. Lire cette section, puis la section 1 (règles), puis au besoin les sections 17 et 16. Le journal détaillé et la liste numérotée des erreurs sont dans `contacts-13-11.md` (sections « Suite du 14/11 » et suivantes).
+
+### 18.1 Où vit le code (rien n'est poussé ni fusionné)
+| Quoi | Dossier | Branche | Tête |
+|---|---|---|---|
+| Back de la session | `~/Downloads/agregat-back-essai-13-11` | `contacts-13-11` (67 commits au-dessus de `cto-11-11` d88d490) | `0705215` + cette passation |
+| Front de la session | `~/Downloads/agregat-front-cto` | `e104-13-11` | `7b2716c` |
+| API du propriétaire (ancien code) | `~/Downloads/agregat-back-cto` | `cto-11-11` | d88d490, port 4313, front 5176 |
+| Dossier de travail des sessions Claude | `~/Downloads/agregat-back` | `codex/browser-audit-31-10` | **ne jamais y toucher** (travail non commité du propriétaire) ; son `CLAUDE.md` est l'ancien, sans la règle « un clic par mission » |
+| Espace career-ops d'essai | `~/Downloads/career-ops-essai` | — | copie durable depuis le 15/11 ; l'espace réel du propriétaire n'est pas touché |
+
+Relances (elles s'arrêtent avec la session du manager qui les a lancées) :
+- API d'essai : `cd ~/Downloads/agregat-back-essai-13-11 && zsh .manager/outils/api-branche.sh 4314 ~/Downloads/career-ops-essai`
+- Front d'essai : `cd ~/Downloads/agregat-front-cto && AGENT_PLATFORM_API_URL=http://127.0.0.1:4314 npx vite --host 127.0.0.1 --port 5177 --strictPort`
+- Ne relancer l'API que sans mission en cours, et le dire au propriétaire. La page de candidature fictive (4321) ne répondait plus le 16/11 à 17:48.
+
+Arbres de sprint à ranger (tous intégrés) : `agregat-back-libelles`, `agregat-back-cartes`, `agregat-back-orienter`, `agregat-back-contacts`, `agregat-back-freins`, `agregat-front-libelles`, `agregat-front-orienter`, `agregat-front-preuves`.
+
+### 18.2 Ce qui a été fait et intégré depuis la section 17
+1. `CLAUDE.md` (branche) : règle « un clic par mission » (`64cce94`).
+2. **Libellés et Bilan** (`libelles-14-11`) : ligne « Écritures réseau de la page (hors envoi final) : N … ; sites : … » (`formatAutoSendLine`, `packages/orchestrator/index.js`) ; « Envoi par la plateforme : aucun demandé. » (`noSendAsked`, compteur `sendsPresented`) ; `browser_extract` trouve un rôle implicite pour `[role=X]` et dit clairement quand rien ne correspond (`packages/browser-gateway/cdp.js`) ; intention `email` pour « e-mail de prise de contact » (manifeste) ; ligne « E-mail : hors du parcours suivi… » (`packages/career-ops/truth.js`). Front : `src/Bilan.tsx`, `src/ConnectionsPanel.tsx`.
+3. **Délai maximal d'une mission** : 30 min → 2 h dans `.manager/outils/api-branche.sh` (`8d22524`).
+4. **Message du propriétaire pendant une mission** (`orienter-14-11`) : `POST /api/runs/:id/message`, événement `owner_message` (`pending` / `delivered` par `steering`, `turn_end`, `with_answer` / `undelivered`), extension ACP `_session/steering` pour Claude et Codex, tour supplémentaire en fin de tour sinon, ligne au Bilan, `ownerWords()` pour les détections. Fichiers : `packages/agent-runtime/index.js`, `packages/orchestrator/index.js`, `apps/api/server.js`, `tests/fixtures/fake-acp.js`, `tests/message-proprietaire.test.js`, `docs/api-message.md`. Front : `src/MissionPill.tsx` (« Envoyer à l'agent »), `src/Career.tsx` (bulle « Vous, pendant la mission »), `src/ownerMessages.ts`, `src/App.tsx`, `src/api.ts`, `src/types.ts`.
+5. **Cartes d'envoi à tort pendant une recherche** (`cartes-14-11`, E112 à E115), intégré le 15/11 sur accord du propriétaire : navigation tierce d'un cadre enfant hors geste d'envoi bloquée en silence ; Entrée dans une zone de recherche d'une ligne classée `widget` ; une saisie de recherche n'arme plus la règle des 100 ko ni la décision sur le traceur ; « sans » lu comme négation au Bilan. Fichiers : `packages/browser-gateway/cdp.js`, `packages/browser-gateway/index.js`, `packages/career-ops/truth.js`, `tests/cartes-recherche.test.js`, `tests/review-cartes-recherche.test.js`, `tests/bilan-sans-negation.test.js`, `scripts/run-tests.js`.
+6. Espace d'essai rendu durable (`~/Downloads/career-ops-essai`).
+
+### 18.3 Vérifications
+- Suite complète sur la branche réunie, le 15/11 de 19:25 à 19:39 (`AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000 npm test`) : unitaires 1 258 tests, 1 256 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts. Front : 242/242, `tsc` et prettier verts (14/11).
+- **Premier essai réel du correctif des cartes, le 16/11** : mission 05f068a7 (Claude, recherche sur SEEK, Indeed, LinkedIn, terminée en dix minutes environ). D'après les événements lus par le manager à 17:34 et le rapport du guetteur : aucune carte, aucun `send_auto`, 9 écritures réseau tracées sans carte, Bilan « aucun demandé », lectures prouvées sur les trois sites, pas de scan ni d'évaluation ni de CV. Non vérifié sur cette mission : si une touche Entrée a été pressée dans le champ de recherche de LinkedIn (le cas qui ouvrait les cartes le 14/11).
+- **Jamais essayé en réel** : le message en cours de mission avec un vrai agent (le seul essai du propriétaire, le 15/11, est parti en reprise parce que la mission était terminée) ; l'accord par mission avec Codex ou sur un vrai site ; E100.
+
+### 18.4 Décisions du propriétaire (à respecter)
+- Un clic par mission pour les envois (13/11) ; seul l'envoi final attend son clic ; pas de garde nouvelle, pas de restriction de l'agent, sécurité « plus tard » ; pas de relecture orientée sécurité.
+- « Oui, corrige tout » (14/11) pour les cinq correctifs de libellés ; « Oui, intègre » (15/11) pour le sprint cartes et « sans » ; il a demandé lui-même le message en cours de mission et la copie durable de l'espace d'essai.
+- Il veut être prévenu des grandes décisions, voir toutes les erreurs dites, et que le manager délègue (Opus pour coder et relire, Sonnet pour le facile).
+- Décisions du manager à lui confirmer : phrases génériques « écris un e-mail » retirées de l'intention `email` (les prompts mixtes restent sur `linkedin`) ; carte gardée sur les menus « Envoyer » (13/11).
+
+### 18.5 Questions posées au propriétaire, restées sans réponse
+1. Rendre facultative l'étape `scan` de l'intention `search` du pack (`optional: false` dans `skill-manifest.yaml`) : c'est elle qui pousse l'agent à lancer le scan des portails à chaque recherche (les « 3 000 offres » : total vu par `scan.mjs` sur 29 sites Greenhouse, 98 % écartées ; ce n'est pas la boîte d'entrée).
+2. Corriger la reprise (`/resume`) pour qu'elle poursuive la mission d'origine avec la consigne ajoutée : aujourd'hui l'agent ne reçoit que la nouvelle phrase et une note « ne pas répéter », et la reprise travaille dans le dossier de la mission d'origine (mission bcbedbb6 : aucune recherche faite, fichier `modes/_custom.md` créé dans l'ancien dossier temporaire).
+3. Lever le refus de cliquer sur un élément recouvert (« Clic impossible : élément masqué par div ») ; avec lui, les autres freins listés le 13/11 : touche Espace et raccourcis, réseau privé, liste d'un dossier par `career_read`.
+4. Enquêter sur la lecture des pages par tranches de 24 000 caractères par Codex (quatre ou cinq `browser_snapshot` par page : le premier poste de temps de la mission d24511ff).
+5. Reporter la règle « un clic par mission » dans le `CLAUDE.md` du dossier `agregat-back` (dossier interdit : ne le faire que sur son ordre).
+6. Fusion des branches et relance de l'API 4313 sur le nouveau code ; décisions 3 à 8 de la section 15.
+
+### 18.6 Défauts connus, non traités
+- Bilan d'une mission en échec muet sur les envois accordés (d24511ff) ; écart de comptes entre le Bilan et `bilan-vs-events.mjs`.
+- Étapes `save-offer` et `pipeline` dites « ignorées » quand l'agent écrit `data/pipeline.md` par son outil d'édition natif au lieu de `career_write` (05f068a7) ; l'échec d'un outil natif n'est pas listé au Bilan.
+- Note « lien cité sans lecture prouvée » alors que la page, redirigée, a été lue (f0beb3b4).
+- Routage d'intention (`skill-router.js`) qui lit encore « sans » à l'ancienne.
+- Limites du sprint cartes : un champ de message d'une ligne déclaré zone de recherche qui écrit vers un chemin sans mot d'envoi passe sans carte ; un cadre publicitaire d'un autre site qui écrit vers sa propre origine en recopiant l'adresse ouvre encore une carte ; un site qui ne déclare pas sa zone de recherche garde les cartes à tort.
+- Message en cours de mission : messages non persistés (perdus au redémarrage du serveur) ; message en attente « non remis » si une question est refusée ; un 404 « mission inconnue » est pris par le front pour un ancien serveur.
+- Recherche de texte native sans résultat affichée comme un échec ; lectures de fichiers faites deux fois au début d'une mission Codex.
+- Dans le Skill (intouchable) : scan SEEK en échec réseau à chaque passage, pas de fournisseur Indeed ni LinkedIn ; l'agent a cliqué « Ignorer » sur quatre offres d'un site puis dit les avoir rétablies (non contrôlé).
+- E54 (une seule intention par mission), E102, E103, avertissement d'E105, E108 : toujours ouverts.
+- La base de l'API d'essai garde l'ancien chemin temporaire pour les missions d'avant le 15/11 et pour la source du Skill importé : effet inconnu après un redémarrage du Mac.
+
+### 18.7 En cours au moment de la passation
+- Un guetteur (sous-agent en lecture seule) suit les missions du propriétaire et écrit `.manager/reports/guet-16-11.md` (non commité). Il s'arrête seul après 30 minutes sans mission. Une nouvelle discussion ne recevra pas son rapport : lire ce fichier.
+- Prompts de test donnés au propriétaire : recherche sur les trois sites « sans lancer le scan des portails… n'évalue pas en détail, ne génère aucun CV » ; « traite ma boîte d'entrée » pour le tri ; « trouve le décideur… puis écris-lui un e-mail de prise de contact, n'envoie rien ».
+
+### 18.8 Leçons de ces trois jours (interprétation du manager)
+- Borner toute sortie d'événements lue par le manager ; déléguer la fouille des événements.
+- Lire l'horloge avant chaque heure écrite : deux heures écrites de tête ont dû être corrigées.
+- Lire un fichier avant de l'éditer hors du dossier de travail, et n'arrêter un serveur qu'une fois le changement appliqué.
+- Travailler dans un arbre isolé par sprint, n'intégrer et ne relancer l'API que sans mission en cours.
+- Une reprise n'est pas une suite : pour corriger une mission en cours, « Envoyer à l'agent » ; pour une mission finie, une nouvelle mission avec le prompt complet.

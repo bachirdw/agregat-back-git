@@ -5,7 +5,7 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 17:54 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 17:59 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
@@ -38,14 +38,21 @@ traités ; les épreuves 4 et 5 avec le propriétaire. Le manager répond lui-m�
 à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte
 d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
 
-**En cours au 17:54** : (1) sprint `precision-18-11` (E130) lancé à 17:38 sur son « Oui, corrige » : arbre
-`~/Downloads/agregat-back-precision`, brief `.manager/briefs/precision-18-11.md`, codeur puis deux relecteurs puis un
-correcteur (Opus) ; ensuite contrôle du manager, essai réel avec Codex et Claude, puis accord du propriétaire avant
-d'intégrer. (2) Demande du propriétaire de 17:40 : **débrider le scan** (il veut des milliers d'offres ramenées, admet
-60 à 70 % de non postulables) ; enquête rendue dans `reports/freins-scan-18-11.md` : le scan du Skill est borné par ses
-sources (29 entreprises presque toutes étrangères, réglage de `portals.yml` dans son espace), la recherche par le
-navigateur perd 90 à 99 % des résultats (une page lue, tranches de 24 000 caractères) ; brides de plateforme E131 à
-E134 ; rien corrigé, essai réel proposé (SEEK, 5 pages, collecte sans note, Claude puis Codex).
+**Prêt, attend un oui du propriétaire (demandé à 17:59)** : sprint `precision-18-11` (E130), arbre
+`~/Downloads/agregat-back-precision`, tête `dd758e2`, 6 commits sur `93e463f`. Contenu : `OWNER_QUESTION_RULE`
+(`packages/orchestrator/owner-question-rule.js`) dit qu'un outil de question qui n'attend pas la réponse n'est pas un
+formulaire ; le relecteur a aussi retiré le nom « AskUserQuestion » de la phrase (règle « aucun nom d'outil d'un
+agent ») ; `docs/api-questions.md` ; tests `review-precision-18-11` et trois fichiers adaptés. Codé, relu par deux
+relecteurs puis un correcteur, contrôlé par le manager (186 tests ciblés sur 186, `check` et prettier verts). **Essai
+réel sur le code du sprint** (API temporaire 4315, pack `core`, arrêtée ensuite) : Codex ouvre sa question (`prose`,
+043c3325), Claude garde son formulaire (`form`, 6fca2bbb), les deux vont au bout. Non vérifié : le parcours career-ops
+(épreuve 3) avec la phrase intégrée. Marche à suivre après son oui : aucune mission en cours, arrêt de l'API 4314,
+`git cherry-pick 93e463f..precision-18-11`, suite complète, relance, registre, puis épreuve 3 avec Codex et Claude.
+**Demande du propriétaire de 17:40 : débrider le scan** (il veut des milliers d'offres ramenées, admet 60 à 70 % de non
+postulables) ; enquête rendue dans `reports/freins-scan-18-11.md` : le scan du Skill est borné par ses sources (29
+entreprises presque toutes étrangères, réglage de `portals.yml` dans son espace), la recherche par le navigateur perd
+90 à 99 % des résultats (une page lue, tranches de 24 000 caractères) ; brides de plateforme E131 à E134 ; rien
+corrigé ; essai réel proposé (SEEK, 5 pages, collecte sans note, Claude puis Codex).
 
 **Décisions du propriétaire du 18/11** : ménage des passations ; une seule version, poussée et devenue `main` ; correctif
 de la reprise intégré ; des faits et des essais avant toute correction ; mêmes autorisations pour tous les agents, rien

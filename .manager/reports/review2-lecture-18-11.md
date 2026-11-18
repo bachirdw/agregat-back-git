@@ -109,4 +109,52 @@ eu lieu.
 ## Commits
 
 - `e8c600f` : correction L1, L2, L3, tests neufs, attendu du test du sprint.
-- Le commit de ce rapport.
+- `bec6da8` : ce rapport (première passe).
+
+## Seconde passe (19:41, heure lue par `date`)
+
+Le vérificateur indépendant a signalé un seul reste, sur L3 : quand la sortie standard est du texte
+simple, la sortie d'erreur compte encore pour le seuil. Son exemple : `fetch-jd` sur
+`https://p.example.test/job/R100001`, sortie standard « court » et 1 000 caractères sur la sortie
+d'erreur. L'étape passe à `done` et `incomplete` renvoie `[]`.
+
+- **Constaté :** pour un script du Skill, `packages/career-ops/tools.js` (l.1433-1437) rend un seul
+  champ `text`, égal à `stdout + "\n" + stderr`. La réponse ne contient aucune autre trace de la
+  frontière. Le routeur ne peut donc pas retrouver la sortie standard seule quand elle est du texte
+  simple. Une correction exacte demande de toucher `tools.js`, qui est hors de mon périmètre. Je n'y
+  ai pas touché.
+- **Fait dans `skill-router.js` (`scriptOutput`), au plus étroit :** un champ `stderr` présent dans
+  la réponse n'est jamais compté comme texte rendu. Aujourd'hui, aucune réponse ne porte ce champ :
+  le changement est inerte. Il prépare la correction : il suffira que `tools.js` rende
+  `{ text: stdout, stderr, exitCode }` pour un script du Skill, et le seuil portera alors sur la
+  sortie standard seule, sans autre changement du routeur.
+- **Non fait, par choix :** compter pour rien toute sortie en texte simple. Ce serait « dans le
+  doute, ne compte pas », mais cela retirerait aussi la lecture par `fetch-jd`, le cas réel qui a
+  motivé le sprint. `fetch-jd` écrit en texte simple et, d'après son code lu en lecture seule,
+  n'écrit rien sur la sortie d'erreur quand il réussit. Le sprint serait alors sans effet. Ce choix
+  revient au propriétaire (voir plus bas).
+- **Tests ajoutés** (`tests/review2-lecture-18-11.test.js`) :
+  - « une sortie d'erreur rendue à part ne compte pas pour le seuil » : rouge avant la correction,
+    vert après. Avec la sortie standard « court » et un `stderr` de 1 000 caractères, l'étape reste
+    `pending` et le message « 1 offre(s) notée(s) sans lecture de leur page » apparaît. Avec la
+    sortie standard longue, l'étape est `done`.
+  - Cas fusionné du vérificateur, rejoué tel quel et marqué `todo` : il échoue tant que `tools.js`
+    fusionne les deux sorties. Il devra passer quand `tools.js` les séparera.
+
+Tests de la seconde passe (un fichier à la fois, résultats exacts) :
+
+- review2-lecture-18-11 : 7 réussis, 0 échec, 1 todo. Le todo est le cas fusionné, qui échoue comme
+  prévu.
+- lecture-18-11 11/11, review-lecture-18-11 3/3, skill-router 41/41, note-sans-lecture 11/11,
+  lecture-page-liste 12/12, lecture-page-resultats 4/4, career-script-usage 4/4, preuve-effet 7/7,
+  bilan-evaluer-puis-postuler 8/8, contrat-agents 14/14.
+- `npm run check` : « Syntaxe JavaScript valide. »
+- `npx prettier --check` sur `skill-router.js` et le fichier de tests : conforme.
+
+Reste à décider par le propriétaire, en complément du point 1 ci-dessus : choisir entre (a) faire
+rendre à `tools.js` la sortie d'erreur à part, dans le champ `stderr`, déjà ignoré par le routeur, et
+(b) ne compter aucune lecture par script en texte simple, ce qui retire `fetch-jd` du sprint. Tant
+que rien n'est décidé, un script qui écrit peu sur sa sortie standard mais beaucoup sur sa sortie
+d'erreur peut encore faire passer une annonce pour lue.
+
+Commit de la seconde passe : `382a498` (code et tests), puis ce rapport.

@@ -21,6 +21,20 @@ export const profiles = [
     package: 'codex-acp',
     env: ['CODEX_HOME', 'OPENAI_API_KEY', 'CODEX_API_KEY'],
     safeModes: ['read-only'],
+    // natifs-01 (C5) : the agent's own internal subagents, as codex-acp 2.2.2 shows them (essais du
+    // 18/11) : one call per activity, « Start / Interact with / Complete subagent <nom> », sharing
+    // `agentThreadId` ; its model, consumption and own calls are not in the stream.
+    nativeSubagents: {
+      activity: {
+        thread: 'rawInput.agentThreadId',
+        name: 'rawInput.agentPath',
+        kind: 'rawInput.activityKind',
+        started: 'started',
+        interacted: 'interacted',
+        completed: 'completed',
+      },
+      unreported: 'modèle et consommation non rapportés par l’agent',
+    },
     preference: 1,
   },
   {
@@ -36,6 +50,24 @@ export const profiles = [
     // leaves a /model « local command » note in the session (E141) and can go unanswered (E142).
     modelEnv: 'ANTHROPIC_MODEL',
     safeModes: ['default'],
+    // natifs-01 (C5) : the agent's own internal subagents, as claude-agent-acp 0.95.0 shows them
+    // (essais du 18/11) : one `Agent` call, its own calls naming it in `parentToolUseId`, and a final
+    // report declared by the agent (its token counts are never repeated).
+    nativeSubagents: {
+      tool: {
+        match: { path: '_meta.claudeCode.toolName', value: 'Agent' },
+        type: 'rawInput.subagent_type',
+        parent: '_meta.claudeCode.parentToolUseId',
+        report: '_meta.claudeCode.toolResponse',
+        reportType: 'agentType',
+        model: 'resolvedModel',
+        tools: 'totalToolUseCount',
+        durationMs: 'totalDurationMs',
+        status: 'status',
+      },
+      unreported:
+        'chiffres « selon l’agent » déclarés par lui, non mesurés par la plateforme ; consommation non reprise',
+    },
     preference: 2,
   },
   {

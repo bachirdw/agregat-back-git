@@ -282,6 +282,26 @@ pendingQuestion, pendingPermission }]` et `activity: { agents, awaitingOwner }` 
     ordinaire ; l'annulation et l'arrêt du serveur gardent leur comportement (section 7). L'arrêt vise les
     sous-missions de l'exécution qui échoue (comme l'annulation).
 
+### 5.1 Sous-agents internes de l'agent (`natifs-01`)
+
+Les sous-agents qu'un agent lance de lui-même avec sa propre CLI ne sont pas des sous-missions de la plateforme : ils
+ne sont ni comptés ni bornés par l'enveloppe, et ne passent pas par les outils de délégation. Quand le flux ACP de
+l'agent les montre, le Bilan de la mission a **une** ligne de plus (aucune sinon, au caractère près) :
+« Sous-agents internes de l'agent (lancés par l'agent lui-même, hors enveloppe de la plateforme) : n — … ».
+
+- La forme reconnue se déclare dans le profil de l'adaptateur (`nativeSubagents` dans
+  `packages/agent-runtime/profiles.js`) ; le moteur (`packages/orchestrator/native-subagents.js`) ne nomme aucun agent.
+  Un adaptateur sans déclaration n'a jamais cette ligne.
+- Forme « activité » (vue avec codex-acp 2.2.2) : nom du sous-agent, nombre d'échanges (départ et relances), fins de
+  tour vues, durée du premier départ à la dernière fin **vue par la plateforme** ; la ligne dit « modèle et
+  consommation non rapportés par l'agent ». Ses propres commandes ne sont pas dans le flux.
+- Forme « outil » (vue avec claude-agent-acp 0.95.0) : type du sous-agent, appels d'outils vus, état, durée vue par la
+  plateforme, puis, « selon l'agent », le modèle, le nombre d'outils et la durée qu'il déclare (non mesurés par la
+  plateforme). La ligne « Actions natives » ajoute « dont n de ses sous-agents internes » pour les actions faites par
+  ces sous-agents.
+- Jamais de jetons ni de conversion en part d'abonnement ; aucune décision de la plateforme ne dépend de cette ligne.
+  Non observé à ce jour : sous-agent en arrière-plan, Gemini, OpenCode.
+
 ## 6. Textes montrés au propriétaire
 
 Bouton et carte (texte 3.4 du plan, tel quel ; N et M = l'enveloppe) :

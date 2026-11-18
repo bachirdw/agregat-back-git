@@ -1,5 +1,6 @@
 import { isAbsolute, relative, resolve } from 'node:path';
 import { readToolCall } from './tool-call.js';
+import { attachedSubagents } from './native-subagents.js';
 
 // E63 : what the agent did with its own tools, outside the platform's gateway — file writes,
 // deletions and moves, commands, web fetches — is told in the Bilan, which must say the real
@@ -52,6 +53,7 @@ export class NativeActions {
       return;
     const count = this.counts.get(call.kind) ?? { done: 0, outside: 0 };
     count.done++;
+    call.tallied = true;
     if (FILE_KINDS.has(call.kind) && [...call.paths].some((path) => this.outside(path)))
       count.outside++;
     this.counts.set(call.kind, count);
@@ -62,8 +64,10 @@ export class NativeActions {
     const inside = relative(this.folder, target);
     return inside === '..' || inside.startsWith('../') || isAbsolute(inside);
   }
-  // The Bilan's line, or '' when the agent used none of these tools.
-  line() {
+  // The Bilan's line, or '' when the agent used none of these tools. natifs-01 : `subagents` (an
+  // observer of the agent's internal subagents, the one attached by default) tells how many of them
+  // its subagents made.
+  line(subagents = attachedSubagents(this)) {
     const parts = [];
     for (const [kind, one, many] of KINDS) {
       const count = this.counts.get(kind);
@@ -74,8 +78,13 @@ export class NativeActions {
         }`,
       );
     }
+    const inner = subagents
+      ? [...this.calls].filter(([id, call]) => call.tallied && subagents.isInner(id)).length
+      : 0;
     return parts.length
-      ? `\nActions natives de l’agent (hors outils de la plateforme) : ${parts.join(', ')}.`
+      ? `\nActions natives de l’agent (hors outils de la plateforme) : ${parts.join(', ')}${
+          inner ? ` ; dont ${inner} de ses sous-agents internes` : ''
+        }.`
       : '';
   }
 }

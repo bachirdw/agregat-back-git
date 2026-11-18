@@ -80,6 +80,7 @@ import {
 import { readToolCall } from './tool-call.js';
 import { scriptLimits } from '../career-ops/tools.js';
 import { NativeActions } from './native-actions.js';
+import { nativeSubagentsOf } from './native-subagents.js';
 import { capabilityIds } from '../capability-registry/index.js';
 import { redact, redactValue, secretValues } from '../agent-runtime/env.js';
 import { engineCloseTimeoutMs } from '../agent-runtime/guards.js';
@@ -1566,6 +1567,7 @@ export class Orchestrator {
           if (promptStarted) turnTruth.observe(update);
           if (promptStarted) skillProgress.observe(update);
           if (promptStarted) nativeActions.observe(update);
+          if (promptStarted) nativeSubagentsOf(nativeActions, plan.agent).observe(update);
           // chef-01 : a sub-mission's files, named by its own completed calls.
           control.familyObserve?.(update);
           if (
@@ -2116,6 +2118,7 @@ export class Orchestrator {
         value.summary += '\n' + line;
       // E63 : what the agent did with its own tools, counted only (no path, command or URL).
       value.summary += nativeActions.line();
+      value.summary += nativeSubagentsOf(nativeActions, plan.agent).line();
       // bilan-06 (E51) : what the pack says was not reached. Not when the owner was asked and did
       // not answer (declined or expired question): the agent stopped on that, not on the work.
       // Relecture de nuit : every question of the mission counts, a form as well (E60).

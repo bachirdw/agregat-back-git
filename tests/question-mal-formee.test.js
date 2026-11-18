@@ -343,6 +343,9 @@ async function sent(t, input, { ownerMode = false, profile = null, fake = {} } =
   };
 }
 
+const PRECISION =
+  'Un outil de question qui rend la main tout de suite, sans attendre la réponse, n’est pas un formulaire de question : si c’est le seul que tu as, pose ta question par le champ JSON question.';
+
 const CONSIGNES = [
   ['career-ops', { prompt: 'Écris une lettre FICTIVE', pack: 'career-ops' }, {}],
   [
@@ -359,6 +362,8 @@ for (const [name, input, options] of CONSIGNES)
       assert.equal(instructions.split(OWNER_QUESTION_RULE).length - 1, 1, profile.id);
       assert.ok(instructions.includes(FORMAT), profile.id);
       assert.match(instructions, /pose ta question par l’une de ces deux voies/);
+      // precision-18-11 (E130) : la précision est dans la consigne réellement envoyée.
+      assert.ok(instructions.includes(PRECISION), profile.id);
       seen.add(instructions);
     }
     assert.equal(seen.size, 1, 'consigne différente selon l’agent');

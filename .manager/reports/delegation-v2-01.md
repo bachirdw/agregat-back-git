@@ -138,3 +138,182 @@ touche au relais.
 - `a72adcd` [delegation-v2-01] Partie A : code (`delegation.js`, `delegation-rule.js`, `index.js`,
   `mission-gateway/server.js`) et tests (`tests/delegation-v2-01-a.test.js`, `tests/chef-01.test.js`).
 - Ce rapport : commit suivant.
+
+## Partie B — « activation, accord, synthèse »
+
+Session de code Opus, démarrée le 19/11/2026 à 00:26 (heure lue par `date`), seul écrivain dans l'arbre, tête de
+départ `fdd2272`. Aucun agent réel, aucun navigateur, aucune API sur un port fixe (les tests ouvrent l'API sur
+`127.0.0.1:0`), aucun accès au port 19988, aucun réseau, aucun secret lu, aucune commande refusée. Aucune lecture de
+`~/Downloads/agregat-back`.
+
+Conventions : **constaté** = lu dans le code ou observé par un test ; **hypothèse** = déduit, non vérifié.
+
+### Journal
+- 00:26 : lecture du brief, du plan v2, du besoin, de la section « Partie A » et de `a72adcd`, puis du code
+  (`delegation.js`, `delegation-rule.js`, `family-bilan.js`, branchements d'`index.js`, file de questions,
+  `questions.js`, reprise d'`apps/api/server.js`, `agent-runtime` `continueSession`, faux agent).
+- 00:35 : textes d'abord (`delegation-rule.js`), puis le faux agent, puis `tests/delegation-v2-01-b.test.js`
+  (11 tests). Lancé sur le code de la partie A (règles d'origine remises le temps du lancement, puis restaurées) :
+  **11 échecs**, chacun pour la cause attendue (second serveur absent, faux agent sans rôle de chef, enveloppe 10,
+  valeurs `via` refusées, carte absente, refus absent, extension en texte libre, rappel au lieu de synthèse). La
+  comparaison à la base passait déjà sur sa première moitié (réglage retiré = base), comme attendu sur la partie A.
+- Code (`delegation.js`, `family-bilan.js`, `index.js`), puis `chef-01.test.js` adapté (5 échecs attendus : `:138`,
+  `:210` enveloppe 6, `:484` extension par choix, `:763` phrase, `:967` synthèse), contrôles négatifs, docs, Prettier,
+  relecture du diff entier, un 12e test (annulation pendant la carte).
+
+### Tableau 8.2, lignes de la partie B
+| Ligne de 8.2 | Fait ? | Comment (fichier, fonction) |
+|---|---|---|
+| `index.js` tour de rappel et `delegation.reminder` | **fait** | `reminder` et `familyReminder` supprimés. `Delegation.synthesis(motherId, control, runtime)` : sans `control.mere`, rien (aucune lecture) ; sinon, si des filles vivent à la fin du tour du chef et que la session continue, attente de leur fin (`waitLiving` : événement `family_waiting`, minuteurs suspendus, même attente que `settle`), puis rend `{ familyResults: { nature, terminees }, instructions: SYNTHESIS_TURN }` ; `index.js` remplace le bloc du rappel par **un** tour `turnKind: 'family_results'` (même branchement, mêmes lignes). Session fermée (ou fermée pendant l'attente) : rien, et `missed()` note les titres ; `settle` note aussi les filles encore vivantes quand la mission se clôt (sortie par question refusée, filles lancées pendant le tour de synthèse). `bilanSection` écrit alors « Synthèse finale non faite : la réponse du chef a été écrite avant la fin de « … » ; leurs résultats ne lui ont pas été remis. » |
+| `delegation.js` `accepted`, `servers`, `promptParts` | **fait** | `accepted()` supprimé. `servers(run)` : prêté si `this.lent` (réglage) et `!run.famille` ; appelé seulement à l'ouverture d'une session d'agent (`execute`, mode agent) ; jamais par le DAG (`workflow-run.js:264` ouvre sa session avec le seul serveur de capacités, constaté par lecture). Pont absent : l'événement `delegation_unavailable` n'est plus écrit que pour une mission dont la requête porte l'accord. `promptParts(run, servers)` : phrase du chef seulement si `relay-missions` est dans la liste prêtée, lue sur `run.delegation` tel que créé (**plus aucune lecture**, reste laissé par la partie A). Accord : `launch` (voir lignes suivantes). |
+| `delegation.js` `askExtension` (et accord par carte) | **fait** | `choiceQuestion(message, choices)` : question `form` (`publicQuestion`) à un champ `choix` avec `oneOf`. Extension : `choix: 'oui' \| 'non'` ; un texte libre est refusé par la validation de la file (testé). Carte d'accord : `askConsent(mother, control)`, une fois par mission (`family.consentAsked`), dans la file de la mère (`enqueueQuestion`). Réponse `autoriser` → `accept(id, 'carte')` ; `continuer_seul` ou `decline` → `delegation = { accepted: false, via: 'carte', total, parallel }`, `delegation_declined`, filles retenues annulées par `cancelHeld` (erreur `REFUSED_CHILD`) ; `cancel` (fin de mission, délai configuré) → filles retenues annulées, rien décidé. |
+| `delegation-rule.js` `chiefRule`, `DAUGHTER_RULE`, `DEFAULT_ENVELOPE`, schéma de `mission_lancer` | **fait** | `chiefRule(delegation)` : texte de la section 2 du plan, une seule phrase, fin selon l'accord (autorisé avec N et M / à demander avec `demandeDuProprietaire` / refusé). Ajout voulu par le manager : « (par exemple plusieurs sources indépendantes à consulter) » après « des parties indépendantes qui peuvent avancer en même temps ». `DAUGHTER_RULE` : texte de la section 6, sans fichier ni script d'un Skill. `DEFAULT_ENVELOPE = { total: 6, parallel: 3 }`. `mission_lancer` : champ `demandeDuProprietaire` (booléen) et description (`attend_accord`, `refus_proprietaire`). Textes du propriétaire au même endroit : `consentMessage` (3.4 tel quel), `CONSENT_CHOICES`, `promptNotice`, `extensionMessage`, `EXTENSION_CHOICES`, `consentLine`, `REFUSED_MESSAGE`, `REFUSED_CHILD`, `synthesisMissed`, `SYNTHESIS_TURN`. |
+| `index.js` schéma `delegation` (`via`) | **fait** | `z.enum(['bouton', 'prompt', 'carte', 'api'])`, défaut `api` ; `case`, `mot`, `proposition` refusés (testé). |
+| `index.js` mode forcé | **fait (code inchangé)** | La condition était déjà `v.delegation?.accepted` (accord porté par la requête) : rien ne la déclenche du seul fait des outils prêtés. Commentaire précisé ; testé : `mode: 'workflow'` sans champ, ou avec `accepted: false`, reste un DAG ; avec `accepted: true`, mode agent. |
+| `docs/api-delegation.md` ; note du 18/11 de `docs/architecture-cible.md` | **fait** | Contrat réécrit (outils prêtés, réglage, trois voies, carte, schéma, outils, erreurs, synthèse, événements, Bilan, textes, famille) avec les changements de contrat de la partie A (relecture, 50 s, `envois` complets, modèles, compteur, `estMere`, plus de `profondeur` ni `descendants` ni `boucle`). Note du 18/11 réécrite (elle disait « une famille tient une seule des trois places »). Seule cette note est touchée dans `architecture-cible.md` (le fichier n'était déjà pas conforme à Prettier hors de la note, à la base comme à `fdd2272` : rien reformaté ailleurs). |
+| `tests/chef-01.test.js` | **fait pour la partie B** | `:138` réécrit (outils et phrase présents, rien d'autre tant que rien n'est lancé ; refus et accord donnés à la requête : même consigne, seule la fin de la phrase change, aucun événement) ; `:967` réécrit (attente puis un seul tour de synthèse avec les résultats joints) ; `:210` enveloppe 6 ; `:484` extension par choix ; `:763` `chiefRule(ACCEPTED(…))` et `SYNTHESIS_TURN`. Le réglage de retrait = prompt de la base : `tests/delegation-v2-01-b.test.js`. |
+
+### Sections 2, 3, 4 et 6 du plan, ce qui relève de B
+- **3.1 voie 1 (bouton)** : fait. Rien n'est écrit à la création (`Delegation.created` supprimé, appel retiré
+  d'`index.js`) ; au premier `mission_lancer` de l'exécution, `acceptedEvent` écrit `delegation_accepted { via, total,
+  parallel, acceptedAt }`. Aucune question tant que l'enveloppe suffit.
+- **3.1 voie 2 (prompt)** : fait. `demandeDuProprietaire: true` sans accord → `accept(id, 'prompt', promptNotice(…))` :
+  `delegation` écrite sur la mission, `delegation_accepted { via: 'prompt', …, message }` dont `message` est la ligne du
+  fil (texte du plan) ; pas de carte ; Bilan « demande écrite dans le prompt, selon l'agent ». Ignoré si la carte est
+  déjà posée (les lancements suivants attendent la carte).
+- **3.2 voie 3 (carte)** : fait. Fille créée par `create()` et retenue (`family.held`) ; `pump` ne démarre rien tant
+  que `delegation.accepted !== true` ; `mission_lancer` rend `etat: 'attend_accord'`, `mission_suivre` `attend:
+  'accord'` (`heldState`). Accord, refus, réponse par choix : ligne `askExtension` ci-dessus. Annuler la mère pendant la
+  carte annule la fille retenue et ferme la carte (testé).
+- **3.3 outils prêtés à toutes les missions, réglage de retrait** : fait. `AGENT_PLATFORM_DELEGATION` lu dans le
+  constructeur de `Delegation` (créé au démarrage de l'orchestrateur), `'0'` → `this.lent = false` : ni serveur, ni
+  phrase, et la route interne rend 403. Serveur de capacités toujours en tête.
+- **3.4 textes** : fait, tels quels (`consentMessage`, `promptNotice`), aucun pourcentage ni promesse.
+- **4 contrat** : `demandeDuProprietaire`, `attend_accord`, `refus_proprietaire` ajoutés ; enveloppe 6 et 3 ; le reste
+  par la partie A.
+- **6** : phrase de la fille (fait) ; l'accord est gardé par la reprise (code existant d'`apps/api/server.js`, qui
+  recopie `accepted`, `via`, `total`, `parallel`, `acceptedAt` : les nouvelles valeurs de `via` passent le schéma, un
+  refus `{ accepted: false, via: 'carte' }` aussi) ; **`apps/api/server.js` n'a pas eu à changer**.
+- **2 (phrase du chef)** : fait ; elle dit de ne déléguer que si c'est vraiment utile, cite les cas où seul est mieux,
+  dit que rien n'oblige ; sans nom d'agent (testé, et `:763` la compare pour tous les profils).
+
+### Écarts au plan, voulus
+- **8.1 garde `created` (événements d'accord à la création)** : retiré, parce que la décision 6 du brief et la consigne
+  du manager exigent « aucun événement tant qu'aucune sous-mission n'est lancée ». L'événement est écrit au premier
+  lancement (voies 1 et 2) ou à l'accord (voie 3).
+- **`accepted: false` dans la requête** : lu comme un refus déjà donné (outils prêtés quand même, phrase « le
+  propriétaire a refusé… », `refus_proprietaire`, aucune question, aucun événement). Le contrat dit au front de **ne
+  pas envoyer le champ** quand la case n'est pas cochée (sinon la voie 3 ne serait jamais proposée).
+- **Faux agent** (`tests/fixtures/chef-agent.js`) : il ne joue le chef que s'il a des étapes (`CHEF_AGENT.steps`) ;
+  sans étapes, il répond comme une mission ordinaire bien que le serveur lui soit prêté. Sans ce changement, toute
+  mission de test serait devenue un chef.
+
+### Preuve du réglage de retrait (test 1 de `tests/delegation-v2-01-b.test.js`)
+Le test extrait la base par `git archive 48a2f4e apps packages domain-packs package.json | tar -x` dans un dossier
+temporaire (lien vers `node_modules` de l'arbre : `package.json` et `package-lock.json` sont inchangés depuis la base,
+constaté par `git diff --stat 48a2f4e -- package.json package-lock.json`, vide), puis joue **les mêmes missions** sur la
+base, sur le code avec `AGENT_PLATFORM_DELEGATION=0`, et sur le code sans réglage : une mission simple et une mission
+qui pose une question au propriétaire (pack `core`, même faux agent). Constaté :
+- réglage `0` = base : prompt reçu par l'agent (chaque champ, chaque mot), serveurs `['platform']`, suite complète des
+  types d'événements, état, réponse, champs de la ligne : **identiques** (`deepEqual`) ;
+- sans réglage : seuls changent la phrase ajoutée en fin de consignes et le second serveur ; événements, état, réponse
+  et champs identiques à la base.
+Si le commit `48a2f4e` n'est pas dans le dépôt, le test est sauté (dit dans son nom de saut).
+
+### Preuve de la règle d'or (test 2)
+Faux chef qui a les outils et n'en appelle aucun, sans champ `delegation` puis avec le bouton coché : un seul tour,
+aucun événement `delegation_*` / `child_*` / `family_*`, aucune question, pas d'`estMere`, rien au Bilan, et **aucune
+lecture de la base** venue de `delegation.js` ou `family-bilan.js` (lectures espionnées par la pile d'appel).
+
+### Contrôles négatifs (modification temporaire, fichier restauré, vérifié par `cmp`)
+- Outils prêtés aussi aux sous-missions : 4 tests échouent (voie 2, voie 3, les deux synthèses).
+- Garde d'accord retirée de `pump` : les deux tests de la carte échouent.
+- Réglage ignoré : le test de la base échoue.
+- `promptParts` relisant la ligne de la mère : le test de la règle d'or échoue (« lecture de la base par la délégation »).
+
+### Résultats des tests (un fichier à la fois, `AGENT_PLATFORM_AGENTS_CONFIG` vers un fichier absent)
+| Fichier | Résultat |
+|---|---|
+| `tests/delegation-v2-01-b.test.js` (neuf) | 12 passés, 0 échoué |
+| `tests/delegation-v2-01-a.test.js` | 10 passés, 0 échoué |
+| `tests/chef-01.test.js` (adapté) | 16 passés, 0 échoué |
+| `tests/generique-01.test.js` | 15 passés, 0 échoué |
+| `tests/review-generique-01.test.js` | 5 passés, 0 échoué |
+| `tests/fix-resume.test.js` | 28 passés, 0 échoué |
+| `tests/reprise-memoire.test.js` | 8 passés, 0 échoué |
+| `tests/reprise-memoire-relecture.test.js` | 8 passés, 0 échoué |
+| `tests/career-integration.test.js` | 50 passés, 0 échoué |
+| `tests/career-failure.test.js` | 11 passés, 0 échoué |
+| `tests/career-pipeline-flow.test.js` | 7 passés, 0 échoué |
+| `tests/elicitation.test.js` | 26 passés, 0 échoué |
+| `tests/message-proprietaire.test.js` | 25 passés, 0 échoué |
+| `tests/platform.test.js` | 11 passés, 0 échoué |
+| `tests/arret-borne.test.js` | 1 passés, 0 échoué |
+| `tests/bilan-questions.test.js` | 2 passés, 0 échoué |
+| `tests/prompt-prime-18-11.test.js` | 3 passés, 0 échoué |
+| `tests/review-prompt-prime-18-11.test.js` | 1 passés, 0 échoué |
+| `tests/question-mal-formee.test.js` | 14 passés, 0 échoué |
+| `tests/review-precision-18-11.test.js` | 6 passés, 0 échoué |
+| `tests/consigne-fichiers-travail.test.js` | 2 passés, 0 échoué |
+| `tests/lecture-18-11.test.js` | 11 passés, 0 échoué |
+| `tests/memoire-fil.test.js` | 4 passés, 0 échoué |
+| `tests/mission-pieces-jointes.test.js` | 3 passés, 0 échoué |
+| `tests/owner-mode.test.js` | 14 passés, 0 échoué |
+| `tests/career-sends.test.js` | 21 passés, 0 échoué |
+| `tests/bilan-mixtes.test.js` | 3 passés, 0 échoué |
+| `tests/skill-registry.test.js` | 22 passés, 0 échoué |
+| `tests/question-finale.test.js` | 8 passés, 0 échoué |
+| `tests/review-questions-18-11.test.js` | 14 passés, 0 échoué |
+| `tests/resume-probe.test.js` | 3 passés, 0 échoué |
+| `tests/workflow-resume.test.js` | 8 passés, 0 échoué |
+
+`npm run check` : « Syntaxe JavaScript valide. » `npx prettier --check` sur les fichiers touchés : conformes, sauf
+`docs/architecture-cible.md`, non conforme avant ce sprint (tableaux hors de la note ; la note elle-même est conforme).
+
+Non lancés (consigne) : `npm test` complet, `npm run format:check` complet, tout test qui démarre un navigateur ou touche
+au relais (`owner-browser`, `browser-*`, `captures-*`…) ; `doubt-tools` non lancé (il ouvre la passerelle avec
+`RELAY_BROWSER=isolated` : prudence).
+
+### Non vérifié
+- Aucun essai réel (Claude, Codex, Gemini, OpenCode) : au manager. En particulier, hypothèse : chaque CLI ouvre sans
+  dommage une session avec deux serveurs MCP (plan 10, essai 1 (a)) ; c'est désormais **toutes** les missions.
+- Hypothèse : un agent réel n'appelle `mission_lancer` qu'à bon escient et ne déclare `demandeDuProprietaire` que si le
+  prompt le demande (Relay ne le vérifie pas ; le Bilan le cite).
+- Hypothèse : pendant la carte, la mère passe `awaiting_owner` et ses minuteurs sont suspendus alors que le chef
+  continue de travailler (constaté par lecture d'`openNext` ; jamais observé avec un agent réel ; même chose
+  qu'`askExtension`).
+- Hypothèse : une session d'agent réelle reste vivante pendant l'attente du tour de synthèse ; sinon la ligne
+  « Synthèse finale non faite » le dit (testé en fermant la session du faux agent).
+- Coût d'un second processus MCP par mission (mémoire, démarrage) : non mesuré. Le faux agent n'ouvre le serveur que
+  s'il joue le chef ; un vrai CLI l'ouvrira probablement pour chaque mission (hypothèse).
+
+### Constaté, non corrigé
+- `observe()` nomme encore `career_write` (déjà signalé par la partie A).
+- Un refus donné à la requête (`accepted: false`) n'écrit aucune ligne au Bilan si le chef tente quand même un
+  lancement (il reçoit `refus_proprietaire`, rien n'est créé) ; seul le refus sur la carte a sa ligne.
+- Une fille annulée par le refus apparaît dans `family` de `GET /api/runs/:id` (état `cancelled`) et donne un
+  `child_done`, mais pas dans la liste du Bilan (remplacée par la ligne de refus).
+- `forget()` : petite rétention en mémoire déjà signalée par la partie A (inchangée).
+
+### À décider
+- Le manager ou le propriétaire : `accepted: false` dans la requête = refus (choix fait ici) plutôt que « pas encore
+  d'accord » ; le front ne doit pas envoyer le champ quand la case n'est pas cochée.
+- Le propriétaire : l'ajout « (par exemple plusieurs sources indépendantes à consulter) » dans la phrase du chef.
+- Le manager : l'événement `delegation_accepted` déplacé de la création au premier lancement (écart à 8.1, pour la
+  règle d'or).
+- Le propriétaire : le texte 3.4 dit « (modifiables) » aussi sur la carte, où l'enveloppe ne se modifie pas.
+
+### Fichiers touchés par la partie B
+`packages/orchestrator/delegation.js`, `delegation-rule.js`, `family-bilan.js`, `index.js` (25 lignes : schéma `via`,
+deux commentaires, appel `created` retiré, `promptParts(run, mcpServers)`, bloc du rappel remplacé par la synthèse),
+`docs/api-delegation.md`, `docs/architecture-cible.md` (la note du 18/11), `tests/chef-01.test.js`,
+`tests/fixtures/chef-agent.js`, `tests/delegation-v2-01-b.test.js` (neuf), ce rapport. Non touchés :
+`apps/api/server.js`, `packages/mission-gateway/`, `packages/storage/`, `packages/agent-runtime/`, `packages/career-ops/`,
+`domain-packs/`, `packages/browser-gateway/`, `packages/mcp-gateway/`, `tests/fixtures/fake-acp.js`, `skill-router.js`,
+`packs.js`, `tool-guard.js`, `package.json`, `package-lock.json`.
+
+### Commits (partie B)
+- `43ed94f` [delegation-v2-01] Partie B : code (`delegation.js`, `delegation-rule.js`, `family-bilan.js`, `index.js`),
+  tests (`tests/delegation-v2-01-b.test.js` neuf, `tests/chef-01.test.js`, `tests/fixtures/chef-agent.js`), docs
+  (`docs/api-delegation.md`, note du 18/11 de `docs/architecture-cible.md`).
+- Ce rapport : commit suivant. Fin de la partie B le 19/11/2026 vers 01:05 (heure lue par `date`).

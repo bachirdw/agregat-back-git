@@ -115,6 +115,13 @@ export class Delegation {
       family = { rootId, held: new Map(), launched: new Set(), pending: 0, asking: false };
       family.waiters = new Set();
       this.families.set(rootId, family);
+      // review-delegation-v2-01 : let go once the mother has ended (and its sub-missions, see watch).
+      const listener = (event) => {
+        if (event.type !== 'state' || !terminal.has(event.data?.state)) return;
+        this.store.off(rootId, listener);
+        setImmediate(() => this.forget(family));
+      };
+      this.store.on(rootId, listener);
     }
     return family;
   }
@@ -501,12 +508,18 @@ export class Delegation {
       setImmediate(() => this.engine.launch(entry.run, entry.plan, entry.control, null));
     }
   }
-  // A family whose mother and sub-missions have all ended is no longer kept in memory.
+  // A family whose mother and sub-missions have all ended is no longer kept in memory (nor the
+  // copies of its sub-missions' records : the database keeps them).
   forget(family) {
     const root = this.store.get(family.rootId);
     if (!root || !terminal.has(root.state) || family.held.size || family.waiters.size) return;
-    if (this.living(root).length) return;
-    this.families.delete(family.rootId);
+    const children = this.childrenOf(root);
+    if (children.some((child) => !terminal.has(child.state))) return;
+    if (this.families.get(family.rootId) === family) this.families.delete(family.rootId);
+    for (const child of children) {
+      this.finals.delete(child.id);
+      this.briefs.delete(child.id);
+    }
   }
 
   // GET /api/runs/:id : `family` of a mother, absent for any other mission.
@@ -579,7 +592,12 @@ export class Delegation {
     // The call reached the platform : the chief's tool guard knows it is being served.
     control.toolDelivered?.(null, 'gateway');
     try {
-      if (control.abort.signal.aborted || this.family(motherId).closing)
+      // review-delegation-v2-01 : a mere call creates no family ; an ended mother launches nothing.
+      if (
+        control.abort.signal.aborted ||
+        terminal.has(mother.state) ||
+        this.families.get(motherId)?.closing
+      )
         throw fail('mission_terminee', 'La mission mère se termine ou est annulée');
       const handlers = {
         mission_lancer: () => this.launch(mother, control, parsed.data),
@@ -903,7 +921,6 @@ export class Delegation {
     };
   }
   async wait(mother, control, { ids, toutes, delaiSecondes }, signal) {
-    const family = this.family(mother.id);
     const children = this.childrenOf(mother);
     const known = new Set(children.map((child) => child.id));
     for (const id of ids ?? [])
@@ -917,6 +934,7 @@ export class Delegation {
     const done = () => (toutes ? running.every(over) : running.some(over));
     let reached = false;
     if (running.length && !done()) {
+      const family = this.family(mother.id);
       control.suspendTimers?.();
       control.runtime?.pauseDeadlines?.();
       family.waiting = (family.waiting ?? 0) + 1;

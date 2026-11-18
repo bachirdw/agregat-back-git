@@ -807,7 +807,7 @@ export class Orchestrator {
     // chef-01 : the chief is an agent ; a DAG chosen by default (front) never takes its place.
     // delegation-v2-01 : only when the request carries the acceptance (the button), never because
     // the tools are lent to every mission led by an agent.
-    if (v.delegation?.accepted) {
+    if (v.delegation?.accepted && this.delegation.lent) {
       v.mode = 'agent';
       delete v.workflow;
     }
@@ -1924,7 +1924,8 @@ export class Orchestrator {
       this.closeOwnerMessages(run.id, control);
       // chef-01 : the mother waits for its last sub-mission before its Bilan (timers paused).
       await this.delegation.settle(run.id, control);
-      if (control.abort.signal.aborted) throw control.abort.signal.reason;
+      // review-delegation-v2-01 : only a mother waited here ; any other mission as in 48a2f4e.
+      if (control.mere && control.abort.signal.aborted) throw control.abort.signal.reason;
       const value = executionResult(agentValue, plan.agent, {
         fixtureData: plan.dataMode === 'fixture',
       });

@@ -193,6 +193,37 @@ const ownerUserPath = /^config\/benchmarks\.yml$/;
 const skillReport = /^reports\/[0-9]{3,}-[a-z0-9-]+-[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$/;
 const trackerAddition = /^batch\/tracker-additions\/[0-9]{1,6}-[a-z0-9-]+\.tsv$/;
 const TSV_REQUIRED = ['num', 'date', 'company', 'role', 'score', 'status', 'pdf', 'report'];
+// The header the Skill writes (AGENTS.md « Pipeline Integrity »), shown verbatim in a refusal.
+const TSV_HEADER = [
+  'num',
+  'date',
+  'company',
+  'role',
+  'status',
+  'score',
+  'pdf',
+  'report',
+  'notes',
+  'url',
+].join('\t');
+const TSV_SAMPLE = [
+  '042',
+  '2026-01-31',
+  '{company}',
+  '{role}',
+  'Evaluated',
+  '4.2/5',
+  '❌',
+  '[042](reports/042-{company-slug}-2026-01-31.md)',
+  '{notes}',
+  '{url}',
+].join('\t');
+const TSV_SHOWN = 200;
+// E133: career_write takes at most this much text per call; an append ('append' mode) adds lines to
+// the end of a file without sending it again. The existing file is read up to APPEND_FILE_MAX, the
+// bound checkPipelineInbox already reads data/pipeline.md with.
+const WRITE_CHUNK_BYTES = 200000;
+const APPEND_FILE_MAX = 10 * 1024 * 1024;
 const scoreCell = (v) => /^\d(?:\.\d{1,2})?\/5$/.test(v) || ['N/A', '—', '-'].includes(v);
 function checkTrackerAddition(root, text) {
   let aliases = {};
@@ -206,9 +237,12 @@ function checkTrackerAddition(root, text) {
     return typeof aliases[key] === 'string' ? aliases[key] : key;
   };
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  // E129: the refusal shows the expected header word for word, a sample row and what was received.
   const fail = (why) => {
+    const first = (lines[0] ?? '').slice(0, TSV_SHOWN);
+    const cut = (lines[0] ?? '').length > TSV_SHOWN ? '…' : '';
     throw new Error(
-      `TSV d’ajout refusé (${why}) : une ligne d’en-tête (num, date, company, role, status, score, pdf, report, notes, url) puis une seule ligne, voir AGENTS.md du Skill`,
+      `TSV d’ajout refusé (${why}). Attendu : exactement 2 lignes, cellules séparées par une tabulation ; en-tête mot pour mot « ${TSV_HEADER} » puis une seule ligne de données, par exemple « ${TSV_SAMPLE} ». Reçu : ${lines.length} ligne(s) non vide(s), première ligne « ${first}${cut} ». Voir AGENTS.md du Skill.`,
     );
   };
   if (lines.length !== 2) fail('une ligne d’en-tête et une seule ligne de données');
@@ -1002,7 +1036,7 @@ export class CareerTools {
       untrusted: true,
     };
   }
-  write(path, text) {
+  write(path, text, mode = 'replace') {
     validatePath(path, true, this.ownerMode);
     // AGENTS.md « Step 4: Tracker » : the host agent creates data/applications.md when it does not
     // exist, with the header alone; every row then comes through merge-tracker.mjs.
@@ -1023,13 +1057,42 @@ export class CareerTools {
       throw new Error(
         'Fichier hors du périmètre career-ops : batch/tracker-additions/{num}-{company-slug}.tsv seulement',
       );
-    if (typeof text !== 'string' || Buffer.byteLength(text) > 200000)
-      throw new Error('Texte trop volumineux');
-    if (trackerAddition.test(path)) checkTrackerAddition(this.career.path(), text);
-    if (path === 'data/pipeline.md') checkPipelineInbox(this.career.path(), text);
-    if (path === 'config/profile.yml') this.career.profile(text);
-    else writeConfined(this.career.path(), path, text);
-    return { path, saved: true };
+    if (typeof text !== 'string') throw new Error('Texte attendu');
+    // E133: the bound is per call, not per file: a longer file is written once, then appended to.
+    const bytes = Buffer.byteLength(text);
+    if (bytes > WRITE_CHUNK_BYTES)
+      throw new Error(
+        `Texte trop volumineux pour un appel (${bytes} octets, ${WRITE_CHUNK_BYTES} au plus) : écrire le début, puis ajouter la suite par tranches avec mode « append »`,
+      );
+    const root = this.career.path();
+    let full = text;
+    if (mode === 'append') {
+      // The whole file is rebuilt and goes through the same checks and the same confined write
+      // (new inode, no symlink): an append is a write whose text is the file plus the new lines.
+      let previous = '';
+      try {
+        previous = readConfined(root, path, APPEND_FILE_MAX).toString('utf8');
+      } catch (e) {
+        if (e.code !== 'ENOENT')
+          throw /trop volumineux/.test(e.message)
+            ? new Error(`${path} : ajout refusé, le fichier dépasse ${APPEND_FILE_MAX} octets`)
+            : e;
+      }
+      full = previous && !previous.endsWith('\n') ? `${previous}\n${text}` : previous + text;
+    }
+    if (trackerAddition.test(path)) checkTrackerAddition(root, full);
+    if (path === 'data/pipeline.md') checkPipelineInbox(root, full);
+    if (path === 'config/profile.yml') this.career.profile(full);
+    else writeConfined(root, path, full);
+    return mode === 'append'
+      ? {
+          path,
+          saved: true,
+          appended: true,
+          appendedBytes: bytes,
+          fileBytes: Buffer.byteLength(full),
+        }
+      : { path, saved: true };
   }
   saveOffer(raw) {
     const offer = {
@@ -1647,9 +1710,15 @@ export function registerCareerTools(
   );
   register(
     'career_write',
-    'Enregistrer un document privé ; aucun script ni paramètre de sécurité.',
-    z.object({ path: pathSchema, text: z.string().max(200000) }).strict(),
-    ({ path, text }) => tools.write(path, text),
+    'Enregistrer un document privé ; aucun script ni paramètre de sécurité. mode « replace » (défaut) écrit le fichier entier avec text ; mode « append » ajoute text à la fin du fichier (créé s’il manque, saut de ligne ajouté si le fichier n’en finit pas par un), sans renvoyer le reste : mêmes chemins et mêmes contrôles que l’écriture complète. text : 200 000 octets au plus par appel, pas par fichier (un ajout porte le fichier jusqu’à 10 Mo) ; un long fichier s’écrit en un premier appel puis par ajouts successifs.',
+    z
+      .object({
+        path: pathSchema,
+        text: z.string(),
+        mode: z.enum(['replace', 'append']).default('replace'),
+      })
+      .strict(),
+    ({ path, text, mode }) => tools.write(path, text, mode),
   );
   register(
     'career_offer_save',

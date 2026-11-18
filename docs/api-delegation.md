@@ -124,6 +124,14 @@ mission qui appelle (et de ses exécutions reprises).
 Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
 `introuvable`, `mission_terminee`, `parametres_invalides`. Le refus `boucle` de `chef-01` est supprimé (un seul niveau).
 
+Résultat `attend_accord` de `mission_lancer` (voie 3, chaque lancement en attente, le premier comme les suivants) : il
+porte en plus `note`, le même texte pour tous les agents (`CONSENT_PENDING_NOTE`, correctif E139 du 19/11) : « La
+plateforme consulte le propriétaire (carte d'accord des sous-agents) : ne lui pose pas la question toi-même et continue
+ta part du travail sans attendre ; mission_suivre ou mission_attendre te diront sa réponse : s'il accepte, la
+sous-mission démarre seule ; s'il refuse, elle est annulée : continue seul. » Les états `en_cours` et `en_file` n'ont pas
+de `note`. Le message de `refus_proprietaire` : « Le propriétaire a refusé les sous-agents pour cette mission : continue
+seul, sans lui reposer la question. » Rien n'est bloqué : la note informe.
+
 Règles :
 
 - **Agent et modèle** : choisis par le chef à chaque lancement, parmi les agents et les modèles annoncés que donne
@@ -171,9 +179,9 @@ s'arrête.
   indépendantes, par exemple plusieurs sources ; gros volume ; long travail annexe) et quand travailler seul est souvent
   le mieux, que rien n'oblige à déléguer, que le chef choisit agent et modèle selon la difficulté, et que chaque
   sous-mission consomme l'abonnement ; sa fin suit l'accord : « le propriétaire l'a autorisé : jusqu'à N sous-missions,
-  M à la fois », « … indique-le en lançant (demandeDuProprietaire) ; sinon le propriétaire sera consulté avant la
-  première sous-mission ; s'il refuse, continue seul », ou « le propriétaire a refusé les sous-agents pour cette
-  mission : continue seul ».
+  M à la fois », « … indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire
+  avant la première sous-mission (ne lui pose pas la question toi-même) ; s'il refuse, continue seul », ou « le
+  propriétaire a refusé les sous-agents pour cette mission : continue seul ».
 - **Phrase de la sous-mission** : la demande du propriétaire, jointe, prime ; rendre ses résultats dans sa réponse
   finale ; d'autres sous-missions peuvent travailler dans le même espace : n'écrire que dans des fichiers propres à sa
   part et laisser à l'agent principal les fichiers communs. Elle ne nomme aucun fichier ni script d'un Skill ; ce qui

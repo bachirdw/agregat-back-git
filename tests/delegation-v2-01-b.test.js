@@ -283,7 +283,10 @@ test('phrase du chef : une seule pour tous, informe sans prescrire, sans nom d�
     assert.doesNotMatch(text, /Mode workflow|career/i);
   }
   assert.match(given, /jusqu’à 6 sous-missions, 3 à la fois\.$/);
-  assert.match(asked, /demandeDuProprietaire.*consulté avant la première sous-mission/);
+  assert.match(
+    asked,
+    /demandeDuProprietaire.*la plateforme consultera le propriétaire avant la première sous-mission \(ne lui pose pas la question toi-même\)/,
+  );
   assert.match(refused, /refusé les sous-agents pour cette mission : continue seul\.$/);
   for (const text of [
     rule.DAUGHTER_RULE,

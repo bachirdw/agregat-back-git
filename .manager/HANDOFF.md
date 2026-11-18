@@ -37,8 +37,9 @@ rendu indépendant de `.data/agents.json` (il sondait 288 fois les agents instal
 **À faire, dans l'ordre**
 1. Rien d'urgent : la version unique est intégrée, testée et en service ; le propriétaire teste. Lui demander l'ordre
    de pousser (question posée à 21:07, pas de réponse à 21:10). Relever ses missions au fil de l'eau (guetteur).
-2. Essais réels restants, une mission à la fois, Codex d'abord : SEEK **sans borne de pages** (la mesure « des
-   milliers » ; avec cinq pages l'agent voit déjà 158 offres sur 160) ; épreuve 3 (lettre) jusqu'au PDF, avec le
+2. Essais réels restants, une mission à la fois, Codex d'abord (SEEK sans borne de pages : **fait à 21:18**, 28f91e1b ; la
+   limite est maintenant le nombre de résultats qu'une recherche donne sur le site : pour des milliers d'offres,
+   multiplier les recherches, intitulés, villes et sites) ; épreuve 3 (lettre) jusqu'au PDF, avec le
    propriétaire pour répondre ; une évaluation où le texte vient d'un **script** du Skill (E128, non exercé) ; un ajout
    par `append` (E133, non exercé) ; reprise avec des réponses à transmettre (E116).
 3. À proposer au propriétaire : **pousser** ; intégrer `onglets-03` ; G3 (choix automatique du pack par mots-clés, change
@@ -78,6 +79,7 @@ prêtes » (19:36) ; priorité du manager sur le code (19:50) ; « Oui, ce soir 
 | 5 Contact LinkedIn | à jouer avec lui | idem |
 | 6 Relance | cc2bff45 : réussie, e-mail en brouillon | 036120dd : réussie, message rédigé, non envoyé |
 | Collecte SEEK (cinq pages) | 420c8fe8, 1fd83538, **b8b6c2f7 : `completed`** (voir le tableau des étapes) | à jouer |
+| Collecte SEEK (toutes les pages) | **28f91e1b (21:18) : `completed` en 9 min 14 s, 15 pages, 252 offres ajoutées (250 → 502 en attente)** ; d'après l'agent : 451 résultats annoncés, 451 offres vues, 199 déjà présentes | à jouer |
 Prompts (repris à l'identique ; l'API masque le texte d'un prompt ; il se relit dans
 `~/Downloads/career-ops-essai/relay/runs/<id>-input.json`, jamais recopié dans Git) : 1 « Évalue les 3 premières offres
 en attente de data/pipeline.md et note-les sur 5. Ne génère aucun CV ni lettre, n'envoie rien. » ; 2 « Génère le CV adapté

@@ -46,9 +46,18 @@ nouvelle discussion garde tout le reste : guet, essais réels, intégration, reg
    `fa6e6af`, sans conflit), suite complète verte, API relancée à 19:14 par la nouvelle discussion (onglet Terminal
    « API 4314 manager ») ; essai réel : SEEK rejouée avec Codex (le prompt entier est dans le bloc-notes de la discussion,
    pas dans Git) : 1fd83538, 19:14 → 19:20, `failed` pour la même cause qu'avant (E135, « 0 sur 216 »), relevé dans
-   `reports/guet-18-11.md`. Restent B, C, puis D (`collecte-18-11`, accord donné). Avant B et C, une relecture
-   contradictoire à plusieurs agents (« ce qui marche change-t-il ? ») tourne depuis 19:18 sur `captures`, `lecture` et
-   `collecte` : attendre ses constats avant de reprendre ces sprints.
+   `reports/guet-18-11.md`. Restent B, C, puis D (`collecte-18-11`, accord donné). **Relecture contradictoire**
+   (19:18 → 19:23, 21 agents Opus, « ce qui marche change-t-il ? ») : neuf constats confirmés, aucun bloquant. `captures` :
+   l'extraction en liste rendait moins d'éléments qu'avant pour le même appel et lisait toute la page ; `lecture` : trois
+   cas de fausse « lue » ; `collecte` : dispense trop large (38 vrais traitements sur 61 pris pour des collectes).
+   **Corrections en cours depuis 19:27** dans les trois arbres (correcteur `review2-<sprint>`, puis vérificateur ; rapport
+   `review2-<sprint>.md` dans chaque arbre) : n'intégrer B, C et D qu'après leur retour et le contrôle du manager ; les
+   têtes du tableau ci-dessous auront bougé, les plages `<base>..<branche>` restent valables. Limite connue ouverte : E136.
+   **Mode propriétaire et autres Skills** : état des lieux `reports/genericite-moteur-18-11.md` (19:23 → 19:30, 30
+   agents) : neuf blocages distincts confirmés ; sprint `generique-01` (G1, G2, G4) lancé à 19:32 dans
+   `~/Downloads/agregat-back-generique` (brief `briefs/generique-01.md`, codeur, relecteur, deux vérificateurs),
+   **non intégré sans l'accord du propriétaire**. De l'autre discussion : `onglets-03` prêt (`git cherry-pick
+   4ec71df..onglets-03`, fichiers nouveaux seulement, à proposer au propriétaire) ; `chef-01` suspendu, plan en révision.
 5. Essais réels après l'intégration, Codex d'abord (il ne consomme pas la limite), puis Claude : la mission SEEK de
    l'étape 2 rejouée à l'identique (comparer), puis sans borne de pages ; épreuve 3 (lettre) jusqu'au PDF ; épreuve 1
    (évaluation) avec Claude pour E128.

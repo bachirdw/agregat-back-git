@@ -1,6 +1,6 @@
 # Brief `generique-01` — un pack qui n'est pas career-ops doit pouvoir marcher (G1, G2, G4)
 
-Écrit par le manager le 18/11/2026 à 19:35. Ordres du propriétaire du 18/11 : « On n'oublie pas un code pour que ça
+Écrit par le manager le 18/11/2026 à 19:31. Ordres du propriétaire du 18/11 : « On n'oublie pas un code pour que ça
 puisse marcher avec tout type de skill, tout type de tâche » ; coder en parallèle ; et **aller doucement sur ce qui est
 sensible et qui marche déjà** (le moteur, l'orchestrateur) : changements additifs, branchements courts, rien d'existant
 ne change. Ce sprint n'est **pas intégré sans son accord**.

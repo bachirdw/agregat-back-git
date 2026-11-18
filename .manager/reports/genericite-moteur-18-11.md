@@ -48,7 +48,7 @@ pages lues, pour tous les packs (`browser-gateway/index.js:44`).
 - L'interface lit la liste des packs dans le catalogue (`Composer.tsx:535`).
 
 ## Ce que le manager propose (décisions du propriétaire)
-1. Sprint `generique-01`, lancé à 19:35 dans un arbre isolé, **non intégré sans son accord** : G1, G2 et G4, les trois
+1. Sprint `generique-01`, lancé à 19:32 dans un arbre isolé, **non intégré sans son accord** : G1, G2 et G4, les trois
    blocages petits, additifs et sans effet sur les packs existants, plus une preuve par un pack FICTIF fait d'un seul
    manifeste. Tension dite : ces changements touchent l'orchestrateur, que la consigne « aller doucement » protège ; d'où
    des branchements courts, inertes pour `career-ops`, `najah` et `core`, et une relecture « rien d'existant ne change ».

@@ -20,6 +20,13 @@ guetteur relancé à 18:51 ; 420c8fe8 n'est plus en cours à 18:52 (relevé à f
    pages de résultats 1 à 5, ajoute chaque offre à data/pipeline.md sans l'ouvrir ni la noter… ») : résultats annoncés,
    pages parcourues, offres distinctes vues, lignes ajoutées (avant : `data/pipeline.md` 117 lignes, 75 entrées en
    attente), marques de coupe, cause d'arrêt. C'est le point de comparaison « avant ».
+   **Relevée à 18:54** (18:47 → 18:52, 5 min 20 s) : `failed` « Mission incomplète : boîte d'entrée non traitée (0 sur
+   75) » alors que la collecte demandée est faite (E135). Constaté : 5 `browser_navigate` (pages 1 à 5), 36
+   `browser_snapshot`, 0 `browser_extract`, 2 `career_write` réussis, aucun échec d'outil ; `data/pipeline.md` 117 → 258
+   lignes, 75 → 216 entrées en attente (+141). D'après le résumé de l'agent, non recoupé : 287 résultats annoncés par le
+   site, 158 offres distinctes vues, 141 ajoutées, 17 déjà présentes. Non établi : taille des captures et marques de coupe
+   (le flux d'événements ne garde pas le contenu des sorties). Détail : `reports/guet-18-11.md`, section 420c8fe8. À
+   rejouer à l'identique après chaque étape d'intégration (le fichier part alors de 258 lignes).
 3. Contrôler le sprint `chef-01` à son retour (voir « Mode workflow »).
 4. **Intégrer les quatre sprints prêts par étapes, du moins sensible au plus sensible** (consigne « aller doucement »,
    section 2 ; ordre proposé au propriétaire à 18:53, sa réponse est attendue avant de commencer) : A `prompt-prime-18-11`

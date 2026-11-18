@@ -42,6 +42,10 @@ nouvelle discussion garde tout le reste : guet, essais réels, intégration, reg
    que `.manager/` n'a bougé sur `contacts-13-11` depuis leur base (vérifié à 18:51). **`chef-01` n'est pas intégré**
    avant la contre-expertise de Codex et le mot du propriétaire ; à son retour, vérifier que ses changements dans
    `orchestrator/index.js` et `apps/api/server.js` sont des branchements courts, inertes sans accord.
+   **Étape A faite** (18:57 → 19:13) : `prompt-prime-18-11` et `ecriture-18-11` repris (9 commits, `589c05a` à
+   `fa6e6af`, sans conflit), suite complète verte, API relancée à 19:14 par la nouvelle discussion (onglet Terminal
+   « API 4314 manager ») ; essai réel : SEEK rejouée avec Codex (le prompt entier est dans le bloc-notes de la discussion,
+   pas dans Git). Restent B puis C.
 5. Essais réels après l'intégration, Codex d'abord (il ne consomme pas la limite), puis Claude : la mission SEEK de
    l'étape 2 rejouée à l'identique (comparer), puis sans borne de pages ; épreuve 3 (lettre) jusqu'au PDF ; épreuve 1
    (évaluation) avec Claude pour E128.
@@ -246,8 +250,8 @@ sinon les relancer, sans mission en cours, en le disant au propriétaire. Le gue
 - Anciens : API 4313 + front 5176 (`cto-11-11`, ancien code) ; API 4310 + front 5173 (ancien code du 02/11 lancé
   depuis le dossier interdit). Ne pas les confondre avec 4314/5177.
 - Tests : `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000 npm test && npm run check && npm run format:check` (15 min ;
-  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 18:02 → 18:15**, avec le
-  correctif `precision-18-11` (1 328 unitaires, 1 326 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
+  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 18:58 → 19:13**, après
+  l'étape A (`prompt-prime-18-11` et `ecriture-18-11` : 1 342 unitaires, 1 340 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
   front `7b2716c` : 242/242, `tsc` et prettier verts. Jamais pendant une mission navigateur ; jamais pendant que des agents testent.
 - Suivre sans rien toucher : `python3 -I .manager/outils/guet-lecture.py <port> <minutes>` ; Bilan contre
   événements : `node .manager/outils/bilan-vs-events.mjs <mission>` ; collecteur du registre :

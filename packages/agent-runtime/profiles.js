@@ -31,6 +31,10 @@ export const profiles = [
     env: ['ANTHROPIC_API_KEY', 'CLAUDE_CONFIG_DIR'],
     // Its automatic memory is shared by every session of a project: missions must not inherit it.
     fixedEnv: { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' },
+    // demarrage-01 : the adapter and the CLI read the session's first model from this variable, so
+    // the mission's model is given at creation. A later session/set_config_option on the model
+    // leaves a /model « local command » note in the session (E141) and can go unanswered (E142).
+    modelEnv: 'ANTHROPIC_MODEL',
     safeModes: ['default'],
     preference: 2,
   },

@@ -81,6 +81,7 @@ export class AcpRuntime {
     ownerMode = false,
     requestedMode = '',
     agentHome = null, // platform-owned directory for CLIs that persist settings (isolated home)
+    model = '', // demarrage-01 : given at creation through the profile's `modelEnv`, if it declares one
   }) {
     Object.assign(this, {
       definition,
@@ -117,6 +118,7 @@ export class AcpRuntime {
     this.deadlinesPaused = 0;
     this.diagnostic = '';
     this.secrets = secretValues(env);
+    this.model = model;
   }
   usesApiKeyAuth() {
     const a = this.definition.apiKeyAuth;
@@ -130,6 +132,7 @@ export class AcpRuntime {
       ...(this.usesApiKeyAuth() ? { [d.apiKeyAuth.homeEnv]: this.agentHome } : {}),
       ...(d.id === 'codex' && d.cliPath ? { CODEX_PATH: d.cliPath } : {}),
       ...(d.id === 'claude' && d.cliPath ? { CLAUDE_CODE_EXECUTABLE: d.cliPath } : {}),
+      ...(d.modelEnv && this.model ? { [d.modelEnv]: this.model } : {}),
     });
   }
   async start() {

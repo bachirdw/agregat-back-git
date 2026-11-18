@@ -1543,6 +1543,8 @@ export class Orchestrator {
             : plan.agent,
         ownerMode: this.ownerMode || plan.pack.id === 'career-ops',
         requestedMode: run.agentMode,
+        // demarrage-01 : the model at the session's creation when the profile declares how.
+        model: run.model,
         cwd: run.cwd,
         agentHome: agentHomeFor(homesBase(run, plan.pack.id, this.dataDir), run.id, plan.agent.id),
         onEvent: (update) => {

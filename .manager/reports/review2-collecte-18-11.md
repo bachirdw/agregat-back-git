@@ -94,6 +94,58 @@ ensuite : aucun navigateur, aucune connexion au port. Le relecteur précédent l
 - La liste des verbes et des marqueurs est fermée (FR, EN) : une autre langue ou un synonyme non listé
   (« dépouille », « go through ») ne bloque pas la dispense.
 
+## Seconde passe (18/11, 19:36 à 19:41, `date`) : restes signalés par le vérificateur indépendant
+Tête avant la seconde passe : `f59bb00`. Correction et tests : commit `f1ee7d7`. Toujours des retraits de dispense
+seulement, `COLLECT_ONLY` inchangé.
+- **Verbe de traitement non listé (truth.js, `PROCESS_REQUEST`) : corrigé.** Verbes ajoutés : gère / gérer /
+  gestion, occupe(-toi), passe en revue, trie / tri ; handle, review, go through, sort, deal with, take care of,
+  work through. Et une garde générale `INBOX_OBJECT`, quel que soit le verbe : la boîte d'entrée (« boîte
+  d'entrée », « boîte de réception », « inbox ») nommée comme objet de la demande refuse la dispense (« Range ma
+  boîte… », « Dépouille… », « Ma boîte d’entrée : sans les ouvrir », « Tidy up my inbox »). Elle ne compte pas
+  quand la boîte est la destination (« à / au / dans / vers / to / into / in / onto ma boîte », « remplis /
+  fill / populate / alimente la boîte ») ni quand elle est expressément non traitée (« ne traite pas la boîte
+  d’entrée », « do not process the inbox »).
+- **Sous-ensemble sans mot repère (truth.js, `PART_OR_CONDITION`) : corrigé** par une garde voisine
+  `PART_FRONTED` : en début de proposition, des entrées nommées avec un qualificatif, puis une virgule, un
+  point-virgule ou deux-points, puis la négation (« les offres en CDD, ne les ouvre pas », « pour les annonces
+  à …, sans les ouvrir », « for postings in German, do not open them », « Postings in German: do not … »).
+  « Les offres, ne les ouvre pas » (sans qualificatif) n'est pas visé.
+- Le message de sous-ensemble joint au prompt comme le fait `ownerWords()` est testé : la cause, sur un prompt
+  de traitement comme sur une collecte.
+- Ajustement constaté en cours : `collecte-18-11.test.js` a échoué une fois (« Fill the FICTIONAL inbox, don’t
+  open them » attendu dispensé), d'où l'exception « remplis / fill la boîte ». Aucun attendu des tests du sprint
+  n'a été modifié.
+
+### Mesure, seconde passe (mêmes listes, complétées)
+Listes : 65 (K1) + 16 (K2) + 25 demandes par d'autres verbes ou la boîte objet + 12 sous-ensembles sans mot repère
+= 118 traitements ; 32 collectes pures (8 nouvelles, dont la boîte comme destination et « ne traite pas la
+boîte d’entrée ; ajoute … »). Mesuré en exécutant le même fichier de tests contre une copie de l'ancien `truth.js`
+placée dans le bloc-notes (rien d'écrit dans l'arbre).
+
+| | sprint relu (`ddd8e3b`) | première passe (`f59bb00`) | seconde passe (`f1ee7d7`) |
+|---|---|---|---|
+| traitements classés collecte (118) | 118 | 35 | 0 |
+| collectes pures non reconnues (32) | 0 | 0 | 0 |
+
+### Tests, seconde passe (un fichier à la fois, `node --test`)
+review2-collecte-18-11 8/8 (avant correction : 5 pass, 3 fail) ; collecte-18-11 5/5 ; review-collecte-18-11 3/3 ;
+boite-ajouts-traites 4/4 ; career-pipeline-flow 7/7 ; career-pipeline 16/16 ; doubt-tools 19/19 ;
+etape-reprise-echec 6/6 ; contacts-courriel 26/26 ; lecture-page-liste 12/12 ; intention-par-phrase 5/5 ;
+intention-anglais 2/2 ; preuve-effet 7/7 ; release-report-num 10/10 ; question-finale 8/8 ; skill-router 41/41 ;
+bilan-sans-negation 4/4. `npm run check` : « Syntaxe JavaScript valide. » `npx prettier --check` sur `truth.js` et
+le fichier de tests neuf : propre (après `prettier --write` du fichier de tests).
+
+### Limites de la seconde passe
+- Les verbes restent une liste fermée ; la garde `INBOX_OBJECT` couvre tout verbe dès que la boîte est nommée,
+  mais une demande de traitement par un verbe non listé qui ne nomme pas la boîte (« Dépouille les offres sans
+  les ouvrir ») dispense encore. Hypothèse, non mesurée sur un corpus réel.
+- Collectes perdues par construction (comportement d'avant) : « Passe en revue les résultats et ajoute… »,
+  « Review the results and add… », « les offres trouvées, ne les ouvre pas », toute collecte qui nomme la boîte
+  sans préposition de destination.
+- `PART_FRONTED` ne voit que le sous-ensemble placé en tête de proposition ; un qualificatif placé ailleurs passe
+  par les mots repères de `PART_OR_CONDITION` ou par `ENTRY_TAIL` de `COLLECT_ONLY`.
+- Le rapport (Markdown) n'est pas au format Prettier, déjà le cas après la première passe ; non reformaté.
+
 ## À décider par le propriétaire
 - Accepter que les collectes « avec dédoublonnage » (« pas déjà dans le pipeline ») retombent en « Mission
   incomplète » si rien n'est coché, ou les déclarer autrement (par exemple dans le pack). Hors du périmètre étroit.

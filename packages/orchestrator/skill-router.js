@@ -574,7 +574,9 @@ function ownIdentifiers(value) {
 // review2-lecture-18-11 (L3) : what a script printed on its standard output, and the address it
 // reports having reached. The platform answers a script's stdout then its stderr in one text ; a
 // stdout that is one line of JSON (an extractor's { url, title, text }) is told apart : the lines
-// after it are the error output and count for nothing, its `url` is the page reached, not text.
+// after it are the error output and count for nothing, its `url` is the page reached, not text. An
+// answer that carries the error output apart (a `stderr` field) never counts it ; a plain-text stdout
+// merged with its stderr in one text cannot be told apart here (career-ops/tools.js joins them).
 function scriptOutput(update) {
   const parts = [];
   let reached = null;
@@ -595,7 +597,8 @@ function scriptOutput(update) {
     else if (typeof value === 'object')
       for (const [key, item] of Object.entries(value)) {
         if (printed && key === 'url' && typeof item === 'string') reached ??= item;
-        else visit(item, depth + 1, printed);
+        // An error output answered apart (`stderr`) is never rendered text.
+        else if (key !== 'stderr') visit(item, depth + 1, printed);
       }
   };
   visit(update.rawOutput ?? update.content, 0, false);

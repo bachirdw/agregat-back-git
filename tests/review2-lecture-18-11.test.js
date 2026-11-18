@@ -239,3 +239,56 @@ test('review2 généricité FICTIF : l’ordre du Skill ne nomme aucune notion p
   // Les scripts viennent du manifeste ; le texte ajouté par le moteur ne parle pas d'annonce.
   assert.match(order, /ou career_script \(fetch-jd, browser-extract, texte rendu\)/);
 });
+
+// Seconde passe (vérificateur) : avec une sortie standard en texte simple, la plateforme
+// (`packages/career-ops/tools.js`, hors périmètre) rend `stdout + "\n" + stderr` en un seul texte ; le
+// routeur ne peut pas les séparer. Cas rejoué du vérificateur, laissé en attente (todo) jusqu'à ce que
+// tools.js rende la sortie d'erreur à part (décision du propriétaire).
+const LONG_STDERR = 'e'.repeat(1000);
+test(
+  'review2 L3 FICTIF : texte simple « court » et 1000 caractères sur la sortie d’erreur fusionnée : pas de lecture',
+  { todo: 'tools.js fusionne stdout et stderr pour un script du Skill (hors périmètre)' },
+  () => {
+    const offer = 'https://p.example.test/job/R100001';
+    const progress = progressOf(PIPELINE);
+    script(progress, 'x', { command: 'fetch-jd', args: [offer] }, `court\n${LONG_STDERR}`);
+    assert.equal(readStep(progress).state, 'pending');
+    assert.deepEqual(progress.incomplete([], false, scored([offer])), UNREAD(1));
+  },
+);
+
+// Une réponse qui porte la sortie d'erreur à part (champ `stderr`) : elle ne compte jamais pour le
+// seuil, seul `text` (la sortie standard) compte. C'est la forme qu'il suffira à tools.js de rendre.
+test('review2 L3 FICTIF : une sortie d’erreur rendue à part ne compte pas pour le seuil', () => {
+  const offer = 'https://p.example.test/job/R100001';
+  const separate = (stdout) => [
+    {
+      type: 'text',
+      text: JSON.stringify({ text: stdout, stderr: LONG_STDERR, exitCode: 0, untrusted: true }),
+    },
+  ];
+  const run = (id, stdout) => {
+    const progress = progressOf(PIPELINE);
+    const title = 'mcp__platform__career_script';
+    progress.observe({
+      sessionUpdate: 'tool_call',
+      toolCallId: id,
+      title,
+      status: 'pending',
+      rawInput: { command: 'fetch-jd', args: [offer] },
+    });
+    progress.observe({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: id,
+      status: 'completed',
+      rawOutput: separate(stdout),
+    });
+    return progress;
+  };
+  const short = run('x', 'court');
+  assert.equal(readStep(short).state, 'pending');
+  assert.deepEqual(short.incomplete([], false, scored([offer])), UNREAD(1));
+  const long = run('y', JD);
+  assert.equal(readStep(long).state, 'done');
+  assert.deepEqual(long.incomplete([], false, scored([offer])), []);
+});

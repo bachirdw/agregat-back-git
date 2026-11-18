@@ -5,14 +5,14 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 15:36 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 15:50 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
 | Correctif | Défauts | Contenu | Vérifié en réel ? |
 |---|---|---|---|
-| `questions-18-11` | E126, E127 | phrase commune `OWNER_QUESTION_RULE` (`packages/orchestrator/owner-question-rule.js`) reprise par `packages/career-ops/integration.js`, `packages/orchestrator/index.js` et `doubt-rule.js` ; une question mal formée n'est plus refusée (`result.js`, `index.js`, `workflow-run.js`) ; `docs/api-questions.md` | à faire : essai technique (Codex, Claude), épreuve 3 (Codex) |
-| `scripts-18-11` | E121, E120 | `packages/career-ops/tools.js` (chemin réel du `node_modules` de l'espace, liste d'un dossier), `truth.js`, `packages/orchestrator/exit-code.js`, `skill-router.js`, `packages/mcp-gateway/server.js`, `apps/api/server.js` | à faire : épreuve 2 (Codex) |
+| `questions-18-11` | E126, E127 | phrase commune `OWNER_QUESTION_RULE` (`packages/orchestrator/owner-question-rule.js`) reprise par `packages/career-ops/integration.js`, `packages/orchestrator/index.js` et `doubt-rule.js` ; une question mal formée n'est plus refusée (`result.js`, `index.js`, `workflow-run.js`) ; `docs/api-questions.md` | **Claude : oui** (72adba12 : formulaire ouvert, répondu, « Langue retenue : Français »). **Codex : non** (d2f836d2 `failed`, e6ddb095 `completed` sans question) : la question part dans son outil interne `request_user_input_async`, que la plateforme ne voit pas (E130). E127 : non exercé |
+| `scripts-18-11` | E121, E120 | `packages/career-ops/tools.js` (chemin réel du `node_modules` de l'espace, liste d'un dossier), `truth.js`, `packages/orchestrator/exit-code.js`, `skill-router.js`, `packages/mcp-gateway/server.js`, `apps/api/server.js` | **Codex : oui** (8bcb3dec : PDF de 2 pages produit, six étapes faites, aucune action échouée). Claude : à jouer. E120 : non exercé |
 Rapports : `.manager/reports/questions-18-11.md`, `review-questions-18-11.md`, `scripts-18-11.md`, `review-scripts-18-11.md`
 (à supprimer une fois les essais réels reportés ici). Arbres `~/Downloads/agregat-back-questions` et `-scripts` : à ranger.
 
@@ -20,19 +20,22 @@ Rapports : `.manager/reports/questions-18-11.md`, `review-questions-18-11.md`, `
 | Épreuve | Codex | Claude |
 |---|---|---|
 | 1 Évaluation | dcfad0f2 (17/11) : 2 notes sur 3, étape `sweep` en échec sans texte (E122) | 751f33c8 (18/11) : 3 rapports notés, mais `failed` « 3 offre(s) notée(s) sans lecture de leur page » (E128) ; 3 écritures TSV refusées puis réussies (E129) |
-| 2 CV | e1ce4cd8 (avant correctif) : JSON du CV prêt, **pas de PDF**, script bloqué (E121) ; à rejouer | à jouer |
-| 3 Lettre | 1cf4490e (avant correctif) : questions jamais reçues (E126) ; reprise e05973ab : rien à transmettre ; à rejouer | 16/11 (0e397f84, f70f2d13) : formulaires ouverts, fin sur un brouillon (E117) ; à rejouer |
+| 2 CV | **8bcb3dec (après correctif) : réussie, PDF produit** ; avant : e1ce4cd8, pas de PDF (E121) | à jouer |
+| 3 Lettre | e6ddb095 (après correctif) : **questions toujours pas reçues** (E130), `completed` en 1 min 45 s sur « j'attends vos réponses » ; avant : 1cf4490e (E126), reprise e05973ab | 16/11 (0e397f84, f70f2d13) : formulaires ouverts, fin sur un brouillon (E117) ; à rejouer |
 | 4 Candidature page fictive 4321 | au propriétaire (son clic) | au propriétaire |
 | 5 Contact LinkedIn | à jouer avec lui (pilote son Chrome) | idem |
 | 6 Relance | cc2bff45 : réussie ; question `prose` ouverte et répondue ; e-mail en brouillon (`sent: false`), ce qui convient au propriétaire | à jouer |
-Essais réels à faire, dans l'ordre : le prompt « Essai technique du manager, sans rapport avec une candidature : ne lance
-aucune étape du Skill, ne lis et n'écris aucun fichier, n'ouvre pas le navigateur. Pose-moi une seule question : « La
-lettre doit-elle être en français ou en anglais ? », avec ces deux choix. Attends ma réponse, puis réponds seulement
-« Langue retenue : » suivi de mon choix. » avec Codex puis avec Claude (attendu : une question s'ouvre avec les deux ;
-avant correctif, Codex rendait un JSON brut, f17c0c91) ; l'épreuve 2 avec Codex (attendu : un PDF) ; l'épreuve 3 avec
-Codex (attendu : les questions arrivent au propriétaire) ; puis les épreuves 2 et 6 avec Claude. Le manager répond
-lui-même à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais
-une carte d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
+Essais réels faits le 18/11 après l'intégration (15:37 → 15:48, relevés du guetteur dans `reports/guet-18-11.md`) : essai
+technique « Pose-moi une seule question… » avec Codex (d2f836d2) puis Claude (72adba12), épreuve 2 avec Codex (8bcb3dec),
+épreuve 3 avec Codex (e6ddb095). Prompts des épreuves (repris à l'identique) : 2 « Génère le CV adapté pour l'offre la
+mieux notée qui n'a pas encore de PDF. Pas de lettre, n'envoie rien. » ; 3 « Écris la lettre de motivation pour l'offre
+011. Pose-moi toutes tes questions en une seule fois, puis génère le PDF dès que j'ai validé le brouillon. N'envoie
+rien. » ; 6 « Quelles candidatures dois-je relancer cette semaine ? Prépare les relances sans rien envoyer. » (l'API ne
+rend plus le texte d'un prompt : il se retrouve dans le titre de session des événements).
+**Reste à jouer** : épreuves 2 et 6 avec Claude (reportées après la remise à zéro de 17:00, limite à 72 % à 15:49), puis
+rejouer avec l'autre agent celles qui tiennent ; l'épreuve 3 avec Codex une fois E130 tranché. Le manager répond lui-même
+à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte
+d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
 
 **Décisions du propriétaire du 18/11** : ménage des passations ; une seule version, poussée et devenue `main` ; correctif
 de la reprise intégré ; des faits et des essais avant toute correction ; mêmes autorisations pour tous les agents, rien
@@ -40,18 +43,19 @@ de codé en dur pour un agent ; ne rien ajouter qui restreigne l'agent ou l'emp�
 défaut se reproduise est admis) ; sous-agents Opus en parallèle pour aller vite ; continuer à éprouver l'agent ; le
 manager lance lui-même les épreuves sans envoi ; passation vers une nouvelle discussion (15:12) ; « Oui, intègre » pour
 les deux correctifs (15:20).
-**À lui proposer ensuite, dans cet ordre** : E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
+**À lui proposer ensuite, dans cet ordre** : **E130** (question de Codex avalée par son outil interne : dire à tous les
+agents la voie du champ JSON `question`, ou chercher à relayer cet outil ; faits au registre) ; E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
 ranger parmi les « verdicts » les quatre scripts qui sortent en 1 sur un simple constat (`clean-markers`,
 `check-table-freshness`, `audit-portals --strict`, `tracker sync --check`) ; garder ou non le nom « AskUserQuestion » dans
 la phrase commune ; garder le message d'une question dont seules les options sont hors bornes ; E117 (fin sur un
 brouillon) ; E119 (échec au démarrage) ; E118 (Bilan inexact).
 
-**En service à 15:36** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
+**En service à 15:50** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
 (code intégré) ; page fictive 4321 et front 5177 dans des onglets de la discussion d'avant (vérifier par `lsof` ; sinon
-les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (30 missions en base).
+les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (34 missions en base).
 **Guetteur** : relancé à 15:18 (sous-agent Sonnet de la discussion du manager, lecture seule, `GET /api/runs` toutes les
 20 s, rapport `reports/guet-18-11.md`) ; il s'arrête avec cette discussion : en relancer un à chaque reprise (règle du 16/11).
-**Limite d'usage** : 66 % de la fenêtre de 5 h à 15:17 (remise à zéro vers 17:00) ; ne plus lancer de chantier au-delà
+**Limite d'usage** : 72 % de la fenêtre de 5 h à 15:49 (remise à zéro vers 17:00) ; ne plus lancer de chantier au-delà
 de 70 %, tout arrêter à 85 % (règle du 05/11). Les agents du propriétaire qui sont des missions Claude consomment la
 même limite ; les missions Codex non.
 
@@ -268,8 +272,8 @@ incomplet ou inexact · E119 échec au démarrage sans nouvel essai · E120 `car
 `cv-templates` bloqué mais dit réussi · E122 `sweep` en échec sans texte · E123 échec affiché deux fois · E124
 fichiers attribués par date · E125 question laissée sans réponse · E126 avec Codex les questions n'arrivent pas au propriétaire (consigne du
 pack sans format du champ `question`) · E127 champ `question` mal formé : réponse refusée, JSON brut affiché · E128 mission en échec « notée sans
-lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E120, E121,
-E126, E127 : corrigés et intégrés le 18/11, non vérifiés en réel (section 0). Hors numéros : A7, A11 (audit du 12/11) ;
+lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E130 question de Codex posée par son outil interne, jamais reçue.
+E120, E121, E126, E127 : correctifs intégrés le 18/11 ; E121 vérifié en réel avec Codex, E126 non résolu avec Codex (E130), E120 et E127 non exercés (section 0). Hors numéros : A7, A11 (audit du 12/11) ;
 « Se connecter » sans carte ; « Easy Apply » encore `candidate` ; messages en cours de mission non persistés.
 
 ## 9. Méthode et leçons
@@ -297,7 +301,7 @@ E126, E127 : corrigés et intégrés le 18/11, non vérifiés en réel (section 
 | Fichier | Sert à |
 |---|---|
 | `.manager/HANDOFF.md` | ce fichier : seule lecture d'entrée |
-| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E129 avec certitude ; collecteur des échecs en base |
+| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E130 avec certitude ; collecteur des échecs en base |
 | `.manager/CARTE.md` | où vit quoi dans Relay et ce qu'on prend des dépôts de référence (04/11) |
 | `.manager/reuse-plan.md`, `PLAN-reuse.md`, `reuse-map.md` | plan de réutilisation des dépôts de référence validé le 27/10 |
 | `.manager/PLAN-04-11.md` | plan des chantiers C0-C15 (C9-C15 non retrouvés comme faits) |

@@ -94,3 +94,25 @@ rend 403 avant `launch`).
 - Faut-il préciser aussi `chiefRule` (« jusqu'à N sous-missions ») pour le chef ?
 - Le compte de `familyStopped` pour une sous-mission revenue de `create` après l'écriture du Bilan de la mère.
 - Le cas `input type=submit` d'un formulaire GET de recherche (carte avant le clic) relevé en passant.
+
+## E145 — dossier de résultats d'une sous-mission refusé par career_write (19/11/2026 10:56)
+
+- Constaté (code) : `validatePath` (`packages/career-ops/tools.js`) n'admet en écriture que `userPath` (et
+  `config/benchmarks.yml` en mode propriétaire) ; aucun chemin `relay/` n'y figure, d'où « Fichier hors du périmètre
+  career-ops » pour `relay/missions/<mission>/<n>-<titre>/…` que donne `resultsFolder` (`delegation.js`). En lecture,
+  le mode propriétaire lisait déjà ce dossier (seuls `.env*` et `relay/agent-homes/` y sont refusés) ; le mode ordinaire
+  le refusait (ni `userPath`, ni `systemPath`).
+- Correctif (packages/career-ops/ seulement, additif) : motif `missionResultPath` — fichier texte
+  (`md|txt|yml|json|tsv|html`) sous `relay/missions/<nom>/<nom>/`, sous-dossiers compris — admis en écriture et en
+  lecture dans les deux modes ; mêmes bornes d'écriture (200 000 octets par appel, ajout jusqu'à 10 Mo, écriture
+  confinée sans lien). La lecture d'un tel chemin passe par le contrôle préalable (`lstat`) : lien refusé, fichier
+  absent sans création de dossier. Le reste de `relay/`, les « .. », noms à point et chemins absolus gardent leurs refus.
+- Tests : `tests/dossier-resultats-01.test.js` 11/11 (4 en échec avant le correctif ; contrôle négatif : sans la ligne
+  de `validatePath` 4 échecs, sans le contrôle préalable de lecture 2 échecs). Voisins verts : career-integration 50/50,
+  career-failure 11/11, career-pipeline-flow 7/7, ecriture-18-11 6/6, review-ecriture-18-11 4/4, lecture-18-11 11/11,
+  review-lecture-18-11 3/3, review2-lecture-18-11 7/7 (+1 todo), lecture-dossier 12/12, career-read-perimetre 11/11,
+  career-optional-files 4/4, career-produced-nested 2/2, multi-agent-v3-01-a 7/7, multi-agent-v3-01-b 8/8,
+  review-multi-agent-v3-01 12/12. `npm run check` vert.
+- Ouvert : une extension hors de la liste (`.csv`, binaire) reste refusée par `career_write` dans ce dossier ; le
+  motif admet tout `relay/missions/<a>/<b>/` sans vérifier que la sous-mission existe (pas d'état de la délégation dans
+  le pack).

@@ -13,9 +13,11 @@ Deux voies, une seule file et une seule route de réponse (`pendingQuestion.kind
 
 Une seule phrase, la même pour tous les agents (Claude, Codex, Gemini, OpenCode) et tous les packs, définie dans `packages/orchestrator/owner-question-rule.js` (`OWNER_QUESTION_RULE`) :
 
-> Règle des questions : pour poser une question au propriétaire, utilise le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) s’il t’en offre un ; sinon termine ta réponse JSON par le champ question au format exact {"question":{"message":"…","options":["…","…"]}} (message obligatoire, options facultatives). Dans les deux cas, la mission attend la réponse du propriétaire dans la même session. Si tu attends une réponse du propriétaire, pose ta question par l’une de ces deux voies : c’est ce qui met la mission en attente.
+> Règle des questions : pour poser une question au propriétaire, utilise le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) s’il t’en offre un ; sinon termine ta réponse JSON par le champ question au format exact {"question":{"message":"…","options":["…","…"]}} (message obligatoire, options facultatives). Un outil de question qui rend la main tout de suite, sans attendre la réponse, n’est pas un formulaire de question : si c’est le seul que tu as, pose ta question par le champ JSON question. Dans les deux cas, la mission attend la réponse du propriétaire dans la même session. Si tu attends une réponse du propriétaire, pose ta question par l’une de ces deux voies : c’est ce qui met la mission en attente.
 
 Elle est citée par la consigne du pack career-ops (`CAREER_INSTRUCTIONS`, `packages/career-ops/integration.js`) et par celle des missions navigateur (`packages/orchestrator/index.js`) ; `withDoubtRule` (`packages/orchestrator/doubt-rule.js`) l'ajoute à toute autre consigne de mission qui ne la cite pas (la règle de doute y renvoie). Chaque prompt de mission la porte une fois. Les étapes agent d'un workflow DAG ne la reçoivent pas (elles ne lisent que les questions de formulaire).
+
+Pourquoi la précision sur l'outil qui n'attend pas (E130, 18/11) : un agent peut avoir un outil de question qui rend la main aussitôt, sans attendre la réponse ; il le prenait pour « le formulaire de question de son agent », rien n'en revenait à la plateforme et la question n'était jamais posée au propriétaire. La phrase précise ce qu'est un formulaire (un outil qui attend la réponse) ; elle n'interdit aucun outil, et un agent qui a un vrai formulaire le garde.
 
 ## Question mal formée
 

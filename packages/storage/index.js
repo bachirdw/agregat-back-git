@@ -93,14 +93,6 @@ export class Store extends EventEmitter {
       .all()
       .map((r) => JSON.parse(r.data));
   }
-  // chef-01 : the sub-missions a mission launched (field `famille.mere`), in launch order. No
-  // table of its own : `list()` stops at the 200 latest missions, this reads them all.
-  children(id) {
-    return this.db
-      .prepare("SELECT data FROM runs WHERE json_extract(data, '$.famille.mere')=? ORDER BY rowid")
-      .all(id)
-      .map((r) => JSON.parse(r.data));
-  }
   update(id, patch) {
     const run = this.get(id);
     if (!run) throw new Error('Run introuvable');

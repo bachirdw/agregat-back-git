@@ -93,8 +93,6 @@ import {
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/index.js';
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
-import { Delegation } from './delegation.js';
-import { DEFAULT_ENVELOPE, MAX_PARALLEL, MAX_TOTAL } from './delegation-rule.js';
 const homesBase = (run, packId, dataDir) =>
   packId === 'career-ops' ? resolve(run.cwd, 'relay') : dataDir;
 export const inputSchema = z
@@ -121,19 +119,6 @@ export const inputSchema = z
     budgetCents: z.number().int().min(0).max(100000).default(0),
     mode: z.enum(['agent', 'workflow']).default('agent'),
     workflow: z.string().max(60).optional(),
-    // chef-01 : the owner's acceptance of the sub-agents, given before the mission is sent (the
-    // button) ; delegation-v2-01 : also written by the platform (`prompt`, `carte`) and kept by a
-    // resumption. Without this field the tools are lent all the same and the owner is asked first.
-    delegation: z
-      .object({
-        accepted: z.boolean(),
-        via: z.enum(['bouton', 'prompt', 'carte', 'api']).default('api'),
-        total: z.number().int().min(1).max(MAX_TOTAL).default(DEFAULT_ENVELOPE.total),
-        parallel: z.number().int().min(1).max(MAX_PARALLEL).default(DEFAULT_ENVELOPE.parallel),
-        acceptedAt: z.string().datetime({ offset: true }).optional(),
-      })
-      .strict()
-      .optional(),
   })
   .strict();
 export { parseAgentResult } from './result.js';
@@ -448,8 +433,6 @@ export class Orchestrator {
     // Clock of the mission guards (silence, tool, deadline): tests replace it by a simulated one
     // and advance it without waiting.
     this.timers = { setTimeout, clearTimeout };
-    // chef-01 : families of missions whose owner accepted the workflow mode.
-    this.delegation = new Delegation(this);
   }
   // `target` is a pack id or a plan: a plan of the owner's free browsing (browser-agent) gets the
   // browsing deadline.
@@ -804,13 +787,6 @@ export class Orchestrator {
     // and such a pack without either still switch to the owner's free browsing.
     const chosen = v.pack === 'auto' ? null : packs.find((p) => p.id === v.pack);
     const ownPath = Boolean(chosen?.skillManifest || chosen?.workflow.steps.length);
-    // chef-01 : the chief is an agent ; a DAG chosen by default (front) never takes its place.
-    // delegation-v2-01 : only when the request carries the acceptance (the button), never because
-    // the tools are lent to every mission led by an agent.
-    if (v.delegation?.accepted && this.delegation.lent) {
-      v.mode = 'agent';
-      delete v.workflow;
-    }
     const browserWorkflow =
       this.ownerMode && !ownPath && (!v.workflow || ['auto', 'browser-agent'].includes(v.workflow));
     if (browserWorkflow) {
@@ -1083,11 +1059,8 @@ export class Orchestrator {
       history,
     });
   }
-  // chef-01 : `family` ({ link, title, cwd }) creates a sub-mission for Delegation.launch : it
-  // holds none of the three slots (see activeSlots), shares its mother's workspace, and is held
-  // (`family.held`) until its family has a place.
-  async create(input, previous = null, family = null) {
-    if (!family && this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
+  async create(input, previous = null) {
+    if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     if (previous?.workspace === 'career-ops' && input.prompt === previous.prompt)
       input = {
         ...input,
@@ -1102,7 +1075,7 @@ export class Orchestrator {
         attachments: previous.attachments ?? [],
       };
     const plan = await this.plan(input, { resume: !!previous });
-    if (!family && this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
+    if (this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     if (!plan.cost.withinBudget)
       throw new Error(
         `Budget insuffisant : estimation ${plan.cost.platformCents} c > budget ${plan.cost.budgetCents} c`,
@@ -1122,16 +1095,11 @@ export class Orchestrator {
     // A form asked in the middle of a turn (the agent is still working) keeps the space.
     // Relecture du 11/11 (constat 3) : nothing is closed before every other refusal has been
     // checked (budget, session non reprenable) : a refused launch has no effect.
-    // chef-01 : the members of one family share the space ; any other mission is still refused.
-    if (plan.input.workspace === 'career-ops' && !family) {
+    if (plan.input.workspace === 'career-ops') {
       const busy = () =>
         [...this.active.keys()].filter((id) => this.store.get(id)?.workspace === 'career-ops');
       const waiting = busy().map((id) => this.openQuestion(id));
-      if (
-        waiting.length &&
-        waiting.every((entry) => entry?.question.kind === 'prose') &&
-        !busy().some((id) => this.delegation.member(id))
-      ) {
+      if (waiting.length && waiting.every((entry) => entry?.question.kind === 'prose')) {
         for (const entry of waiting)
           this.settleQuestion(entry, { action: 'cancel' }, { action: 'superseded' });
         // The closed mission writes its Bilan, then its agent gets up to 5 s to leave (see the
@@ -1154,10 +1122,9 @@ export class Orchestrator {
       !(this.career.real && (plan.simulated || plan.dataMode === 'fixture'));
     let cwd =
       previous?.cwd ??
-      family?.cwd ??
       (ownerSpace ? this.career.path() : resolve(workspacesRoot(this.dataDir), id));
     mkdirSync(cwd, { recursive: true, mode: 0o700 });
-    if (!previous && !family && plan.input.workspace === 'career-ops' && !ownerSpace) {
+    if (!previous && plan.input.workspace === 'career-ops' && !ownerSpace) {
       cwd = realpathSync(cwd);
       this.career.copyInputs(plan.input.attachments ?? [], cwd);
     }
@@ -1172,11 +1139,7 @@ export class Orchestrator {
       createdAt: new Date().toISOString(),
       state: 'queued',
       ...plan.input,
-      ...(family ? { famille: family.link } : {}),
-      // delegation-v2-01 : a resumed mother still reads the sub-missions of its chain.
-      ...(previous?.estMere ? { estMere: true } : {}),
       title:
-        family?.title ??
         previous?.title ??
         (plan.input.workspace === 'career-ops' && !this.ownerMode
           ? 'Candidature'
@@ -1217,11 +1180,8 @@ export class Orchestrator {
       this.store.create({ ...run, prompt: 'Mission privée dans l’espace de candidature' });
     } else this.store.create(run);
     const control = { abort: new AbortController(), runtime: null };
-    if (family) family.held = { run, plan, control };
-    else {
-      this.active.set(id, control);
-      setImmediate(() => this.launch(run, plan, control, previous));
-    }
+    this.active.set(id, control);
+    setImmediate(() => this.launch(run, plan, control, previous));
     return run.workspace === 'career-ops' ? this.store.get(id) : run;
   }
   // Resume a workflow run in place: same run id, durable steps kept, unfinished steps retried.
@@ -1561,8 +1521,6 @@ export class Orchestrator {
           if (promptStarted) turnTruth.observe(update);
           if (promptStarted) skillProgress.observe(update);
           if (promptStarted) nativeActions.observe(update);
-          // chef-01 : a sub-mission's files, named by its own completed calls.
-          control.familyObserve?.(update);
           if (
             promptStarted &&
             update.sessionUpdate === 'tool_call' &&
@@ -1615,9 +1573,7 @@ export class Orchestrator {
       });
       control.runtime = runtime;
       const info = await runtime.start();
-      // delegation-v2-01 : the mission tools are lent to every mission led by an agent, after the
-      // capability server (first), except a sub-mission or when AGENT_PLATFORM_DELEGATION=0.
-      const mcpServers = [this.mcpServerFor(run, plan.pack), ...this.delegation.servers(run)];
+      const mcpServers = [this.mcpServerFor(run, plan.pack)];
       gatewayServers = mcpServers;
       let session;
       try {
@@ -1663,11 +1619,8 @@ export class Orchestrator {
       // Which tool serves which task is declared by the pack, never coded in the engine.
       const toolRoles = formatToolRoles(plan.pack.skillManifest);
       checkpoint = previous ? this.checkpointFor(previous) : null;
-      // chef-01 : the chief's sentence, or a sub-mission's sentence and family ; nothing otherwise.
-      const familyPrompt = this.delegation.promptParts(run, mcpServers);
       const prompt = JSON.stringify({
         objective: run.prompt,
-        ...familyPrompt.fields,
         ...(checkpoint ? { checkpoint } : {}),
         attachments:
           run.workspace !== 'career-ops'
@@ -1694,8 +1647,7 @@ export class Orchestrator {
           '\n' +
           WORK_FILES_RULE +
           (toolRoles ? '\n' + toolRoles : '') +
-          (plan.skillSelection?.length ? '\n' + formatSkillOrder(plan.skillSelection) : '') +
-          familyPrompt.rule,
+          (plan.skillSelection?.length ? '\n' + formatSkillOrder(plan.skillSelection) : ''),
       });
       let response;
       try {
@@ -1791,8 +1743,6 @@ export class Orchestrator {
         }
       };
       let ownerMessageTurns = 0;
-      // delegation-v2-01 : the one synthesis turn of a chief whose sub-missions still ran (plan v2).
-      let familyTurn = false;
       for (;;) {
         // A steering request still in flight is answered before the turn is read as over.
         if (control.ownerMessages.steering) await control.ownerMessages.steering;
@@ -1817,26 +1767,7 @@ export class Orchestrator {
         if (!question) {
           // Messages of the owner not taken into the turn : one more turn carries them all.
           const waiting = this.pendingOwnerMessages(control);
-          if (!waiting.length || ownerMessageTurns >= MAX_OWNER_MESSAGE_TURNS) {
-            const results = familyTurn
-              ? null
-              : await this.delegation.synthesis(run.id, control, runtime);
-            if (!results) break;
-            familyTurn = true;
-            text = '';
-            afterTool = false;
-            messageStarts = [];
-            armSilence();
-            response = await nextTurn(
-              JSON.stringify({ ...results, platform: { turnKind: 'family_results' } }),
-            );
-            clearSilence();
-            if (control.abort.signal.aborted) throw control.abort.signal.reason;
-            if (response.stopReason !== 'end_turn')
-              throw new Error(`Agent arrêté : ${response.stopReason}`);
-            agentValue = readResult();
-            continue;
-          }
+          if (!waiting.length || ownerMessageTurns >= MAX_OWNER_MESSAGE_TURNS) break;
           ownerMessageTurns++;
           if (!runtime.continueSession())
             throw new Error('Session de l’agent fermée avant le message du propriétaire');
@@ -1922,10 +1853,6 @@ export class Orchestrator {
       }
       // The turns are over : the mission is being closed and takes no more message.
       this.closeOwnerMessages(run.id, control);
-      // chef-01 : the mother waits for its last sub-mission before its Bilan (timers paused).
-      await this.delegation.settle(run.id, control);
-      // review-delegation-v2-01 : only a mother waited here ; any other mission as in 48a2f4e.
-      if (control.mere && control.abort.signal.aborted) throw control.abort.signal.reason;
       const value = executionResult(agentValue, plan.agent, {
         fixtureData: plan.dataMode === 'fixture',
       });
@@ -2131,11 +2058,6 @@ export class Orchestrator {
           .filter(Boolean)
           .join(' ; ') || null;
       if (incomplete.length) value.summary += `\nMission incomplète : ${incomplete.join(' ; ')}.`;
-      // chef-01 : the « Sous-missions » section : each sub-mission's Bilan quoted, the totals.
-      value.summary += this.delegation.bilanSection(run, {
-        chiefAnswer: agentSaid,
-        motherSends: control.sendsApproved ?? 0,
-      });
       // Front du 11/11 : the answer of the agent and the lines of the platform, apart, so that an
       // interface shows the first and folds the second without recognising sentences. `summary`
       // stays the whole text. The private career-ops result gets the lines written after it too
@@ -2235,8 +2157,6 @@ export class Orchestrator {
           },
         });
       }
-      // chef-01 : a mother that stops keeps the section of its sub-missions as they are now.
-      this.delegation.failureSection(run, control);
       recordDiagnostic();
       if (!plan.simulated && control.runtime && !control.runtime.sessionId && !control.cancelled)
         saveProbe(this.dataDir, plan.agent.id, {
@@ -2413,9 +2333,6 @@ export class Orchestrator {
     let n = 0;
     for (const id of this.active.keys()) {
       if (this.store.get(id)?.state === 'awaiting_owner') continue;
-      // delegation-v2-01 : the sub-missions hold none of the three slots : the envelope of their
-      // mission bounds them, and Delegation.activity() counts them with every agent at work.
-      if (this.store.get(id)?.famille) continue;
       if (
         this.ownerMode &&
         [...this.permissions.values()].some((p) => p.runId === id && p.actionClass === 'send')
@@ -2560,19 +2477,13 @@ export class Orchestrator {
     for (const entry of this.questions.filter((q) => q.runId === runId))
       this.settleQuestion(entry, { action: 'cancel' }, { action: 'cancel' }, true);
   }
-  cancel(id, reason = 'Annulée par l’utilisateur') {
+  cancel(id) {
     const c = this.active.get(id);
-    if (!c) {
-      // chef-01 : a sub-mission still waiting for its place ends at once.
-      if (this.delegation.cancelHeld(id, reason)) return;
-      throw new Error('Exécution déjà terminée');
-    }
+    if (!c) throw new Error('Exécution déjà terminée');
     c.cancelled = true;
     // The pending question is answered `cancel` before the prompt is cancelled (ACP).
     this.clearQuestions(id);
-    c.abort.abort(new Error(reason));
-    // chef-01 : its sub-missions (and theirs) are cancelled with it.
-    this.delegation.cascade(id);
+    c.abort.abort(new Error('Annulée par l’utilisateur'));
   }
   // orienter-14-11 : a message of the owner to the agent of a running mission, kept in memory on
   // the mission's control (as questions are) and handed over in the same session : injected into the
@@ -2722,7 +2633,6 @@ export class Orchestrator {
       }
   }
   async close() {
-    this.delegation.close(SERVER_STOPPED);
     for (const control of this.active.values()) control.abort.abort(new Error(SERVER_STOPPED));
     // Bounded stop (audit 10/11) : a mission stuck on something that ignores the abort signal used to
     // keep the server alive for ever (SIGINT/SIGTERM never ended). After `closeTimeoutMs`, what is

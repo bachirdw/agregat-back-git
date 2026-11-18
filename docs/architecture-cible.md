@@ -222,19 +222,6 @@ steps:
 - **Agent absent :** le routeur en choisit un autre qui a la capacité et le signale. Les capacités sont revérifiées au lancement, car une limite peut survenir plus tard. Le repli repart d'un point de reprise et ne répète jamais un effet à l'aveugle.
 - **Navigateur :** un bail d'abord exclusif par session de travail, en gardant la file et les cibles existantes. Le parallèle ne vient qu'après preuve.
 - **MCP externes :** déclarés par pack ou par l'utilisateur, qualifiés avant exposition, secrets passés par référence. `runtime.session()` accepte déjà une liste. Une annotation du serveur ne prouve pas ce que fait l'outil.
-- **Note du 18/11/2026 (sprint `chef-01`) — dégel partiel accordé par le propriétaire sur ce seul point :** au lieu
-  d'un DAG écrit d'avance, un **agent chef** conduit la chaîne au moment de la mission (option B de l'étude
-  `workflows-etude-18-11.md`). Commencé dans `chef-01`, revu par le plan v2 du 18/11 et réalisé dans
-  `delegation-v2-01`, sans front : outils `mission_lancer`, `mission_suivre`, `mission_attendre`, `mission_annuler`
-  prêtés à toute mission menée par un agent (jamais à une sous-mission : un seul niveau), par un serveur MCP à part
-  (`packages/mission-gateway/server.js`), retirables par le réglage `AGENT_PLATFORM_DELEGATION=0` ; autoriser n'oblige
-  pas à déléguer ; accord du propriétaire par le champ `delegation` de `POST /api/runs` (bouton), par la demande écrite
-  dans le prompt ou par la carte au premier lancement ; chaque sous-mission est une mission ordinaire (`create()`), liée
-  à sa mère (`famille`) ; les sous-missions ne prennent aucune des trois places : l'enveloppe de leur mission (6 au plus,
-  3 en même temps) les borne et un compteur montre tous les agents en activité ; elles partagent l'espace career-ops ;
-  minuteurs du chef en pause pendant qu'il attend ; un seul tour de synthèse avec leurs résultats ; annulation en
-  cascade ; Bilan de la mère qui cite ceux des sous-missions. Contrat : `docs/api-delegation.md`. Le DAG de cette
-  section reste pour les recettes déclarées par un pack ; le reste de l'architecture cible reste gelé.
 - **Workflow généré :** plus tard, un agent planificateur écrit le DAG depuis le prompt. `validateWorkflow` ne contrôle que la syntaxe : il faut aussi valider capacités, effets, reprises et ressources, car une déclaration `read` générée ne prouve aucun effet. Depuis `astra-01`, l'effet absent vaut `unknown`, et une étape agent interrompue reste incertaine même déclarée `read`. Le fil l'affiche en texte, sans clic.
 
 ### 5.5 Trous connus de cette proposition

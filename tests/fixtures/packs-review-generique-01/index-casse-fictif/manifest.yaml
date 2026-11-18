@@ -1,0 +1,14 @@
+# Pack FICTIF de relecture (review-generique-01) : son index.js existe mais casse à l'import.
+# L'erreur doit remonter comme avant generique-01, jamais être prise pour une absence.
+id: index-casse-fictif
+name: Index cassé FICTIF
+version: 0.0.1
+description: Pack FICTIF de test dont l'index.js échoue au chargement.
+keywords: []
+skills: []
+workflow:
+  id: casse-fictif
+  title: Parcours FICTIF
+  steps:
+    - tool: evidence_echo
+      title: evidence_echo

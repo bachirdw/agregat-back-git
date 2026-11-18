@@ -1,0 +1,13 @@
+# Pack FICTIF de relecture (review-generique-01) : un index.js valide, chargé comme avant.
+id: outil-propre-fictif
+name: Outil propre FICTIF
+version: 0.0.1
+description: Pack FICTIF de test avec un outil et un vérificateur propres.
+keywords: []
+skills: []
+workflow:
+  id: outil-fictif
+  title: Parcours FICTIF
+  steps:
+    - tool: outil_propre_fictif
+      title: outil_propre_fictif

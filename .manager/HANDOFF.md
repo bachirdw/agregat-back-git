@@ -5,14 +5,14 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 15:50 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 17:35 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
 | Correctif | Défauts | Contenu | Vérifié en réel ? |
 |---|---|---|---|
 | `questions-18-11` | E126, E127 | phrase commune `OWNER_QUESTION_RULE` (`packages/orchestrator/owner-question-rule.js`) reprise par `packages/career-ops/integration.js`, `packages/orchestrator/index.js` et `doubt-rule.js` ; une question mal formée n'est plus refusée (`result.js`, `index.js`, `workflow-run.js`) ; `docs/api-questions.md` | **Claude : oui** (72adba12 : formulaire ouvert, répondu, « Langue retenue : Français »). **Codex : non** (d2f836d2 `failed`, e6ddb095 `completed` sans question) : la question part dans son outil interne `request_user_input_async`, que la plateforme ne voit pas (E130). E127 : non exercé |
-| `scripts-18-11` | E121, E120 | `packages/career-ops/tools.js` (chemin réel du `node_modules` de l'espace, liste d'un dossier), `truth.js`, `packages/orchestrator/exit-code.js`, `skill-router.js`, `packages/mcp-gateway/server.js`, `apps/api/server.js` | **Codex : oui** (8bcb3dec : PDF de 2 pages produit, six étapes faites, aucune action échouée). Claude : à jouer. E120 : non exercé |
+| `scripts-18-11` | E121, E120 | `packages/career-ops/tools.js` (chemin réel du `node_modules` de l'espace, liste d'un dossier), `truth.js`, `packages/orchestrator/exit-code.js`, `skill-router.js`, `packages/mcp-gateway/server.js`, `apps/api/server.js` | **Codex : oui** (8bcb3dec : PDF de 2 pages produit, six étapes faites, aucune action échouée). **Claude : oui** (9630b823 : PDF de 2 pages, six étapes faites, une vérification refaite après un échec). E120 : non exercé |
 Rapports : `.manager/reports/questions-18-11.md`, `review-questions-18-11.md`, `scripts-18-11.md`, `review-scripts-18-11.md`
 (à supprimer une fois les essais réels reportés ici). Arbres `~/Downloads/agregat-back-questions` et `-scripts` : à ranger.
 
@@ -20,11 +20,11 @@ Rapports : `.manager/reports/questions-18-11.md`, `review-questions-18-11.md`, `
 | Épreuve | Codex | Claude |
 |---|---|---|
 | 1 Évaluation | dcfad0f2 (17/11) : 2 notes sur 3, étape `sweep` en échec sans texte (E122) | 751f33c8 (18/11) : 3 rapports notés, mais `failed` « 3 offre(s) notée(s) sans lecture de leur page » (E128) ; 3 écritures TSV refusées puis réussies (E129) |
-| 2 CV | **8bcb3dec (après correctif) : réussie, PDF produit** ; avant : e1ce4cd8, pas de PDF (E121) | à jouer |
+| 2 CV | **8bcb3dec (après correctif) : réussie, PDF produit** ; avant : e1ce4cd8, pas de PDF (E121) | **9630b823 (18/11 17:01) : réussie, PDF produit** (offre suivante, rapport 024) ; même résultat que Codex |
 | 3 Lettre | e6ddb095 (après correctif) : **questions toujours pas reçues** (E130), `completed` en 1 min 45 s sur « j'attends vos réponses » ; avant : 1cf4490e (E126), reprise e05973ab | 16/11 (0e397f84, f70f2d13) : formulaires ouverts, fin sur un brouillon (E117) ; à rejouer |
 | 4 Candidature page fictive 4321 | au propriétaire (son clic) | au propriétaire |
 | 5 Contact LinkedIn | à jouer avec lui (pilote son Chrome) | idem |
-| 6 Relance | cc2bff45 : réussie ; question `prose` ouverte et répondue ; e-mail en brouillon (`sent: false`), ce qui convient au propriétaire | à jouer |
+| 6 Relance | cc2bff45 : réussie ; question `prose` ouverte et répondue ; e-mail en brouillon (`sent: false`), ce qui convient au propriétaire | **036120dd (18/11 17:07) : réussie** ; question `form` ouverte, répondue par le propriétaire dans l'interface ; message LinkedIn rédigé (`linkedin_draft`), non envoyé ; même issue que Codex, par un formulaire au lieu d'une question en prose |
 Essais réels faits le 18/11 après l'intégration (15:37 → 15:48, relevés du guetteur dans `reports/guet-18-11.md`) : essai
 technique « Pose-moi une seule question… » avec Codex (d2f836d2) puis Claude (72adba12), épreuve 2 avec Codex (8bcb3dec),
 épreuve 3 avec Codex (e6ddb095). Prompts des épreuves (repris à l'identique) : 2 « Génère le CV adapté pour l'offre la
@@ -32,8 +32,9 @@ mieux notée qui n'a pas encore de PDF. Pas de lettre, n'envoie rien. » ; 3 « 
 011. Pose-moi toutes tes questions en une seule fois, puis génère le PDF dès que j'ai validé le brouillon. N'envoie
 rien. » ; 6 « Quelles candidatures dois-je relancer cette semaine ? Prépare les relances sans rien envoyer. » (l'API ne
 rend plus le texte d'un prompt : il se retrouve dans le titre de session des événements).
-**Reste à jouer** : épreuves 2 et 6 avec Claude (reportées après la remise à zéro de 17:00, limite à 72 % à 15:49), puis
-rejouer avec l'autre agent celles qui tiennent ; l'épreuve 3 avec Codex une fois E130 tranché. Le manager répond lui-même
+Puis, après la remise à zéro de la limite (17:00) : épreuve 2 avec Claude (9630b823) et épreuve 6 avec Claude (036120dd).
+**Reste à jouer** : l'épreuve 3 avec Codex une fois E130 tranché, puis avec Claude ; l'épreuve 1 à rejouer une fois E128 et E122
+traités ; les épreuves 4 et 5 avec le propriétaire. Le manager répond lui-même
 à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte
 d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
 
@@ -43,19 +44,24 @@ de codé en dur pour un agent ; ne rien ajouter qui restreigne l'agent ou l'emp�
 défaut se reproduise est admis) ; sous-agents Opus en parallèle pour aller vite ; continuer à éprouver l'agent ; le
 manager lance lui-même les épreuves sans envoi ; passation vers une nouvelle discussion (15:12) ; « Oui, intègre » pour
 les deux correctifs (15:20).
-**À lui proposer ensuite, dans cet ordre** : **E130** (question de Codex avalée par son outil interne : dire à tous les
-agents la voie du champ JSON `question`, ou chercher à relayer cet outil ; faits au registre) ; E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
+**À lui proposer ensuite, dans cet ordre** : **E130** (question de Codex perdue dans l'adaptateur `codex-acp` 2.2.2 ;
+faits, sondes et pistes dans `reports/e130-faits-18-11.md` ; essai réel de 17:33 : une phrase de précision dans le prompt
+suffit, Codex pose par le champ JSON et Claude garde son formulaire ; décision demandée à 17:40, pas encore donnée) ; E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
 ranger parmi les « verdicts » les quatre scripts qui sortent en 1 sur un simple constat (`clean-markers`,
 `check-table-freshness`, `audit-portals --strict`, `tracker sync --check`) ; garder ou non le nom « AskUserQuestion » dans
 la phrase commune ; garder le message d'une question dont seules les options sont hors bornes ; E117 (fin sur un
 brouillon) ; E119 (échec au démarrage) ; E118 (Bilan inexact).
 
-**En service à 15:50** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
+**Non poussé (au 17:35)** : les commits locaux depuis `637758b` (rapports seulement, aucun code). Le premier, `914ca2f`, garde dans son
+historique une ligne du guet citant les thèmes d'une question de l'agent, dont un touche à la situation personnelle du
+propriétaire (retirée au commit suivant) : ne pas pousser sans son choix (accepter la mention, ou l'autoriser à refaire
+ce commit local, ce que la règle Git interdit sinon).
+**En service à 17:35** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
 (code intégré) ; page fictive 4321 et front 5177 dans des onglets de la discussion d'avant (vérifier par `lsof` ; sinon
-les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (34 missions en base).
+les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (38 missions en base).
 **Guetteur** : relancé à 15:18 (sous-agent Sonnet de la discussion du manager, lecture seule, `GET /api/runs` toutes les
 20 s, rapport `reports/guet-18-11.md`) ; il s'arrête avec cette discussion : en relancer un à chaque reprise (règle du 16/11).
-**Limite d'usage** : 72 % de la fenêtre de 5 h à 15:49 (remise à zéro vers 17:00) ; ne plus lancer de chantier au-delà
+**Limite d'usage** : remise à zéro à 17:00 ; 5 % à 17:14 (prochaine remise à zéro vers 22:00) ; constaté le 18/11 : 74 % à 16:40 puis 84 % à 16:57 sans mission ni chantier du manager (cause non établie : guetteur et autres discussions puisent dans la même limite) ; ne plus lancer de chantier au-delà
 de 70 %, tout arrêter à 85 % (règle du 05/11). Les agents du propriétaire qui sont des missions Claude consomment la
 même limite ; les missions Codex non.
 
@@ -309,6 +315,7 @@ E120, E121, E126, E127 : correctifs intégrés le 18/11 ; E121 vérifié en rée
 | `.manager/outils/` | lanceur d'API, guetteur, suivi, démos, page fictive (appelés par des tests et ce fichier) |
 | `.manager/briefs/questions-18-11.md`, `scripts-18-11.md` | briefs des deux correctifs intégrés le 18/11, à retirer une fois les essais réels faits |
 | `.manager/reports/questions-agents-18-11.md` | faits et essais réels du 18/11 sur la façon dont Claude et Codex posent une question (E126, E127) |
+| `.manager/reports/e130-faits-18-11.md` | E130 : où se perd la question de Codex, sondes, essais réels et pistes (décision du propriétaire attendue) |
 | `.manager/reports/reprise-16-11.md`, `review-reprise-16-11.md` | rapports du correctif de la reprise : diagnostic, limites, étude du rechargement exact de session (décision 3) |
 | `.manager/reports/carte-envoi-etude-01.md` | étude R1/R2/R3 dont dépend la décision 14 |
 | `.manager/reports/nuit-12-11.md` | propositions d'architecture du 12/11 dont dépend la décision 19 |

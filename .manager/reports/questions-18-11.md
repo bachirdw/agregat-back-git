@@ -42,7 +42,59 @@ Heures lues à l'horloge (`date`) avant d'être écrites.
   réponse gardée, `unreadQuestion`), `tests/reponse-prose.test.js` (`question: 3`), et `tests/fix-resume.test.js`
   (fragments de l'ancienne consigne navigateur remplacés par ceux de la règle commune).
   Nouveau `tests/question-mal-formee.test.js` (14 tests, pris par `scripts/run-tests.js` en phase sans navigateur).
-- 14:45 — étape 3, `docs/api-questions.md` : sections « Consigne commune envoyée aux agents » (la phrase, où elle
+- 14:43 — étape 3, `docs/api-questions.md` : sections « Consigne commune envoyée aux agents » (la phrase, où elle
   est définie, qui la cite) et « Question mal formée » (comportement, ligne du Bilan, événement). Phrase périmée
   corrigée au passage : « aucune détection de question dans le texte » était faux depuis E52 (`decisionRequest`) ;
   la simple chaîne du 11/11 est maintenant dite.
+  (Heure de cette ligne corrigée de 14:45 en 14:43 : écrite avant la lecture de l'horloge, erreur de ma part.)
+
+## Tests lancés (constaté)
+- `node --test tests/question-mal-formee.test.js` : 14/14 (après deux corrections du test lui-même :
+  `pendingQuestion` vaut `undefined` et non `null` quand aucune question n'a été posée ; le test career-ops passe
+  en mode propriétaire, sinon le résumé est « Réponse disponible dans l’espace privé. »).
+- Touchés et voisins, un fichier à la fois : agent-result 13/13, elicitation 26/26, question-finale 8/8,
+  bilan-questions 2/2, reponse-prose 6/6, message-proprietaire 25/25, reprise-memoire 8/8, fix-resume 28/28,
+  career-failure 11/11, bilan-vs-events 7/7, workflow-resume 8/8, doubt-tools 19/19, career-pipeline-flow 7/7,
+  resume-probe 3/3, career-integration 50/50, bilan-evaluer-puis-postuler 8/8, bilan-mixtes 3/3, career-sends 21/21,
+  consigne-fichiers-travail 2/2, contrat-agents 14/14, contacts-courriel 26/26, intention-anglais-sonde 44/44,
+  mission-pieces-jointes 3/3, intention-candidature 2/2, memoire-fil 4/4, owner-mode 14/14, preuves-entre-tours 14/14,
+  review-accord-mission 8/8, reprise-memoire-relecture 8/8, truth-tool-names 6/6, workflow-run 18/18,
+  skill-registry 22/22, tool-guard 17/17.
+- Avant adaptation, trois tests rouges qui figeaient l'ancien comportement : agent-result (« question hors contrat
+  refusée »), reponse-prose (`question: 3` refusée), fix-resume (fragments de l'ancienne consigne navigateur).
+  Adaptés et dits plus haut.
+- `npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : d'abord un avertissement sur
+  `tests/fixtures/fake-acp.js` (parenthèses autour de `cfg.proseQuestion.reply ?? {…}`), corrigé par
+  `prettier --write` sur ce seul fichier, puis « All matched files use Prettier code style! ».
+- Non lancés (interdits par le brief) : `npm test`, tests Chrome, tests réels.
+
+## Ce qui n'est pas vérifié
+- Rien n'est vérifié en réel : aucun agent réel (Claude, Codex, Gemini, OpenCode) n'a reçu la nouvelle consigne.
+  Que Codex suive désormais le format sans qu'on l'écrive dans le prompt est une hypothèse (fait 8 du
+  18/11 : avec le format écrit dans le prompt, il l'a suivi) ; à jouer par le manager.
+- Que Claude ouvre toujours son formulaire avec la nouvelle phrase : non vérifié (même hypothèse inverse).
+- Suite complète non lancée.
+
+## Points pour le manager et décisions pour le propriétaire
+1. La phrase commune garde l'exemple « AskUserQuestion / elicitation ACP » des anciennes consignes : c'est le nom
+   de l'outil de question de Claude. Je l'ai gardé pour ne pas faire régresser Claude (7 formulaires sur 10
+   missions) ; il est écrit pour tous et ne change rien pour les autres agents. Le propriétaire peut préférer
+   « (elicitation ACP) » seul, au nom de la règle « aucune particularité d'un agent » : à trancher.
+2. Un champ mal formé qui contient pourtant un `message` valide (par exemple 9 options, ou une option de
+   201 caractères) : selon le brief, seule la fin de `summary` donne la question ; le `message` du champ n'est pas
+   repris. Si `summary` ne demande rien, la question n'est pas posée et le Bilan le dit. Reprendre ce `message`
+   serait une extension du brief : à trancher.
+3. Un objet `{"question":{…}}` seul (sans `simulated`/`summary`/`evidence`) et mal formé reste « hors contrat »
+   comme avant (il n'y a pas de « reste de la réponse » à garder) ; pour career-ops, le repli en prose affiche
+   alors le texte brut du tour. Non traité : à décider si le filet doit s'étendre à ce cas.
+4. Étapes agent d'un workflow DAG (`workflow-run.js`) : elles appellent aussi `parseAgentResult` ; un champ
+   `question` mal formé n'y fait plus échouer l'étape, il est retiré sans ligne ni événement (ces étapes ne posent
+   que des questions de formulaire). Effet de bord voulu par le brief côté contrôle de la réponse ; dit ici.
+5. Front (autre dépôt, non touché) : l'événement `question_unreadable` est nouveau ; la ligne du Bilan arrive déjà
+   dans `platformNotes`, rien n'est nécessaire pour l'afficher. Le front pourrait montrer l'événement dans le fil.
+6. `"question": null` et chaîne vide sont lus « pas de question » (avant : réponse refusée) : choix de ma part,
+   dit ici.
+
+## État final
+Opérationnel en tests à agent factice ; non vérifié en réel. Commits locaux `[questions-18-11]` sur la branche
+`questions-18-11`, aucun push, aucun merge.

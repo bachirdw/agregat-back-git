@@ -641,8 +641,15 @@ function validateSkillArgs(command, args, root, unknownKeys = []) {
 // par pathSchema. Rien de plus ne s'écrit : career_write garde userPath.
 const secretPath = (path) =>
   path.split('/').some((part) => /^\.env/i.test(part)) || /^relay\/agent-homes(?:\/|$)/.test(path);
+// E145 (essai réel du 19/11) : en mode multi-agent, la plateforme donne à chaque sous-mission un
+// dossier de résultats relay/missions/<mission>/<n>-<titre>/ (orchestrator/delegation.js) ; un
+// fichier texte ordinaire placé sous ce dossier (sous-dossiers compris) s'écrit et se lit, dans les
+// deux modes. Rien d'autre de relay/ ; pathSchema refuse déjà « .. », les noms à point et l'absolu.
+const missionResultPath =
+  /^relay\/missions\/[\p{L}\p{N}_-]+\/[\p{L}\p{N}_-]+\/(?:[\p{L}\p{N}_ .-]+\/)*[\p{L}\p{N}_ .-]+\.(?:md|txt|yml|json|tsv|html)$/u;
 const validatePath = (path, write = false, ownerMode = false) => {
   pathSchema.parse(path);
+  if (missionResultPath.test(path)) return path;
   if (ownerMode && ownerUserPath.test(path)) return path;
   if (ownerMode && !write && noControl(path) && !secretPath(path)) return path;
   if (!userPath.test(path) && (write || (!systemPath.test(path) && !attachmentPath.test(path))))
@@ -972,7 +979,7 @@ export class CareerTools {
     // freins-01 : a file the owner mode alone opens to reading is checked before the read, so
     // that the read never creates a missing folder (readConfined does), never follows a link and
     // never answers an absolute path of the workspace.
-    if (this.ownerMode && !this.#inBasePerimeter(path)) {
+    if ((this.ownerMode && !this.#inBasePerimeter(path)) || missionResultPath.test(path)) {
       let stat;
       try {
         stat = lstatSync(resolve(root, path));

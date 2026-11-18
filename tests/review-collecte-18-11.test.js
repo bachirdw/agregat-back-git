@@ -70,7 +70,12 @@ test('review-collecte-18-11 : la phrase de la mission d’origine et ses variant
 // (hors les deux fichiers du sprint et de cette relecture, qui le déclenchent exprès).
 test('review-collecte-18-11 : aucun prompt des tests existants ne déclenche le motif', () => {
   const dir = new URL('.', import.meta.url).pathname;
-  const own = new Set(['collecte-18-11.test.js', 'review-collecte-18-11.test.js']);
+  // review2-collecte-18-11 : son fichier de tests déclenche aussi le motif exprès (collectes pures).
+  const own = new Set([
+    'collecte-18-11.test.js',
+    'review-collecte-18-11.test.js',
+    'review2-collecte-18-11.test.js',
+  ]);
   const hits = [];
   for (const name of readdirSync(dir)) {
     if (!name.endsWith('.js') || own.has(name)) continue;

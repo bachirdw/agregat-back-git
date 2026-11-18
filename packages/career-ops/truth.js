@@ -959,6 +959,58 @@ const COLLECT_ONLY = new RegExp(
     `)`,
   'iu',
 );
+// review2-collecte-18-11 : the motif only spares a true collection ; in doubt, no dispense (the rule
+// before the sprint). No dispense when the owner's words also ask to process the inbox or its entries
+// (traite, vide, coche, marque, évalue, note, ouvre-les ; process, empty, clear, tick, check off, mark,
+// evaluate, score, rate, triage, open them), once the negations themselves are set aside (« sans la
+// noter », « ne les ouvre pas », « without scoring them »). Nor when a restriction bears on a part of
+// the entries or a condition (« les doublons », « si … », « for expired postings », « unless … »),
+// anywhere in the words (the prompt and the messages delivered, joined).
+const NOT_PROCESS_ING = '(?:opening|scoring|rating|evaluating|processing)(?![\\p{L}\\p{N}])';
+const EN_OBJ = `(?:\\s+(?:them|it)(?![\\p{L}\\p{N}]))?${ONE_BY_ONE}`;
+const COLLECT_NEGATED = new RegExp(
+  `(?:^|[^\\p{L}\\p{N}])(?:` +
+    `(?:sans|ni|ne\\s+pas|ne\\s+jamais|ne\\s+plus)\\s+(?:jamais\\s+)?${ENTRY_PRONOUN}?${NOT_PROCESS_INF}(?:${SEP_FR}${ENTRY_PRONOUN}?${NOT_PROCESS_INF})*` +
+    `|(?:ne\\s+|n${APOS}\\s*)${ENTRY_PRONOUN}?${NOT_PROCESS_CONJ}` +
+    `|non[\\s-]+(?:trait|coch|marqu|[ée]valu|not|ouvert)\\p{L}*` +
+    `|(?:sans|aucune?|ni|pas\\s+d(?:e\\s+|${APOS}\\s*))(?:traitements?|[ée]valuations?|notations?)(?![\\p{L}\\p{N}])` +
+    `|(?:without|do\\s+not|don${APOS}t|never|not|nor|no)\\s+${NOT_PROCESS_EN}${EN_OBJ}` +
+    `(?:(?:\\s*,\\s*(?:or\\s+|nor\\s+|and\\s+)?|\\s+(?:or|nor|and)\\s+)(?:without\\s+)?${NOT_PROCESS_ING}${EN_OBJ}` +
+    `|(?:\\s*,\\s*${NOT_PROCESS_EN})*\\s*,?\\s+(?:or|nor)\\s+${NOT_PROCESS_EN}${EN_OBJ})*` +
+    `|(?:without|no)\\s+evaluations?(?![\\p{L}\\p{N}])` +
+    `)`,
+  'giu',
+);
+const ENTRY_NOUN = '(?:offres?|annonces?|entr[ée]es?|liens?)';
+const PROCESS_REQUEST = new RegExp(
+  `(?:^|[^\\p{L}\\p{N}])(?:` +
+    `trait(?:e|es|ez|er|ons|é|ée|és|ées|ement|ements)` +
+    `|vid(?:e|es|ez|er|ons|é|ée|és|ées|age)` +
+    `|coch(?:e|es|ez|er|ons|é|ée|és|ées)` +
+    `|marqu(?:e|es|ez|er|ons|é|ée|és|ées)` +
+    `|[ée]valu(?:e|es|ez|er|ons|é|ée|és|ées|ation|ations)` +
+    `|not(?:e|es|ez|er|ons|é|ée|és|ées|ation)` +
+    `|ouvr(?:e|ez|ons)-(?:les|la|le|l${APOS})` +
+    `|ouvr(?:e|ez|ons|ir)\\s+(?:les|chaque|ces|toutes\\s+les|tous\\s+les)\\s+${ENTRY_NOUN}` +
+    `|process(?:es|ed|ing)?|empt(?:y|ies|ied|ying)|clear(?:s|ed|ing)?|tick(?:s|ed|ing)?` +
+    `|check(?:s|ed|ing)?(?:\\s+\\p{L}+){0,2}\\s+off|mark(?:s|ed|ing)?|evaluat(?:e|es|ed|ing|ion|ions)` +
+    `|scor(?:e|es|ed|ing)|rat(?:e|es|ed|ing)|triag(?:e|es|ed|ing)` +
+    `|open(?:s|ing)?\\s+(?:them|it|each|every|all|the\\s+(?:offers?|postings?|entries|listings?|links?|ads?))` +
+    `)(?![\\p{L}\\p{N}])`,
+  'iu',
+);
+const PART_OR_CONDITION = new RegExp(
+  `(?:^|[^\\p{L}\\p{N}])(?:` +
+    `si|s${APOS}(?:il|ils|elle|elles)|sauf|hormis|except[ée]e?s?|quand|lorsque?|lorsqu${APOS}|d[èe]s\\s+que` +
+    `|doublons?|expir\\p{L}*|p[ée]rim\\p{L}*|d[ée]j[àa]|certaine?s?|celles?|ceux|celui|anciennes?|mort(?:e|es|s)?|ferm[ée]e?s?` +
+    `|if|unless|except(?:ing)?|when(?:ever)?|once|duplicates?|expired|already|some|those|ones|dead|closed|older|stale` +
+    `)(?![\\p{L}\\p{N}])`,
+  'iu',
+);
+function collectOnly(words) {
+  if (!COLLECT_ONLY.test(words) || PART_OR_CONDITION.test(words)) return false;
+  return !PROCESS_REQUEST.test(words.replace(COLLECT_NEGATED, ' '));
+}
 export function inboxUnprocessed(truth, prompt) {
   const inbox = truth.inboxDelta?.() ?? null;
   // E62 : an entry added and processed during the mission is inbox work too — unless entries of
@@ -972,8 +1024,7 @@ export function inboxUnprocessed(truth, prompt) {
     ((inbox.addedProcessed || inbox.addedUnconfirmed) && !inbox.missing)
   )
     return null;
-  if (COUNT_LIMIT.test(String(prompt ?? '')) || COLLECT_ONLY.test(String(prompt ?? '')))
-    return null;
+  if (COUNT_LIMIT.test(String(prompt ?? '')) || collectOnly(String(prompt ?? ''))) return null;
   return { proves: INBOX_PROCESSED, cause: `boîte d’entrée non traitée (0 sur ${inbox.pending})` };
 }
 

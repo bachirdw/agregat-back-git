@@ -5,7 +5,37 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 21:03 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 19/11/2026, 04:24 ; ce bloc se remplace à chaque passation)
+**Nuit du 18 au 19/11** (mandat du propriétaire de 21:30, voir 0-bis) : le **mode sous-agents** (délégation à des
+sous-missions, plan v2) est codé, relu, essayé en réel et **intégré** dans `contacts-13-11`. Tout le détail, dans l'ordre :
+[`reports/nuit-18-11.md`](reports/nuit-18-11.md) (compte rendu du matin à la fin) ; missions : `reports/guet-19-11.md` ;
+défauts E139 (corrigé) et E140 (ouvert) : `reports/registre-erreurs.md`.
+- **Code** : sprint `delegation-v2-01` (arbre `~/Downloads/agregat-back-delegation`, rapports `reports/delegation-v2-01.md`
+  et `reports/review-delegation-v2-01.md` de cet arbre, repris avec le code) ; contrat : `docs/api-delegation.md`. Outils
+  `mission_lancer`, `mission_suivre`, `mission_attendre`, `mission_annuler` (serveur `relay-missions`) prêtés à toute
+  mission menée par un agent, jamais à une sous-mission ; réglage de retrait `AGENT_PLATFORM_DELEGATION=0` (= base `48a2f4e`,
+  prouvé par test). Accord : bouton (champ `delegation`), demande écrite dans le prompt, ou carte au premier lancement.
+  Enveloppe 6 sous-missions, 3 à la fois. Un seul niveau. Un tour de synthèse.
+- **Tests** : suite complète verte le 19/11 02:34 → 02:48 sur la tête de code `f4a1b02` (1 471 unitaires : 1 468 réussis,
+  0 échec, 2 ignorés, 1 « à faire » connu ; Chrome 253/253 ; `check` et `format:check` verts). Ne jamais lancer la suite
+  sans `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000` (E109).
+- **En service** : API 4314 sur cette version depuis 02:49 (tâche de fond de la discussion du manager de nuit : si elle
+  n'écoute plus, la relancer comme en section 4) ; page fictive 4321, front 5177, relais 19988. API d'essai 4315 arrêtée.
+- **Mission ouverte** : 7b3a1f8d (Claude, épreuve du CV) attend le propriétaire depuis 04:23 : choix entre deux offres à
+  égalité ; le manager n'a pas répondu (choix de candidature).
+- **Vu en réel** : mission simple inchangée (Claude, Codex) ; trois voies d'accord, refus et accord sur la carte ; E139
+  corrigé ; parcours Codex découverte → évaluation → CV → lettre réussi ; Claude découverte et évaluation réussies.
+  **Pas vu** : Gemini (clé retirée exprès par `api-branche.sh`) ; formulaire FICTIF sur la version intégrée (Codex à sa
+  limite jusqu'à 6:21) ; carte d'accord devant Claude.
+- **Constat principal** : avec le Skill career-ops, ni Claude ni Codex n'emploient la délégation de Relay (Codex lance ses
+  sous-agents natifs, invisibles pour Relay) ; elle sert quand le prompt la demande ou sans Skill.
+- **À décider par le propriétaire** : pousser (rien depuis `514c5c4`) ; points de la relecture (`accepted:false`, minuteurs du
+  chef pendant la carte, filles d'une mère en échec, sous-mission reprise à part, `career_write` dans le moteur) ; poids de
+  la phrase du chef dans une mission avec Skill ; 7b3a1f8d.
+- **Prochaines étapes proposées** : formulaire FICTIF avec Codex (après 6:21) puis Claude ; un essai Gemini avec le
+  propriétaire ; E140 ; ranger les arbres de sprint (`-delegation`, `-chef`, `-onglets`).
+
+## 0-bis. Bloc précédent (18/11, 21:03) : mandat de nuit, marche d'une intégration, épreuves et prompts
 **MANDAT DE NUIT du propriétaire (18/11, 21:30, il dort ; le manager code en autonomie jusqu'à 5 h le 19/11)**. Ses mots,
 en substance : implémenter « tout ce dont on a parlé, les workflows agentiques » ; **ne pas trop modifier le code qui
 marchait** ; **coder lentement : la qualité, pas la vitesse** ; relire le code écrit, faire une série de tests, en ajouter

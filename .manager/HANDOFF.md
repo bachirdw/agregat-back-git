@@ -6,6 +6,29 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
 ## 0. Où reprendre maintenant (état au 18/11/2026, 21:03 ; ce bloc se remplace à chaque passation)
+**MANDAT DE NUIT du propriétaire (18/11, 21:30, il dort ; le manager code en autonomie jusqu'à 5 h le 19/11)**. Ses mots,
+en substance : implémenter « tout ce dont on a parlé, les workflows agentiques » ; **ne pas trop modifier le code qui
+marchait** ; **coder lentement : la qualité, pas la vitesse** ; relire le code écrit, faire une série de tests, en ajouter
+pour le workflow d'agents ; tout ce qui est essayé avec Claude doit l'être aussi avec **Codex** et avec **Gemini**
+(« attention avec Gemini, pas trop, car on utilise une API » ; Claude et Codex sont des abonnements : « tu peux y aller ») ;
+essais réels dans le Chrome admis ; éviter d'envoyer des données personnelles sur le net et certains sites ; sous-agents
+admis, pas de limite de jetons, mais **gérer la limite d'usage** (près de la limite, attendre la session suivante).
+Résultat attendu : une mission normale → la plateforme reconnaît qu'elle n'a pas besoin de workflow ; une mission du
+type « cherche sur LinkedIn, Indeed et SEEK » → l'agent lance des sous-agents, **après avoir demandé l'avis de
+l'utilisateur** (plus de jetons) ; rapide, efficace, pas d'agents pour rien ; les sous-agents se coordonnent. À la fin :
+un **parcours complet** rejoué (découverte sur le web, tri, CV et lettres de motivation, formulaire rempli) ; **aucune
+candidature envoyée en son absence** ; et la plateforme **essayée sans Skill** (sans career-ops). Essais sur plusieurs
+modèles. **Aucun push** (il n'a pas répondu à la question du push).
+Plan du manager pour la nuit : (0) avant minuit, limite à 88 % : mesure à plusieurs onglets (outil `onglets-03`), essai
+sans Skill avec Codex ; (1) à partir de minuit (limite remise à zéro) : sprint `delegation-v2-01` d'après le plan v2
+(`~/Downloads/agregat-back-chef/.manager/reports/delegation-conception-v2-18-11.md`, étape 1 : code de `chef-01` repris
+sur la version unique, corrections de sa section 8.2), codeur, relecteur, relecture contradictoire, corrections ; (2)
+contrôle, intégration par la marche habituelle, suite complète ; (3) essais réels avec Claude, Codex, un peu Gemini :
+mission simple (zéro sous-agent attendu), trois portails avec accord, refus, sans Skill ; (4) parcours complet jusqu'au
+formulaire de la page FICTIVE 4321, sans envoi ; (5) registre, ce fichier, compte rendu du matin. L'ancienne discussion
+du manager ne lance plus rien (message de 21:35). Le manager ne répond jamais à une question personnelle et n'accorde
+jamais une carte d'envoi ; il peut donner l'accord de délégation d'une mission d'essai qu'il a lancée lui-même.
+
 **Qui fait quoi** (trois discussions Claude en parallèle le 18/11 au soir) :
 - **Le manager** (nouvelle discussion depuis 18:49) : intégration, essais réels, guet, registre, ce fichier. Il est le
   **seul écrivain** de `~/Downloads/agregat-back-essai-13-11` et a la priorité sur le code du serveur (propriétaire, 19:50).

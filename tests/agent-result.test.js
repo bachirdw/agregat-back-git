@@ -131,7 +131,9 @@ test('question structurée acceptée, summary vide permis, rendue telle quelle',
   assert.deepEqual(bare.value.question, { message: 'Q ?' });
 });
 
-test('question hors contrat refusée : 9 options, message vide, option trop longue', () => {
+// questions-18-11 (E127) : une question hors des bornes ne fait plus refuser toute la réponse (avant :
+// `ok: false`). La question est retirée, le reste gardé, et `unreadQuestion` le signale.
+test('question hors contrat : réponse gardée, question signalée non lue (9 options, message vide, option trop longue)', () => {
   const base = { simulated: false, summary: 'ok', evidence: [] };
   for (const question of [
     { message: 'Q ?', options: Array.from({ length: 9 }, (_, i) => `o${i}`) },
@@ -141,7 +143,9 @@ test('question hors contrat refusée : 9 options, message vide, option trop long
     { message: 'Q ?', options: ['x'.repeat(201)] },
   ]) {
     const out = parseAgentResult(JSON.stringify({ ...base, question }));
-    assert.equal(out.ok, false, JSON.stringify(question).slice(0, 80));
+    assert.equal(out.ok, true, JSON.stringify(question).slice(0, 80));
+    assert.deepEqual(out.value, base);
+    assert.deepEqual(out.unreadQuestion, { options: [] });
   }
   // Sans question, un summary vide reste hors contrat.
   assert.equal(parseAgentResult(JSON.stringify({ ...base, summary: '' })).ok, false);

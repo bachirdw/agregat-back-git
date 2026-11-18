@@ -23,3 +23,22 @@ Heures lues à l'horloge (`date`) avant d'être écrites.
   elle ne parle pas de question et ces étapes ne traitent pas de champ `question` (formulaire seulement).
   Tests adaptés (texte figé) : `tests/doubt-tools.test.js` (règle de doute et consigne navigateur), en le disant ici.
   `node --test tests/doubt-tools.test.js` : 19/19 ; `node --test tests/career-integration.test.js` : 50/50.
+- 14:42 — étape 2, filet. `packages/orchestrator/result.js` : un champ `question` présent qui ne se lit pas
+  (objet sans `message`, mauvais type, hors des bornes) ne fait plus refuser la réponse ; il est retiré, le reste
+  (`simulated`, `summary`, `evidence`, autres clés) est gardé, et `parseAgentResult` rend en plus
+  `unreadQuestion: { options }` (à côté de `value`, pas dedans : les étapes de workflow DAG qui appellent la même
+  fonction n'en reçoivent rien). Les choix : `unreadQuestionOptions`, première liste de courtes chaînes trouvée
+  dans le champ lui-même ou sous l'une de ses clés (un niveau, quel que soit le nom), 1 à 8 chaînes de 1 à
+  200 caractères ; sinon aucun choix. `question: null` ou chaîne vide : retiré sans signalement (« pas de
+  question »). Un `summary` vide est admis quand la question est illisible (la ligne du Bilan le dira).
+  `packages/orchestrator/index.js` : `readResult` retient `unreadQuestion` du tour ; dans la boucle des questions,
+  si le champ était illisible, `decisionRequest(summary)` donne la question, à laquelle on joint les choix trouvés ;
+  sinon la réponse est gardée et compte pour une ligne du Bilan, placée après « Questions : … » :
+  « Question de l’agent non posée : l’agent a joint une question que la plateforme n’a pas pu lire ; elle n’a pas
+  été posée au propriétaire. » (« (n fois) » si plusieurs tours). Événement `question_unreadable`
+  `{ asked, options }` dans les deux cas (aucun texte de l'agent). Rien de propre à un agent.
+  `tests/fixtures/fake-acp.js` : option `proseQuestion.reply` (réponse JSON du tour qui demande, telle quelle).
+  Tests adaptés parce qu'ils figeaient l'ancien refus : `tests/agent-result.test.js` (question hors bornes →
+  réponse gardée, `unreadQuestion`), `tests/reponse-prose.test.js` (`question: 3`), et `tests/fix-resume.test.js`
+  (fragments de l'ancienne consigne navigateur remplacés par ceux de la règle commune).
+  Nouveau `tests/question-mal-formee.test.js` (14 tests, pris par `scripts/run-tests.js` en phase sans navigateur).

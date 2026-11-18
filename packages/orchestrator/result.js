@@ -3,9 +3,11 @@ import { redact } from '../agent-runtime/env.js';
 
 // Optional owner question carried by the answer (agents without a form elicitation): the run then
 // waits for the owner in the same session. With it, summary may be empty.
+const MAX_OPTIONS = 8;
+const MAX_OPTION_LENGTH = 200;
 const questionSchema = z.object({
   message: z.string().min(1).max(4000),
-  options: z.array(z.string().min(1).max(200)).max(8).optional(),
+  options: z.array(z.string().min(1).max(MAX_OPTION_LENGTH)).max(MAX_OPTIONS).optional(),
 });
 
 // Essai réel du 11/11 (Codex, 68… « Confirmez-vous que cette offre passe par l'agence ? ») : the
@@ -15,15 +17,38 @@ const questionField = z.preprocess(
   (value) => (typeof value === 'string' && value.trim() ? { message: value.trim() } : value),
   questionSchema,
 );
-const resultSchema = z
+const contractSchema = z
   .object({
     simulated: z.boolean(),
     summary: z.string(),
     evidence: z.array(z.unknown()),
     question: questionField.optional(),
   })
-  .passthrough()
-  .refine((value) => value.summary.length > 0 || value.question !== undefined);
+  .passthrough();
+const resultSchema = contractSchema.refine(
+  (value) => value.summary.length > 0 || value.question !== undefined,
+);
+
+// questions-18-11 (E127, essai réel du 18/11) : an agent sent `{"question":{"choices":[…]}}`, the
+// question itself being the end of `summary` ; the whole answer was refused, the raw JSON shown as
+// the answer and nothing asked. The choices of a field that cannot be read are the first list of
+// short texts found in it (the field itself, or one of its keys whatever its name), within the
+// bounds of a question (8 choices, 200 characters each) ; none otherwise.
+const shortTexts = (value) => {
+  if (!Array.isArray(value) || !value.length || value.length > MAX_OPTIONS) return null;
+  const texts = value.map((item) => (typeof item === 'string' ? item.trim() : ''));
+  return texts.every((item) => item && item.length <= MAX_OPTION_LENGTH) ? texts : null;
+};
+export function unreadQuestionOptions(value) {
+  const direct = shortTexts(value);
+  if (direct) return direct;
+  if (!isObject(value)) return [];
+  for (const entry of Object.values(value)) {
+    const list = shortTexts(entry);
+    if (list) return list;
+  }
+  return [];
+}
 
 // End (exclusive) of the object opened at `start`, strings respected; -1 when it never closes.
 const SCAN_LIMIT = 262144;
@@ -162,9 +187,19 @@ export function parseAgentResult(text) {
     const fallback = redact(prose).replace(/\s+/g, ' ').trim().slice(0, 2000);
     if (fallback) json = { ...json, summary: fallback };
   }
-  const parsed = resultSchema.safeParse(json);
+  // questions-18-11 (E127) : a `question` field that cannot be read no longer refuses the answer.
+  // It is taken out ; the rest of the answer is kept, and the caller is told (`unreadQuestion`).
+  // `null` or a blank text says « no question » and is only taken out.
+  let unreadQuestion = null;
+  if ('question' in json && !questionField.safeParse(json.question).success) {
+    const { question, ...kept } = json;
+    if (question !== null && !(typeof question === 'string' && !question.trim()))
+      unreadQuestion = { options: unreadQuestionOptions(question) };
+    json = kept;
+  }
+  const parsed = (unreadQuestion ? contractSchema : resultSchema).safeParse(json);
   if (!parsed.success) return offContract;
-  return { ok: true, value: parsed.data };
+  return { ok: true, value: parsed.data, ...(unreadQuestion ? { unreadQuestion } : {}) };
 }
 
 // Execution provenance comes from the runtime profile, never from model-generated claims.

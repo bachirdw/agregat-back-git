@@ -1674,9 +1674,14 @@ export class Orchestrator {
         saveProbe(this.dataDir, plan.agent.id, { inference: true, inferenceError: null });
       if (response.stopReason !== 'end_turn')
         throw new Error(`Agent arrêté : ${response.stopReason}`);
+      // questions-18-11 (E127) : a `question` field of the turn that could not be read (its choices).
+      let unreadQuestion = null;
+      // Mission turns whose unreadable question could not be asked : one platform line in the Bilan.
+      let unaskedQuestions = 0;
       // Reads the agent's answer of the turn just finished (first turn or answer turn).
       const readResult = () => {
         let result = parseAgentResult(text);
+        unreadQuestion = (result.ok && result.unreadQuestion) || null;
         // career-ops is conversational (intake questions, drafts): plain text from the real agent is
         // its answer, kept private like any career-ops result, not a failure.
         if (!result.ok && plan.pack.id === 'career-ops' && text.trim())
@@ -1732,7 +1737,21 @@ export class Orchestrator {
         // A steering request still in flight is answered before the turn is read as over.
         if (control.ownerMessages.steering) await control.ownerMessages.steering;
         const { question: structured, ...rest } = agentValue;
-        const question = structured ?? decisionRequest(rest.summary);
+        let question = structured ?? decisionRequest(rest.summary);
+        // questions-18-11 (E127) : the agent joined a question the platform could not read. When the
+        // end of its summary asks, that is the question, with the choices found in the field ;
+        // otherwise its answer is kept and the Bilan says the question was not asked. Same rule for
+        // every agent ; the agent's text is never in the event.
+        if (!structured && unreadQuestion) {
+          const { options } = unreadQuestion;
+          unreadQuestion = null;
+          if (question && options.length) question = { ...question, options };
+          if (!question) unaskedQuestions++;
+          this.store.event(run.id, 'question_unreadable', {
+            asked: Boolean(question),
+            options: question ? options.length : 0,
+          });
+        }
         if (!question) {
           // Messages of the owner not taken into the turn : one more turn carries them all.
           const waiting = this.pendingOwnerMessages(control);
@@ -1999,6 +2018,9 @@ export class Orchestrator {
         (event) => event.type === 'answer' && event.data?.action === 'accept',
       ).length;
       if (asked) value.summary += `\nQuestions : ${asked} posée(s), ${answered} répondue(s).`;
+      // questions-18-11 (E127) : a question joined by the agent that the platform could not read.
+      if (unaskedQuestions)
+        value.summary += `\nQuestion de l’agent non posée : l’agent a joint une question que la plateforme n’a pas pu lire${unaskedQuestions > 1 ? ` (${unaskedQuestions} fois)` : ''} ; elle n’a pas été posée au propriétaire.`;
       // orienter-14-11 : the owner's messages, one platform line each (no text).
       for (const line of formatOwnerMessageLines(control.ownerMessages.list))
         value.summary += '\n' + line;

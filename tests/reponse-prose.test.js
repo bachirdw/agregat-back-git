@@ -60,11 +60,14 @@ test('question donnée comme chaîne dans la réponse structurée : c’est une 
     'Le formulaire demande {"question": "Combien d’années en Python ?", "answer": "5"} et rien d’autre.',
   );
   assert.equal(quoted.ok, false);
-  // An empty or non-text question is still off contract.
-  assert.equal(
-    parseAgentResult('{"simulated": false, "summary": "x", "question": 3, "evidence": []}').ok,
-    false,
+  // questions-18-11 (E127) : a non-text question no longer refuses the answer (before : off
+  // contract) ; it is taken out and reported as unread.
+  const unread = parseAgentResult(
+    '{"simulated": false, "summary": "x", "question": 3, "evidence": []}',
   );
+  assert.equal(unread.ok, true);
+  assert.equal(unread.value.question, undefined);
+  assert.deepEqual(unread.unreadQuestion, { options: [] });
 });
 
 // Essais réels du 11/11 (SEEK, LinkedIn + Indeed) : la mission a rendu sa réponse et finit sur une

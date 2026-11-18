@@ -6,7 +6,8 @@
 // elicitation after the prompt ({message?, requestedSchema?, toolBefore?} or true); answerFile: its response.
 // proseQuestion: the first turn ends with a structured `question` in its JSON answer (no form); the
 // owner's answer turn ({"platform":{"turnKind":"answer"}}) is quoted back ({message?, options?,
-// always?: ask again on every turn, bare?: the lone {"question"} object after prose}). callsFile: ACP methods received so far, written at each prompt.
+// always?: ask again on every turn, bare?: the lone {"question"} object after prose, reply?: the
+// asking turn's whole JSON answer as given}). callsFile: ACP methods received so far, written at each prompt.
 // composeTool: a call the agent composes for minutes before handing it over (stall-01, E49):
 // {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true, doneFile?}; see the prompt
 // handler. doneFile: written once the hand-over is complete (decision received, MCP call answered).
@@ -460,6 +461,8 @@ const app = agent({ name: 'fake-acp' })
         /* Not JSON: first turn. */
       }
       const answering = request?.platform?.turnKind === 'answer';
+      // questions-18-11 : reply, the asking turn's JSON answer exactly as given (a `question` field
+      // of any shape, or none) ; the answer turn is quoted back as usual.
       const reply =
         answering && !cfg.proseQuestion.always
           ? {
@@ -467,7 +470,7 @@ const app = agent({ name: 'fake-acp' })
               summary: `Réponse reçue : ${request.answer?.reponse ?? ''}`,
               evidence: [],
             }
-          : {
+          : (cfg.proseQuestion.reply ?? {
               simulated: false,
               summary: '',
               evidence: [],
@@ -475,7 +478,7 @@ const app = agent({ name: 'fake-acp' })
                 message: cfg.proseQuestion.message ?? 'Dois-je continuer FICTIF ?',
                 options: cfg.proseQuestion.options ?? ['oui', 'non'],
               },
-            };
+            });
       await connection.client.notify(methods.client.session.update, {
         sessionId: ctx.params.sessionId,
         update: {

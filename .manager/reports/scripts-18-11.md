@@ -6,6 +6,7 @@ Début 18/11/2026 14:39, fin 18/11/2026 14:58 (heures lues par `date`). Aucun pu
 ## 1. Diagnostic
 
 ### E121 — constaté
+
 - Constaté par un test (`tests/career-script-node-modules-lien.test.js`, avant correctif : 1 échec sur 2) :
   un espace fictif dont `node_modules` est un lien symbolique vers un dossier voisin, un faux
   `cv-templates.mjs` qui importe une dépendance ; sous `--permission --allow-fs-read=<racine>`, Node
@@ -17,12 +18,14 @@ Début 18/11/2026 14:39, fin 18/11/2026 14:58 (heures lues par `date`). Aucun pu
   générique « échec signalé par l'outil ».
 
 ### E120 / E71 — constaté dans le code et les tests existants
+
 - `career_read` sur un dossier, ou un motif / préfixe qui désigne plusieurs fichiers ou aucun, levait une
   erreur qui listait les fichiers. Le crédit de lecture suivait le chemin demandé : une liste en succès
   aurait crédité « Lire le rapport » (`reports/`) ou la lecture d'annonce (`jds/`). Il fallait donc
   rendre la liste en succès ET l'empêcher de prouver une lecture, sur les deux canaux (ACP et passerelle).
 
 ## 2. Changements, fichier par fichier
+
 - `packages/career-ops/tools.js`
   - `isolate` : `--allow-fs-read` pour la racine, plus son chemin réel s'il diffère, plus le chemin réel
     de `<racine>/node_modules` (fonction `readableRoots`). Rien d'autre : écriture et réseau inchangés.
@@ -53,6 +56,7 @@ Début 18/11/2026 14:39, fin 18/11/2026 14:58 (heures lues par `date`). Aucun pu
   au suivi. Ce fichier ne fait pas partie de ceux du sprint `questions-18-11`.
 
 ## 3. Tests
+
 Ajoutés : `tests/career-script-node-modules-lien.test.js` (2), `tests/career-script-issue.test.js` (4),
 `tests/lecture-liste-acp.test.js` (2), plus un test de borne à 100 dans `tests/lecture-dossier.test.js`.
 Mis à jour pour le nouveau comportement voulu : `tests/lecture-dossier.test.js`,
@@ -60,12 +64,14 @@ Mis à jour pour le nouveau comportement voulu : `tests/lecture-dossier.test.js`
 (un scan en échec porte maintenant `errorLine`).
 
 Résultats exacts (18/11, 14:55) :
+
 - 81 fichiers voisins (career-ops, outils, Bilan, suivi, passerelle de fixture), hors Chrome :
   773 tests, 772 réussis, 0 échec, 1 sauté (le vrai `verify-cv-facts`, `RELAY_SKILL_CLONE` absent).
 - `npm run check` : « Syntaxe JavaScript valide ». `npm run format:check` : tout conforme.
 - Pas lancés (interdit) : `npm test`, tests Chrome, essai réel.
 
 ## 4. Non vérifié
+
 - L'épreuve « CV » réelle avec Codex et Claude (à rejouer par le manager) : hypothèse, la dépendance de
   `cv-templates` se charge maintenant ; d'autres dépendances qui vivent dans un `node_modules` parent
   (pas celui de l'espace) seraient encore refusées — non constaté.
@@ -75,6 +81,7 @@ Résultats exacts (18/11, 14:55) :
   vient de la passerelle, qui l'emporte sur l'ACP pour un même outil.
 
 ## 5. Décisions laissées au propriétaire
+
 - Un `career_script` appelé avec l'extension (`find.mjs`) n'est pas reconnu comme script de verdict, ni au
   Bilan (avant ce sprint) ni dans le flux (gardé pareil, pour rester cohérent) : à corriger dans
   `progressArgument` si voulu.

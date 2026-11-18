@@ -344,7 +344,7 @@ async function sent(t, input, { ownerMode = false, profile = null, fake = {} } =
 }
 
 const PRECISION =
-  'Un outil de question qui rend la main tout de suite, sans attendre la réponse, n’est pas un formulaire de question : si c’est le seul que tu as, pose ta question par le champ JSON question.';
+  'Un outil de question qui rend la main tout de suite, sans attendre la réponse, n’est pas un formulaire de question : si c’est le seul que tu as, pose ta question par le champ JSON question de ta réponse.';
 
 const CONSIGNES = [
   ['career-ops', { prompt: 'Écris une lettre FICTIVE', pack: 'career-ops' }, {}],

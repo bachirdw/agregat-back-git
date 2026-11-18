@@ -441,11 +441,17 @@ test('la phrase commune porte le nom que la règle de doute lui donne', () => {
 // elle ne nomme aucun outil d’agent et n’interdit rien.
 test('phrase commune : la précision sur l’outil qui n’attend pas, à sa place', () => {
   const precision =
-    'Un outil de question qui rend la main tout de suite, sans attendre la réponse, n’est pas un formulaire de question : si c’est le seul que tu as, pose ta question par le champ JSON question.';
+    'Un outil de question qui rend la main tout de suite, sans attendre la réponse, n’est pas un formulaire de question : si c’est le seul que tu as, pose ta question par le champ JSON question de ta réponse.';
   const at = OWNER_QUESTION_RULE.indexOf(precision);
   assert.ok(at > 0, OWNER_QUESTION_RULE);
   assert.ok(at > OWNER_QUESTION_RULE.indexOf('(message obligatoire, options facultatives).'));
   assert.ok(at < OWNER_QUESTION_RULE.indexOf('Dans les deux cas'));
   assert.equal(OWNER_QUESTION_RULE.split(precision).length - 1, 1);
-  assert.ok(!/_async|request_user_input|codex/i.test(OWNER_QUESTION_RULE), OWNER_QUESTION_RULE);
+  // review-precision-18-11 : tous les agents et leurs outils, pas seulement ceux d’un agent.
+  assert.ok(
+    !/askuserquestion|request_user_input|_async|claude|codex|gemini|opencode/i.test(
+      OWNER_QUESTION_RULE,
+    ),
+    OWNER_QUESTION_RULE,
+  );
 });

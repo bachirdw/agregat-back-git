@@ -317,3 +317,31 @@ deux commentaires, appel `created` retiré, `promptParts(run, mcpServers)`, bloc
   tests (`tests/delegation-v2-01-b.test.js` neuf, `tests/chef-01.test.js`, `tests/fixtures/chef-agent.js`), docs
   (`docs/api-delegation.md`, note du 18/11 de `docs/architecture-cible.md`).
 - Ce rapport : commit suivant. Fin de la partie B le 19/11/2026 à 00:59 (heure lue par `date`).
+
+## Correctif E139 (essai réel du 19/11)
+
+Session `essai-delegation-01` (Opus), seul écrivain de l'arbre, tête de départ `c44f134`. Fin le 19/11/2026 à 01:51
+(heure lue par `date`).
+
+**Constat (essai réel du manager, 01:40, mission menée par Codex, voie 3).** `mission_lancer` rendait seulement
+`{ id, titre, etat: "attend_accord", agent, modele, famille }`, sans un mot sur la carte d'accord ouverte par la
+plateforme. Le chef a reposé lui-même la question au propriétaire (question `prose` derrière la carte : deux questions
+pour une décision) et a fini son tour au lieu de continuer sa part. Après les deux refus, il a terminé seul, Bilan juste.
+
+**Changement (mêmes textes pour tous les agents, aucune garde, rien de bloqué).**
+- `packages/orchestrator/delegation-rule.js` : nouveau texte `CONSENT_PENDING_NOTE` ; `REFUSED_MESSAGE` (message de
+  `refus_proprietaire`) finit par « continue seul, sans lui reposer la question. » (la phrase du chef pour un refus
+  reste celle d'avant) ; fin de la phrase du chef pour la voie 3 : « sinon la plateforme consultera le propriétaire avant
+  la première sous-mission (ne lui pose pas la question toi-même) ; s'il refuse, continue seul. »
+- `packages/orchestrator/delegation.js` (`launch`) : un résultat `etat: "attend_accord"` porte `note` (premier lancement
+  comme suivants) ; `en_cours` et `en_file` inchangés, sans `note`.
+- `docs/api-delegation.md` : section 3 (champ `note`, texte du refus), section 5 (fin de la phrase du chef).
+
+**Tests.** Test `E139` ajouté à `tests/review-delegation-v2-01.test.js`, rouge avant le changement (`note` absente),
+vert après : deux lancements en attente portent la même note ; refus « continuer seul » : `refus_proprietaire` avec le
+nouveau message, une seule question ; accord par le bouton : `en_cours`, sans `note` ; aucun nom d'agent dans les textes.
+Test de la phrase mis à jour dans `tests/delegation-v2-01-b.test.js`. Résultats (un fichier à la fois,
+`AGENT_PLATFORM_AGENTS_CONFIG` vers un fichier absent) : review-delegation-v2-01 5/5, delegation-v2-01-a 10/10,
+delegation-v2-01-b 12/12 (dont la comparaison à la base avec `AGENT_PLATFORM_DELEGATION=0`), chef-01 16/16,
+generique-01 15/15, career-integration 50/50, elicitation 26/26 ; `npm run check` vert ; `npx prettier --check` vert sur
+les fichiers touchés. Non vérifié : l'effet sur un agent réel (essai à rejouer par le manager avec Claude et Codex).

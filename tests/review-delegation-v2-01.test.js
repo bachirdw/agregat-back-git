@@ -45,6 +45,7 @@ const { CareerWorkspace } = await import(
   pathToFileURL(resolve('packages/career-ops/workspace.js')).href
 );
 const { terminal } = await import('../packages/storage/index.js');
+const rule = await import('../packages/orchestrator/delegation-rule.js');
 
 const CHEF = resolve('tests/fixtures/chef-agent.js');
 const BASE = '48a2f4e';
@@ -298,4 +299,76 @@ test('R4. constat : pendant la carte d’accord, la mère est « attend le propr
   p.touch('answered');
   await p.ended(mother.id, 30000);
   assert.equal(p.app.store.get(mother.id).state, 'completed', p.app.store.get(mother.id).error);
+});
+
+// essai-delegation-01 (E139, essai réel du 19/11) : sans accord, `mission_lancer` rendait seulement
+// `etat: "attend_accord"` ; le chef reposait lui-même la question au propriétaire et s'arrêtait. Le
+// résultat dit maintenant que la plateforme consulte le propriétaire, de ne pas lui poser la question
+// et de continuer sa part ; le refus et la phrase du chef le disent aussi. Rien n'est bloqué.
+test('E139. carte d’accord : mission_lancer en attente porte une note (même texte au second lancement) ; refus et phrase du chef disent de ne pas reposer la question', async (t) => {
+  const note = rule.CONSENT_PENDING_NOTE;
+  assert.equal(typeof note, 'string');
+  assert.match(note, /plateforme consulte le propriétaire/);
+  assert.match(note, /ne lui pose pas la question toi-même/);
+  assert.match(note, /continue ta part du travail sans attendre/);
+  assert.match(note, /mission_suivre ou mission_attendre/);
+  assert.match(note, /s’il accepte, la sous-mission démarre seule/);
+  assert.match(note, /s’il refuse, elle est annulée : continue seul/);
+  assert.match(rule.REFUSED_MESSAGE, /continue seul, sans lui reposer la question\.$/);
+  const asked = rule.chiefRule(undefined);
+  assert.match(
+    asked,
+    /sinon la plateforme consultera le propriétaire avant la première sous-mission \(ne lui pose pas la question toi-même\) ; s’il refuse, continue seul\.$/,
+  );
+  for (const text of [note, rule.REFUSED_MESSAGE, asked])
+    assert.doesNotMatch(text, /claude|codex|gemini|opencode/i);
+
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Partie FICTIVE 1', titre: 'Partie 1' } },
+      { call: 'mission_lancer', args: { consigne: 'Partie FICTIVE 2', titre: 'Partie 2' } },
+      { touch: join(p.hold, 'asked') },
+      { waitFile: join(p.hold, 'answered') },
+      { call: 'mission_lancer', args: { consigne: 'Partie FICTIVE 3', titre: 'Partie 3' } },
+    ],
+    summary: 'Réponse FICTIVE du chef, seul.',
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Mission FICTIVE, accord à demander.',
+    agent: 'fixture',
+    pack: 'core',
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'asked')));
+  const [first, second] = p.results();
+  for (const launched of [first, second]) {
+    assert.equal(launched.isError, false);
+    assert.equal(launched.result.etat, 'attend_accord');
+    assert.equal(launched.result.note, note);
+  }
+  await p.waitFor(() => p.app.store.get(mother.id).pendingQuestion);
+  p.app.engine.answer(mother.id, { action: 'accept', content: { choix: 'continuer_seul' } });
+  p.touch('answered');
+  await p.ended(mother.id, 30000);
+  const refused = p.results()[2];
+  assert.equal(refused.isError, true);
+  assert.equal(refused.result.erreur, 'refus_proprietaire');
+  assert.equal(refused.result.message, rule.REFUSED_MESSAGE);
+  assert.equal(p.types(mother.id).filter((type) => type === 'question').length, 1);
+
+  // Accord déjà donné (bouton) : le lancement démarre, sans note.
+  const q = await platform(t);
+  q.setConfig(() => ({
+    steps: [{ call: 'mission_lancer', args: { consigne: 'Partie FICTIVE', titre: 'Partie' } }],
+  }));
+  const given = await q.app.engine.create({
+    prompt: 'Mission FICTIVE, accord donné.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: { accepted: true, via: 'bouton' },
+  });
+  await q.ended(given.id, 30000);
+  const [started] = q.results();
+  assert.equal(started.result.etat, 'en_cours');
+  assert.equal('note' in started.result, false);
 });

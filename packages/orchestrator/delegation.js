@@ -34,6 +34,7 @@ import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
 import {
   CONSENT_CHOICES,
+  CONSENT_PENDING_NOTE,
   DAUGHTER_RULE,
   DEFAULT_ENVELOPE,
   ENVELOPE_EXTENSION,
@@ -725,10 +726,11 @@ export class Delegation {
     // No acceptance yet : the sub-mission waits, the owner gets the card (once).
     if (consent !== true) this.askConsent(mother, control);
     this.pump(family);
+    const etat = this.heldState(run.id) ?? 'en_cours';
     return {
       id: run.id,
       titre,
-      etat: this.heldState(run.id) ?? 'en_cours',
+      etat,
       agent,
       modele,
       famille: {
@@ -737,6 +739,7 @@ export class Delegation {
         total,
         parallel,
       },
+      ...(etat === 'attend_accord' ? { note: CONSENT_PENDING_NOTE } : {}),
     };
   }
   // The owner's acceptance, written on the mission (kept by its resumption) and in its thread.

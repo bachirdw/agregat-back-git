@@ -34,14 +34,18 @@ const CHIEF_RULE =
   'Tu peux confier une partie délimitée de cette mission à une sous-mission (outils mission_lancer, mission_suivre, mission_attendre, mission_annuler) quand c’est vraiment utile : des parties indépendantes qui peuvent avancer en même temps (par exemple plusieurs sources indépendantes à consulter), un gros volume à répartir, ou un long travail annexe qui encombrerait ta mémoire de travail ; pour une demande simple, ou une suite d’étapes qui dépendent l’une de l’autre, travailler seul est souvent le mieux ; rien ne t’oblige à déléguer, tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
 const REFUSED = 'le propriétaire a refusé les sous-agents pour cette mission : continue seul.';
 // What mission_lancer gives back once the owner refused (refus_proprietaire).
-export const REFUSED_MESSAGE = 'L' + REFUSED.slice(1);
+export const REFUSED_MESSAGE = 'L' + REFUSED.slice(1, -1) + ', sans lui reposer la question.';
+// essai-delegation-01 (E139) : joined to every mission_lancer result `attend_accord`, so that the
+// chief does not ask the owner the same question itself and goes on with its own part.
+export const CONSENT_PENDING_NOTE =
+  'La plateforme consulte le propriétaire (carte d’accord des sous-agents) : ne lui pose pas la question toi-même et continue ta part du travail sans attendre ; mission_suivre ou mission_attendre te diront sa réponse : s’il accepte, la sous-mission démarre seule ; s’il refuse, elle est annulée : continue seul.';
 export function chiefRule(delegation) {
   if (delegation?.accepted === true) {
     const { total, parallel } = envelopeOf(delegation);
     return `${CHIEF_RULE}le propriétaire l’a autorisé : jusqu’à ${total} sous-missions, ${parallel} à la fois.`;
   }
   if (delegation?.accepted === false) return CHIEF_RULE + REFUSED;
-  return `${CHIEF_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon le propriétaire sera consulté avant la première sous-mission ; s’il refuse, continue seul.`;
+  return `${CHIEF_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
 }
 
 // The sub-mission's sentence (plan v2, section 6) : no file nor script of a Skill is named here.

@@ -726,6 +726,7 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
         args: { consigne: 'Note FICTIVE ECRIRE:notes/a.md', titre: 'Note A' },
       },
       { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE ECHEC', titre: 'Échec B' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE LIMITE', titre: 'Limite C' } },
       { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
     ],
     summary: 'Tableau FICTIF. J’ai envoyé 3 e-mails.',
@@ -743,10 +744,16 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
   const children = p.app.store.children(mother.id);
   assert.deepEqual(
     children.map((child) => child.state),
-    ['completed', 'failed'],
+    ['completed', 'failed', 'failed'],
   );
-  const failed = p.results()[2].result.terminees.find((x) => x.etat === 'failed');
+  const given = p.results()[3].result.terminees;
+  const failed = given.find((x) => x.titre === 'Échec B');
   assert.equal(failed.cause.type, 'erreur');
+  // A provider's limit is said as such, with the time to retry, from the platform's own cause.
+  const limited = given.find((x) => x.titre === 'Limite C');
+  assert.equal(limited.cause.type, 'limite_usage');
+  assert.equal(limited.cause.reprise, '22:00');
+  assert.equal(limited.cause.agent, 'fixture');
   for (const child of children) {
     const bilan = p.app.engine.delegation.bilanOf(child);
     assert.ok(bilan.length > 0, child.id);
@@ -757,20 +764,20 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
       .join('\n');
     assert.ok(summary.includes(quoted), `Bilan de ${child.id} non cité à l’identique`);
   }
-  assert.match(summary, /\nSous-missions \(2\) :\n1\. « Note A » — agent fixture, terminée, /);
+  assert.match(summary, /\nSous-missions \(3\) :\n1\. « Note A » — agent fixture, terminée, /);
   assert.match(summary, /\n2\. « Échec B » — agent fixture, en échec, /);
   assert.match(
     summary,
-    /Totaux de la famille vus par la plateforme : 1 terminée\(s\), 1 en échec, 0 annulée\(s\), 0 interrompue\(s\) ; envois des sous-missions : 0 approuvé\(s\) \(dont 0 par accord de mission\), 0 refusé\(s\)\./,
+    /Totaux de la famille vus par la plateforme : 1 terminée\(s\), 2 en échec, 0 annulée\(s\), 0 interrompue\(s\) ; envois des sous-missions : 0 approuvé\(s\) \(dont 0 par accord de mission\), 0 refusé\(s\)\./,
   );
   assert.match(
     summary,
     /Confrontation : le chef annonce 3 envoi\(s\) ; la plateforme a vu 0 envoi\(s\) approuvé\(s\) dans la famille\./,
   );
-  assert.match(summary, /Consommation : 2 sous-mission\(s\), .* d’agents cumulés \(fixture /);
+  assert.match(summary, /Consommation : 3 sous-mission\(s\), .* d’agents cumulés \(fixture /);
   // The chief's answer stays his ; the section belongs to the platform's lines.
   assert.equal(row.result.answer, 'Tableau FICTIF. J’ai envoyé 3 e-mails.');
-  assert.ok(row.result.platformNotes.includes('Sous-missions (2) :'));
+  assert.ok(row.result.platformNotes.includes('Sous-missions (3) :'));
 });
 
 test('consigne du chef et des sous-missions identique pour tous les profils d’agents, sans nom d’agent', async (t) => {
@@ -899,4 +906,123 @@ test('Bilan : texte long cité par ses lignes d’envoi et d’échec ; annonces
   assert.match(section, /1 min 05 s/);
   assert.match(section, /1 approuvé\(s\) \(dont 0 par accord de mission\), 1 refusé\(s\)/);
   assert.doesNotMatch(section, /Confrontation/);
+});
+
+test('reprise de la mère : le nouveau chef garde l’accord et voit les sous-missions précédentes', async (t) => {
+  const p = await platform(t);
+  p.setConfig((input) =>
+    input.prompt === 'Suite FICTIVE de la mission.'
+      ? {
+          steps: [
+            { call: 'mission_suivre', args: {} },
+            { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE de la reprise' } },
+            { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+          ],
+        }
+      : {
+          steps: [
+            {
+              call: 'mission_lancer',
+              args: { consigne: 'Tâche FICTIVE de la première exécution' },
+            },
+            { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+          ],
+        },
+  );
+  const first = await p.app.engine.create({
+    prompt: 'Première exécution FICTIVE.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED({ total: 4, parallel: 2 }),
+  });
+  await p.ended(first.id, 30000);
+  await p.waitFor(() => !p.app.engine.active.has(first.id));
+  const [previousChild] = p.app.store.children(first.id);
+  const resumed = await p.api(`/api/runs/${first.id}/resume`, {
+    prompt: 'Suite FICTIVE de la mission.',
+  });
+  assert.equal(resumed.status, 201, JSON.stringify(resumed.body));
+  await p.ended(resumed.body.id, 30000);
+  const row = p.app.store.get(resumed.body.id);
+  assert.equal(row.state, 'completed', row.error);
+  assert.equal(row.resumedFrom, first.id);
+  assert.deepEqual(
+    {
+      accepted: row.delegation.accepted,
+      total: row.delegation.total,
+      parallel: row.delegation.parallel,
+    },
+    { accepted: true, total: 4, parallel: 2 },
+  );
+  const results = p.results();
+  const followed = results.at(-3).result.missions;
+  assert.deepEqual(
+    followed.map((m) => [m.id, m.etat]),
+    [[previousChild.id, 'completed']],
+  );
+  assert.equal(results.at(-2).result.famille.lancees, 2);
+  assert.match(row.result.summary, /Sous-missions \(2\) :/);
+});
+
+test('fin du tour du chef avec des sous-missions vivantes : un tour de rappel, puis la mère attend la dernière', async (t) => {
+  const p = await platform(t);
+  p.setConfig((input) =>
+    input.prompt.includes('rappel suivi')
+      ? {
+          steps: [
+            {
+              call: 'mission_lancer',
+              args: { consigne: 'Tâche FICTIVE ATTENDRE:a', titre: 'Tâche A' },
+            },
+          ],
+          reminderSteps: [
+            { touch: join(p.hold, 'a') },
+            { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+          ],
+          reminderSummary: 'Synthèse FICTIVE après attente.',
+        }
+      : {
+          steps: [
+            {
+              call: 'mission_lancer',
+              args: { consigne: 'Tâche FICTIVE ATTENDRE:b', titre: 'Tâche B' },
+            },
+          ],
+        },
+  );
+  // 1. The chief follows the reminder : it waits for its sub-mission in the extra turn.
+  const followed = await p.app.engine.create({
+    prompt: 'Mission FICTIVE, rappel suivi.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  await p.ended(followed.id, 30000);
+  const row = p.app.store.get(followed.id);
+  assert.equal(row.state, 'completed', row.error);
+  assert.equal(row.result.answer, 'Synthèse FICTIVE après attente.');
+  const reminder = p.prompts().find((entry) => entry.prompt?.platform?.turnKind === 'family');
+  assert.equal(reminder.prompt.instructions, rule.familyReminder(['Tâche A']));
+  assert.equal(p.results().at(-1).result.terminees.length, 1);
+  assert.ok(!p.types(followed.id).includes('family_waiting'));
+
+  // 2. The chief ends again : the mother stays running until its last sub-mission ends.
+  const ignored = await p.app.engine.create({
+    prompt: 'Mission FICTIVE, rappel ignoré.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  await p.waitFor(() => p.types(ignored.id).includes('family_waiting'));
+  assert.equal(p.app.store.get(ignored.id).state, 'running');
+  const [child] = p.app.store.children(ignored.id);
+  assert.equal(p.app.store.get(child.id).state, 'running');
+  p.touch('b');
+  await p.ended(ignored.id, 30000);
+  const done = p.app.store.get(ignored.id);
+  assert.equal(done.state, 'completed', done.error);
+  const childDone = p.app.store.get(child.id);
+  assert.equal(childDone.state, 'completed');
+  assert.ok(Date.parse(done.finishedAt) >= Date.parse(childDone.finishedAt));
+  assert.match(done.result.summary, /1\. « Tâche B » — agent fixture, terminée/);
 });

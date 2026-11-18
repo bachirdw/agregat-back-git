@@ -105,6 +105,16 @@ l’alimente (DATA_CONTRACT.md). Les PDF ne s’écrivent pas par `career_write`
 `data/pipeline.md` (boîte d’entrée du Skill) est contrôlé à l’écriture : voir le parcours « pipeline »
 ci-dessous.
 
+Mode d’écriture (E133, 18/11) : `mode: "replace"` (défaut) écrit le fichier entier avec `text` ;
+`mode: "append"` ajoute `text` à la fin du fichier sans le renvoyer (fichier créé s’il manque, saut de ligne
+inséré si le fichier n’en finit pas par un). Un ajout suit les mêmes chemins et les mêmes contrôles qu’une
+écriture complète : la plateforme reconstruit le fichier (contenu existant puis `text`) et le contrôle comme
+s’il était écrit en entier (forme et non-suppression de `data/pipeline.md`, TSV d’ajout à une seule ligne,
+profil), puis l’écrit par le même remplacement confiné. Il compte au Bilan comme une écriture réussie. La borne
+de 200 000 octets vaut **par appel** : un fichier plus long s’écrit en un premier appel puis par ajouts ; un
+ajout relit le fichier existant jusqu’à 10 Mo. Le refus d’un TSV d’ajout (E129) montre l’en-tête attendu mot
+pour mot, un exemple de ligne et la première ligne reçue (200 caractères au plus).
+
 ### Scripts du Skill admis par `career_script`
 
 Même reçu de revue (`relay/source-review.json`) et même refus de `.env` que `scan`, pas d’accord

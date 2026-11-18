@@ -1,51 +1,50 @@
-# Relay : fichier d'entrée unique (état au 18/11/2026, 12:10)
+# Relay : fichier d'entrée unique (état au 18/11/2026, 18:48)
 
 Écrit par la session `menage-18-11` à la demande du propriétaire : une nouvelle discussion lit ce fichier, et lui seul,
 pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs.md`](reports/registre-erreurs.md)
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 18:30 ; ce bloc se remplace à chaque passation)
-**Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
-`contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
-15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
-| Correctif | Défauts | Contenu | Vérifié en réel ? |
-|---|---|---|---|
-| `questions-18-11` | E126, E127 | phrase commune `OWNER_QUESTION_RULE` (`packages/orchestrator/owner-question-rule.js`) reprise par `packages/career-ops/integration.js`, `packages/orchestrator/index.js` et `doubt-rule.js` ; une question mal formée n'est plus refusée (`result.js`, `index.js`, `workflow-run.js`) ; `docs/api-questions.md` | **Claude : oui** (72adba12 : formulaire ouvert, répondu, « Langue retenue : Français »). **Codex : non** (d2f836d2 `failed`, e6ddb095 `completed` sans question) : la question part dans son outil interne `request_user_input_async`, que la plateforme ne voit pas (E130). E127 : non exercé |
-| `scripts-18-11` | E121, E120 | `packages/career-ops/tools.js` (chemin réel du `node_modules` de l'espace, liste d'un dossier), `truth.js`, `packages/orchestrator/exit-code.js`, `skill-router.js`, `packages/mcp-gateway/server.js`, `apps/api/server.js` | **Codex : oui** (8bcb3dec : PDF de 2 pages produit, six étapes faites, aucune action échouée). **Claude : oui** (9630b823 : PDF de 2 pages, six étapes faites, une vérification refaite après un échec). E120 : non exercé |
-Rapports : `.manager/reports/questions-18-11.md`, `review-questions-18-11.md`, `scripts-18-11.md`, `review-scripts-18-11.md`
-(à supprimer une fois les essais réels reportés ici). Arbres `~/Downloads/agregat-back-questions` et `-scripts` : à ranger.
+## 0. Où reprendre maintenant (état au 18/11/2026, 18:48 ; ce bloc se remplace à chaque passation)
+**Passation du manager** (18:48) : le manager de l'après-midi du 18/11 passe la main à une nouvelle discussion, sur
+l'autorisation du propriétaire (18:45 : « quand tu te sens trop lourd, délègue ou fais une passation toi-même »). L'ancienne
+discussion ne reste ouverte que pour recevoir la fin du sprint `chef-01`, qu'elle a lancé, et prévenir la nouvelle.
 
-**Série d'épreuves** (une mission à la fois ; lancées par le manager avec `.manager/outils/lancer-mission.py 4314 <agent> <modèle|-> playwriter career-ops "<prompt>"`, relevé par le guetteur dans `reports/guet-18-11.md`) :
-| Épreuve | Codex | Claude |
-|---|---|---|
-| 1 Évaluation | dcfad0f2 (17/11) : 2 notes sur 3, étape `sweep` en échec sans texte (E122) | 751f33c8 (18/11) : 3 rapports notés, mais `failed` « 3 offre(s) notée(s) sans lecture de leur page » (E128) ; 3 écritures TSV refusées puis réussies (E129) |
-| 2 CV | **8bcb3dec (après correctif) : réussie, PDF produit** ; avant : e1ce4cd8, pas de PDF (E121) | **9630b823 (18/11 17:01) : réussie, PDF produit** (offre suivante, rapport 024) ; même résultat que Codex |
-| 3 Lettre | e6ddb095 (après correctif) : **questions toujours pas reçues** (E130), `completed` en 1 min 45 s sur « j'attends vos réponses » ; avant : 1cf4490e (E126), reprise e05973ab | 16/11 (0e397f84, f70f2d13) : formulaires ouverts, fin sur un brouillon (E117) ; à rejouer |
-| 4 Candidature page fictive 4321 | au propriétaire (son clic) | au propriétaire |
-| 5 Contact LinkedIn | à jouer avec lui (pilote son Chrome) | idem |
-| 6 Relance | cc2bff45 : réussie ; question `prose` ouverte et répondue ; e-mail en brouillon (`sent: false`), ce qui convient au propriétaire | **036120dd (18/11 17:07) : réussie** ; question `form` ouverte, répondue par le propriétaire dans l'interface ; message LinkedIn rédigé (`linkedin_draft`), non envoyé ; même issue que Codex, par un formulaire au lieu d'une question en prose |
-Essais réels faits le 18/11 après l'intégration (15:37 → 15:48, relevés du guetteur dans `reports/guet-18-11.md`) : essai
-technique « Pose-moi une seule question… » avec Codex (d2f836d2) puis Claude (72adba12), épreuve 2 avec Codex (8bcb3dec),
-épreuve 3 avec Codex (e6ddb095). Prompts des épreuves (repris à l'identique) : 2 « Génère le CV adapté pour l'offre la
-mieux notée qui n'a pas encore de PDF. Pas de lettre, n'envoie rien. » ; 3 « Écris la lettre de motivation pour l'offre
-011. Pose-moi toutes tes questions en une seule fois, puis génère le PDF dès que j'ai validé le brouillon. N'envoie
-rien. » ; 6 « Quelles candidatures dois-je relancer cette semaine ? Prépare les relances sans rien envoyer. » (l'API ne
-rend plus le texte d'un prompt : il se retrouve dans le titre de session des événements).
-Puis, après la remise à zéro de la limite (17:00) : épreuve 2 avec Claude (9630b823) et épreuve 6 avec Claude (036120dd).
-**Reste à jouer** : l'épreuve 3 avec Codex une fois E130 tranché, puis avec Claude ; l'épreuve 1 à rejouer une fois E128 et E122
-traités ; les épreuves 4 et 5 avec le propriétaire. Le manager répond lui-même
-à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte
-d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
+**À faire, dans l'ordre**
+1. Vérifier l'état réel (section 4 : `date`, `git status`, `lsof` 4314/4321/5177/19988, `GET /api/runs`, limite d'usage) et
+   **relancer un guetteur** (voir « Guetteur » plus bas).
+2. Relever la **mission SEEK de référence 420c8fe8** (Codex, lancée à 18:47 sur le code d'avant les correctifs du scan ;
+   prompt : « Sans scan. Cherche sur SEEK les offres « AI engineer » à Sydney et ramène-en le plus possible : parcours les
+   pages de résultats 1 à 5, ajoute chaque offre à data/pipeline.md sans l'ouvrir ni la noter… ») : résultats annoncés,
+   pages parcourues, offres distinctes vues, lignes ajoutées (avant : `data/pipeline.md` 117 lignes, 75 entrées en
+   attente), marques de coupe, cause d'arrêt. C'est le point de comparaison « avant ».
+3. Contrôler le sprint `chef-01` à son retour (voir « Mode workflow »).
+4. **Intégrer ensemble les quatre sprints prêts** (tableau plus bas), et `chef-01` avec eux s'il est propre : aucune
+   mission en cours, prévenir le propriétaire de l'arrêt, arrêter l'API 4314, un `cherry-pick` par sprint, **une seule
+   suite complète** (elle lance aussi les tests navigateur que les sprints n'ont pas pu lancer), relancer l'API, registre.
+   Si un test échoue : s'arrêter, ne rien pousser, dire lequel. Pas de suite complète pendant qu'un sprint teste.
+5. Essais réels après l'intégration, Codex d'abord (il ne consomme pas la limite), puis Claude : la mission SEEK de
+   l'étape 2 rejouée à l'identique (comparer), puis sans borne de pages ; épreuve 3 (lettre) jusqu'au PDF ; épreuve 1
+   (évaluation) avec Claude pour E128.
+6. **Contre-expertise de Codex** sur le mode workflow : le propriétaire la fait faire lui-même à partir de
+   `reports/workflow-plan-contre-expertise-18-11.md` ; à son retour, la confronter au plan et ajuster les sprints 2 à 5.
+7. Lui proposer : rendre l'étape `scan` facultative quand le prompt nomme ses sources (tension avec « le prompt prime ») ;
+   ne plus masquer les suites de 13 chiffres dans les adresses des liens listés ; ses cinq questions sur le mode workflow
+   (section 10 de la conception) ; archiver la session « Mode workflow : conception », dont l'arbre a été créé par
+   l'application dans `~/Downloads/agregat-back/.claude/worktrees/` (ignoré par Git, fichiers du propriétaire intacts).
 
-**Intégré à 18:16 sur son « Oui »** : `precision-18-11` (E130) : six commits repris (`c3ceaa3` à `f030bca`), suite complète
-verte (18:02 → 18:15), API relancée. Vérifié en réel : épreuve 3 avec Codex (ace76d9e) : la question s'ouvre (`prose`),
-en attente de ses réponses dans l'interface. Lanceur : outil déclaré figé après 10 min au lieu de 120 s (E134).
-**Quatre sprints prêts, attendent un oui du propriétaire (demandé à 18:30)**. Chacun : codeur Opus, relecteur-correcteur
-Opus indépendant, contrôle du manager (arbre propre, périmètre respecté, tests du sprint relancés, fusion à blanc sans
-conflit). Aucun essai réel. **Les tests qui démarrent un navigateur n'ont pas été lancés** : ils passent avec la suite
-complète à l'intégration (une mission réelle tournait). Intégrer les quatre ensemble : aucune mission en cours, arrêt de
-l'API, quatre `cherry-pick`, une seule suite complète, relance, puis essais réels avec Claude et Codex.
+**Accords en cours** : pour les quatre sprints, le propriétaire n'a pas cliqué « Oui, intègre » ; il a écrit à 18:45
+« Continuer à coder, à implémenter… continue ». Interprétation du manager sortant : accord pour intégrer, en le prévenant
+de l'arrêt de l'API. **Aucun push sans son ordre** (dernier : « Oui, pousse », 18:22).
+
+**Intégré le 18/11** : 15:35 `questions-18-11` (E126, E127) et `scripts-18-11` (E121, E120) ; 18:16 `precision-18-11`
+(E130). Vérifié en réel : CV en PDF avec Codex (8bcb3dec) et Claude (9630b823) ; question ouverte avec Claude (formulaire)
+et avec Codex (`prose` : 043c3325, ace76d9e). Non exercés en réel : E120, E127. Lanceur d'essai : outil déclaré figé
+après 10 min au lieu de 120 s (E134). Rapports des correctifs : `reports/questions-18-11.md`, `scripts-18-11.md`,
+`precision-18-11.md` et leurs `review-…` ; faits d'E130 : `reports/e130-faits-18-11.md`.
+
+**Quatre sprints prêts** (codeur Opus, relecteur-correcteur Opus, contrôle du manager : arbre propre, périmètre respecté,
+tests du sprint relancés, fusion à blanc sans conflit ; aucun essai réel ; tests navigateur non lancés) :
 | Sprint | Arbre, tête | `cherry-pick` | Ce qui change | Tests du sprint | À décider par le propriétaire |
 |---|---|---|---|---|---|
 | `ecriture-18-11` (E133, E129) | `~/Downloads/agregat-back-ecriture`, `9d72b72` | `a79a747..ecriture-18-11` | `career_write` a un mode `append` (ajout en fin de fichier, mêmes contrôles) ; la borne de 200 000 octets vaut par appel, plus pour le fichier ; refus du TSV avec l'en-tête attendu, un exemple et la ligne reçue (`packages/career-ops/tools.js`, `docs/api-career-ops.md`) | 10 sur 10 | borne de 10 Mo du fichier relu en ajout |
@@ -53,41 +52,68 @@ l'API, quatre `cherry-pick`, une seule suite complète, relance, puis essais ré
 | `prompt-prime-18-11` | `~/Downloads/agregat-back-prompt`, `083e8ce` | `a79a747..prompt-prime-18-11` | consigne du pack : « Le prompt du propriétaire prime sur le Skill : il décide de ce qui est fait (périmètre, volume, sources, seuils), le Skill dit comment le faire… » (`OWNER_PROMPT_PRIME`, `packages/career-ops/integration.js`) | 4 sur 4 | l'étape `scan` reste exigée par le pack même quand le prompt choisit ses sources (manifeste, hors sprint) |
 | `captures-18-11` (E131, E132) | `~/Downloads/agregat-back-captures`, `cc3c6ee` | `4b7b3b6..captures-18-11` | plus de coupe à 50 000 : une capture demandée dans les bornes est rendue en entier, la suite est toujours désignée, chaque tranche dit la taille totale et les tranches restantes ; `browser_extract` liste jusqu'à 1 000 éléments avec leur texte, l'adresse de leur lien et le total (`packages/browser-gateway/`, `packages/capability-registry/index.js`) | 18 sur 18, plus voisins | masquage des suites de 13 chiffres appliqué aussi aux adresses des liens ; tailles de tranche par défaut inchangées |
 Rapports dans chaque arbre : `.manager/reports/<sprint>.md` et `review-<sprint>.md`. Briefs : `.manager/briefs/<sprint>.md`.
-**Mode workflow multi-agents** : étude rendue (`reports/workflows-etude-18-11.md`) ; décisions du propriétaire de 18:13
-(section 7 de l'étude : agent chef, trois voies d'activation avec avertissement et accord préalables, essai à plusieurs
-onglets, dégel de l'architecture sur ce seul point) ; conception détaillée confiée à une session Opus à part
-(« Mode workflow : conception (agent chef) », arbre de la session, branche `workflow-18-11`), sans code pour l'instant.
-**Débrider le scan** (demande de 17:40) : enquête dans `reports/freins-scan-18-11.md` ; brides de plateforme en cours de
-correction (sprints ci-dessus) ; reste à jouer : essai réel « le plus d'offres possible » sur SEEK, Claude puis Codex ;
-levier dans l'espace du propriétaire : ajouter des employeurs australiens à `portals.yml`.
-**Autorisations du 18/11 (18:01 à 18:09)** : le prompt prime sur le Skill ; une limite écrite dans le prompt n'est pas
-un défaut ; délégation à des sessions et sous-agents (Opus pour le complexe, Sonnet pour le simple, le manager
-orchestre) ; mode rapide admis si c'est trop long ; il lance ses propres missions pendant ce temps.
 
-**Décisions du propriétaire du 18/11** : ménage des passations ; une seule version, poussée et devenue `main` ; correctif
-de la reprise intégré ; des faits et des essais avant toute correction ; mêmes autorisations pour tous les agents, rien
-de codé en dur pour un agent ; ne rien ajouter qui restreigne l'agent ou l'empêche d'aller au bout (ce qui évite qu'un
-défaut se reproduise est admis) ; sous-agents Opus en parallèle pour aller vite ; continuer à éprouver l'agent ; le
-manager lance lui-même les épreuves sans envoi ; passation vers une nouvelle discussion (15:12) ; « Oui, intègre » pour
-les deux correctifs (15:20) ; « Oui, corrige » pour E130 par la phrase de précision (17:36) ; débrider le scan (17:40).
-**À lui proposer ensuite, dans cet ordre** : **E130** (question de Codex perdue dans l'adaptateur `codex-acp` 2.2.2 ;
-faits, sondes et pistes dans `reports/e130-faits-18-11.md` ; essai réel de 17:33 : une phrase de précision dans le prompt
-suffit, Codex pose par le champ JSON et Claude garde son formulaire ; décision demandée à 17:40, pas encore donnée) ; E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
-ranger parmi les « verdicts » les quatre scripts qui sortent en 1 sur un simple constat (`clean-markers`,
-`check-table-freshness`, `audit-portals --strict`, `tracker sync --check`) ; garder ou non le nom « AskUserQuestion » dans
-la phrase commune ; garder le message d'une question dont seules les options sont hors bornes ; E117 (fin sur un
-brouillon) ; E119 (échec au démarrage) ; E118 (Bilan inexact).
+**Mode workflow multi-agents** : décisions du propriétaire de 18:13 (agent chef ; trois voies d'activation, toujours avec
+avertissement de consommation et accord préalables ; essai à plusieurs onglets ; architecture cible dégelée sur ce seul
+point). Documents : `reports/workflows-etude-18-11.md` (état des lieux, options, décisions),
+`reports/workflow-chef-conception-18-11.md` (conception détaillée, cinq sprints),
+`reports/workflow-plan-contre-expertise-18-11.md` (texte remis au propriétaire pour Codex). **Sprint 1 `chef-01` en
+cours** depuis 18:33 : arbre `~/Downloads/agregat-back-chef`, branche `chef-01`, base `b94694b`, brief
+`.manager/briefs/chef-01.md` ; codeur, deux relecteurs en lecture seule, correcteur (Opus), lancés par l'ancienne
+discussion du manager, qui préviendra à la fin ; fini quand `.manager/reports/review-chef-01.md` est commité dans l'arbre.
+Activation par l'API seulement (`delegation` dans `POST /api/runs`) ; sans accord, rien ne change. Fichiers touchés :
+`packages/mission-gateway/` (nouveau), `packages/orchestrator/index.js`, `apps/api/server.js`, stockage.
 
-**Poussé le 18/11 à 18:22** sur son « Oui, pousse » : `contacts-13-11` et `main` à `514c5c4` (back). Il a accepté que la
-mention des thèmes d'une question de l'agent reste dans l'historique du commit `914ca2f`. Les commits suivants sont locaux.
-**En service à 18:19** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
-(code intégré) ; page fictive 4321 et front 5177 dans des onglets de la discussion d'avant (vérifier par `lsof` ; sinon
-les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (38 missions en base).
-**Guetteur** : relancé à 15:18 (sous-agent Sonnet de la discussion du manager, lecture seule, `GET /api/runs` toutes les
-20 s, rapport `reports/guet-18-11.md`) ; il s'arrête avec cette discussion : en relancer un à chaque reprise (règle du 16/11).
-**Limite d'usage** : remise à zéro à 17:00 ; 5 % à 17:14 (prochaine remise à zéro vers 22:00) ; constaté le 18/11 : 74 % à 16:40 puis 84 % à 16:57 sans mission ni chantier du manager (cause non établie : guetteur et autres discussions puisent dans la même limite) ; ne plus lancer de chantier au-delà
-de 70 %, tout arrêter à 85 % (règle du 05/11). Les agents du propriétaire qui sont des missions Claude consomment la
-même limite ; les missions Codex non.
+**Débrider le scan** (demande de 17:40 : des milliers d'offres ramenées ; une limite écrite dans le prompt n'est pas un
+défaut) : faits dans `reports/freins-scan-18-11.md`. Le scan du Skill est borné par ses sources (29 entreprises presque
+toutes étrangères : réglage de `portals.yml` dans l'espace du propriétaire) ; la recherche par le navigateur perdait 90 à
+99 % des résultats (une page lue, tranches de 24 000 caractères) : corrigé par `captures-18-11` et `ecriture-18-11`, à
+intégrer puis à mesurer.
+
+**Série d'épreuves** (une mission à la fois ; `.manager/outils/lancer-mission.py 4314 <agent> <modèle|-> playwriter career-ops "<prompt>"`) :
+| Épreuve | Codex | Claude |
+|---|---|---|
+| 1 Évaluation | dcfad0f2 (17/11) : 2 notes sur 3, étape `sweep` en échec sans texte (E122) | 751f33c8 (18/11) : 3 rapports notés, mais `failed` « 3 offre(s) notée(s) sans lecture de leur page » (E128) ; 3 écritures TSV refusées puis réussies (E129) |
+| 2 CV | **8bcb3dec (après correctif) : réussie, PDF produit** ; avant : e1ce4cd8, pas de PDF (E121) | **9630b823 (18/11 17:01) : réussie, PDF produit** (offre suivante, rapport 024) ; même résultat que Codex |
+| 3 Lettre | **ace76d9e (18/11 18:16, après E130) : la question s'ouvre** (`prose`, six points) ; restée 28 min sans réponse du propriétaire, annulée par le manager à 18:47 pour libérer l'API ; la suite (brouillon, PDF) reste à voir ; avant : e6ddb095, 1cf4490e | 16/11 (0e397f84, f70f2d13) : formulaires ouverts, fin sur un brouillon (E117) ; à rejouer |
+| 4 Candidature page fictive 4321 | au propriétaire (son clic) | au propriétaire |
+| 5 Contact LinkedIn | à jouer avec lui (pilote son Chrome) | idem |
+| 6 Relance | cc2bff45 : réussie ; question `prose` ouverte et répondue ; e-mail en brouillon (`sent: false`), ce qui convient au propriétaire | **036120dd (18/11 17:07) : réussie** ; question `form` ouverte, répondue par le propriétaire dans l'interface ; message LinkedIn rédigé (`linkedin_draft`), non envoyé ; même issue que Codex, par un formulaire au lieu d'une question en prose |
+Prompts (repris à l'identique ; l'API masque le texte d'un prompt, il se retrouve dans le titre de session des
+événements) : 2 « Génère le CV adapté pour l'offre la mieux notée qui n'a pas encore de PDF. Pas de lettre, n'envoie
+rien. » ; 3 « Écris la lettre de motivation pour l'offre 011. Pose-moi toutes tes questions en une seule fois, puis génère
+le PDF dès que j'ai validé le brouillon. N'envoie rien. » ; 6 « Quelles candidatures dois-je relancer cette semaine ?
+Prépare les relances sans rien envoyer. » ; essai technique : « Essai technique du manager, sans rapport avec une
+candidature : ne lance aucune étape du Skill, ne lis et n'écris aucun fichier, n'ouvre pas le navigateur. Pose-moi une
+seule question : « La lettre doit-elle être en français ou en anglais ? », avec ces deux choix. Attends ma réponse, puis
+réponds seulement « Langue retenue : » suivi de mon choix. ». Le manager répond lui-même à la question d'un essai
+technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte d'envoi. Une question
+se répond par `POST /api/runs/<id>/answer` (`docs/api-questions.md`).
+
+**Décisions et ordres du propriétaire du 18/11** : une seule version, poussée et devenue `main` ; des faits avant toute
+correction ; mêmes autorisations pour tous les agents, rien de codé en dur pour un agent ; ne rien ajouter qui restreigne
+l'agent ; **le prompt prime sur le Skill** (18:01) ; **tout en parallèle** : sprints et sous-agents (Opus pour le complexe,
+Sonnet pour le simple, le manager orchestre), sessions à part admises, mode rapide admis si c'est trop long (18:03 à
+18:09) ; il lance ses propres missions pendant ce temps et le manager en tire les défauts ; objectif : tout prompt doit
+aboutir avec tout agent (pipeline d'offres → CV et lettres → décideurs → e-mails → envois) ; mode workflow (18:13) ;
+« Oui, pousse » (18:22) ; passation admise (18:45).
+**Restent ouverts, à lui proposer** : E122 (étape `sweep` en échec sans texte), E117 (fin sur un brouillon), E119 (échec
+au démarrage), E118 (Bilan inexact) ; ranger parmi les « verdicts » les quatre scripts qui sortent en 1 sur un simple
+constat (`clean-markers`, `check-table-freshness`, `audit-portals --strict`, `tracker sync --check`).
+
+**Poussé** : `contacts-13-11` et `main` à `514c5c4` (18/11, 18:22). Les commits suivants (briefs, rapports, HANDOFF) sont locaux.
+**En service à 18:48** : API 4314 (code avec E130, relancée à 18:16 dans l'onglet Terminal « API essai 4314 » de l'ancienne
+discussion du manager ; si elle n'écoute plus, la relancer comme en section 4) ; page fictive 4321, front 5177, relais
+Playwriter 19988. Mission en cours : 420c8fe8 (SEEK, Codex). 40 missions en base.
+**Guetteur** : celui de l'ancienne discussion est arrêté à la passation. En relancer un (sous-agent Sonnet, lecture
+seule) avec le script `.manager/outils/attendre-mission.py 4314 <fichier d'état> <secondes>` et le fichier d'état
+`.data/guet-etat.txt` (identifiants déjà relevés : garder ce fichier pour ne rien sauter ni relever deux fois) ; rapport
+`reports/guet-18-11.md`, une ligne au tableau et une section par mission, sans donnée personnelle ni thème des questions.
+**Limite d'usage** : 67 % à 18:42 (remise à zéro vers 22:00) ; elle monte d'environ 7 points par quart d'heure avec un
+sprint Opus en cours ; plus de nouveau chantier au-delà de 70 %, tout arrêter à 85 % (règle du 05/11). Les missions Claude
+du propriétaire consomment la même limite, les missions Codex non.
+**Arbres de sprint du 18/11** (tous dans `~/Downloads/`) : `agregat-back-questions`, `-scripts`, `-precision` (intégrés, à
+ranger) ; `-ecriture`, `-lecture`, `-prompt`, `-captures` (prêts) ; `-chef` (en cours).
 
 ## 1. Ce qu'est Relay
 - **Relay** (ce dépôt) est une plateforme locale qui fait travailler des **agents CLI** (programmes d'IA en ligne de

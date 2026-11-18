@@ -87,6 +87,14 @@ intents:
         title: Lire réellement l'annonce
         tool: career_read
         alternativeTools: [browser_extract, browser_snapshot]
+        # E128 (mission 751f33c8, 18/11) : un script du Skill qui rend le texte de l'annonce la lit
+        # aussi (fetch-jd.mjs <url> ; browser-extract.mjs <url>, mode jd par défaut) : appel réussi,
+        # code 0, au moins minChars caractères rendus, URL de l'annonce en premier argument.
+        scriptReads:
+          tool: career_script
+          scripts: [fetch-jd, browser-extract]
+          minChars: 500
+          unlessArgs: [listing, --mode=listing]
         # E56 : la capture d'une page de résultats (portail, recherche) n'est pas la lecture d'une
         # annonce ; une page dont le chemin porte un identifiant reste une annonce.
         listPage:
@@ -411,6 +419,12 @@ intents:
         title: Lire réellement l'annonce de chaque entrée
         tool: career_read
         alternativeTools: [browser_extract, browser_snapshot]
+        # E128 : voir l'intent evaluate ; le texte d'une entrée rendu par un script du Skill la lit.
+        scriptReads:
+          tool: career_script
+          scripts: [fetch-jd, browser-extract]
+          minChars: 500
+          unlessArgs: [listing, --mode=listing]
         # E56 : voir l'intent evaluate ; une page de résultats ne prouve pas la lecture d'une entrée.
         listPage:
           words:

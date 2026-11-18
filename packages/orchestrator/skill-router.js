@@ -105,6 +105,24 @@ const stepSchema = z
       })
       .strict()
       .optional(),
+    // E128 : the pack's scripts that render the text of the item a reading step reads. A completed
+    // call of `tool` running one of `scripts`, whose answer carries exit code 0 and a text of at
+    // least `minChars` characters, with the item's URL as its first argument, proves the step and
+    // the reading of that URL. `unlessArgs` : arguments that make the script render something else
+    // (a list). Facts the platform holds (script, outcome, size, URL), never what the agent says.
+    scriptReads: z
+      .object({
+        tool: toolId,
+        scripts: z.array(id).min(1).max(5),
+        minChars: z.number().int().min(1).max(100000),
+        unlessArgs: z
+          .array(z.string().regex(/^\S{1,40}$/))
+          .min(1)
+          .max(5)
+          .optional(),
+      })
+      .strict()
+      .optional(),
     // E55, E58 : the effect that proves this step, measured around the call by the platform's
     // gateway : `output`, a pattern the call's text output matches (and `unless`, one it must not
     // match : a simulation printing the same summary) ; `gain`, a pattern whose matching lines in
@@ -340,7 +358,7 @@ export function formatSkillOrder(selection) {
     selection
       .map(
         ({ pack, intent }) =>
-          `${pack} / ${intent.title} : ${intent.steps.map((step, index) => `${index + 1}. ${step.title} avec ${step.tool}${step.alternativeTools?.length ? ' ou ' + step.alternativeTools.join(' ou ') : ''}${step.argument ? ' (' + step.argument + ')' : ''} ; précondition : ${step.precondition} ; fait si : ${step.done}${step.optional ? ' ; facultatif' : ''}`).join(' → ')}`,
+          `${pack} / ${intent.title} : ${intent.steps.map((step, index) => `${index + 1}. ${step.title} avec ${step.tool}${step.alternativeTools?.length ? ' ou ' + step.alternativeTools.join(' ou ') : ''}${step.argument ? ' (' + step.argument + ')' : ''}${step.scriptReads ? ` ou ${step.scriptReads.tool} (${step.scriptReads.scripts.join(', ')}, texte de l’annonce rendu)` : ''} ; précondition : ${step.precondition} ; fait si : ${step.done}${step.optional ? ' ; facultatif' : ''}`).join(' → ')}`,
       )
       .join('\n') +
     requiredOrder(selection)
@@ -358,7 +376,7 @@ export function formatToolRoles(manifest) {
   ].join('\n');
 }
 export const READ_BEFORE_SCORE =
-  'Ne note une offre qu’après avoir lu sa page dans cette mission : une note sans lecture rend la mission incomplète.';
+  'Ne note une offre qu’après avoir lu sa page, ou le texte de son annonce rendu par un script du Skill, dans cette mission : une note sans lecture rend la mission incomplète.';
 // A pack that asks, anywhere in its manifest, to read before scoring gets the rule for every
 // mission, whatever the prompt matched; a pack without such a step gets nothing.
 export const readsBeforeScore = (manifest) =>
@@ -522,6 +540,30 @@ function outputText(update) {
   visit(update.rawOutput ?? update.content, 0);
   return parts.join('\n');
 }
+// E128 (mission 751f33c8, 18/11) : the URL of the item whose text a completed call of one of the
+// step's scripts rendered, or null. The script ran (exit code 0 read from its answer, never a
+// mention in its text), printed at least `minChars` characters, and was given the item's URL first,
+// never one of the pack's list pages. The URL is the one the call was given : a script's text may
+// quote other addresses, none of which names the item. The gateway's own update carries neither the URL nor the output : it
+// proves nothing here, the agent's update of the same call does.
+function scriptReadUrl(step, update, name) {
+  const rule = step.scriptReads;
+  if (!rule || rule.tool !== name) return null;
+  const input = toolInput(update);
+  const script = String(input.command ?? input.script ?? '')
+    .replace(/^scripts\//, '')
+    .replace(/\.mjs$/, '');
+  if (!rule.scripts.includes(script)) return null;
+  const args = Array.isArray(input.args) ? input.args.filter((arg) => typeof arg === 'string') : [];
+  if (rule.unlessArgs && args.some((arg) => rule.unlessArgs.includes(arg))) return null;
+  const answer = update.rawOutput ?? update.content;
+  const code = answeredExitCode(answer);
+  if (code !== 0 && code !== '0') return null;
+  if (outputText(update).trim().length < rule.minChars) return null;
+  const url = /^https?:\/\//i.test(args[0] ?? '') && pageKey(args[0]) ? args[0] : null;
+  if (!url || (step.listPage && listPage(url, step.listPage.words))) return null;
+  return url;
+}
 // E55, E58 : whether a call's effect proves a step that declares a proof. The gateway measures
 // it around the call and reports the steps it proved (`proofs`, keys intent/step, a field of the
 // update that only the platform sets) ; failing that, an `output` proof reads the call's own text
@@ -539,7 +581,9 @@ function proven(step, update) {
   );
 }
 function matches(step, update, name) {
-  if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;
+  // E128 : a script of the pack that rendered the item's text reads it, as a capture would.
+  if (step.tool !== name && !step.alternativeTools?.includes(name))
+    return Boolean(scriptReadUrl(step, update, name));
   // E120 : a career_read that listed a folder or a pattern read no file (ACP : its answer ; gateway :
   // the `listing` mark the platform sets) ; it proves no reading step.
   if (
@@ -596,7 +640,11 @@ export class SkillProgress {
     this.expectedTools = [
       ...new Set(
         selection.flatMap(({ intent }) =>
-          intent.steps.flatMap((step) => [step.tool, ...(step.alternativeTools ?? [])]),
+          intent.steps.flatMap((step) => [
+            step.tool,
+            ...(step.alternativeTools ?? []),
+            ...(step.scriptReads ? [step.scriptReads.tool] : []),
+          ]),
         ),
       ),
     ].sort((a, b) => b.length - a.length);
@@ -630,6 +678,8 @@ export class SkillProgress {
     // The steps done out of order, named for the Bilan (« X avant Y » : X done before Y, which comes first).
     this.orderDetails = [];
     this.scored = new Set();
+    // E128 : the URLs whose item a script of the pack rendered in this mission, the latest VISITS.
+    this.scriptReads = [];
   }
   publish(step) {
     const { definition, ...data } = step;
@@ -661,6 +711,17 @@ export class SkillProgress {
     // done on the other).
     const exitFailed = exitFailedOf(update.rawOutput ?? update.content);
     const next = update.status === 'completed' && !exitFailed ? 'done' : 'failed';
+    // E128 : every item a script rendered counts as read, whatever the state of the reading step
+    // (several items, one step).
+    if (next === 'done')
+      for (const step of this.steps) {
+        const url = scriptReadUrl(step.definition, completed, name);
+        if (!url) continue;
+        this.scriptReads = this.scriptReads.filter((item) => item !== url);
+        this.scriptReads.push(url);
+        if (this.scriptReads.length > VISITS) this.scriptReads.shift();
+        break;
+      }
     // E55, E58 : a step that declares a proof is done only when the call's effect proves it.
     const candidates = this.steps.filter(
       (step) =>
@@ -849,7 +910,8 @@ export class SkillProgress {
         )
       )
         causes.push(cause);
-    const read = new Set(readPages.map(pageKey));
+    // E128 : an item whose text a script of the pack rendered is read, as a captured page is.
+    const read = new Set([...readPages, ...this.scriptReads].map(pageKey));
     const scored = new Set(this.scored);
     // E93 : the identifiers of each scored page, from its whole address when the turn record has it.
     const identifiers = new Map([...scored].map((page) => [page, itemIdentifiers(page)]));
@@ -859,7 +921,11 @@ export class SkillProgress {
       scored.add(page);
       identifiers.set(page, [...(identifiers.get(page) ?? []), ...itemIdentifiers(offer.url)]);
     }
-    const selected = new Set(readPages.flatMap(selectedItems));
+    // E128 : an item rendered by a script is also known by its identifier on the same host.
+    const selected = new Set([
+      ...readPages.flatMap(selectedItems),
+      ...this.scriptReads.flatMap(itemIdentifiers),
+    ]);
     const unread = sourceRead
       ? 0
       : [...scored].filter(

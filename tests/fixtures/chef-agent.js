@@ -16,7 +16,8 @@
 //   summary        chief's answer (default « Synthèse FICTIVE du chef ») ; reminderSummary likewise
 //   holdDir        a consigne « ATTENDRE:<name> » waits for <holdDir>/<name> (« BATTEMENT » : a thought
 //                  every 30 ms meanwhile) ; « ECHEC » fails the turn ; « ECRIRE:<path> » writes that file
-//                  (native edit call) ; « QUESTION » asks a form ; « LIMITE » announces a usage limit.
+//                  (native edit call) ; « QUESTION » asks a form ; « LIMITE » announces a usage limit ;
+//                  « DEPOSER:<nom> » writes <nom> in famille.dossierResultats (no tool call).
 import {
   agent,
   methods,
@@ -154,6 +155,14 @@ async function daughter(request) {
     await say('You have hit your usage limit FICTIF. Try again at 22:00.');
     throw new RequestError(-32603, 'Internal error');
   }
+  // multi-agent-v3-01 (D9) : « DEPOSER:<nom> » writes <nom> in its results folder, as a command
+  // would (no tool call : only the platform's reading of the folder can list it).
+  const deposited = consigne.match(/DEPOSER:([\w.-]+)/)?.[1];
+  if (deposited && request?.famille?.dossierResultats)
+    writeFileSync(
+      resolve(process.cwd(), request.famille.dossierResultats, deposited),
+      'a;b\n1;2\n',
+    );
   const written = consigne.match(/ECRIRE:([\w./-]+)/)?.[1];
   if (written) {
     const target = resolve(process.cwd(), written);

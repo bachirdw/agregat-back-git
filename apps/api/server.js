@@ -420,6 +420,11 @@ export function createApp({
       }
       if (match?.[2] === 'resume') {
         const old = store.get(match[1]);
+        // multi-agent-v3-01 (D4) : a sub-mission is resumed by its chief (mission_lancer reprend).
+        if (old?.famille)
+          return json(res, 409, {
+            error: 'Reprendre la mission principale : son chef relance la partie échouée',
+          });
         if (old.mode === 'workflow') return json(res, 200, await engine.resumeWorkflow(old.id));
         return json(
           res,

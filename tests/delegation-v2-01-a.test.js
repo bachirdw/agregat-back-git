@@ -551,7 +551,8 @@ test('compteur d’agents ; une sous-mission en attente du propriétaire laisse 
   assert.ok(activite.agents >= 2, JSON.stringify(activite));
   assert.equal(
     activite.texte,
-    `${activite.agents} agent(s) en activité (missions et sous-agents), dont 1 en attente du propriétaire`,
+    // multi-agent-v3-01 (D5) : Relay counts its own executions, not every agent.
+    `${activite.agents} exécution(s) Relay en activité (missions et sous-missions), dont 1 en attente du propriétaire`,
   );
   const view = await p.api(`/api/runs/${mother.id}`);
   assert.equal(view.body.activity.awaitingOwner, 1);
@@ -589,6 +590,8 @@ test('un seul niveau : ni profondeur, ni descendance, et une consigne identique 
     racine: mother.id,
     mere: mother.id,
     titre: 'Compare les rapports FICTIFS.',
+    // multi-agent-v3-01 (D9) : the results folder given by the platform.
+    dossierResultats: `relay/missions/${mother.id.slice(0, 8)}/1-compare-les-rapports-fictifs/`,
   });
   const delegation = p.app.engine.delegation;
   for (const name of ['ancestors', 'descendants']) assert.equal(name in delegation, false, name);

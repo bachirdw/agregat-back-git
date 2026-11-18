@@ -16,6 +16,7 @@ const STATE_LABEL = {
   awaiting_owner: 'attend ta réponse',
   waiting_permission: 'attend ton clic',
 };
+const LIVING_EXCLUDED = ['completed', 'failed', 'cancelled', 'interrupted'];
 export const stateLabel = (state) => STATE_LABEL[state] ?? String(state ?? 'inconnu');
 
 export function formatDuration(ms) {
@@ -64,7 +65,8 @@ export function announcedSends(answer) {
 }
 
 // `children` : [{ id, titre, agent, modele, state, durationMs, bilan, envois: { approuves,
-// parAccord, refuses } }] in launch order (multi-agent-v3-01 D6 : durationMs null = never started) ; `chiefAnswer` : the chief's own answer ; `motherSends` :
+// parAccord, refuses }, reprend? }] in launch order (multi-agent-v3-01 D6 : durationMs null = never
+// started ; D4 : `reprend` = id of the attempt it resumes) ; `chiefAnswer` : the chief's own answer ; `motherSends` :
 // the sends approved in the mother's own mission. delegation-v2-01 : `accord` (how the owner
 // accepted the sub-agents) and `synthese` (results that never reached the chief), lines written by
 // the orchestrator, are put first and after the sub-missions.
@@ -77,9 +79,11 @@ export function familySection({
 } = {}) {
   if (!children.length) return '';
   const lines = [...(accord ? [accord] : []), `Sous-missions (${children.length}) :`];
+  const byId = new Map(children.map((child) => [child.id, child]));
   children.forEach((child, index) => {
+    const resumed = byId.get(child.reprend);
     lines.push(
-      `${index + 1}. « ${child.titre} » — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
+      `${index + 1}. « ${child.titre} »${resumed ? ` (reprise de « ${resumed.titre} »)` : ''} — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
       ...quoteBilan(child.bilan, child.id),
     );
   });
@@ -93,6 +97,8 @@ export function familySection({
   lines.push(
     `Totaux de la famille vus par la plateforme : ${count('completed')} terminée(s), ${count('failed')} en échec, ${count('cancelled')} annulée(s), ${count('interrupted')} interrompue(s)${living ? `, ${living} encore en cours` : ''} ; envois des sous-missions : ${approved} approuvé(s) (dont ${sum('parAccord')} par accord de mission), ${sum('refuses')} refusé(s).`,
   );
+  // multi-agent-v3-01 (D4) : with resumed attempts, the tasks counted by their last attempt.
+  if (children.some((child) => byId.has(child.reprend))) lines.push(taskLine(children, byId));
   const announced = announcedSends(chiefAnswer);
   const seen = approved + (Number(motherSends) || 0);
   if (announced !== null && announced !== seen)
@@ -104,11 +110,35 @@ export function familySection({
     byAgent.set(child.agent, (byAgent.get(child.agent) ?? 0) + (Number(child.durationMs) || 0));
   const total = [...byAgent.values()].reduce((n, ms) => n + ms, 0);
   lines.push(
-    `Consommation : ${children.length} sous-mission(s), ${formatDuration(total)} d’agents cumulés (${[
+    `Consommation : ${children.length} sous-mission(s), ${formatDuration(total)} de durée des sous-missions Relay (${[
       ...byAgent,
     ]
       .map(([agent, ms]) => `${agent} ${formatDuration(ms)}`)
       .join(', ')}).`,
   );
   return '\n' + lines.join('\n');
+}
+
+// A task is the first attempt of a `reprend` chain ; its state is the state of its last attempt.
+function taskLine(children, byId) {
+  const tasks = new Map();
+  for (const child of children) {
+    let first = child;
+    for (let n = 0; byId.has(first.reprend) && n < children.length; n++)
+      first = byId.get(first.reprend);
+    const task = tasks.get(first.id) ?? { attempts: 0 };
+    tasks.set(first.id, { attempts: task.attempts + 1, last: child });
+  }
+  const list = [...tasks.values()];
+  const count = (state) => list.filter((task) => task.last.state === state).length;
+  const living = list.filter((task) => !LIVING_EXCLUDED.includes(task.last.state)).length;
+  const after = new Map();
+  for (const task of list)
+    if (task.last.state === 'completed' && task.attempts > 1)
+      after.set(task.attempts - 1, (after.get(task.attempts - 1) ?? 0) + 1);
+  const resumed = [...after]
+    .sort(([a], [b]) => a - b)
+    .map(([reprises, n]) => `${n} après ${reprises} reprise(s)`)
+    .join(', ');
+  return `Par tâche (dernière tentative) : ${list.length} tâche(s) : ${count('completed')} aboutie(s), ${count('failed')} en échec, ${count('cancelled')} annulée(s), ${count('interrupted')} interrompue(s)${living ? `, ${living} encore en cours` : ''}${resumed ? `, dont ${resumed}` : ''}.`;
 }

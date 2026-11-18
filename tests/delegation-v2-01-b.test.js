@@ -315,7 +315,11 @@ test('phrase du chef : une seule pour tous, informe sans prescrire, sans nom d�
     assert.doesNotMatch(text, AGENT_NAMES, text);
   assert.match(rule.DAUGHTER_RULE, /n’écris que dans des fichiers propres à ta part/);
   assert.doesNotMatch(rule.DAUGHTER_RULE, /career|pipeline|tracker/i);
-  assert.match(rule.consentMessage(undefined), /Au plus 6 sous-agents pour cette mission, 3 en/);
+  // multi-agent-v3-01 (D5) : the envelope bounds the sub-missions Relay runs, nothing more.
+  assert.match(
+    rule.consentMessage(undefined),
+    /Au plus 6 sous-missions Relay pour cette mission, 3 en/,
+  );
   assert.doesNotMatch(rule.consentMessage(undefined), /%|économi|précis/);
 });
 
@@ -346,6 +350,10 @@ test('voie 1, bouton coché : aucune question, accord écrit au premier lancemen
   assert.equal(p.results()[0].result.etat, 'en_cours');
   assert.deepEqual(p.results()[0].result.famille, {
     lancees: 1,
+    // multi-agent-v3-01 (D4) : tasks and resumptions apart.
+    taches: 1,
+    reprises: 0,
+    dansEnveloppe: 1,
     enCours: 1,
     total: 6,
     parallel: 3,
@@ -407,7 +415,13 @@ test('voie 2, demande écrite dans le prompt : pas de carte, une ligne du fil, a
   assert.equal(daughters.length, 2);
   for (const entry of daughters) {
     assert.deepEqual(entry.servers, ['platform']);
-    assert.ok(entry.prompt.instructions.endsWith('\n' + rule.DAUGHTER_RULE));
+    // multi-agent-v3-01 (D9) : the sub-mission's sentence names its results folder.
+    assert.ok(entry.prompt.famille.dossierResultats);
+    assert.ok(
+      entry.prompt.instructions.endsWith(
+        '\n' + rule.daughterRule(entry.prompt.famille.dossierResultats),
+      ),
+    );
     assert.doesNotMatch(entry.prompt.instructions, /mission_lancer/);
   }
 });

@@ -5,6 +5,7 @@
 // delegation-v2-01 (plan v2 du 18/11, sections 2, 3.4 et 6) : the texts shown to the owner (card,
 // line of the thread, Bilan lines) are written here too.
 import { z } from 'zod';
+import { stateLabel } from './family-bilan.js';
 
 // Name of the MCP server that lends the mission tools to the chief.
 export const MISSION_SERVER = 'relay-missions';
@@ -31,7 +32,7 @@ const envelopeOf = (delegation) => ({
 // The chief's sentence (plan v2, section 2) : one text for every agent ; only its end follows the
 // owner's acceptance (given, refused, or still to ask). It informs and prescribes nothing.
 const CHIEF_RULE =
-  'Tu peux confier une partie délimitée de cette mission à une sous-mission (outils mission_lancer, mission_suivre, mission_attendre, mission_annuler) quand c’est vraiment utile : des parties indépendantes qui peuvent avancer en même temps (par exemple plusieurs sources indépendantes à consulter), un gros volume à répartir, ou un long travail annexe qui encombrerait ta mémoire de travail ; pour une demande simple, ou une suite d’étapes qui dépendent l’une de l’autre, travailler seul est souvent le mieux ; rien ne t’oblige à déléguer, tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
+  'Tu peux confier une partie délimitée de cette mission à une sous-mission (outils mission_lancer, mission_suivre, mission_attendre, mission_annuler) quand c’est vraiment utile : des parties indépendantes qui peuvent avancer en même temps (par exemple plusieurs sources indépendantes à consulter), un gros volume à répartir, ou un long travail annexe qui encombrerait ta mémoire de travail ; pour une demande simple, ou une suite d’étapes qui dépendent l’une de l’autre, travailler seul est souvent le mieux ; rien ne t’oblige à déléguer, tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; chaque sous-mission a son dossier de résultats (dossierResultats) : pour de gros résultats, demande-lui un fichier dans un format précis et rassemble les fichiers par un script ou un outil plutôt qu’en les recopiant ; pour un travail répétitif, trouve d’abord la méthode sur un exemple et donne-la dans informations ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
 const REFUSED = 'le propriétaire a refusé les sous-agents pour cette mission : continue seul.';
 // What mission_lancer gives back once the owner refused (refus_proprietaire).
 export const REFUSED_MESSAGE = 'L' + REFUSED.slice(1, -1) + ', sans lui reposer la question.';
@@ -49,8 +50,17 @@ export function chiefRule(delegation) {
 }
 
 // The sub-mission's sentence (plan v2, section 6) : no file nor script of a Skill is named here.
-export const DAUGHTER_RULE =
-  'Tu es une sous-mission lancée par l’agent principal d’une mission du propriétaire ; la demande du propriétaire, jointe, prime ; ta consigne est la partie qui t’est confiée ; rends tes résultats dans ta réponse finale, qui est remise à l’agent principal ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans des fichiers propres à ta part (un nom qui commence par ton titre, ou par l’identifiant que l’agent principal t’a donné) et laisse-lui les fichiers communs à la mission ; tes questions au propriétaire et tes cartes d’envoi lui arrivent directement.';
+const DAUGHTER_HEAD =
+  'Tu es une sous-mission lancée par l’agent principal d’une mission du propriétaire ; la demande du propriétaire, jointe, prime ; ta consigne est la partie qui t’est confiée ; ';
+const DAUGHTER_TAIL =
+  ' et laisse-lui les fichiers communs à la mission ; tes questions au propriétaire et tes cartes d’envoi lui arrivent directement.';
+export const DAUGHTER_RULE = `${DAUGHTER_HEAD}rends tes résultats dans ta réponse finale, qui est remise à l’agent principal ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans des fichiers propres à ta part (un nom qui commence par ton titre, ou par l’identifiant que l’agent principal t’a donné)${DAUGHTER_TAIL}`;
+// multi-agent-v3-01 (D9) : with a results folder given by the platform, the detailed results go in
+// its files and the final answer stays short ; without one, the sentence above.
+export const daughterRule = (folder) =>
+  folder
+    ? `${DAUGHTER_HEAD}ton dossier de résultats est ${folder} (famille.dossierResultats) : écris-y tes résultats détaillés (listes, tableaux, données, documents), dans des fichiers au format que demande ta consigne ; ta réponse finale, remise à l’agent principal, reste courte : ce qui est fait, les chiffres clés, les chemins de tes fichiers, ce qui manque ou a échoué ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans ton dossier ou dans des fichiers propres à ta part${DAUGHTER_TAIL}`
+    : DAUGHTER_RULE;
 
 // The one synthesis turn (plan v2, Codex 4) : the results of the sub-missions that were still alive
 // at the end of the chief's turn are joined (familyResults), once they have all ended.
@@ -62,7 +72,7 @@ export const SYNTHESIS_TURN =
 // The card of the first sub-mission, when the owner has not accepted yet (question of the mother).
 export function consentMessage(delegation) {
   const { total, parallel } = envelopeOf(delegation);
-  return `Autoriser les sous-agents\nL’agent de ta mission pourra, s’il le juge utile, confier des parties du travail à d’autres agents qui travaillent en même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite d’usage peut être atteinte plus vite. Autoriser n’oblige pas : pour une demande simple, un seul agent travaillera. Au plus ${total} sous-agents pour cette mission, ${parallel} en même temps (modifiables). Les envois restent à ton clic.`;
+  return `Autoriser les sous-agents\nL’agent de ta mission pourra, s’il le juge utile, confier des parties du travail à d’autres agents qui travaillent en même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite d’usage peut être atteinte plus vite. Autoriser n’oblige pas : pour une demande simple, un seul agent travaillera. Au plus ${total} sous-missions Relay pour cette mission, ${parallel} en même temps (modifiables) ; les sous-agents internes que les agents lancent d’eux-mêmes ne sont ni comptés ni bornés par cette limite. Les envois restent à ton clic.`;
 }
 export const CONSENT_CHOICES = Object.freeze([
   { const: 'autoriser', title: 'Autoriser pour cette mission' },
@@ -102,6 +112,12 @@ export const REFUSED_CHILD = 'Sous-agents refusés par le propriétaire';
 export const MOTHER_FAILED = 'Arrêtée : la mission principale a échoué';
 export const motherFailedLine = (n) =>
   `${n} sous-mission(s) arrêtée(s) avec l’échec de la mission principale.`;
+// multi-agent-v3-01 (D3) : the cause of a sub-mission whose prerequisite did not succeed.
+export const prerequisiteFailed = (titre, state) =>
+  `Prérequis « ${titre} » non abouti (${stateLabel(state)})`;
+// multi-agent-v3-01 (D10) : the error `enveloppe_atteinte` given to the chief.
+export const envelopeReached = (total) =>
+  `Enveloppe acceptée par le propriétaire atteinte (${total} sous-missions comptées) : la plateforme consulte le propriétaire (ne lui pose pas la question toi-même) ; relance le même appel après sa réponse (mission_suivre donne l’enveloppe : famille.total et famille.dansEnveloppe).`;
 export function synthesisMissed(titles) {
   const named = titles.map((title) => `« ${title} »`).join(', ');
   return `Synthèse finale non faite : la réponse du chef a été écrite avant la fin de ${named} ; leurs résultats ne lui ont pas été remis.`;
@@ -112,7 +128,7 @@ const id = z.string().uuid();
 export const MISSION_TOOLS = {
   mission_lancer: {
     description:
-      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question).',
+      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers.',
     schema: z
       .object({
         consigne: z.string().trim().min(1).max(8000),
@@ -121,12 +137,19 @@ export const MISSION_TOOLS = {
         modele: z.string().trim().max(200).optional(),
         fichiers: z.array(z.string().trim().min(1).max(300)).max(20).optional(),
         demandeDuProprietaire: z.boolean().optional(),
+        // multi-agent-v3-01 (D8, D3, D4).
+        objectif: z.string().trim().min(1).max(2000).optional(),
+        informations: z.string().trim().min(1).max(4000).optional(),
+        perimetre: z.string().trim().min(1).max(2000).optional(),
+        resultatAttendu: z.string().trim().min(1).max(2000).optional(),
+        apres: z.array(id).min(1).max(20).optional(),
+        reprend: id.optional(),
       })
       .strict(),
   },
   mission_suivre: {
     description:
-      'Où en sont tes sous-missions (sans id : toutes) : état, depuis combien de secondes, ce qu’elles attendent, outils appelés ; avec details et une sous-mission finie, sa réponse, son Bilan, ses fichiers et ses envois. Donne aussi les agents installés sur la machine avec les modèles que chacun annonce, et le nombre d’agents en activité sur la machine (missions et sous-agents), dont ceux en attente du propriétaire.',
+      'Où en sont tes sous-missions (sans id : toutes) : état, depuis combien de secondes, ce qu’elles attendent, outils appelés ; avec details et une sous-mission finie, sa réponse, son Bilan, ses fichiers et ses envois. Donne aussi les agents installés sur la machine avec les modèles que chacun annonce, le nombre d’exécutions Relay en activité sur la machine (missions et sous-missions), dont celles en attente du propriétaire, et l’enveloppe de la mission (famille : total, parallel, sous-missions lancées, tâches, reprises, sous-missions comptées dans l’enveloppe).',
     schema: z
       .object({
         id: id.optional(),

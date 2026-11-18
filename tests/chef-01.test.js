@@ -252,7 +252,16 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
   assert.equal(launchA.result.etat, 'en_cours');
   assert.equal(launchA.result.titre, 'Rapport A');
   assert.equal(launchB.result.titre, 'Résume le rapport FICTIF B.');
-  assert.deepEqual(launchB.result.famille, { lancees: 2, enCours: 2, total: 6, parallel: 3 });
+  // multi-agent-v3-01 (D4) : tasks and resumptions apart.
+  assert.deepEqual(launchB.result.famille, {
+    lancees: 2,
+    taches: 2,
+    reprises: 0,
+    dansEnveloppe: 2,
+    enCours: 2,
+    total: 6,
+    parallel: 3,
+  });
   assert.equal(waited.isError, false, JSON.stringify(waited.result));
   assert.equal(waited.result.delaiAtteint, false);
   assert.deepEqual(waited.result.enCours, []);
@@ -290,12 +299,26 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
   assert.deepEqual(
     children.map((child) => [child.id, child.state, child.famille]),
     [
-      // delegation-v2-01 : one level, no depth.
-      [launchA.result.id, 'completed', { racine: mother.id, mere: mother.id, titre: 'Rapport A' }],
+      // delegation-v2-01 : one level, no depth ; multi-agent-v3-01 (D9) : the results folder.
+      [
+        launchA.result.id,
+        'completed',
+        {
+          racine: mother.id,
+          mere: mother.id,
+          titre: 'Rapport A',
+          dossierResultats: `relay/missions/${mother.id.slice(0, 8)}/1-rapport-a/`,
+        },
+      ],
       [
         launchB.result.id,
         'completed',
-        { racine: mother.id, mere: mother.id, titre: 'Résume le rapport FICTIF B.' },
+        {
+          racine: mother.id,
+          mere: mother.id,
+          titre: 'Résume le rapport FICTIF B.',
+          dossierResultats: `relay/missions/${mother.id.slice(0, 8)}/2-resume-le-rapport-fictif-b/`,
+        },
       ],
     ],
   );
@@ -310,7 +333,13 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
       'Compare deux rapports FICTIFS avec des sous-missions.',
     );
     assert.equal(entry.prompt.famille.mere, mother.id);
-    assert.ok(entry.prompt.instructions.endsWith('\n' + rule.DAUGHTER_RULE));
+    // multi-agent-v3-01 (D9) : the sub-mission's sentence names its results folder.
+    assert.ok(entry.prompt.famille.dossierResultats);
+    assert.ok(
+      entry.prompt.instructions.endsWith(
+        '\n' + rule.daughterRule(entry.prompt.famille.dossierResultats),
+      ),
+    );
     assert.doesNotMatch(entry.prompt.instructions, /Mode workflow accepté/);
   }
   const types = p.types(mother.id);
@@ -782,7 +811,11 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
     summary,
     /Confrontation : le chef annonce 3 envoi\(s\) ; la plateforme a vu 0 envoi\(s\) approuvé\(s\) dans la famille\./,
   );
-  assert.match(summary, /Consommation : 3 sous-mission\(s\), .* d’agents cumulés \(fixture /);
+  // multi-agent-v3-01 (D5) : the duration of the sub-missions Relay ran.
+  assert.match(
+    summary,
+    /Consommation : 3 sous-mission\(s\), .* de durée des sous-missions Relay \(fixture /,
+  );
   // The chief's answer stays his ; the section belongs to the platform's lines.
   assert.equal(row.result.answer, 'Tableau FICTIF. J’ai envoyé 3 e-mails.');
   assert.ok(row.result.platformNotes.includes('Sous-missions (3) :'));
@@ -810,13 +843,16 @@ test('consigne du chef et des sous-missions identique pour tous les profils d’
     const daughter = daughterPrompts(p)[0].prompt.instructions;
     seen.push({
       chief: chief.slice(chief.lastIndexOf('\n') + 1),
-      daughter: daughter.slice(daughter.lastIndexOf('\n') + 1),
+      // multi-agent-v3-01 (D9) : the folder names its mother ; the sentence is the same otherwise.
+      daughter: daughter
+        .slice(daughter.lastIndexOf('\n') + 1)
+        .replace(`relay/missions/${mother.id.slice(0, 8)}/`, 'relay/missions/<mere>/'),
       tools: JSON.stringify(p.tools().map(({ name, description }) => [name, description])),
     });
   }
   for (const entry of seen) assert.deepEqual(entry, seen[0]);
   assert.equal(seen[0].chief, rule.chiefRule(ACCEPTED({ total: 4, parallel: 2 })));
-  assert.equal(seen[0].daughter, rule.DAUGHTER_RULE);
+  assert.equal(seen[0].daughter, rule.daughterRule('relay/missions/<mere>/1-tache-fictive/'));
   for (const text of [seen[0].chief, seen[0].daughter, seen[0].tools, rule.SYNTHESIS_TURN])
     assert.doesNotMatch(text, AGENT_NAMES, text);
 });

@@ -1,4 +1,4 @@
-# Sous-agents d'une mission : contrat de l'API et des outils (`delegation-v2-01`)
+# Sous-agents d'une mission : contrat de l'API et des outils (`delegation-v2-01`, `multi-agent-v3-01`)
 
 Délégation à des sous-missions, étape 1 du plan v2 du 18/11/2026
 (`.manager/reports/delegation-conception-v2-18-11.md` de l'arbre `agregat-back-chef`), qui remplace le contrat du sprint
@@ -7,21 +7,33 @@ Délégation à des sous-missions, étape 1 du plan v2 du 18/11/2026
 réponse finale. **Autoriser n'oblige jamais** : Relay ne lit pas le prompt, ne compte pas les étapes et ne pousse pas à
 déléguer. Ce document est le contrat que le front peut suivre ; ce qui n'existe pas encore est dit en fin de page.
 
-## 1. Qui reçoit les outils
+Sprint `multi-agent-v3-01` (19/11/2026, branche de test `delegation-v2-01`) : interrupteur « Mode multi-agent »
+(`multiAgent`, éteint par défaut), arrêt des sous-missions quand la mère échoue, durée comptée depuis le départ réel,
+prérequis (`apres`), reprises reliées (`reprend`), tâche structurée, dossier de résultats par sous-mission, textes qui
+disent que les limites ne portent que sur les sous-missions Relay.
 
-- **Toute mission menée par un agent** (mode agent : la session ACP de la mission) reçoit, dès l'ouverture de sa
-  session, un second serveur MCP `relay-missions` (après le serveur de capacités, qui reste en tête) et, à la fin de ses
-  consignes, la phrase du chef (section 5).
-- **Jamais** une sous-mission (un seul niveau) ; **jamais** un parcours qui n'est pas mené par un agent (DAG d'un pack,
-  `mode: "workflow"`).
+## 1. Qui reçoit les outils : l'interrupteur `multiAgent`
+
+- **Champ `multiAgent` de `POST /api/runs`** (booléen, absent = éteint ; c'est l'interrupteur « Mode multi-agent » du
+  front, distinct de l'accord de consommation de la section 2). Avec `multiAgent: true`, la mission part en mode agent
+  (un `mode: "workflow"` envoyé par défaut n'en fait pas un DAG) et, dès l'ouverture de la session de son agent, reçoit
+  un second serveur MCP `relay-missions` (après le serveur de capacités, qui reste en tête) et, à la fin de ses
+  consignes, la phrase du chef (section 5). Une valeur qui n'est pas un booléen rend la requête invalide.
+- **Sans `multiAgent`** (ou `false`) : ni second serveur, ni phrase du chef, la route interne rend 403 ; la mission est
+  identique à la base `48a2f4e` (consigne envoyée mot pour mot, serveurs `['platform']`, suite d'événements, état,
+  réponse, clés de la ligne), prouvé **sans aucune variable d'environnement** par `tests/delegation-v2-01-b.test.js`,
+  qui fait tourner le code de la base extrait par `git archive`. Le champ `delegation` seul (accord sans le mode) n'a
+  **aucun effet** : ni outils, ni mode agent forcé.
+- **Le front doit envoyer `multiAgent: true` quand l'interrupteur est allumé** : sans lui, aucune mission ne peut
+  déléguer par Relay, même si son prompt le demande.
+- La reprise d'une mission (`POST /api/runs/:id/resume`) recopie `multiAgent: true` (jamais pour une sous-mission).
+- **Jamais** une sous-mission (un seul niveau) ; **jamais** un parcours qui n'est pas mené par un agent.
 - **Réglage de retrait** : `AGENT_PLATFORM_DELEGATION=0` dans l'environnement de l'API, lu au démarrage comme les autres
-  réglages `AGENT_PLATFORM_*`, retire outils et phrase à toutes les missions. Avec ce réglage, la consigne envoyée à
-  l'agent, la liste des serveurs MCP et le déroulement d'une mission sont identiques à la base `48a2f4e` (prouvé par
-  `tests/delegation-v2-01-b.test.js`, qui fait tourner le code de la base extrait par `git archive`). Le champ
-  `delegation` d'une requête est alors sans effet : il ne force plus le mode agent (`tests/review-delegation-v2-01.test.js`).
-- **Une mission qui ne délègue pas ne change pas** : tant que le chef n'a appelé aucun `mission_lancer`, aucun événement,
-  aucune lecture de plus, aucune ligne de Bilan, aucun tour de plus, aucune carte. Seuls changent la phrase et le second
-  serveur.
+  réglages `AGENT_PLATFORM_*`, retire outils et phrase à toutes les missions, même avec `multiAgent` (mission alors
+  identique à la base, hors la clé `multiAgent` de sa ligne).
+- **Une mission avec `multiAgent` qui ne délègue pas ne change pas** : tant que le chef n'a appelé aucun
+  `mission_lancer`, aucun événement, aucune lecture de plus, aucune ligne de Bilan, aucun tour de plus, aucune carte.
+  Seuls changent la phrase et le second serveur.
 
 ## 2. L'accord du propriétaire : trois voies
 
@@ -58,12 +70,11 @@ garde (`POST /api/runs/:id/resume`). L'accord d'**envoi** n'est jamais concerné
 | `parallel`   | entier 1 à 8                             | **3**  | sous-missions en même temps au plus                                                                         |
 | `acceptedAt` | date ISO avec fuseau                     | absent | heure de l'accord                                                                                           |
 
-- **Case non cochée : ne pas envoyer le champ.** Sans champ, les outils sont prêtés quand même et l'accord est demandé
-  par la carte au premier lancement (voie 3), ou donné par la demande écrite dans le prompt (voie 2).
+- **Case non cochée : ne pas envoyer le champ.** Sans champ (et avec `multiAgent: true`), l'accord est demandé par la
+  carte au premier lancement (voie 3), ou donné par la demande écrite dans le prompt (voie 2).
 - Les anciennes valeurs `case`, `mot` et `proposition` de `chef-01` sont refusées (requête invalide).
-- Avec `accepted: true` dans la requête, et seulement alors, la mission part en mode agent (un `mode: "workflow"` envoyé
-  par défaut par le front n'en fait pas un DAG), sauf avec le réglage de retrait. Les outils prêtés à toutes les missions
-  ne forcent rien.
+- `delegation` sans `multiAgent` : aucun effet (section 1). C'est `multiAgent`, et non plus l'accord, qui fait partir
+  la mission en mode agent.
 - Rien n'est écrit à la création : l'événement `delegation_accepted` n'arrive qu'au premier `mission_lancer` de
   l'exécution (voies 1 et 2) ou à l'accord sur la carte (voie 3).
 
@@ -114,15 +125,23 @@ agents (`packages/orchestrator/delegation-rule.js`). Chaque outil rend du JSON e
 `isError: true` et `{ "erreur": "<code>", "message": "…" }`. Un appel ne voit et ne touche que les sous-missions de la
 mission qui appelle (et de ses exécutions reprises).
 
-| Outil              | Paramètres                                                                                                                            | Résultat                                                                                                                                                                                                                                                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mission_lancer`   | `consigne` (1 à 8 000 car.), `titre` (≤ 80), `agent`, `modele`, `fichiers` (≤ 20 chemins relatifs), `demandeDuProprietaire` (booléen) | `{ id, titre, etat: "en_cours"\|"en_file"\|"attend_accord", agent, modele, famille: { lancees, enCours, total, parallel } }`                                                                                                                                                                                                    |
-| `mission_suivre`   | `id` (facultatif), `details` (défaut `false`)                                                                                         | `{ missions: [{ id, titre, agent, modele, etat, depuis, inactiveDepuis, attend, outils, dernierOutil }], agents: [{ id, disponible, modeles: [{ id, nom }], modeleParDefaut }], activite: { agents, enAttenteDuProprietaire, texte }, nature }` ; avec `details` et une sous-mission finie, les champs de `terminees[]` en plus |
-| `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)      | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                                                                                                                                   |
-| `mission_annuler`  | `id`, `raison` (≤ 500)                                                                                                                | `{ id, etat: "cancelled" }` ; une sous-mission déjà finie rend son état                                                                                                                                                                                                                                                         |
+| Outil              | Paramètres                                                                                                                                                                                                                                                         | Résultat                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mission_lancer`   | `consigne` (1 à 8 000 car.), `titre` (≤ 80), `agent`, `modele`, `fichiers` (≤ 20 chemins relatifs), `demandeDuProprietaire` (booléen), `objectif`, `perimetre`, `resultatAttendu` (≤ 2 000 chacun), `informations` (≤ 4 000), `apres` (1 à 20 ids), `reprend` (id) | `{ id, titre, etat: "en_cours"\|"en_file"\|"attend_accord"\|"attend_prerequis"\|"cancelled", agent, modele, dossierResultats?, famille: { lancees, taches, reprises, dansEnveloppe, enCours, total, parallel } }`                                                                                                                                                                                                |
+| `mission_suivre`   | `id` (facultatif), `details` (défaut `false`)                                                                                                                                                                                                                      | `{ missions: [{ id, titre, agent, modele, etat, depuis, inactiveDepuis, attend, outils, dernierOutil }], agents: [{ id, disponible, modeles: [{ id, nom }], modeleParDefaut }], activite: { agents, enAttenteDuProprietaire, texte }, famille: { lancees, taches, reprises, dansEnveloppe, enCours, total, parallel }, nature }` ; avec `details` et une sous-mission finie, les champs de `terminees[]` en plus |
+| `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)                                                                                                                                   | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                                                                                                                                                                                                                    |
+| `mission_annuler`  | `id`, `raison` (≤ 500)                                                                                                                                                                                                                                             | `{ id, etat: "cancelled" }` ; une sous-mission déjà finie rend son état                                                                                                                                                                                                                                                                                                                                          |
 
 Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
-`introuvable`, `mission_terminee`, `parametres_invalides`. Le refus `boucle` de `chef-01` est supprimé (un seul niveau).
+`introuvable` (aussi pour un id de `apres` ou de `reprend` qui n'est pas une sous-mission de cette mission),
+`mission_terminee`, `parametres_invalides` (champ inconnu, borne dépassée, `reprend` d'une sous-mission en cours ou
+réussie). Le refus `boucle` de `chef-01` est supprimé (un seul niveau). Un paramètre hors schéma est d'abord refusé par
+le serveur MCP lui-même (erreur de validation de l'outil, l'appel n'atteint pas la plateforme) ; la plateforme refait
+le contrôle et rend `parametres_invalides` à un appel direct de la route interne.
+
+Message de `enveloppe_atteinte` (D10, `envelopeReached`) : « Enveloppe acceptée par le propriétaire atteinte (T
+sous-missions comptées) : la plateforme consulte le propriétaire (ne lui pose pas la question toi-même) ; relance le même
+appel après sa réponse (mission_suivre donne l'enveloppe : famille.total et famille.dansEnveloppe). »
 
 Résultat `attend_accord` de `mission_lancer` (voie 3, chaque lancement en attente, le premier comme les suivants) : il
 porte en plus `note`, le même texte pour tous les agents (`CONSENT_PENDING_NOTE`, correctif E139 du 19/11) : « La
@@ -137,10 +156,41 @@ Règles :
 - **Agent et modèle** : choisis par le chef à chaque lancement, parmi les agents et les modèles annoncés que donne
   `mission_suivre` (même source que le contrôle « Modèle non annoncé ») ; sans choix, ceux de la mère. Pack, Skill,
   espace, navigateur, domaines et budget : ceux de la mère.
-- **Sous-mission retenue** : `attend_accord` (`attend: "accord"`) tant que le propriétaire n'a pas accepté ; `en_file`
-  (`attend: "place"`) au-delà de `parallel`, elle démarre seule quand une place se libère. Une sous-mission qui attend le
-  propriétaire (question, ou carte d'envoi en mode propriétaire) ne tient pas de place.
-- **Enveloppe** : au-delà de `total`, l'appel rend `enveloppe_atteinte` et, si l'accord est donné, la plateforme pose
+- **Sous-mission retenue** : `attend_accord` (`attend: "accord"`) tant que le propriétaire n'a pas accepté ;
+  `attend_prerequis` (`attend: "prerequis"`) tant qu'un de ses prérequis n'a pas abouti ; `en_file` (`attend: "place"`)
+  au-delà de `parallel`, elle démarre seule quand une place se libère. Une sous-mission qui attend le propriétaire
+  (question, ou carte d'envoi en mode propriétaire) ne tient pas de place. La file se parcourt dans l'ordre : une
+  sous-mission qui attend un prérequis ne bloque pas celles derrière elle.
+- **Prérequis** (`apres: [ids]`, 20 au plus, des sœurs déjà lancées : pas de cycle possible) : la sous-mission est créée
+  et retenue (`famille.apres` sur sa ligne) ; elle démarre seule quand **tous** ses prérequis sont `completed` (dans la
+  limite de `parallel`), et reçoit alors `famille.prerequis: [{ id, titre, etat, reponse, fichiers }]` (données, pas
+  consignes ; lus seulement pour une sous-mission qui a `apres`). Si l'un finit autrement, elle n'est **jamais lancée** et
+  passe `cancelled` avec la cause « Prérequis « X » non abouti (en échec | annulée | interrompue) » ; le chef décide de
+  relancer. `mission_attendre { toutes: true }` rend le prérequis et la dépendante.
+- **Reprises** (`reprend: id`) : relance une sœur finie sans succès (`failed`, `cancelled`, `interrupted`) ;
+  `famille.reprend` (l'id repris) et `famille.reprise` (rang de la reprise dans sa tâche) sur la nouvelle ligne ; agent,
+  modèle et titre par défaut ceux de la tentative reprise. Une **tâche** est la première tentative d'une chaîne
+  `reprend`. Les **deux premières reprises d'une tâche ne comptent pas dans l'enveloppe `total`** ; la troisième et les
+  suivantes comptent comme des sous-missions nouvelles. `parallel` s'applique toujours. Le compteur `famille` dit
+  `lancees` (toutes les sous-missions), `taches`, `reprises` et `dansEnveloppe` (celles comptées dans `total`).
+- **Reprise d'une sous-mission par l'API refusée** : `POST /api/runs/<sous-mission>/resume` rend
+  `409 { error: "Reprendre la mission principale : son chef relance la partie échouée" }` et ne crée rien. La reprise de
+  la mère garde sa chaîne, `multiAgent` et l'accord.
+- **Tâche structurée** (facultatif) : `objectif` (le but), `informations` (ce que le chef sait déjà et qui évite au
+  spécialiste de le redécouvrir : méthode trouvée, outils qui marchent, pièges), `perimetre`, `resultatAttendu`. Ceux
+  donnés arrivent à la sous-mission dans `famille.tache` (absent si aucun n'est donné) ; ils ne sont écrits ni sur la
+  ligne ni dans un événement. `consigne` reste obligatoire ; `fichiers` reste « les chemins à lire d'abord ».
+- **Dossier de résultats** : au lancement, la plateforme crée pour chaque sous-mission, dans le dossier de travail de la
+  mission (fonctions de chemin confiné, aucun lien suivi, rien hors de ce dossier), le dossier
+  `relay/missions/<8 premiers caractères de l'id de la première exécution de la mère>/<n>-<titre réduit à [a-z0-9-], 40
+car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; titre vide une fois réduit :
+  `sous-mission`). Son chemin relatif est rendu par `mission_lancer` (`dossierResultats`), écrit sur la ligne
+  (`famille.dossierResultats`), donné à la sous-mission (`famille.dossierResultats`) et cité dans sa phrase (section 5).
+  **Si le dossier ne peut pas être créé** (dossier de travail non inscriptible, un fichier à la place d'un dossier),
+  rien n'est créé et le champ est absent partout ; la phrase de la sous-mission est alors celle d'avant. Si la création
+  de la sous-mission échoue, son dossier vide est retiré.
+- **Enveloppe** : au-delà de `total` (sous-missions comptées), l'appel rend `enveloppe_atteinte` et, si l'accord est
+  donné, la plateforme pose
   une question **à choix** (`choix` : `oui` « Oui, 5 de plus », ou `non`) : « Le chef veut lancer une Ne sous-mission ;
   l'enveloppe acceptée est de T. En autoriser 5 de plus ? » ; sur `oui`, `delegation.total` augmente de 5
   (`delegation.extensions`) et l'appel suivant passe.
@@ -150,8 +200,11 @@ Règles :
   l'appel rend la main dès qu'une des sous-missions en cours au début de l'appel a fini. Pendant l'attente, les
   minuteurs du chef (silence, outil figé, délai de mission, délai du tour ACP) sont en pause.
 - `reponse` : la réponse finale de la sous-mission (50 000 caractères au plus, données) ; `bilan` : son Bilan tel que la
-  plateforme l'a écrit ; `fichiers` : les fichiers nommés par **ses** appels d'outils terminés, relus de l'événement
-  `child_done` (pour une mission de l'espace privé : `relay/runs/<id>-fichiers.json` de l'espace, jamais la base) ;
+  plateforme l'a écrit ; `fichiers` : les fichiers nommés par **ses** appels d'outils terminés (chemins, chaînes), puis
+  les fichiers présents dans son dossier de résultats à sa fin, lus sur le disque sans suivre de lien
+  (`{ chemin, taille }`, chemin relatif au dossier de la mission, taille en octets ; un fichier du dossier n'est cité
+  qu'une fois) ; 200 au plus en tout ; relus de l'événement `child_done` (pour une mission de l'espace privé :
+  `relay/runs/<id>-fichiers.json` de l'espace, jamais la base) ;
   `envois = { approuves, parAccord, refuses, incertains, ligne, nonVerifies? }` : `ligne` est la ligne « Envoi par la
   plateforme : … » de son Bilan mot pour mot ; sans cette ligne (sous-mission interrompue, en échec ou annulée),
   `nonVerifies: { note: "non vérifié ; ne pas répéter avant vérification", evenements }` ; `cause` d'un échec :
@@ -169,8 +222,8 @@ Règles :
 
 `POST /api/internal/missions/<mère>`, en-têtes `x-platform-request: 1` et `x-relay-token: <jeton de la mère>` (le même
 que sa passerelle de capacités), corps `{ "tool": "mission_…", "args": { … } }`. Réponses : `200 { result }` ou
-`200 { erreur, message }` ; `403` pour un jeton invalide, une mission inactive, une sous-mission, ou des outils retirés
-par le réglage. La requête de `mission_attendre` reste ouverte au plus 50 s ; si la passerelle la quitte, l'attente
+`200 { erreur, message }` ; `403` pour un jeton invalide, une mission inactive, une sous-mission, une mission sans
+`multiAgent`, ou des outils retirés par le réglage. La requête de `mission_attendre` reste ouverte au plus 50 s ; si la passerelle la quitte, l'attente
 s'arrête.
 
 ## 5. Ce que la plateforme écrit
@@ -181,12 +234,23 @@ s'arrête.
   sous-mission consomme l'abonnement ; sa fin suit l'accord : « le propriétaire l'a autorisé : jusqu'à N sous-missions,
   M à la fois », « … indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire
   avant la première sous-mission (ne lui pose pas la question toi-même) ; s'il refuse, continue seul », ou « le
-  propriétaire a refusé les sous-agents pour cette mission : continue seul ».
-- **Phrase de la sous-mission** : la demande du propriétaire, jointe, prime ; rendre ses résultats dans sa réponse
-  finale ; d'autres sous-missions peuvent travailler dans le même espace : n'écrire que dans des fichiers propres à sa
-  part et laisser à l'agent principal les fichiers communs. Elle ne nomme aucun fichier ni script d'un Skill ; ce qui
-  est propre à un Skill se dit dans son pack.
-- **Lien** : chaque sous-mission porte `famille: { racine, mere, titre }` (plus de `profondeur`) ; la mère porte
+  propriétaire a refusé les sous-agents pour cette mission : continue seul ». Elle propose aussi (`multi-agent-v3-01`,
+  D9) : chaque sous-mission a son dossier de résultats ; pour de gros résultats, lui demander un fichier dans un format
+  précis et rassembler les fichiers par un script ou un outil plutôt qu'en les recopiant ; pour un travail répétitif,
+  trouver d'abord la méthode sur un exemple et la donner dans `informations`. Aucune recette, aucun nom de site, de
+  Skill ou d'agent.
+- **Phrase de la sous-mission** (`daughterRule`) : la demande du propriétaire, jointe, prime ; avec un dossier de
+  résultats, elle le nomme : y écrire les résultats détaillés (listes, tableaux, données, documents), dans des fichiers
+  au format que demande la consigne, et garder une **réponse finale courte** (ce qui est fait, chiffres clés, chemins
+  des fichiers, ce qui manque ou a échoué) ; sans dossier, rendre ses résultats dans sa réponse finale (phrase
+  d'avant, `DAUGHTER_RULE`) ; d'autres sous-missions peuvent travailler dans le même espace : n'écrire que dans son
+  dossier ou des fichiers propres à sa part et laisser à l'agent principal les fichiers communs. Elle ne nomme aucun
+  fichier ni script d'un Skill ; ce qui est propre à un Skill se dit dans son pack.
+- **Ce que reçoit la sous-mission** (champ `famille` de son prompt) : `demandeDuProprietaire`, `mere`, `soeurs`,
+  `fichiers`, et selon le cas `tache`, `dossierResultats`, `prerequis`.
+- **Lien** : chaque sous-mission porte `famille: { racine, mere, titre }` (plus de `profondeur`), et selon le cas
+  `apres`, `reprend`, `reprise`, `dossierResultats` ; `startedAt` (heure de son premier état `running`) est écrit sur
+  sa ligne à son départ ; la mère porte
   `estMere: true` dès son premier lancement (recopié par une reprise). La liste des sous-missions se lit dans la base
   (`store.children`), jamais par `store.list()`. En mode non propriétaire, une sous-mission d'une mission de l'espace
   privé est titrée « Sous-mission N ».
@@ -202,8 +266,21 @@ pendingQuestion, pendingPermission }]` et `activity: { agents, awaitingOwner }` 
   selon l'agent » / « donné sur la carte au premier lancement »), puis « Sous-missions (n) » : une entrée par
   sous-mission (titre, agent, modèle, état, durée, identifiant) suivie de **son Bilan cité mot pour mot** ; la ligne
   « Synthèse finale non faite » le cas échéant ; les totaux vus par la plateforme ; la confrontation des envois
-  annoncés ; la consommation (durée cumulée des agents). Refus sur la carte : la seule ligne « Sous-agents proposés par
-  l'agent, refusés : mission menée par un seul agent. »
+  annoncés ; la consommation (« N sous-mission(s), D de durée des sous-missions Relay (par agent) »). Refus sur la
+  carte : la seule ligne « Sous-agents proposés par l'agent, refusés : mission menée par un seul agent. »
+  - **Durée** d'une sous-mission : de son premier état `running` (`startedAt`) à sa fin ; l'attente de place, d'accord
+    ou de prérequis n'est pas comptée. Une sous-mission jamais partie : « jamais démarrée » (0 dans la consommation).
+    Limite : une sous-mission enregistrée avant `multi-agent-v3-01` n'a pas `startedAt` et s'affiche « jamais
+    démarrée » au Bilan d'une mère reprise (pas de repli sur sa création, pour ne jamais compter l'attente).
+  - **Reprises** : l'entrée d'une reprise dit « (reprise de « X ») » ; s'il y a au moins une reprise, une ligne compte
+    les tâches par leur dernière tentative : « Par tâche (dernière tentative) : N tâche(s) : a aboutie(s), b en échec,
+    c annulée(s), d interrompue(s), dont k après r reprise(s). » (sans reprise, rien de plus).
+  - **Échec de la mère** : ses sous-missions encore vivantes (en cours, en file, en attente d'accord ou de prérequis)
+    sont arrêtées avec la cause « Arrêtée : la mission principale a échoué » (`MOTHER_FAILED`), plus aucun lancement
+    n'est accepté, la plateforme attend au plus 10 s leur fin, puis écrit le Bilan de la mère avec la ligne « n
+    sous-mission(s) arrêtée(s) avec l'échec de la mission principale. » (seulement si n > 0). Jamais pour une mission
+    ordinaire ; l'annulation et l'arrêt du serveur gardent leur comportement (section 7). L'arrêt vise les
+    sous-missions de l'exécution qui échoue (comme l'annulation).
 
 ## 6. Textes montrés au propriétaire
 
@@ -213,7 +290,8 @@ Bouton et carte (texte 3.4 du plan, tel quel ; N et M = l'enveloppe) :
 > L'agent de ta mission pourra, s'il le juge utile, confier des parties du travail à d'autres agents qui travaillent en
 > même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite
 > d'usage peut être atteinte plus vite. Autoriser n'oblige pas : pour une demande simple, un seul agent travaillera.
-> Au plus N sous-agents pour cette mission, M en même temps (modifiables). Les envois restent à ton clic.
+> Au plus N sous-missions Relay pour cette mission, M en même temps (modifiables) ; les sous-agents internes que les
+> agents lancent d'eux-mêmes ne sont ni comptés ni bornés par cette limite. Les envois restent à ton clic.
 
 Ligne du fil de la voie 2 (`delegation_accepted.message`) : « Sous-agents lancés à ta demande : chacun consomme ton
 abonnement comme une mission ordinaire ; enveloppe : N au plus, M en même temps. »
@@ -223,9 +301,10 @@ Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
 ## 7. Famille et espace
 
 - Les sous-missions ne prennent aucune des trois places de la plateforme : l'enveloppe de leur mission les borne, et le
-  compteur « N agent(s) en activité (missions et sous-agents), dont K en attente du propriétaire » (`activite` de
-  `mission_suivre`, `activity` de `GET /api/runs/:id`) les compte. Pas de plafond pour toute la machine (3 missions qui
-  délèguent chacune 3 sous-agents = 12 agents).
+  compteur « N exécution(s) Relay en activité (missions et sous-missions), dont K en attente du propriétaire »
+  (`activite` de `mission_suivre`, `activity` de `GET /api/runs/:id`) les compte. Pas de plafond pour toute la machine
+  (3 missions qui délèguent chacune 3 sous-missions = 12 exécutions). Les sous-agents internes qu'un agent lance de
+  lui-même ne sont ni comptés ni bornés par Relay, et le Bilan n'en dit encore rien (lot `natifs-01`).
 - Les membres d'une famille partagent l'espace career-ops ; toute autre mission y reste refusée tant que la famille vit.
 - Annuler une mission annule ses sous-missions (un niveau) : en cours (questions fermées, carte d'envoi refusée), en file
   et en attente d'accord.
@@ -235,6 +314,8 @@ Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
 
 ## 8. Pas encore fait
 
-Front : case « Autoriser les sous-agents » avec l'enveloppe modifiable, compteur, liste des sous-missions
-(`delegation-v2-02`) ; `mission_preciser` ; `mission_lancer { reprendre }` et reprise de famille détaillée ; identifiant
-d'appel dans `send_auto`. Aucun essai réel n'a encore été fait avec Claude, Codex, Gemini ou OpenCode.
+Front : interrupteur « Mode multi-agent » (`multiAgent`), case « Autoriser les sous-agents » avec l'enveloppe
+modifiable, compteur, liste des sous-missions (`delegation-v2-02`) ; `mission_preciser` ; sous-agents internes des
+agents au Bilan (`natifs-01`) ; arrêt et annulation sur toute la chaîne d'une mère reprise ; reprise de la session de
+l'agent par `reprend` (la reprise repart de zéro) ; identifiant d'appel dans `send_auto`. Les essais réels du 18 et du
+19/11 ont été faits avant `multi-agent-v3-01` ; ce lot n'a été prouvé que par faux agents.

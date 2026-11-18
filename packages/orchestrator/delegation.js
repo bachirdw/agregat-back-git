@@ -26,9 +26,10 @@
 // is final for the mission (`refus_proprietaire`). Nothing is written before the first
 // mission_lancer.
 import { randomUUID } from 'node:crypto';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { existsSync, lstatSync, readdirSync, rmdirSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { detectAgents, loadProbes } from '../agent-runtime/index.js';
-import { writeConfined } from '../policy-engine/files.js';
+import { safeDirectory, writeConfined } from '../policy-engine/files.js';
 import { terminal } from '../storage/index.js';
 import { ROOT } from './packs.js';
 import { publicQuestion } from './questions.js';
@@ -37,7 +38,6 @@ import { familySection } from './family-bilan.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
-  DAUGHTER_RULE,
   DEFAULT_ENVELOPE,
   ENVELOPE_EXTENSION,
   EXTENSION_CHOICES,
@@ -50,8 +50,11 @@ import {
   chiefRule,
   consentLine,
   consentMessage,
+  daughterRule,
+  envelopeReached,
   extensionMessage,
   motherFailedLine,
+  prerequisiteFailed,
   promptNotice,
   synthesisMissed,
   waitSeconds,
@@ -79,6 +82,10 @@ const choiceQuestion = (message, choices) =>
     },
     new Date().toISOString(),
   );
+// multi-agent-v3-01 (D4) : a sub-mission counted in the envelope : any but the first two
+// resumptions of a task.
+const counts = (child) => !(child.famille?.reprise <= 2);
+const TASK_FIELDS = ['objectif', 'informations', 'perimetre', 'resultatAttendu'];
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
 export class Delegation {
@@ -188,6 +195,7 @@ export class Delegation {
     if (!run?.famille) return { fields: {}, rule: '' };
     const mother = this.store.get(run.famille.mere);
     const brief = this.briefs.get(run.id) ?? {};
+    const { apres, dossierResultats } = run.famille;
     return {
       fields: {
         famille: {
@@ -195,9 +203,21 @@ export class Delegation {
           mere: run.famille.mere,
           soeurs: brief.soeurs ?? [],
           fichiers: brief.fichiers ?? [],
+          // multi-agent-v3-01 (D8, D9, D3) : the structured task, the results folder, and the
+          // results of its prerequisites (data, read only for a sub-mission that has some).
+          ...(brief.tache ? { tache: brief.tache } : {}),
+          ...(dossierResultats ? { dossierResultats } : {}),
+          ...(apres
+            ? {
+                prerequis: apres.map((id) => {
+                  const { titre, etat, reponse, fichiers } = this.outcome(this.store.get(id));
+                  return { id, titre, etat, reponse, fichiers };
+                }),
+              }
+            : {}),
         },
       },
-      rule: '\n' + DAUGHTER_RULE,
+      rule: '\n' + daughterRule(dossierResultats),
     };
   }
   // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
@@ -309,6 +329,7 @@ export class Delegation {
           : null,
         bilan: this.bilanOf(child),
         envois: this.sendsOf(child),
+        reprend: child.famille?.reprend,
       })),
     });
   }
@@ -445,7 +466,14 @@ export class Delegation {
         (control?.sendCalls?.size ?? 0) +
         (control?.sendsBlocked?.size ?? 0),
     };
-    const fichiers = [...(control?.familyFiles ?? [])].slice(0, 200);
+    // multi-agent-v3-01 (D9) : with the files present in its results folder (path and size).
+    const folder = this.folderFiles(child);
+    const fichiers = [
+      ...[...(control?.familyFiles ?? [])].filter(
+        (path) => !folder.some((file) => file.chemin === path),
+      ),
+      ...folder,
+    ].slice(0, 200);
     this.finals.set(child.id, { envois, fichiers });
     // A private mission keeps its file names in its own space, as its prompt ; any other mission
     // in the event, read again after a restart.
@@ -461,6 +489,53 @@ export class Delegation {
       envois,
       ...(child.workspace ? {} : { fichiers }),
     });
+  }
+  // multi-agent-v3-01 (D9) : the files of a sub-mission's results folder (paths relative to the
+  // mission folder, sizes), read on disk without following any link ; 200 at most.
+  folderFiles(child) {
+    const folder = child.famille?.dossierResultats;
+    const out = [];
+    const walk = (rel, depth) => {
+      const entries = readdirSync(join(child.cwd, rel), { withFileTypes: true });
+      for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+        if (out.length >= 200) return;
+        if (entry.isDirectory() && depth < 8) walk(`${rel}${entry.name}/`, depth + 1);
+        else if (entry.isFile())
+          out.push({
+            chemin: rel + entry.name,
+            taille: lstatSync(join(child.cwd, rel, entry.name)).size,
+          });
+      }
+    };
+    try {
+      if (folder && existsSync(join(child.cwd, folder))) {
+        safeDirectory(child.cwd, folder);
+        walk(folder, 0);
+      }
+    } catch {
+      /* An unreadable folder lists nothing more. */
+    }
+    return out;
+  }
+  // multi-agent-v3-01 (D9) : the results folder of a sub-mission, created by the platform in the
+  // mission folder (confined, no link followed) ; null when it cannot be created there.
+  resultsFolder(mother, n, titre) {
+    const slug =
+      titre
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+/, '')
+        .slice(0, 40)
+        .replace(/-+$/, '') || 'sous-mission';
+    const folder = `relay/missions/${this.chain(mother).at(-1).id.slice(0, 8)}/${n}-${slug}/`;
+    try {
+      safeDirectory(mother.cwd, folder);
+      return folder;
+    } catch {
+      return null;
+    }
   }
   watch(child, family) {
     let started = false;
@@ -514,14 +589,57 @@ export class Delegation {
     // Held for the owner's card : nothing starts before the acceptance.
     if (this.consent(root) !== true) return;
     const { parallel } = this.envelope(root);
-    while (family.held.size && this.occupied(family) < parallel) {
-      const [id, entry] = family.held.entries().next().value;
+    let free = parallel - this.occupied(family);
+    // multi-agent-v3-01 (D3) : the queue is walked in order ; a sub-mission whose prerequisite still
+    // lives keeps its turn without blocking those behind it ; one whose prerequisite did not
+    // succeed never starts.
+    for (const [id, entry] of [...family.held]) {
+      const after = entry.run.famille?.apres;
+      if (free <= 0 && !after) continue;
+      if (terminal.has(this.store.get(id)?.state)) {
+        family.held.delete(id);
+        continue;
+      }
+      const missing = after ? this.prerequisite(entry.run) : null;
+      if (missing && terminal.has(missing.state))
+        this.cancelHeld(
+          id,
+          prerequisiteFailed(missing.famille?.titre ?? missing.id, missing.state),
+        );
+      if (missing || free <= 0) continue;
+      free--;
       family.held.delete(id);
-      if (terminal.has(this.store.get(id)?.state)) continue;
       family.launched.add(id);
       this.engine.active.set(id, entry.control);
       setImmediate(() => this.engine.launch(entry.run, entry.plan, entry.control, null));
     }
+  }
+  // The prerequisite of a sub-mission that keeps it from starting : one that did not succeed first,
+  // else one not finished yet ; null when all have succeeded.
+  prerequisite(run) {
+    const rows = (run.famille?.apres ?? []).map((id) => this.store.get(id)).filter(Boolean);
+    return (
+      rows.find((row) => terminal.has(row.state) && row.state !== 'completed') ??
+      rows.find((row) => row.state !== 'completed') ??
+      null
+    );
+  }
+  // The counter given to the chief (mission_lancer, mission_suivre) : multi-agent-v3-01 (D4, D10)
+  // tasks and resumed attempts apart, and the sub-missions counted in the envelope.
+  counter(mother) {
+    const children = this.childrenOf(mother);
+    const family = this.families.get(mother.id);
+    const { total, parallel } = this.envelope(this.store.get(mother.id));
+    const reprises = children.filter((child) => child.famille?.reprend).length;
+    return {
+      lancees: children.length,
+      taches: children.length - reprises,
+      reprises,
+      dansEnveloppe: children.filter(counts).length,
+      enCours: family ? this.occupied(family) : 0,
+      total,
+      parallel,
+    };
   }
   // A family whose mother and sub-missions have all ended is no longer kept in memory (nor the
   // copies of its sub-missions' records : the database keeps them).
@@ -572,7 +690,7 @@ export class Delegation {
     return {
       agents,
       enAttenteDuProprietaire: waiting,
-      texte: `${agents} agent(s) en activité (missions et sous-agents), dont ${waiting} en attente du propriétaire`,
+      texte: `${agents} exécution(s) Relay en activité (missions et sous-missions), dont ${waiting} en attente du propriétaire`,
     };
   }
 
@@ -640,32 +758,58 @@ export class Delegation {
     if (this.consent(root) === false) throw fail('refus_proprietaire', REFUSED_MESSAGE);
     const { total, parallel } = this.envelope(root);
     const consigne = args.consigne.trim();
-    const launched = this.childrenOf(mother).length + family.pending;
-    if (launched >= total) {
-      if (this.consent(root) === true) this.askExtension(mother, control, launched + 1, total);
-      throw fail(
-        'enveloppe_atteinte',
-        `Enveloppe acceptée par le propriétaire atteinte (${total} sous-missions) ; la plateforme lui demande s’il en autorise davantage.`,
-      );
+    const children = this.childrenOf(mother);
+    const launched = children.length + family.pending;
+    // multi-agent-v3-01 (D3, D4) : prerequisites and the resumed attempt are sisters ; the first
+    // two resumptions of a task (its first attempt) are outside the envelope.
+    const sisters = new Map(children.map((child) => [child.id, child]));
+    for (const id of [...(args.apres ?? []), ...(args.reprend ? [args.reprend] : [])])
+      if (!sisters.has(id))
+        throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
+    const previous = sisters.get(args.reprend) ?? null;
+    if (previous && (!terminal.has(previous.state) || previous.state === 'completed'))
+      throw fail('parametres_invalides', 'reprend — une sous-mission finie sans succès');
+    const taskOf = (child) => {
+      for (let n = 0; sisters.has(child.famille?.reprend) && n < 200; n++)
+        child = sisters.get(child.famille.reprend);
+      return child.id;
+    };
+    const reprise = previous
+      ? 1 + children.filter((c) => c.famille?.reprend && taskOf(c) === taskOf(previous)).length
+      : 0;
+    const counted = children.filter(counts).length + family.pending;
+    if (!(reprise >= 1 && reprise <= 2) && counted >= total) {
+      if (this.consent(root) === true) this.askExtension(mother, control, counted + 1, total);
+      throw fail('enveloppe_atteinte', envelopeReached(total));
     }
     const fichiers = (args.fichiers ?? []).map((path) => path.replaceAll('\\', '/'));
     for (const path of fichiers)
       if (isAbsolute(path) || path.split('/').includes('..'))
         throw fail('fichier_hors_espace', `Chemin hors de l’espace de la mission : ${path}`);
-    const agent = args.agent ?? mother.agent;
-    const modele = args.modele ?? (agent === mother.agent ? (mother.model ?? '') : '');
-    const asked = (args.titre ?? consigne).replace(/\s+/g, ' ').trim();
+    // A resumption takes the agent, the model and the title of the attempt it resumes by default.
+    const base = previous ?? mother;
+    const agent = args.agent ?? base.agent;
+    const modele = args.modele ?? (agent === base.agent ? (base.model ?? '') : '');
+    const named = args.titre ?? previous?.famille?.titre;
+    const asked = (named ?? consigne).replace(/\s+/g, ' ').trim();
     const privateTitle = !!mother.workspace && !this.engine.ownerMode;
     const titre = privateTitle
       ? `Sous-mission ${launched + 1}`
-      : args.titre
+      : named
         ? asked.slice(0, 80)
         : asked.slice(0, 60);
+    const folder = this.resultsFolder(mother, launched + 1, titre);
+    const tache = Object.fromEntries(
+      TASK_FIELDS.filter((key) => args[key]).map((key) => [key, args[key]]),
+    );
     const link = {
       link: {
         racine: mother.id,
         mere: mother.id,
         titre,
+        ...(args.apres ? { apres: [...new Set(args.apres)] } : {}),
+        ...(previous ? { reprend: previous.id, reprise } : {}),
+        ...(folder ? { dossierResultats: folder } : {}),
       },
       title: titre,
       cwd: mother.cwd,
@@ -703,6 +847,12 @@ export class Delegation {
         link,
       );
     } catch (error) {
+      // The empty results folder of a sub-mission never created is removed.
+      try {
+        if (folder) rmdirSync(join(mother.cwd, folder));
+      } catch {
+        /* Not empty, or already gone. */
+      }
       const message = String(error?.issues ? 'Agent inconnu' : (error?.message ?? error));
       if (/Modèle non annoncé/.test(message)) throw fail('modele_inconnu', message);
       if (
@@ -726,7 +876,11 @@ export class Delegation {
     const soeurs = this.childrenOf(mother)
       .filter((child) => child.id !== run.id)
       .map((child) => child.famille?.titre ?? child.id);
-    this.briefs.set(run.id, { fichiers, soeurs });
+    this.briefs.set(run.id, {
+      fichiers,
+      soeurs,
+      ...(Object.keys(tache).length ? { tache } : {}),
+    });
     this.observe(link.held.control, run.cwd);
     family.held.set(run.id, link.held);
     const child = this.store.get(run.id);
@@ -741,19 +895,17 @@ export class Delegation {
     // No acceptance yet : the sub-mission waits, the owner gets the card (once).
     if (consent !== true) this.askConsent(mother, control);
     this.pump(family);
-    const etat = this.heldState(run.id) ?? 'en_cours';
+    // A prerequisite already ended without success : it was cancelled at once.
+    const ended = this.store.get(run.id)?.state;
+    const etat = this.heldState(run.id) ?? (terminal.has(ended) ? ended : 'en_cours');
     return {
       id: run.id,
       titre,
       etat,
       agent,
       modele,
-      famille: {
-        lancees: this.childrenOf(mother).length,
-        enCours: this.occupied(family),
-        total,
-        parallel,
-      },
+      ...(folder ? { dossierResultats: folder } : {}),
+      famille: this.counter(mother),
       ...(etat === 'attend_accord' ? { note: CONSENT_PENDING_NOTE } : {}),
     };
   }
@@ -844,7 +996,8 @@ export class Delegation {
   heldState(id) {
     const family = this.held(id);
     if (!family) return null;
-    return this.consent(this.store.get(family.rootId)) === true ? 'en_file' : 'attend_accord';
+    if (this.consent(this.store.get(family.rootId)) !== true) return 'attend_accord';
+    return this.prerequisite(family.held.get(id).run) ? 'attend_prerequis' : 'en_file';
   }
   line(child) {
     const held = this.heldState(child.id);
@@ -862,9 +1015,7 @@ export class Delegation {
       depuis: seconds(child.createdAt),
       inactiveDepuis: last ? seconds(last.at) : seconds(child.createdAt),
       attend: held
-        ? held === 'en_file'
-          ? 'place'
-          : 'accord'
+        ? ({ en_file: 'place', attend_prerequis: 'prerequis' }[held] ?? 'accord')
         : child.state === 'awaiting_owner'
           ? 'question'
           : this.engine.pendingPermission(child.id)
@@ -935,6 +1086,7 @@ export class Delegation {
       ),
       agents: await this.agents(),
       activite: this.activity(),
+      famille: this.counter(mother),
       nature: 'données rapportées par les sous-missions',
     };
   }

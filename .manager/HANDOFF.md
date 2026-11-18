@@ -70,13 +70,13 @@ Contradictions relevées : `AGENTS.md` dit encore `git add -A` aux codeurs (règ
 | Dossier | Branche | Tête | Contenu | Poussé ? |
 |---|---|---|---|---|
 | `~/Downloads/agregat-back-essai-13-11` | `contacts-13-11` | `git log -1` (commits `[menage-18-11]` du 18/11 par-dessus `ae1164a` ; aucun code changé) | **la version unique sur laquelle on avance** (décision du 18/11) ; code le plus récent | **oui, le 18/11** (`origin/contacts-13-11`) |
-| `~/Downloads/agregat-back-reprise` | `reprise-16-11` | `4bbb0f4` | correctif de la reprise (E116), relu et contrôlé, **non intégré** ; 6 commits sur `832aa59` | non |
+| `~/Downloads/agregat-back-reprise` | `reprise-16-11` | `4bbb0f4` | correctif de la reprise (E116), **intégré le 18/11** dans `contacts-13-11` (six commits repris, code identique) ; arbre à ranger | non (inutile) |
 | `~/Downloads/agregat-back-cto` | `cto-11-11` | `d88d490` | code des 11-13/11 (API 4313 du propriétaire) | oui le 13/11 ; `origin` à `671406b`, 2 commits de retard (références non rafraîchies) |
 | `~/Downloads/agregat-back-audit` | `audit-nuit-10-11` | `ea6fa14` | audit du 10/11 (161 commits sur `nuit-06-11`) | non |
 | `~/Downloads/agregat-back-nuit` | `nuit-06-11` | `615b8b9` | nuit du 06/11 et suites (107 commits sur `dev`) | non |
 | `~/Downloads/agregat-back-dev` | `dev` | `d6e8c93` | ancienne branche de travail, dépassée : `main` est passé devant le 18/11 | en partie |
 | `~/Downloads/agregat-front-cto` | `e104-13-11` | `7b2716c` | **le front de la version unique** ; 10 commits sur `transcription-11-11` | **oui, le 18/11** (`origin/e104-13-11`) |
-Chaîne : `dev` ← `nuit-06-11` ← `audit-nuit-10-11` ← `cto-11-11` ← `contacts-13-11` (← `reprise-16-11`). Rien n'est
+Chaîne : `dev` ← `nuit-06-11` ← `audit-nuit-10-11` ← `cto-11-11` ← `contacts-13-11`. Rien n'est
 fusionné dans `dev`. **`main` = la version unique depuis le 18/11** (ordre du propriétaire, avance rapide sans rien
 forcer, après suite verte) : back `main` = `contacts-13-11` à `61af6de`, front `main` = `e104-13-11` à `7b2716c`, en local et
 sur GitHub. On continue à travailler sur `contacts-13-11` et `e104-13-11` ; `main` avance sur ordre, après une suite
@@ -104,8 +104,8 @@ sinon les relancer, sans mission en cours, en le disant au propriétaire. Le gue
 - Anciens : API 4313 + front 5176 (`cto-11-11`, ancien code) ; API 4310 + front 5173 (ancien code du 02/11 lancé
   depuis le dossier interdit). Ne pas les confondre avec 4314/5177.
 - Tests : `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000 npm test && npm run check && npm run format:check` (15 min ;
-  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 12:23 → 12:36**, sur
-  `61af6de` (1 258 unitaires, 1 256 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
+  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 12:41 → 12:54**, avec le
+  correctif de la reprise (1 274 unitaires, 1 272 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
   front `7b2716c` : 242/242, `tsc` et prettier verts. Jamais pendant une mission navigateur ; jamais pendant que des agents testent.
 - Suivre sans rien toucher : `python3 -I .manager/outils/guet-lecture.py <port> <minutes>` ; Bilan contre
   événements : `node .manager/outils/bilan-vs-events.mjs <mission>` ; collecteur du registre :
@@ -139,7 +139,7 @@ propriétaire n'a pas donné d'ordre (31/10). Description générale : `docs/arc
 | E-mails et messages | brouillon par lien de composition vers une adresse d'essai : Claude (92a4af8b), Codex (82987d00), 13/11 ; décideur LinkedIn : Claude (cbcec574), Codex (a3ddfb7e) ; brouillons Gmail (09/11) | lien de composition court | aucun envoi à un tiers |
 | Suivi et relance | intention `followup` : Claude (952c59a6), Gemini (74f0aba3), 13/11 ; « Applied » et relance semée après l'envoi réel (13/11, dans une copie) | — | relance avec Codex |
 | Bilan | produit à chaque mission ; plusieurs lignes fausses ou manquantes (E102, E103, E118) | — | — |
-| Reprise | réponse à une question par formulaire dans la même session (E4, 4/4) ; `/resume` : perd la mission d'origine et les réponses (E116) | correctif `reprise-16-11` (152 tests ciblés) | correctif avec un vrai agent |
+| Reprise | réponse à une question par formulaire dans la même session (E4, 4/4) ; `/resume` perdait la mission d'origine et les réponses (E116, missions des 15-16/11) | correctif intégré le 18/11 : la session neuve reçoit réponses, messages, constats de la plateforme et dernière réponse du modèle ; ligne « Point de reprise envoyé à l'agent » au Bilan | **le correctif avec un vrai agent** (Claude et Codex) |
 | Message en cours de mission | — | route `POST /api/runs/:id/message`, bouton « Envoyer à l'agent » | **jamais** (0 `owner_message` sur toutes les missions des 15-17/11) |
 Effets réels sur les données du propriétaire : une candidature envoyée (13/11) ; un CV adapté dans son compte SEEK
 (06/11) ; profils LinkedIn consultés ; brouillons dans sa messagerie (vers une adresse `example.test`, 13/11).
@@ -158,10 +158,12 @@ navigateur ; 14/11 « Oui, corrige tout » (libellés), message en cours de miss
 copie durable de l'espace d'essai ; 16/11 guetteur permanent, « Oui, corrige » (sprint reprise, pas son intégration) ;
 17/11 expliquer simplement, même résultat Claude/Codex, série de six épreuves ; 18/11 ménage des passations ;
 18/11 **une seule version** : celle servie par l'API 4314 et le front 5177 (`contacts-13-11` + `e104-13-11`), poussée
-sur GitHub sur son ordre, puis devenue `main` (back et front) après suite verte ; on n'avance plus que sur elle, les
+sur GitHub sur son ordre, puis devenue `main` (back et front) après suite verte ; 18/11 « Oui, intègre » : correctif
+de la reprise intégré, suite verte, API relancée à 12:54 ; on n'avance plus que sur elle, les
 anciennes (4310/5173, 4313/5176) ne sont plus relancées.
 **Attendent le propriétaire** (de la plus récente à la plus ancienne, dédoublonnées) :
-1. Intégrer `reprise-16-11` (E116), puis suite complète et relance de 4314 (demandé le 16/11, 19:26 et 19:30).
+1. Essai réel de la reprise corrigée (intégrée le 18/11 sur son ordre) : répondre aux questions d'une mission, la
+   laisser finir, puis la reprendre ; à jouer avec Claude et avec Codex.
 2. Correctif du démarrage (E119) : nouvel essai, requête nommée (16/11, 19:30).
 3. Lire comme une question la fin d'un brouillon qui demande un avis (E117) ; rechargement exact de session
    (`session/load`) ; doublon du message à la première reprise (rapports de `reprise-16-11`).
@@ -208,7 +210,7 @@ mission · E65/E69 onglet gelé, longue mission à rejouer · E95 page carrière
 · E100 fausses cartes LinkedIn, non éprouvé · E102 intention `documents` au lieu d'`apply` · E103 « CV joint :
 aucun » trompeur · E104 durée affichée, non vue à l'écran · E105 avertissement « confirmée » manquant · E108 étape
 dite « ignorée » · E109 plafond de la phase Chrome · E111 Codex pilote l'écran hors plateforme · E115 « sans » au
-routage d'intention · E116 reprise qui perd les réponses · E117 terminée en attente d'un avis · E118 Bilan
+routage d'intention · E116 reprise qui perdait les réponses : corrigé le 18/11, non vérifié en réel · E117 terminée en attente d'un avis · E118 Bilan
 incomplet ou inexact · E119 échec au démarrage sans nouvel essai · E120 `career_read` d'un dossier refusé · E121
 `cv-templates` bloqué mais dit réussi · E122 `sweep` en échec sans texte · E123 échec affiché deux fois · E124
 fichiers attribués par date · E125 question laissée sans réponse. Hors numéros : A7, A11 (audit du 12/11) ;
@@ -245,7 +247,7 @@ fichiers attribués par date · E125 question laissée sans réponse. Hors numé
 | `.manager/PLAN-04-11.md` | plan des chantiers C0-C15 (C9-C15 non retrouvés comme faits) |
 | `.manager/MISSION.md`, `api-usage.md`, `BACKLOG.md` | cahier des charges, journal des coûts (cités par `CLAUDE.md`/`AGENTS.md`), demandes de fond |
 | `.manager/outils/` | lanceur d'API, guetteur, suivi, démos, page fictive (appelés par des tests et ce fichier) |
-| `.manager/briefs/reprise-16-11.md` | brief du correctif de la reprise, pas encore intégré |
+| `.manager/reports/reprise-16-11.md`, `review-reprise-16-11.md` | rapports du correctif de la reprise : diagnostic, limites, étude du rechargement exact de session (décision 3) |
 | `.manager/reports/carte-envoi-etude-01.md` | étude R1/R2/R3 dont dépend la décision 14 |
 | `.manager/reports/nuit-12-11.md` | propositions d'architecture du 12/11 dont dépend la décision 19 |
 | `.manager/reports/menage-18-11.md` | ce qui a été supprimé le 18/11, pourquoi, et comment le relire |

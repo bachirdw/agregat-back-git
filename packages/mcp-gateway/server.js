@@ -19,6 +19,7 @@ import { shadowSinkFromEnv } from '../browser-gateway/send-shadow.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { describeCapabilities, getCapability } from '../capability-registry/index.js';
 import { getPack } from '../orchestrator/packs.js';
+import { answeredListing } from '../orchestrator/exit-code.js';
 
 // Capability gateway exposed to agents over MCP (stdio). Configuration comes from the platform:
 //   RELAY_BROWSER        fixture (default) | isolated | playwriter
@@ -116,7 +117,11 @@ async function reportToolOutcome(name, status, args, sent, toolCallId, result, p
       ...gatewayProgress(name, status, args, result),
       // apply-01 (E40): file names only (never a path), for the Bilan's « CV joint » line.
       ...attachmentNames(name, status, args, result),
-      jdRead: name === 'career_read' && /^jds\//.test(args?.path ?? ''),
+      // E120 : a listing of a folder or a pattern (`listing: true`) read no announcement.
+      jdRead:
+        name === 'career_read' &&
+        /^jds\//.test(args?.path ?? '') &&
+        !answeredListing(result?.content),
       ...(name === 'email_send' && typeof sent === 'boolean' ? { sent } : {}),
       // E55, E58 : the manifest steps this call's effect proved (keys only), when measured.
       ...(proofs ? { proofs } : {}),

@@ -8,6 +8,15 @@
 const ANSWER_DEPTH = 6;
 
 export function answeredExitCode(output) {
+  return answeredField(output, 'exitCode');
+}
+// E120 (18/11) : a career_read answer that lists the readable files of a folder or a pattern
+// (`listing: true`) read no file : it proves no reading step, on any channel.
+export function answeredListing(output) {
+  return answeredField(output, 'listing') === true;
+}
+// The value of `field` in the first object, at the level of the answer, that carries it.
+function answeredField(output, field) {
   let found = null;
   const visit = (value, depth, unwrap) => {
     if (found || depth > 8 || value === null || value === undefined) return;
@@ -25,8 +34,8 @@ export function answeredExitCode(output) {
       return;
     }
     if (typeof value === 'object') {
-      if (Object.hasOwn(value, 'exitCode')) {
-        found = { code: value.exitCode };
+      if (Object.hasOwn(value, field)) {
+        found = { code: value[field] };
         return;
       }
       // Inside a parsed answer, a field's text (a script's output, a page) is never unwrapped.

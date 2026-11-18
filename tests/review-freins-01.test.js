@@ -101,10 +101,14 @@ test('review-freins-01 FICTIF : career_read par la passerelle, formes du 13/11 l
   assert.equal(long.body.truncated, false);
   const over = await call('career_read', { path: 'data/long-fictif.md', maxChars: 200001 });
   assert.equal(over.isError, true);
-  // Plusieurs fichiers : toujours un refus qui nomme les chemins exacts (point 2 non fait).
+  // Plusieurs fichiers : E120 (18/11), la liste des chemins exacts, en succès, sans contenu.
   const many = await call('career_read', { path: 'reports/00*' });
-  assert.equal(many.isError, true);
-  assert.ok(many.text.includes(`(2) : ${R5}, ${R6}.`));
+  assert.equal(many.isError, false);
+  assert.equal(many.body.listing, true);
+  assert.deepEqual(
+    many.body.files.map((file) => file.path),
+    [R5, R6],
+  );
   // Hors mode propriétaire : un fichier de sous-dossier reste hors du périmètre (inchangé).
   const other = await gateway(t, root, { ownerMode: false });
   const refused = await other.call('career_read', { path: 'lib/sous/outil.js' });

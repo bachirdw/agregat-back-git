@@ -1,9 +1,9 @@
 // E71 (essai V2, 06/11, mission f764e96b) : `career_read` sur un dossier du périmètre (« reports »)
 // ou sur un motif (« reports/005-preacta-*.md ») répondait « Fichier hors du périmètre career-ops »,
 // faux pour un dossier du périmètre, et l'agent ne trouvait pas son rapport. L'appel ne lit toujours
-// qu'un fichier (une liste ne prouve aucune lecture : « Lire réellement l'annonce » se crédite sur
-// un chemin jds/), mais le refus nomme désormais les fichiers lisibles du dossier ou du motif.
-// Données FICTIVES.
+// qu'un fichier ; E120 (18/11) : un dossier, ou un motif qui en désigne plusieurs ou aucun, répond
+// en succès la liste des fichiers lisibles (chemin, taille, date), marquée `listing: true`, qui ne
+// prouve aucune lecture (« Lire réellement l'annonce », « Lire le rapport »). Données FICTIVES.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -51,25 +51,46 @@ const workspace = (t) => {
 const R5 = 'reports/005-entreprise-fictive-2026-11-05.md';
 const R6 = 'reports/006-autre-fictive-2026-11-05.md';
 
+const paths = (listing) => listing.files.map((file) => file.path);
 test('E71 FICTIF : un dossier du périmètre nomme ses fichiers lisibles', (t) => {
   const tools = workspace(t);
-  for (const path of ['reports', 'reports/'])
-    assert.throws(
-      () => tools.read(path),
-      (error) =>
-        /Dossier « reports » : career_read lit un seul fichier/.test(error.message) &&
-        error.message.includes(`(2) : ${R5}, ${R6}.`) &&
-        !/lien|hors du périmètre/.test(error.message),
-      path,
-    );
+  for (const path of ['reports', 'reports/']) {
+    const listing = tools.read(path);
+    assert.equal(listing.listing, true, path);
+    assert.equal(listing.kind, 'folder', path);
+    assert.equal(listing.path, path, path);
+    assert.deepEqual(paths(listing), [R5, R6], path);
+    assert.equal(listing.total, 2, path);
+    assert.equal(listing.truncated, false, path);
+    assert.equal(listing.text, undefined, path);
+    assert.equal(listing.untrusted, true, path);
+    for (const file of listing.files) {
+      assert.equal(file.size, '# Rapport FICTIF\n'.length, path);
+      assert.ok(!Number.isNaN(Date.parse(file.modified)), path);
+    }
+    assert.match(listing.notice, /^Dossier « reports » : 2 fichiers lisibles, liste seule/, path);
+    assert.doesNotMatch(JSON.stringify(listing), /lien|hors du périmètre|Rapport FICTIF/, path);
+  }
   // Seuls les fichiers que career_read lit : le PDF se liste par career_documents.
-  assert.throws(
-    () => tools.read('output'),
-    (error) =>
-      error.message.includes('(1) : output/cv-fictif-005.html.') &&
-      /career_documents/.test(error.message) &&
-      !/\.pdf/.test(error.message),
-  );
+  const output = tools.read('output');
+  assert.deepEqual(paths(output), ['output/cv-fictif-005.html']);
+  assert.match(output.notice, /career_documents/);
+  assert.doesNotMatch(JSON.stringify(output.files), /\.pdf/);
+});
+
+test('E120 FICTIF : la liste est bornée à 100 fichiers, triée, le total dit le reste', (t) => {
+  const tools = workspace(t);
+  const root = tools.career.path();
+  mkdirSync(join(root, 'jds'));
+  for (let n = 150; n > 0; n--)
+    writeFileSync(join(root, `jds/annonce-${String(n).padStart(3, '0')}-fictive.md`), 'FICTIF\n');
+  const listing = tools.read('jds');
+  assert.equal(listing.total, 150);
+  assert.equal(listing.files.length, 100);
+  assert.equal(listing.truncated, true);
+  assert.equal(listing.files[0].path, 'jds/annonce-001-fictive.md');
+  assert.equal(listing.files[99].path, 'jds/annonce-100-fictive.md');
+  assert.match(listing.notice, /150 fichiers lisibles \(100 premiers montrés\)/);
 });
 
 // freins-01 : un motif qui ne désigne qu'un fichier le lit désormais (ancien attendu : refus
@@ -79,11 +100,13 @@ test('E71 FICTIF : un motif nomme les fichiers qui y répondent', (t) => {
   const one = tools.read('reports/005-entreprise-*.md');
   assert.equal(one.path, R5);
   assert.equal(one.text, '# Rapport FICTIF\n');
-  assert.throws(
-    () => tools.read('reports/00?-*.md'),
-    (error) => error.message.includes('(2)'),
-  );
-  assert.throws(() => tools.read('reports/999-*.md'), /Aucun fichier lisible ne répond au motif/);
+  const many = tools.read('reports/00?-*.md');
+  assert.equal(many.kind, 'pattern');
+  assert.deepEqual(paths(many), [R5, R6]);
+  const none = tools.read('reports/999-*.md');
+  assert.equal(none.listing, true);
+  assert.equal(none.total, 0);
+  assert.match(none.notice, /aucun fichier lisible ne répond au motif/);
   assert.equal(tools.read(R5).text, '# Rapport FICTIF\n');
 });
 
@@ -104,15 +127,9 @@ test('E71 FICTIF : hors du périmètre, rien n’est nommé', (t) => {
 test('E71 FICTIF : un motif à étoiles répétées répond aussitôt', (t) => {
   const tools = workspace(t);
   const started = Date.now();
-  assert.throws(
-    () => tools.read(`reports/${'*'.repeat(60)}Z.md`),
-    /Aucun fichier lisible ne répond au motif/,
-  );
+  assert.equal(tools.read(`reports/${'*'.repeat(60)}Z.md`).total, 0);
   assert.ok(Date.now() - started < 500, `motif trop lent : ${Date.now() - started} ms`);
-  assert.throws(
-    () => tools.read('reports/*-*-*-*.md'),
-    (error) => error.message.includes('(2)'),
-  );
+  assert.equal(tools.read('reports/*-*-*-*.md').total, 2);
 });
 
 // Revue Opus du 06/11 : un dossier atteint par un lien interne à l'espace était listé, mais
@@ -165,17 +182,15 @@ test('ecrits-01 FICTIF : le dossier des échantillons d’écriture nomme ses fi
   writeFileSync(join(root, 'writing-samples/sous/d-fictif.md'), 'FICTIF\n');
   writeFileSync(join(root, 'cv.md'), '# CV FICTIF\n');
   const tools = new CareerTools({ path: () => root });
-  for (const path of ['writing-samples', 'writing-samples/'])
-    assert.throws(
-      () => tools.read(path),
-      (error) =>
-        /Dossier « writing-samples » : career_read lit un seul fichier/.test(error.message) &&
-        error.message.includes(
-          '(2) : writing-samples/a-fictif.md, writing-samples/b-fictif.txt.',
-        ) &&
-        !/c-fictif|d-fictif|hors du périmètre/.test(error.message),
+  for (const path of ['writing-samples', 'writing-samples/']) {
+    const listing = tools.read(path);
+    assert.deepEqual(
+      paths(listing),
+      ['writing-samples/a-fictif.md', 'writing-samples/b-fictif.txt'],
       path,
     );
+    assert.doesNotMatch(JSON.stringify(listing), /c-fictif|d-fictif|Phrase inventée/, path);
+  }
   // freins-01 : un motif à un seul fichier le lit (ancien attendu : refus « (1) : … »).
   const one = tools.read('writing-samples/*.txt');
   assert.equal(one.path, 'writing-samples/b-fictif.txt');
@@ -223,22 +238,20 @@ test('freins-01 FICTIF : motif ou préfixe à un seul fichier → lecture, chemi
   assert.match(page.notice, /lu : reports\/006-.*Suite disponible : relire avec offset=4/);
 });
 
-test('freins-01 FICTIF : préfixe à plusieurs fichiers ou à aucun → refus qui nomme les chemins exacts', (t) => {
+test('freins-01 FICTIF : préfixe à plusieurs fichiers → liste des chemins exacts ; à aucun → refus', (t) => {
   const tools = workspace(t);
-  assert.throws(
-    () => tools.read('reports/00'),
-    (error) =>
-      /^Préfixe « reports\/00 » : plusieurs fichiers commencent ainsi/.test(error.message) &&
-      error.message.includes(`(2) : ${R5}, ${R6}.`) &&
-      !/007-lien|lien-hors/.test(error.message),
-  );
+  const prefix = tools.read('reports/00');
+  assert.equal(prefix.kind, 'prefix');
+  assert.deepEqual(paths(prefix), [R5, R6]);
+  assert.match(prefix.notice, /^Préfixe « reports\/00 » : 2 fichiers lisibles/);
+  assert.doesNotMatch(JSON.stringify(prefix), /007-lien|lien-hors/);
   assert.throws(
     () => tools.read('reports/999'),
     /Dossier « reports\/999 » absent, et aucun fichier lisible ne commence par « 999 » dans « reports »/,
   );
   // Un lien symbolique n'est jamais lu, même seul à répondre au préfixe.
   assert.throws(() => tools.read('reports/007'), /aucun fichier lisible ne commence par « 007 »/);
-  assert.throws(() => tools.read('reports/007*'), /Aucun fichier lisible ne répond au motif/);
+  assert.equal(tools.read('reports/007*').total, 0);
   // Hors du périmètre, rien n'est lu ni nommé.
   assert.throws(() => tools.read('scripts/outil'), /^Error: Fichier hors du périmètre career-ops$/);
   assert.throws(
@@ -249,8 +262,8 @@ test('freins-01 FICTIF : préfixe à plusieurs fichiers ou à aucun → refus qu
 
 // freins-01 : par le chemin de l'agent (passerelle MCP de fixture → route tool-outcome de l'API).
 // Un motif à un seul fichier rend son contenu et crédite « Lire le rapport de l'offre » (le fichier
-// lu est bien sous reports/) ; un motif à plusieurs fichiers reste un refus et ne crédite rien, pas
-// plus qu'un dossier jds/ ne prouve la lecture d'une annonce. Données FICTIVES.
+// lu est bien sous reports/) ; E120 : un motif à plusieurs fichiers rend leur liste en succès et ne
+// crédite rien, pas plus qu'un dossier jds/ ne prouve la lecture d'une annonce. Données FICTIVES.
 const SKILL = skillManifestSchema.parse(
   parse(
     readFileSync(
@@ -332,17 +345,27 @@ async function gatewayRun(t) {
 test('freins-01 FICTIF : passerelle MCP — une liste ne crédite rien, un motif à un seul fichier crédite la lecture', async (t) => {
   const { read, report, turnTruth } = await gatewayRun(t);
   assert.equal(report(), 'pending');
-  // Plusieurs fichiers : refus qui nomme les chemins exacts, aucune étape créditée.
+  // Plusieurs fichiers : la liste des chemins exacts, en succès, aucune étape créditée.
   const many = await read('reports/00*');
-  assert.equal(many.isError, true);
-  assert.ok(many.text.includes(`(2) : ${R5}, ${R6}.`));
+  assert.equal(many.isError, false);
+  assert.deepEqual(
+    JSON.parse(many.text).files.map((file) => file.path),
+    [R5, R6],
+  );
   const folder = await read('reports/');
-  assert.equal(folder.isError, true);
-  // Un refus d'outil n'est jamais « fait » (le suivi le garde en échec jusqu'à une lecture réelle).
+  assert.equal(folder.isError, false);
+  assert.equal(JSON.parse(folder.text).listing, true);
+  // Une liste n'a rien lu : l'étape « Lire le rapport » n'est pas faite.
   assert.notEqual(report(), 'done');
   const jds = await read('jds/');
-  assert.equal(jds.isError, true);
+  assert.equal(jds.isError, false);
+  assert.equal(JSON.parse(jds.text).total, 2);
   assert.equal(turnTruth.hasJdRead(), false);
+  // Le Bilan ne compte aucune preuve de lecture pour ces listes.
+  assert.deepEqual(
+    turnTruth.completedCalls().filter((call) => call.name === 'career_read'),
+    [],
+  );
   // Un seul fichier : contenu rendu, chemin lu dans la réponse, étape créditée.
   const one = await read('reports/005');
   assert.equal(one.isError, false);
@@ -357,14 +380,20 @@ test('freins-01 FICTIF : passerelle MCP — une liste ne crédite rien, un motif
   assert.equal(turnTruth.hasJdRead(), true);
 });
 
-// freins-01 : pourquoi un dossier ou un motif à plusieurs fichiers reste un refus. La plateforme
-// crédite un career_read réussi sur le chemin DEMANDÉ (préfixe), pas sur le chemin lu : une liste
-// rendue en succès pour « reports/ » ou « jds/ » serait comptée comme la lecture d'un rapport ou
-// d'une annonce. Ce constat se décide hors du périmètre de ce sprint (passerelle, suivi).
-test('freins-01 FICTIF : le crédit d’un career_read réussi suit le chemin demandé', () => {
+// freins-01 : la plateforme crédite un career_read réussi sur le chemin DEMANDÉ (préfixe). E120
+// (18/11) : une réponse qui n'est qu'une liste (`listing: true`) ne porte aucun argument de
+// progrès, et le dit (`listing`) au suivi.
+test('freins-01 FICTIF : le crédit d’un career_read réussi suit le chemin demandé, sauf une liste', () => {
   assert.equal(
     gatewayProgress('career_read', 'completed', { path: 'reports/' }).argument,
     'reports/',
   );
   assert.equal(gatewayProgress('career_read', 'completed', { path: 'jds/' }).argument, 'jds/');
+  const listed = {
+    content: [{ type: 'text', text: JSON.stringify({ path: 'jds/', listing: true, files: [] }) }],
+  };
+  assert.deepEqual(gatewayProgress('career_read', 'completed', { path: 'jds/' }, listed), {
+    argument: null,
+    listing: true,
+  });
 });

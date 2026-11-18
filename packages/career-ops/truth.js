@@ -1,4 +1,4 @@
-import { exitFailedOf } from '../orchestrator/exit-code.js';
+import { answeredListing, exitFailedOf } from '../orchestrator/exit-code.js';
 import { redact } from '../agent-runtime/env.js';
 import { readToolCall } from '../orchestrator/tool-call.js';
 import { readdirSync } from 'node:fs';
@@ -376,6 +376,9 @@ export function scriptVerdictOutput(argument, text) {
   return !!looks && !!output && !STACK_TRACE.test(output) && looks(output);
 }
 function callProgress(name, status, args, result) {
+  // E120 : a career_read that listed files read none : no progress argument, said `listing`.
+  if (name === 'career_read' && answeredListing(result?.content))
+    return { argument: null, listing: true };
   const argument = progressArgument(name, args);
   const completed = status === 'completed';
   if (
@@ -663,7 +666,10 @@ export function createTurnTruth({ root, seed } = {}) {
           if (input.score != null && typeof input.url === 'string' && input.url)
             scored.set(update.toolCallId, input.url);
         }
-        if (name === 'career_read' && /^jds\//.test(paths.get(update.toolCallId) ?? ''))
+        // E120 : a listing of a folder or a pattern read no file : no reading is credited.
+        const listed =
+          name === 'career_read' && answeredListing(update.rawOutput ?? update.content);
+        if (name === 'career_read' && !listed && /^jds\//.test(paths.get(update.toolCallId) ?? ''))
           jdRead = true;
         const raw = update.rawInput ?? inputs.get(update.toolCallId) ?? {};
         const input = { ...raw, ...(raw.arguments ?? {}) };
@@ -676,7 +682,7 @@ export function createTurnTruth({ root, seed } = {}) {
                   outputText(update.rawOutput ?? update.content),
               )
             : null;
-        if (!failedExit) {
+        if (!failedExit && !listed) {
           const argument = progressArgument(name, input);
           proofs.set(`acp:${update.toolCallId}`, { name, argument });
           if (name === 'career_write' && argument === 'reports/') {
@@ -718,6 +724,7 @@ export function createTurnTruth({ root, seed } = {}) {
         contactSaved,
         verdictOutput,
         errorLine,
+        listing = false,
       } = {},
     ) {
       if (
@@ -768,7 +775,9 @@ export function createTurnTruth({ root, seed } = {}) {
               : 0
             : null;
       if (status === 'completed') {
-        proofs.set(`gateway:${key}`, { name, argument: safeArgument });
+        // E120 : a listing of a folder or a pattern read no file : no call to prove anything.
+        if (!(name === 'career_read' && listing === true))
+          proofs.set(`gateway:${key}`, { name, argument: safeArgument });
         const report = name === 'career_write' && safeArgument === 'reports/';
         if (name === 'career_offer_save' || report) {
           offerSaved = true;

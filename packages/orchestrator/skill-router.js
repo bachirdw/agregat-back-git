@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { SELECTION } from './browser-proof.js';
-import { answeredExitCode, exitFailedOf } from './exit-code.js';
+import { answeredExitCode, answeredListing, exitFailedOf } from './exit-code.js';
 import { simulatedBy } from './proof-args.js';
 import { readToolCall } from './tool-call.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -540,6 +540,13 @@ function proven(step, update) {
 }
 function matches(step, update, name) {
   if (step.tool !== name && !step.alternativeTools?.includes(name)) return false;
+  // E120 : a career_read that listed a folder or a pattern read no file (ACP : its answer ; gateway :
+  // the `listing` mark the platform sets) ; it proves no reading step.
+  if (
+    name === 'career_read' &&
+    (update.listing === true || answeredListing(update.rawOutput ?? update.content))
+  )
+    return false;
   if (step.urlPattern) {
     try {
       // Codex nests the arguments : `toolInput` reads both shapes.

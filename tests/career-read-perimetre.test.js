@@ -279,8 +279,11 @@ test('freins-01 FICTIF : mode propriétaire, tout fichier régulier de l’espac
     assert.equal(read.text, text, path);
     assert.equal(read.untrusted, true, path);
   }
-  // Un dossier se liste (refus qui nomme ses fichiers), un début de nom unique se lit.
-  assert.throws(() => owner.read('lib/sous'), /\(1\) : lib\/sous\/outil\.js\./);
+  // Un dossier se liste (E120 : un succès qui nomme ses fichiers), un début de nom unique se lit.
+  assert.deepEqual(
+    owner.read('lib/sous').files.map((file) => file.path),
+    ['lib/sous/outil.js'],
+  );
   assert.equal(owner.read('scripts/x').path, 'scripts/x.mjs');
   // L'écriture reste celle d'avant : seuls les scripts du Skill écrivent le suivi et les rapports.
   for (const path of [

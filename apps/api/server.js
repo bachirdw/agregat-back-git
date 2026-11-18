@@ -562,6 +562,8 @@ export function createApp({
             // E121 : first useful line of a failed script's error (bounded and masked in truth.js).
             errorLine:
               typeof body.errorLine === 'string' ? body.errorLine.slice(0, 400) : undefined,
+            // E120 : a career_read that only listed files (gatewayProgress) proves no reading.
+            listing: body.listing === true,
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,
@@ -624,6 +626,8 @@ export function createApp({
             title: body.name,
             // Revue Opus du 06/11 (E57) : the gateway's own outcome, set only here.
             channel: 'gateway',
+            // E120 : a career_read that only listed files (gatewayProgress) proves no reading.
+            ...(body.listing === true && body.name === 'career_read' ? { listing: true } : {}),
             rawInput: {
               command: body.argument,
               path: body.argument,

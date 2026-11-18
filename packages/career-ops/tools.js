@@ -1361,9 +1361,13 @@ export class CareerTools {
     }
     // Read-only checks (controls, and Skill entries marked isolated) run without network and
     // without any write; a renderer that writes output/ (build-cv-html, generate-pdf) runs as scan.
+    // E121 (16/11, 18/11) : a script loads its dependencies by their real path ; a node_modules of
+    // the workspace that is a symbolic link to a folder outside it (the trial workspace) was denied
+    // (ERR_ACCESS_DENIED). The real path of the workspace and of its node_modules are readable too,
+    // nothing else : writes and network stay as before.
     const isolate = (file, ...args) => [
       '--permission',
-      `--allow-fs-read=${root}`,
+      ...readableRoots(root).map((path) => `--allow-fs-read=${path}`),
       `--allow-fs-read=${noNetworkPreload}`,
       '--require',
       noNetworkPreload,
@@ -1445,6 +1449,20 @@ export class CareerTools {
       );
     }
   }
+}
+// E121 : what an isolated script reads to load itself : the workspace, its real path when it
+// differs, and the real path of its node_modules (a link to another folder in the trial workspace).
+export function readableRoots(root) {
+  const roots = [root];
+  for (const path of [root, resolve(root, 'node_modules')]) {
+    try {
+      const real = realpathSync(path);
+      if (!roots.includes(real)) roots.push(real);
+    } catch {
+      /* absent : nothing more to read */
+    }
+  }
+  return roots;
 }
 // The first 300 characters of a script's error output (stdout when stderr is empty), on one line.
 // The workspace becomes <espace> (its relative tail stays readable), every other absolute path

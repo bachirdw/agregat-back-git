@@ -74,11 +74,13 @@ Contradictions relevées : `AGENTS.md` dit encore `git add -A` aux codeurs (règ
 | `~/Downloads/agregat-back-cto` | `cto-11-11` | `d88d490` | code des 11-13/11 (API 4313 du propriétaire) | oui le 13/11 ; `origin` à `671406b`, 2 commits de retard (références non rafraîchies) |
 | `~/Downloads/agregat-back-audit` | `audit-nuit-10-11` | `ea6fa14` | audit du 10/11 (161 commits sur `nuit-06-11`) | non |
 | `~/Downloads/agregat-back-nuit` | `nuit-06-11` | `615b8b9` | nuit du 06/11 et suites (107 commits sur `dev`) | non |
-| `~/Downloads/agregat-back-dev` | `dev` = `main` | `d6e8c93` | stable ; 1 commit devant `origin` | en partie |
+| `~/Downloads/agregat-back-dev` | `dev` | `d6e8c93` | ancienne branche de travail, dépassée : `main` est passé devant le 18/11 | en partie |
 | `~/Downloads/agregat-front-cto` | `e104-13-11` | `7b2716c` | **le front de la version unique** ; 10 commits sur `transcription-11-11` | **oui, le 18/11** (`origin/e104-13-11`) |
 Chaîne : `dev` ← `nuit-06-11` ← `audit-nuit-10-11` ← `cto-11-11` ← `contacts-13-11` (← `reprise-16-11`). Rien n'est
-fusionné dans `dev`/`main` : sur GitHub, `main` reste l'ancien code (back `e48da65`, front `d842e35`) ; il peut
-avancer sans conflit jusqu'à la version unique (il en est un ancêtre), ce qui attend l'ordre du propriétaire. Front : dépôt séparé `~/Downloads/agregat-front` (React/Vite), `main` du front à `d842e35`.
+fusionné dans `dev`. **`main` = la version unique depuis le 18/11** (ordre du propriétaire, avance rapide sans rien
+forcer, après suite verte) : back `main` = `contacts-13-11` à `61af6de`, front `main` = `e104-13-11` à `7b2716c`, en local et
+sur GitHub. On continue à travailler sur `contacts-13-11` et `e104-13-11` ; `main` avance sur ordre, après une suite
+verte. Front : dépôt séparé (React/Vite), dossier de la version unique `~/Downloads/agregat-front-cto`.
 Arbres de sprint à ranger, tous repris dans `contacts-13-11` (vérifié par `git cherry` ; un commit de `freins-01`
 repris sous un autre hash, `1db9b9f`) : `agregat-back-libelles`, `-cartes`, `-orienter`, `-contacts`, `-freins` ;
 fronts `agregat-front-libelles`, `-orienter`, `-preuves`. Anciens (contenus dans `dev` d'après la veille du 06/11, non
@@ -102,9 +104,9 @@ sinon les relancer, sans mission en cours, en le disant au propriétaire. Le gue
 - Anciens : API 4313 + front 5176 (`cto-11-11`, ancien code) ; API 4310 + front 5173 (ancien code du 02/11 lancé
   depuis le dossier interdit). Ne pas les confondre avec 4314/5177.
 - Tests : `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000 npm test && npm run check && npm run format:check` (15 min ;
-  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : 15/11 sur `contacts-13-11`
-  (1 258 unitaires, 1 256 réussis, 2 ignorés ; Chrome 253/253). Non relancée depuis ; aucun fichier hors `.manager/`
-  n'a changé depuis (`git diff 0c43990 ae1164a`, vide). Jamais pendant une mission navigateur ; jamais pendant que des agents testent.
+  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 12:23 → 12:36**, sur
+  `61af6de` (1 258 unitaires, 1 256 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
+  front `7b2716c` : 242/242, `tsc` et prettier verts. Jamais pendant une mission navigateur ; jamais pendant que des agents testent.
 - Suivre sans rien toucher : `python3 -I .manager/outils/guet-lecture.py <port> <minutes>` ; Bilan contre
   événements : `node .manager/outils/bilan-vs-events.mjs <mission>` ; collecteur du registre :
   `python3 .manager/registre-erreurs.py`.
@@ -156,7 +158,8 @@ navigateur ; 14/11 « Oui, corrige tout » (libellés), message en cours de miss
 copie durable de l'espace d'essai ; 16/11 guetteur permanent, « Oui, corrige » (sprint reprise, pas son intégration) ;
 17/11 expliquer simplement, même résultat Claude/Codex, série de six épreuves ; 18/11 ménage des passations ;
 18/11 **une seule version** : celle servie par l'API 4314 et le front 5177 (`contacts-13-11` + `e104-13-11`), poussée
-sur GitHub sur son ordre ; on n'avance plus que sur elle, les anciennes (4310/5173, 4313/5176) ne sont plus relancées.
+sur GitHub sur son ordre, puis devenue `main` (back et front) après suite verte ; on n'avance plus que sur elle, les
+anciennes (4310/5173, 4313/5176) ne sont plus relancées.
 **Attendent le propriétaire** (de la plus récente à la plus ancienne, dédoublonnées) :
 1. Intégrer `reprise-16-11` (E116), puis suite complète et relance de 4314 (demandé le 16/11, 19:26 et 19:30).
 2. Correctif du démarrage (E119) : nouvel essai, requête nommée (16/11, 19:30).
@@ -169,9 +172,8 @@ sur GitHub sur son ordre ; on n'avance plus que sur elle, les anciennes (4310/51
 7. Lever les freins restants : clic sur élément recouvert, touche Espace et raccourcis, réseau privé, liste d'un
    dossier par `career_read` (E120) ; enquête sur la lecture des pages par tranches de 24 000 caractères par Codex.
 8. Reporter « un clic par mission » dans le `CLAUDE.md` du dossier interdit (seulement sur son ordre).
-9. Faire de la version unique la branche principale `main` sur GitHub (avance rapide, après une suite complète
-   verte), puis ranger les
-   arbres de sprint ; trier le dossier interdit et ses changements non commités.
+9. Ranger les arbres de sprint et les anciennes branches (dont `dev`) ; trier le dossier interdit et ses changements
+   non commités.
 10. Confirmer deux choix du manager : carte gardée sur les menus « Envoyer » (13/11) ; phrases « écris un e-mail »
     retirées de l'intention `email` (14/11).
 11. E54 (plusieurs intentions par mission ; brief prêt, diagnostic dans le journal du 13/11, à relire par

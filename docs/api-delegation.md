@@ -17,7 +17,8 @@ déléguer. Ce document est le contrat que le front peut suivre ; ce qui n'exist
 - **Réglage de retrait** : `AGENT_PLATFORM_DELEGATION=0` dans l'environnement de l'API, lu au démarrage comme les autres
   réglages `AGENT_PLATFORM_*`, retire outils et phrase à toutes les missions. Avec ce réglage, la consigne envoyée à
   l'agent, la liste des serveurs MCP et le déroulement d'une mission sont identiques à la base `48a2f4e` (prouvé par
-  `tests/delegation-v2-01-b.test.js`, qui fait tourner le code de la base extrait par `git archive`).
+  `tests/delegation-v2-01-b.test.js`, qui fait tourner le code de la base extrait par `git archive`). Le champ
+  `delegation` d'une requête est alors sans effet : il ne force plus le mode agent (`tests/review-delegation-v2-01.test.js`).
 - **Une mission qui ne délègue pas ne change pas** : tant que le chef n'a appelé aucun `mission_lancer`, aucun événement,
   aucune lecture de plus, aucune ligne de Bilan, aucun tour de plus, aucune carte. Seuls changent la phrase et le second
   serveur.
@@ -61,7 +62,8 @@ garde (`POST /api/runs/:id/resume`). L'accord d'**envoi** n'est jamais concerné
   par la carte au premier lancement (voie 3), ou donné par la demande écrite dans le prompt (voie 2).
 - Les anciennes valeurs `case`, `mot` et `proposition` de `chef-01` sont refusées (requête invalide).
 - Avec `accepted: true` dans la requête, et seulement alors, la mission part en mode agent (un `mode: "workflow"` envoyé
-  par défaut par le front n'en fait pas un DAG). Les outils prêtés à toutes les missions ne forcent rien.
+  par défaut par le front n'en fait pas un DAG), sauf avec le réglage de retrait. Les outils prêtés à toutes les missions
+  ne forcent rien.
 - Rien n'est écrit à la création : l'événement `delegation_accepted` n'arrive qu'au premier `mission_lancer` de
   l'exécution (voies 1 et 2) ou à l'accord sur la carte (voie 3).
 

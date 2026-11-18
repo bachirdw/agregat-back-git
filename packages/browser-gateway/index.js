@@ -338,6 +338,10 @@ export class BrowserGateway {
       !element.inForm &&
       !element.formAction;
     if (ownerLink) sensitive = false;
+    // faux-blocage-02 (cas T, essai réel du 18/11) : « Next » of a results list is a step by its
+    // label only ; a link outside any form, to a real address, sends nothing : the guard treats a
+    // tracker's form posted into a hidden frame of another site after it as after a plain click.
+    const stepLink = step && ownerLink && /^(?!#|javascript:)\S/i.test(element.href ?? '');
     // Audit du 10/11 (constat 14), relecture fix5 (constat 1) : Enter is classified as the click it
     // stands for. On a button or a link, it is a click on it ; in a field of a form, a click on the
     // form's default button (a card for the final send only) ; in a textarea or a contenteditable
@@ -551,6 +555,7 @@ export class BrowserGateway {
             ...args,
             ...(sending ? { sendApproved: true } : {}),
             ...(step || pressKind === 'step' ? { formStep: true } : {}),
+            ...(stepLink ? { stepLink: true } : {}),
             ...(clickKind ? { clickKind } : {}),
             ...(pressKind && pressKind !== 'submit' ? { clickKind: pressKind } : {}),
             ...(guardSubmit ? { guardSubmit: true } : {}),

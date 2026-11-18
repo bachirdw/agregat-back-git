@@ -37,6 +37,8 @@ const BROWSER = new Set([
   'review-cartes-recherche.test.js',
   // faux-blocage-01 : bouton du formulaire d'une zone de recherche déclarée (journal de la page).
   'faux-blocage-01-chrome.test.js',
+  // faux-blocage-02 : traceur d'un autre site en cadre caché après le lien « Next » d'une pagination.
+  'faux-blocage-02-chrome.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

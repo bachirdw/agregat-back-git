@@ -1596,7 +1596,8 @@ export class CdpBrowser {
         if (
           !forceCard &&
           !firstParty &&
-          this.sendClick !== true &&
+          // faux-blocage-02 (cas T) : or after a link outside a form that is a step by its label only.
+          (this.sendClick !== true || this.stepLink === true) &&
           request.isNavigationRequest() &&
           childFrame(request) &&
           // review-cartes-14-11 : an ad pixel sends the page's address, which holds the search the
@@ -2741,6 +2742,7 @@ export class CdpBrowser {
         this.sendClick =
           args.sendApproved === true || args.formStep === true || args.clickKind === 'candidate';
         this.formStep = args.formStep === true;
+        this.stepLink = this.formStep && args.stepLink === true && args.sendApproved !== true;
         this.clickKind = args.clickKind ?? null;
         this.clickPage = pageKey(page.url());
         // Second tour : the gateway call of this click, owner of the writes of its window.
@@ -2933,6 +2935,7 @@ export class CdpBrowser {
           this.sendClick =
             args.sendApproved === true || args.formStep === true || kind === 'candidate';
           this.formStep = args.formStep === true;
+          this.stepLink = false;
           this.clickKind = kind;
           this.clickPage = pageKey(page.url());
           this.clickToken = this.callToken;
@@ -3178,6 +3181,7 @@ export class CdpBrowser {
           // Permit its POST only until the click and download event have completed.
           this.sendClick = args.sendApproved === true;
           this.formStep = false;
+          this.stepLink = false;
           this.clickKind = null;
           this.clickToken = this.callToken;
           this.cover = args.sendApproved === true ? await this.#coverFor(link) : null;

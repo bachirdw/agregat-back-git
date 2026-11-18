@@ -316,4 +316,4 @@ deux commentaires, appel `created` retiré, `promptParts(run, mcpServers)`, bloc
 - `43ed94f` [delegation-v2-01] Partie B : code (`delegation.js`, `delegation-rule.js`, `family-bilan.js`, `index.js`),
   tests (`tests/delegation-v2-01-b.test.js` neuf, `tests/chef-01.test.js`, `tests/fixtures/chef-agent.js`), docs
   (`docs/api-delegation.md`, note du 18/11 de `docs/architecture-cible.md`).
-- Ce rapport : commit suivant. Fin de la partie B le 19/11/2026 vers 01:05 (heure lue par `date`).
+- Ce rapport : commit suivant. Fin de la partie B le 19/11/2026 à 00:59 (heure lue par `date`).

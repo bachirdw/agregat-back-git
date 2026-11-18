@@ -23,7 +23,7 @@ commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non r
 | A, 18:57 | `prompt-prime-18-11`, `ecriture-18-11` | verte 18:58 → 19:13, 1 342 unitaires, Chrome 253/253 | 1fd83538 (Codex, SEEK) : `failed` pour E135, comme avant ; `append` non employé |
 | B, 19:45 | `captures-18-11`, `collecte-18-11` (E135), corrigés | verte 19:46 → 20:03, 1 386 unitaires, Chrome 253/253 | b8b6c2f7 (Codex, SEEK) : `completed` en 3 min 48 s, 6 captures et 10 extractions en liste au lieu de 24 puis 36 captures |
 | C, 20:10 | `lecture-18-11` (E128), corrigé | verte 20:10 → 20:25, 1 408 unitaires dont 1 « à faire », Chrome 253/253 | 08730a60 (Claude, épreuve 1) : `completed` en 13 min, mais annonces lues par le navigateur : lecture par script **non exercée** |
-| E, 20:41 | `generique-01` (G1, G2, G4 de `reports/genericite-moteur-18-11.md`) | verte 20:48 → 21:02, 1 428 unitaires dont 1 « à faire », Chrome 253/253 | SEEK rejouée avec Codex à 21:04 : à relever (elle doit finir `completed` comme b8b6c2f7) |
+| E, 20:41 | `generique-01` (G1, G2, G4 de `reports/genericite-moteur-18-11.md`) | verte 20:48 → 21:02, 1 428 unitaires dont 1 « à faire », Chrome 253/253 | dd100991 (Codex, SEEK, 21:03) : `completed` en 3 min 20 s ; mêmes étapes, mêmes outils et même fin que b8b6c2f7 : aucune différence constatée pour career-ops |
 Entre A et B : **relecture contradictoire** des sprints en attente (19:18, 21 agents Opus, « ce qui marche change-t-il ? ») :
 neuf constats confirmés, aucun bloquant, corrigés dans chaque arbre par un correcteur `review2-<sprint>` puis vérifiés
 (rapports `reports/review2-<sprint>.md`, repris avec les sprints). Restes connus : `lecture` (sortie d'erreur fondue dans
@@ -35,7 +35,8 @@ rendu indépendant de `.data/agents.json` (il sondait 288 fois les agents instal
 **Rien n'est poussé depuis `514c5c4`** (18:22) : 55 commits locaux à 20:50 (`git rev-list --count 514c5c4..HEAD`). Aucun push sans ordre du propriétaire.
 
 **À faire, dans l'ordre**
-1. Relever l'essai réel d'après `generique-01` (SEEK rejouée avec Codex à 21:04, section du jour dans `reports/guet-18-11.md`) : il doit finir `completed` comme b8b6c2f7 ; sinon chercher ce qui a bougé pour career-ops, et le dire au propriétaire.
+1. Rien d'urgent : la version unique est intégrée, testée et en service ; le propriétaire teste. Lui demander l'ordre
+   de pousser (question posée à 21:07, pas de réponse à 21:10). Relever ses missions au fil de l'eau (guetteur).
 2. Essais réels restants, une mission à la fois, Codex d'abord : SEEK **sans borne de pages** (la mesure « des
    milliers » ; avec cinq pages l'agent voit déjà 158 offres sur 160) ; épreuve 3 (lettre) jusqu'au PDF, avec le
    propriétaire pour répondre ; une évaluation où le texte vient d'un **script** du Skill (E128, non exercé) ; un ajout

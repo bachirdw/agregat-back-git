@@ -83,6 +83,8 @@ test('C8 FICTIF : la passerelle transmet le compte du scan, le Bilan l’écrit 
     ),
     {
       argument: 'scan',
+      // E121 (18/11) : un script en échec porte sa première ligne utile au Bilan.
+      errorLine: 'Scan FICTIF : 5 sources',
       exitCode: 1,
     },
   );

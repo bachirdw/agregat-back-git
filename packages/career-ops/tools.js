@@ -25,6 +25,7 @@ import {
   gmailCompose,
   linkedInDraft,
 } from './sends.js';
+import { scriptCallFailed } from './truth.js';
 const exec = promisify(execFile);
 // 08/11 : a script that asks at the keyboard (contact-extract « Save this contact? [y/N] », any
 // readline prompt) reads end of input at once, as in a shell without a terminal, instead of waiting
@@ -1599,13 +1600,16 @@ export function registerCareerTools(
     ownerMode,
     ...(config !== undefined ? { config } : {}),
   });
-  const register = (name, description, schema, handler) =>
+  // E121 : `failed(args, result)` marks the MCP answer as an error (the flow shows the call failed),
+  // its content unchanged : the agent reads the same answer.
+  const register = (name, description, schema, handler, failed = () => false) =>
     server.registerTool(
       name,
       { description, inputSchema: schema.extend({ wait_for_previous: z.unknown().optional() }) },
       async ({ wait_for_previous: _ignored, ...args }, extra) => {
         const result = await handler(args, extra?.signal ?? signal);
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+        const answer = { content: [{ type: 'text', text: JSON.stringify(result) }] };
+        return failed(args, result) ? { ...answer, isError: true } : answer;
       },
     );
   register(
@@ -1676,6 +1680,7 @@ export function registerCareerTools(
       const result = await tools.script(args, signal);
       return ownerMode ? boundScriptOutput(result) : result;
     },
+    (args, result) => scriptCallFailed(args.command, result),
   );
   // contacts-courriel-01 : sans SMTP, le brouillon prérempli s'ouvre dans le navigateur du
   // propriétaire, comme linkedin_draft ouvre le profil ; rien n'est envoyé. Avec SMTP, aucune

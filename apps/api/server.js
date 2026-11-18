@@ -559,6 +559,9 @@ export function createApp({
             exitCode: Number.isInteger(body.exitCode) ? body.exitCode : undefined,
             // Relecture du 10/11 (constat 4) : the script printed its own verdict (gatewayProgress).
             verdictOutput: body.verdictOutput === true,
+            // E121 : first useful line of a failed script's error (bounded and masked in truth.js).
+            errorLine:
+              typeof body.errorLine === 'string' ? body.errorLine.slice(0, 400) : undefined,
             tracker: body.tracker,
             facts: body.facts,
             scan: body.scan,

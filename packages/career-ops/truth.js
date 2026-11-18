@@ -1,4 +1,5 @@
 import { exitFailedOf } from '../orchestrator/exit-code.js';
+import { redact } from '../agent-runtime/env.js';
 import { readToolCall } from '../orchestrator/tool-call.js';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -241,14 +242,76 @@ export function gatewayProgress(name, status, args, result) {
   // from « the tool failed » (spawn error, timeout, cancel : no exit code, the gateway raised).
   const exitCode =
     name === 'career_script' && status === 'failed' ? scriptExitCode(result) : undefined;
-  if (exitCode === undefined) return withArgs;
-  return VERDICT_SCRIPTS.has(withArgs.argument)
-    ? {
-        ...withArgs,
-        exitCode,
-        verdictOutput: scriptVerdictOutput(withArgs.argument, scriptText(result?.content)),
-      }
-    : { ...withArgs, exitCode };
+  const verdictOutput =
+    exitCode !== undefined && VERDICT_SCRIPTS.has(withArgs.argument)
+      ? scriptVerdictOutput(withArgs.argument, scriptText(result?.content))
+      : undefined;
+  // E121 : a failed script says its first useful error line to the Bilan (bounded, masked) ; a
+  // verdict says nothing more (the fact gate's output names the claims, never sent).
+  const errorLine =
+    name === 'career_script' &&
+    status === 'failed' &&
+    !(verdictOutput === true && scriptAnswered(exitCode))
+      ? scriptErrorLine(answerText(result))
+      : null;
+  const withError = errorLine ? { ...withArgs, errorLine } : withArgs;
+  if (exitCode === undefined) return withError;
+  return verdictOutput !== undefined
+    ? { ...withError, exitCode, verdictOutput }
+    : { ...withError, exitCode };
+}
+// E121 (16/11, 18/11) : a script that exited non-zero was `completed` in the flow (the MCP answer
+// carried no error mark), a failure for the Bilan only. The answer of career_script is now an MCP
+// error when the script failed : any exit code other than 0 (null : timeout, buffer), except a
+// verdict of a control script (a plain exit 1-125 with the script's own verdict output), which
+// stays an answer, as the Bilan counts it.
+export function scriptCallFailed(command, result) {
+  if (!result || typeof result !== 'object' || !Object.hasOwn(result, 'exitCode')) return false;
+  if (result.exitCode === 0) return false;
+  const argument = progressArgument('career_script', { command });
+  return !(
+    VERDICT_SCRIPTS.has(argument) &&
+    scriptAnswered(result.exitCode) &&
+    scriptVerdictOutput(argument, result.text)
+  );
+}
+// The text of a gateway answer : a script's `text` (stdout and stderr), or the error message.
+function answerText(result) {
+  const raw = result?.content?.[0]?.text;
+  if (typeof raw !== 'string') return '';
+  try {
+    const value = JSON.parse(raw);
+    if (typeof value?.text === 'string') return value.text;
+    if (value && typeof value === 'object') return '';
+  } catch {
+    /* a plain message */
+  }
+  return raw;
+}
+// E121 : the first useful line of a script's error output, for the Bilan : an « …Error: » line
+// when there is one (Node prints the failing source line and a caret first), else the first line
+// that is no stack frame, location or caret. Secrets masked, a home folder shortened to ~, control
+// characters removed, 200 characters at most. null when nothing is left.
+const ERROR_LINE_MAX = 200;
+const NOISE_LINE =
+  /^(?:at\s|\^+$|Node\.js v\d|(?:node:[\w/:-]+|file:\/\/\S+|\/\S+):\d+(?::\d+)?$|\[Sortie )/;
+export function scriptErrorLine(text) {
+  const lines = String(text ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim())
+    .filter(Boolean);
+  const line =
+    lines.find((l) => /^(?:[A-Z][\w.]*)?(?:Error|Exception)\b|^(?:Fatal|Erreur)\b/.test(l)) ??
+    lines.find((l) => !NOISE_LINE.test(l));
+  if (!line) return null;
+  const clean = redact(line)
+    .replace(/(?:file:\/\/)?\/(?:Users|home)\/[^/\s'"`]+/g, '~')
+    .replace(
+      /\b(token|api[_-]?key|key|secret|password|passwd|authorization)\b(\s*[:=]\s*)\S+/gi,
+      '$1$2[secret masqué]',
+    )
+    .replace(/\b(bearer)\s+\S+/gi, '$1 [secret masqué]');
+  return clean.length > ERROR_LINE_MAX ? `${clean.slice(0, ERROR_LINE_MAX)}…` : clean;
 }
 function scriptExitCode(result) {
   try {
@@ -654,6 +717,7 @@ export function createTurnTruth({ root, seed } = {}) {
         scan: scanRows,
         contactSaved,
         verdictOutput,
+        errorLine,
       } = {},
     ) {
       if (
@@ -681,7 +745,12 @@ export function createTurnTruth({ root, seed } = {}) {
                 ? VERDICT_CAUSE
                 : name === 'career_script' && exitCode === TIMEOUT_EXIT
                   ? TIMEOUT_CAUSE
-                  : 'échec signalé par l’outil',
+                  : name === 'career_script' &&
+                      typeof errorLine === 'string' &&
+                      scriptErrorLine(errorLine)
+                    ? // E121 : the first useful line of the script's error, sanitised again here.
+                      `échec signalé par l’outil : ${scriptErrorLine(errorLine)}`
+                    : 'échec signalé par l’outil',
               ...(verdict ? { verdict } : {}),
             }
           : {}),

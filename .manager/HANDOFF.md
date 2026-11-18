@@ -45,7 +45,10 @@ nouvelle discussion garde tout le reste : guet, essais réels, intégration, reg
    **Étape A faite** (18:57 → 19:13) : `prompt-prime-18-11` et `ecriture-18-11` repris (9 commits, `589c05a` à
    `fa6e6af`, sans conflit), suite complète verte, API relancée à 19:14 par la nouvelle discussion (onglet Terminal
    « API 4314 manager ») ; essai réel : SEEK rejouée avec Codex (le prompt entier est dans le bloc-notes de la discussion,
-   pas dans Git). Restent B puis C.
+   pas dans Git) : 1fd83538, 19:14 → 19:20, `failed` pour la même cause qu'avant (E135, « 0 sur 216 »), relevé dans
+   `reports/guet-18-11.md`. Restent B, C, puis D (`collecte-18-11`, accord donné). Avant B et C, une relecture
+   contradictoire à plusieurs agents (« ce qui marche change-t-il ? ») tourne depuis 19:18 sur `captures`, `lecture` et
+   `collecte` : attendre ses constats avant de reprendre ces sprints.
 5. Essais réels après l'intégration, Codex d'abord (il ne consomme pas la limite), puis Claude : la mission SEEK de
    l'étape 2 rejouée à l'identique (comparer), puis sans borne de pages ; épreuve 3 (lettre) jusqu'au PDF ; épreuve 1
    (évaluation) avec Claude pour E128.
@@ -74,6 +77,7 @@ tests du sprint relancés, fusion à blanc sans conflit ; aucun essai réel ; te
 | `lecture-18-11` (E128) | `~/Downloads/agregat-back-lecture`, `e9c60c3` | `a79a747..lecture-18-11` | une annonce dont un script du Skill déclaré par le pack (`scriptReads` : `fetch-jd`, `browser-extract`) a rendu le texte (code 0, 500 caractères au moins, adresse de l'annonce) compte comme lue ; le rejeu des événements de 751f33c8 ne donne plus « notée sans lecture » (`skill-manifest.yaml`, `skill-router.js`) | 14 sur 14 | seuil de 500 caractères ; reprise et note hors intention qui ne voient pas ces lectures (`orchestrator/index.js`, non touché) |
 | `prompt-prime-18-11` | `~/Downloads/agregat-back-prompt`, `083e8ce` | `a79a747..prompt-prime-18-11` | consigne du pack : « Le prompt du propriétaire prime sur le Skill : il décide de ce qui est fait (périmètre, volume, sources, seuils), le Skill dit comment le faire… » (`OWNER_PROMPT_PRIME`, `packages/career-ops/integration.js`) | 4 sur 4 | l'étape `scan` reste exigée par le pack même quand le prompt choisit ses sources (manifeste, hors sprint) |
 | `captures-18-11` (E131, E132) | `~/Downloads/agregat-back-captures`, `cc3c6ee` | `4b7b3b6..captures-18-11` | plus de coupe à 50 000 : une capture demandée dans les bornes est rendue en entier, la suite est toujours désignée, chaque tranche dit la taille totale et les tranches restantes ; `browser_extract` liste jusqu'à 1 000 éléments avec leur texte, l'adresse de leur lien et le total (`packages/browser-gateway/`, `packages/capability-registry/index.js`) | 18 sur 18, plus voisins | masquage des suites de 13 chiffres appliqué aussi aux adresses des liens ; tailles de tranche par défaut inchangées |
+| `collecte-18-11` (E135), lancé à 19:04, prêt à 19:15 | `~/Downloads/agregat-back-collecte`, `ddd8e3b` | `8758de4..collecte-18-11` | une collecte dont le prompt dit de ne pas ouvrir, noter, évaluer ou traiter les offres ne finit plus en « boîte d'entrée non traitée » : motif `COLLECT_ONLY` à côté de `COUNT_LIMIT` et une ligne de `inboxUnprocessed` (`packages/career-ops/truth.js`) ; sans le motif dans le prompt, rien ne change (le relecteur a retiré 21 faux déclenchements) | 8 sur 8, plus voisins ; relancés par le manager à 19:15 | **accord d'intégration donné à 19:17 (« Oui, après C »)**, option B de `reports/e135-faits-18-11.md` ; trois tournures mixtes dispensent encore : « Traite la boîte… ; ajoute aussi les nouvelles offres sans les ouvrir », « Traite la boîte d'entrée sans évaluer », pronom qui renvoie à autre chose qu'une offre |
 Rapports dans chaque arbre : `.manager/reports/<sprint>.md` et `review-<sprint>.md`. Briefs : `.manager/briefs/<sprint>.md`.
 
 **Mode workflow multi-agents** : décisions du propriétaire de 18:13 (agent chef ; trois voies d'activation, toujours avec
@@ -195,6 +199,13 @@ Méthode
   sensible au plus sensible, avec une suite complète et un essai réel entre deux ; dans le code sensible qui marche
   (orchestrateur, passerelle du navigateur, API), préférer des fichiers nouveaux, des changements additifs, des
   branchements courts et inertes par défaut ; demander aux relecteurs l'angle « rien d'existant ne change ».
+- **Tout Skill, toute tâche** (18/11 vers 19:19, écrit au manager ; ses mots : « On n'oublie pas un code pour que ça
+  puisse marcher avec tout type de skill, tout type de tâche. ») : le code écrit ou intégré ne doit pas supposer
+  career-ops ; ce qui est propre à un Skill se déclare dans son pack (`domain-packs/<pack>/`, `packages/career-ops/`), le
+  moteur (orchestrateur, passerelles, API) l'applique sans connaître le métier. Critère à mettre dans chaque brief et
+  chaque relecture. Constaté à 19:21 par simple comptage (`grep`, sans lecture) : le moteur cite déjà career-ops
+  (`packages/orchestrator/index.js` : 119 lignes ; `apps/api/server.js` : 37 lignes ; 9 fichiers de
+  `packages/orchestrator/`) ; trois packs existent (`career-ops`, `core`, `najah`). État des lieux à faire, proposé à lui.
 - **Même résultat quel que soit l'agent** (17/11) : chaque épreuve se joue avec Claude et avec Codex ; un écart entre
   agents est un défaut de la plateforme. **Mêmes autorisations et mêmes permissions pour tous les agents** (18/11 :
   Claude, Codex, puis Gemini et OpenCode) ; aucune particularité d'un agent codée en dur, sauf si elle sert à le faire

@@ -85,8 +85,10 @@ revérifié) : `-career-fix`, `-doute`, `-essai-01-11`, `-isolation`, `-matrice`
 `~/Downloads/agent-repos-agregat` (dépôts de référence), archive `~/Downloads/relay-archive-2026-11-05-1716`.
 
 ## 4. Lancer et vérifier
-**Le Mac a redémarré le 18/11 vers 11:43** (`uptime`) : à 12:05, aucun port de Relay à l'écoute (`lsof`). Tout est à
-relancer, sans mission en cours, en le disant au propriétaire.
+**Serveurs d'essai** : ils s'arrêtent à chaque redémarrage du Mac (dernier : 18/11 vers 11:43). Relancés le 18/11 à
+12:18 sur accord du propriétaire, dans trois onglets du panneau Terminal de la discussion du manager (API 4314, page
+fictive 4321, front 5177) ; la base a gardé ses missions. Avant de s'y fier, vérifier par `lsof` qu'ils écoutent ;
+sinon les relancer, sans mission en cours, en le disant au propriétaire. Le guetteur est à relancer avec eux.
 - API d'essai (code le plus récent), port 4314 :
   `cd ~/Downloads/agregat-back-essai-13-11 && zsh .manager/outils/api-branche.sh 4314 ~/Downloads/career-ops-essai`
   (mode propriétaire, délai maximal 2 h, origine locale 4321 admise, aucune clé Gemini, fichier de secrets non lu).

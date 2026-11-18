@@ -54,3 +54,6 @@ le script du guetteur ne tourne plus. Rien n'a été relancé pendant le ménage
 - Les autres branches gardent leur propre copie de l'ancien `.manager/`.
 - Deux contradictions relevées par le sous-agent restent à trancher : `AGENTS.md` dit encore `git add -A` aux codeurs ;
   `CLAUDE.md` dit que tout est fusionné dans `dev`.
+
+## Après le ménage
+- 12:18 Sur accord du propriétaire (« Oui, relance ») : API d'essai 4314, page fictive 4321 et front 5177 relancés dans trois onglets du panneau Terminal ; vérifié à 12:18:43 (trois ports à l'écoute, HTTP 200 sur 4321 et 5177, API servie depuis `agregat-back-essai-13-11`, 22 missions gardées, aucune en cours). Guetteur relancé. Le correctif de la reprise n'est pas intégré (le propriétaire a choisi la relance simple).

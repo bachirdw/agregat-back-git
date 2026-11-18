@@ -221,9 +221,19 @@ export function isGraphqlRead(body) {
 export function listedElements(elements) {
   return elements.map((element) => {
     const link = element.closest('a[href]') ?? element.querySelector('a[href]');
+    // review-captures-18-11 : an SVG <a> has an SVGAnimatedString `href`, not a string ; its
+    // attribute is resolved against the page instead of rendering « [object Object] ».
+    let href = link ? link.href : null;
+    if (href !== null && typeof href !== 'string') {
+      try {
+        href = new URL(link.getAttribute('href'), link.baseURI).href;
+      } catch {
+        href = null;
+      }
+    }
     return {
       text: element.innerText ?? element.textContent ?? '',
-      href: link ? link.href : null,
+      href,
     };
   });
 }

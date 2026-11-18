@@ -673,10 +673,14 @@ test(
     assert.equal(multiple.text, 'FICTIF premier\nFICTIF deuxième\nFICTIF troisième');
     assert.equal(multiple.count, 3);
     await assert.rejects(gateway.call('browser.extract', { limit: 0 }));
-    assert.equal(
-      (await gateway.call('browser.extract', { selector: 'li', limit: 20, maxChars: 6 })).text,
-      'FICTIF',
-    );
+    // review-captures-18-11 (E132) : maxChars counts a listed element's text twice (items and text) ;
+    // the first element alone above it is cut and says so (ancien attendu : « FICTIF »).
+    const cut = await gateway.call('browser.extract', { selector: 'li', limit: 20, maxChars: 6 });
+    assert.equal(cut.text, 'FIC');
+    assert.equal(cut.items[0].textTruncated, true);
+    assert.equal(cut.items[0].textChars, 'FICTIF premier'.length);
+    assert.equal(cut.total, 3);
+    assert.equal(cut.nextOffset, 1);
     await gateway.call('browser.type', {
       ref: await refFor(gateway, '#query'),
       text: 'FICTIF résultat recherché',

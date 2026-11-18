@@ -921,10 +921,12 @@ export class SkillProgress {
       scored.add(page);
       identifiers.set(page, [...(identifiers.get(page) ?? []), ...itemIdentifiers(offer.url)]);
     }
-    // E128 : an item rendered by a script is also known by its identifier on the same host.
+    // E128 : an item rendered by a script is also known by its identifier on the same host : the
+    // last one of its address (its query field, else its last path token), never a token that the
+    // pages of one site share (review-lecture-18-11 : « /Careers_2026/job/<item> »).
     const selected = new Set([
       ...readPages.flatMap(selectedItems),
-      ...this.scriptReads.flatMap(itemIdentifiers),
+      ...this.scriptReads.flatMap((url) => itemIdentifiers(url).slice(-1)),
     ]);
     const unread = sourceRead
       ? 0

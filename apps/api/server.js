@@ -267,6 +267,8 @@ export function createApp({
             permissions: [...engine.permissions.values()]
               .filter((p) => p.runId === id)
               .map(({ finish, ...p }) => p),
+            // chef-01 : the sub-missions of a mother, only when it has some.
+            ...engine.delegation.view(run),
           });
       }
       const privateResult = path.match(/^\/api\/career\/runs\/([a-f0-9-]{36})\/result$/);
@@ -437,6 +439,20 @@ export function createApp({
               agentMode: old.agentMode ?? '',
               browserDomains: old.browserDomains ?? [],
               budgetCents: old.budgetCents,
+              // chef-01 : a resumed chief keeps the owner's acceptance (and its extensions).
+              ...(old.delegation && !old.famille
+                ? {
+                    delegation: {
+                      accepted: old.delegation.accepted,
+                      via: old.delegation.via,
+                      total: old.delegation.total,
+                      parallel: old.delegation.parallel,
+                      ...(old.delegation.acceptedAt
+                        ? { acceptedAt: old.delegation.acceptedAt }
+                        : {}),
+                    },
+                  }
+                : {}),
             },
             old,
           ),
@@ -492,6 +508,23 @@ export function createApp({
         if (res.destroyed) return;
         return json(res, 200, decision);
       }
+      // chef-01 : the mission tools of a chief (packages/mission-gateway/server.js), same token as
+      // its capability gateway. mission_attendre may hold the request : it ends if the gateway leaves.
+      const missions = path.match(/^\/api\/internal\/missions\/([a-f0-9-]{36})$/);
+      if (missions) {
+        const gone = new AbortController();
+        res.on('close', () => {
+          if (!res.writableFinished) gone.abort(new Error('Appel abandonné par la passerelle'));
+        });
+        const out = await engine.delegation.call(
+          missions[1],
+          String(req.headers['x-relay-token'] ?? ''),
+          body,
+          gone.signal,
+        );
+        if (res.destroyed) return;
+        return json(res, out.status, out.body);
+      }
       const evidence = path.match(/^\/api\/internal\/evidence\/([a-f0-9-]{36})$/);
       const toolOutcome = path.match(/^\/api\/internal\/tool-outcome\/([a-f0-9-]{36})$/);
       const siteRefusal = (status) => Number.isInteger(status) && status >= 400 && status <= 599;
@@ -545,6 +578,8 @@ export function createApp({
           return json(res, 200, { ok: true });
         }
         control.toolDelivered?.(null, 'gateway');
+        // chef-01 : file names a sub-mission's gateway reported (its own calls).
+        control.familyOutcome?.(body);
         // review-accord-mission-01 : the calls that have returned, so that a send asked after its
         // call returned never holds the mission's send grant (see otherSendOpen).
         if (body.toolCallId != null) (control.callsReported ??= new Set()).add(body.toolCallId);

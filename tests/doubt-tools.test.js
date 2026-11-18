@@ -17,6 +17,7 @@ import { CareerWorkspace } from '../packages/career-ops/workspace.js';
 import { reviewCareer } from '../packages/career-ops/integration.js';
 import { connectMcp } from '../packages/mcp-gateway/client.js';
 import { getPack } from '../packages/orchestrator/packs.js';
+import { OWNER_QUESTION_RULE } from '../packages/orchestrator/owner-question-rule.js';
 import * as router from '../packages/orchestrator/skill-router.js';
 import { terminal } from '../packages/storage/index.js';
 
@@ -86,8 +87,10 @@ for (const [name, input, options] of PARCOURS)
     assert.match(instructions, /suis d’abord le prompt, puis le Skill/);
     assert.match(
       instructions,
-      /ne tranchent pas entre plusieurs outils ou méthodes équivalents, ou s’il manque une information indispensable, pose la question par le formulaire de question de ton agent \(AskUserQuestion \/ elicitation ACP\) ou, sans formulaire, par le champ JSON question de ta réponse, et attends : la mission reste ouverte dans la même session ; ne choisis pas au hasard/,
+      /ne tranchent pas entre plusieurs outils ou méthodes équivalents, ou s’il manque une information indispensable, pose la question au propriétaire comme le dit la règle des questions, et attends : la mission reste ouverte dans la même session ; ne choisis pas au hasard/,
     );
+    // questions-18-11 : la manière de poser la question est dite une fois, par la règle commune.
+    assert.equal(occurrences(instructions, OWNER_QUESTION_RULE), 1);
     assert.match(instructions, /Ne demande rien de ce que le prompt ou le Skill tranchent déjà/);
     assert.equal(occurrences(instructions, 'ne choisis pas au hasard'), 1);
     // c3 : aucune consigne de Relay ne demande plus une question en prose dans summary.
@@ -381,6 +384,7 @@ test('Workflow career-ops : la recherche publique est annoncée comme secours du
 
 // c3-question-prose-01, point 1 : la consigne navigateur demande le formulaire de question
 // (ou le champ structuré `question`), plus une question en prose dans summary.
+// questions-18-11 : la phrase est désormais la règle commune (OWNER_QUESTION_RULE).
 test('Consigne navigateur : une question passe par le formulaire ACP ou le champ question', async (t) => {
   const { instructions } = await sentPrompt(
     t,
@@ -389,7 +393,7 @@ test('Consigne navigateur : une question passe par le formulaire ACP ou le champ
   );
   assert.ok(
     instructions.includes(
-      'Si une confirmation, un choix ou une précision reste nécessaire, pose la question par le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) : la mission attend la réponse du propriétaire sans se terminer, dans la même session. Si ton agent n’a pas de formulaire, termine ta réponse par un objet JSON {"question":{"message":"…","options":["…"]}} et la plateforme attendra de la même façon ; ce champ question peut aussi figurer dans ta réponse JSON finale.',
+      `Si une confirmation, un choix ou une précision reste nécessaire, pose la question au propriétaire, sans terminer la mission. ${OWNER_QUESTION_RULE}`,
     ),
     instructions,
   );

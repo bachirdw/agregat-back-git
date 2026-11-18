@@ -72,7 +72,7 @@ export const SYNTHESIS_TURN =
 // The card of the first sub-mission, when the owner has not accepted yet (question of the mother).
 export function consentMessage(delegation) {
   const { total, parallel } = envelopeOf(delegation);
-  return `Autoriser les sous-agents\nL’agent de ta mission pourra, s’il le juge utile, confier des parties du travail à d’autres agents qui travaillent en même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite d’usage peut être atteinte plus vite. Autoriser n’oblige pas : pour une demande simple, un seul agent travaillera. Au plus ${total} sous-missions Relay pour cette mission, ${parallel} en même temps (modifiables) ; les sous-agents internes que les agents lancent d’eux-mêmes ne sont ni comptés ni bornés par cette limite. Les envois restent à ton clic.`;
+  return `Autoriser les sous-agents\nL’agent de ta mission pourra, s’il le juge utile, confier des parties du travail à d’autres agents qui travaillent en même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite d’usage peut être atteinte plus vite. Autoriser n’oblige pas : pour une demande simple, un seul agent travaillera. Au plus ${total} sous-missions Relay pour cette mission, ${parallel} en même temps (modifiables) ; une sous-mission en échec peut en plus être reprise deux fois hors de cette limite ; les sous-agents internes que les agents lancent d’eux-mêmes ne sont ni comptés ni bornés par cette limite. Les envois restent à ton clic.`;
 }
 export const CONSENT_CHOICES = Object.freeze([
   { const: 'autoriser', title: 'Autoriser pour cette mission' },
@@ -81,11 +81,15 @@ export const CONSENT_CHOICES = Object.freeze([
 // The line of the thread when the chief says the owner's request asks for sub-agents (no card).
 export function promptNotice(delegation) {
   const { total, parallel } = envelopeOf(delegation);
-  return `Sous-agents lancés à ta demande : chacun consomme ton abonnement comme une mission ordinaire ; enveloppe : ${total} au plus, ${parallel} en même temps.`;
+  return `Sous-agents lancés à ta demande : chacun consomme ton abonnement comme une mission ordinaire ; enveloppe : ${total} au plus, ${parallel} en même temps (plus deux reprises au plus par sous-mission en échec).`;
 }
-// Beyond the envelope : a choice, never a free text read for « oui ».
-export function extensionMessage(nth, total) {
-  return `Le chef veut lancer une ${nth}e sous-mission ; l’enveloppe acceptée est de ${total}. En autoriser ${ENVELOPE_EXTENSION} de plus ?`;
+// Beyond the envelope : a choice, never a free text read for « oui ». `nth` is the rank in the
+// envelope ; with resumptions outside it (review-multi-agent-v3-01), the sub-missions already
+// launched are said too.
+export function extensionMessage(nth, total, lancees = nth - 1) {
+  if (lancees === nth - 1)
+    return `Le chef veut lancer une ${nth}e sous-mission ; l’enveloppe acceptée est de ${total}. En autoriser ${ENVELOPE_EXTENSION} de plus ?`;
+  return `Le chef veut lancer une sous-mission de plus : ce serait la ${nth}e comptée dans l’enveloppe acceptée de ${total} (${lancees} déjà lancées, reprises comprises). En autoriser ${ENVELOPE_EXTENSION} de plus ?`;
 }
 export const EXTENSION_CHOICES = Object.freeze([
   { const: 'oui', title: `Oui, ${ENVELOPE_EXTENSION} de plus` },

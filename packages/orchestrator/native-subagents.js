@@ -23,6 +23,14 @@ const label = (value) =>
   typeof value === 'string'
     ? (value.split('/').filter(Boolean).pop() ?? '').replace(/[^\w.-]/g, '').slice(0, 40)
     : '';
+// review-multi-agent-v3-01 : a model's name as the agent gave it, without control characters.
+const asGiven = (value) =>
+  typeof value === 'string'
+    ? value
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .trim()
+        .slice(0, 80)
+    : '';
 const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 
 export class NativeSubagents {
@@ -84,7 +92,7 @@ export class NativeSubagents {
     if (report && typeof report === 'object') {
       seen.name = label(report[shape.reportType]) || seen.name;
       seen.reported = {
-        model: label(report[shape.model]),
+        model: asGiven(report[shape.model]),
         tools: Number.isFinite(report[shape.tools]) ? report[shape.tools] : null,
         durationMs: Number.isFinite(report[shape.durationMs]) ? report[shape.durationMs] : null,
         status: TERMINAL.has(report[shape.status]) ? report[shape.status] : null,
@@ -108,13 +116,15 @@ export class NativeSubagents {
           ? `${plural(seen.turns, 'fin de tour', 'fins de tour')}, ${span} du premier départ à la dernière fin vus par la plateforme`
           : 'aucune fin vue'
       })`;
-    const state = STATE[seen.state ?? seen.reported?.status] ?? 'sans fin vue';
+    // review-multi-agent-v3-01 : only an end the platform saw ; the agent's own is « selon l’agent ».
+    const state = STATE[seen.state] ?? 'sans fin vue';
     const parts = [
       plural(seen.calls.size, 'appel d’outil vu', 'appels d’outils vus'),
       span ? `${state}, ${span} vus par la plateforme` : state,
     ].join(', ');
     const reported = seen.reported
       ? [
+          !seen.state && STATE[seen.reported.status],
           seen.reported.model && `modèle ${seen.reported.model}`,
           seen.reported.tools !== null && plural(seen.reported.tools, 'outil', 'outils'),
           seen.reported.durationMs !== null && formatDuration(seen.reported.durationMs),

@@ -774,12 +774,21 @@ export class Delegation {
         child = sisters.get(child.famille.reprend);
       return child.id;
     };
+    // review-multi-agent-v3-01 : resumptions of the task still being created (simultaneous calls)
+    // take a rank too ; only the creations in flight that will count are added to the envelope.
+    family.resuming ??= new Map();
+    family.pendingCounted ??= 0;
+    const taskId = previous ? taskOf(previous) : null;
     const reprise = previous
-      ? 1 + children.filter((c) => c.famille?.reprend && taskOf(c) === taskOf(previous)).length
+      ? 1 +
+        children.filter((c) => c.famille?.reprend && taskOf(c) === taskId).length +
+        (family.resuming.get(taskId) ?? 0)
       : 0;
-    const counted = children.filter(counts).length + family.pending;
-    if (!(reprise >= 1 && reprise <= 2) && counted >= total) {
-      if (this.consent(root) === true) this.askExtension(mother, control, counted + 1, total);
+    const free = reprise >= 1 && reprise <= 2;
+    const counted = children.filter(counts).length + family.pendingCounted;
+    if (!free && counted >= total) {
+      if (this.consent(root) === true)
+        this.askExtension(mother, control, counted + 1, total, launched);
       throw fail('enveloppe_atteinte', envelopeReached(total));
     }
     const fichiers = (args.fichiers ?? []).map((path) => path.replaceAll('\\', '/'));
@@ -828,6 +837,8 @@ export class Delegation {
     control.mere = true;
     if (!mother.estMere) this.store.update(mother.id, { estMere: true });
     family.pending++;
+    if (taskId) family.resuming.set(taskId, (family.resuming.get(taskId) ?? 0) + 1);
+    if (!free) family.pendingCounted++;
     let run;
     try {
       run = await this.engine.create(
@@ -863,12 +874,20 @@ export class Delegation {
       throw fail('erreur', message);
     } finally {
       family.pending--;
+      if (taskId) {
+        const left = family.resuming.get(taskId) - 1;
+        if (left > 0) family.resuming.set(taskId, left);
+        else family.resuming.delete(taskId);
+      }
+      if (!free) family.pendingCounted--;
     }
-    if (control.abort.signal.aborted) {
+    // review-multi-agent-v3-01 : the mother failed (stopFamily, no abort) while it was created.
+    if (control.abort.signal.aborted || family.stopped) {
       // The mother ended while the sub-mission was planned : it never starts.
+      if (family.stopped) control.familyStopped = (control.familyStopped ?? 0) + 1;
       this.store.update(run.id, {
         state: 'cancelled',
-        error: 'Mission mère terminée avant le départ',
+        error: family.stopped ? MOTHER_FAILED : 'Mission mère terminée avant le départ',
         finishedAt: new Date().toISOString(),
       });
       throw fail('mission_terminee', 'La mission mère se termine ou est annulée');
@@ -968,12 +987,12 @@ export class Delegation {
     });
   }
   // Beyond the envelope the platform does not block in silence : it asks the owner, once at a time.
-  askExtension(mother, control, nth, total) {
+  askExtension(mother, control, nth, total, lancees) {
     const family = this.family(mother.id);
     if (family.asking) return;
     family.asking = true;
-    this.store.event(mother.id, 'delegation_envelope_reached', { total, asked: nth });
-    const question = choiceQuestion(extensionMessage(nth, total), EXTENSION_CHOICES);
+    this.store.event(mother.id, 'delegation_envelope_reached', { total, asked: nth, lancees });
+    const question = choiceQuestion(extensionMessage(nth, total, lancees), EXTENSION_CHOICES);
     Promise.resolve(this.engine.enqueueQuestion(mother.id, question, control)).then((reply) => {
       family.asking = false;
       if (reply?.action !== 'accept' || reply.content?.choix !== 'oui') return;
@@ -1151,6 +1170,7 @@ export class Delegation {
     if (!control?.mere) return;
     const family = this.family(run.id);
     family.closing = true;
+    family.stopped = true;
     control.familyStopped = this.cascade(run.id, MOTHER_FAILED);
     const mother = this.store.get(run.id);
     await this.until(family, () => !this.living(mother).length, AbortSignal.timeout(10000));

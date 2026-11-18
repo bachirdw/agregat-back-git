@@ -403,7 +403,7 @@ test('voie 2, demande écrite dans le prompt : pas de carte, une ligne du fil, a
   assert.equal(accepted[0].data.message, rule.promptNotice(undefined));
   assert.equal(
     accepted[0].data.message,
-    'Sous-agents lancés à ta demande : chacun consomme ton abonnement comme une mission ordinaire ; enveloppe : 6 au plus, 3 en même temps.',
+    'Sous-agents lancés à ta demande : chacun consomme ton abonnement comme une mission ordinaire ; enveloppe : 6 au plus, 3 en même temps (plus deux reprises au plus par sous-mission en échec).',
   );
   assert.deepEqual(
     { accepted: row.delegation.accepted, via: row.delegation.via, total: row.delegation.total },

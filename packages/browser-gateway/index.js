@@ -307,10 +307,14 @@ export class BrowserGateway {
     // faux-blocage-01 (essai réel du 18/11, sous-mission 7468032c) : the button of a form in a
     // search zone the page declares (role="search", <search>) chooses what to see, as Enter in its
     // field does (cartes-14-11 B) : a widget. A write to a submission path keeps its card (cdp.js).
+    // review-multi-agent-v3-01 : only the form's submit button (a candidate only in GET, see
+    // ownerClickKind) ; any other button of a form in the zone stays a candidate.
     if (
       clickKind === 'candidate' &&
       element?.search === true &&
       element.inForm &&
+      element.tag === 'button' &&
+      element.buttonType === 'submit' &&
       element.tag !== 'a' &&
       element.role !== 'menuitem' &&
       (!element.ariaHasPopup || element.ariaHasPopup === 'false') &&

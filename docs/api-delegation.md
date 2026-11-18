@@ -171,7 +171,8 @@ Règles :
   `famille.reprend` (l'id repris) et `famille.reprise` (rang de la reprise dans sa tâche) sur la nouvelle ligne ; agent,
   modèle et titre par défaut ceux de la tentative reprise. Une **tâche** est la première tentative d'une chaîne
   `reprend`. Les **deux premières reprises d'une tâche ne comptent pas dans l'enveloppe `total`** ; la troisième et les
-  suivantes comptent comme des sous-missions nouvelles. `parallel` s'applique toujours. Le compteur `famille` dit
+  suivantes comptent comme des sous-missions nouvelles, y compris quand les reprises sont demandées en même temps (les
+  reprises en cours de création prennent un rang). `parallel` s'applique toujours. Le compteur `famille` dit
   `lancees` (toutes les sous-missions), `taches`, `reprises` et `dansEnveloppe` (celles comptées dans `total`).
 - **Reprise d'une sous-mission par l'API refusée** : `POST /api/runs/<sous-mission>/resume` rend
   `409 { error: "Reprendre la mission principale : son chef relance la partie échouée" }` et ne crée rien. La reprise de
@@ -192,7 +193,10 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
 - **Enveloppe** : au-delà de `total` (sous-missions comptées), l'appel rend `enveloppe_atteinte` et, si l'accord est
   donné, la plateforme pose
   une question **à choix** (`choix` : `oui` « Oui, 5 de plus », ou `non`) : « Le chef veut lancer une Ne sous-mission ;
-  l'enveloppe acceptée est de T. En autoriser 5 de plus ? » ; sur `oui`, `delegation.total` augmente de 5
+  l'enveloppe acceptée est de T. En autoriser 5 de plus ? » (N : rang dans l'enveloppe, `dansEnveloppe + 1`) ; si des
+  reprises hors enveloppe ont déjà été lancées : « Le chef veut lancer une sous-mission de plus : ce serait la Ne
+  comptée dans l'enveloppe acceptée de T (L déjà lancées, reprises comprises). En autoriser 5 de plus ? »
+  (`delegation_envelope_reached { total, asked: N, lancees: L }`) ; sur `oui`, `delegation.total` augmente de 5
   (`delegation.extensions`) et l'appel suivant passe.
 - **Attente relisible** : `mission_attendre` ne consomme rien ; chaque appel rend l'état complet des sous-missions
   demandées (`terminees` = toutes celles finies) ; une réponse perdue se relit à l'appel suivant ou par
@@ -295,8 +299,9 @@ l'agent les montre, le Bilan de la mission a **une** ligne de plus (aucune sinon
 - Forme « activité » (vue avec codex-acp 2.2.2) : nom du sous-agent, nombre d'échanges (départ et relances), fins de
   tour vues, durée du premier départ à la dernière fin **vue par la plateforme** ; la ligne dit « modèle et
   consommation non rapportés par l'agent ». Ses propres commandes ne sont pas dans le flux.
-- Forme « outil » (vue avec claude-agent-acp 0.95.0) : type du sous-agent, appels d'outils vus, état, durée vue par la
-  plateforme, puis, « selon l'agent », le modèle, le nombre d'outils et la durée qu'il déclare (non mesurés par la
+- Forme « outil » (vue avec claude-agent-acp 0.95.0) : type du sous-agent, appels d'outils vus, état vu par la
+  plateforme (« sans fin vue » sinon), durée vue par la plateforme, puis, « selon l'agent », l'état qu'il déclare
+  quand la plateforme n'a vu aucune fin, le modèle tel qu'il le donne, le nombre d'outils et la durée qu'il déclare (non mesurés par la
   plateforme). La ligne « Actions natives » ajoute « dont n de ses sous-agents internes » pour les actions faites par
   ces sous-agents.
 - Jamais de jetons ni de conversion en part d'abonnement ; aucune décision de la plateforme ne dépend de cette ligne.
@@ -310,11 +315,12 @@ Bouton et carte (texte 3.4 du plan, tel quel ; N et M = l'enveloppe) :
 > L'agent de ta mission pourra, s'il le juge utile, confier des parties du travail à d'autres agents qui travaillent en
 > même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite
 > d'usage peut être atteinte plus vite. Autoriser n'oblige pas : pour une demande simple, un seul agent travaillera.
-> Au plus N sous-missions Relay pour cette mission, M en même temps (modifiables) ; les sous-agents internes que les
-> agents lancent d'eux-mêmes ne sont ni comptés ni bornés par cette limite. Les envois restent à ton clic.
+> Au plus N sous-missions Relay pour cette mission, M en même temps (modifiables) ; une sous-mission en échec peut en
+> plus être reprise deux fois hors de cette limite ; les sous-agents internes que les agents lancent d'eux-mêmes ne sont ni comptés ni bornés par cette limite. Les envois restent à ton clic.
 
 Ligne du fil de la voie 2 (`delegation_accepted.message`) : « Sous-agents lancés à ta demande : chacun consomme ton
-abonnement comme une mission ordinaire ; enveloppe : N au plus, M en même temps. »
+abonnement comme une mission ordinaire ; enveloppe : N au plus, M en même temps (plus deux reprises au plus par
+sous-mission en échec). »
 
 Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
 

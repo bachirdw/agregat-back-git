@@ -37,7 +37,10 @@ Le contrôle négatif du test Chrome reproduit exactement la carte : `actionClas
   (`sendHint`). Code exactement celui proposé par la spécification.
 - Les POST ne sont pas autorisés indistinctement : sous `widget`, une écriture vers un chemin de soumission de la même
   page garde sa carte (`cdp.js:1636-1640`), un formulaire posté par navigation aussi, un libellé d'envoi reste
-  `submit` (carte avant le clic), un formulaire POST reste `submit`.
+  `submit` (carte avant le clic), un formulaire POST reste `submit`. Correction de la relecture
+  review-multi-agent-v3-01 : avant elle, cette phrase n'était vraie que pour le bouton de soumission ; un bouton
+  `type=button` d'un formulaire POST de la zone devenait `widget` et une écriture vers un chemin sans mot de soumission
+  partait sans carte. La règle est depuis réservée au bouton `type=submit` (candidat seulement en GET).
 - `scripts/run-tests.js` : `faux-blocage-01-chrome.test.js` inscrit dans `BROWSER`.
 
 ## Tests neufs

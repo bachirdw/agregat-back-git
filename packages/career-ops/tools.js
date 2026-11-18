@@ -242,7 +242,7 @@ function checkTrackerAddition(root, text) {
     const first = (lines[0] ?? '').slice(0, TSV_SHOWN);
     const cut = (lines[0] ?? '').length > TSV_SHOWN ? '…' : '';
     throw new Error(
-      `TSV d’ajout refusé (${why}). Attendu : exactement 2 lignes, cellules séparées par une tabulation ; en-tête mot pour mot « ${TSV_HEADER} » puis une seule ligne de données, par exemple « ${TSV_SAMPLE} ». Reçu : ${lines.length} ligne(s) non vide(s), première ligne « ${first}${cut} ». Voir AGENTS.md du Skill.`,
+      `TSV d’ajout refusé (${why}). Attendu : exactement 2 lignes non vides, cellules séparées par une tabulation ; en-tête mot pour mot « ${TSV_HEADER} » puis une seule ligne de données, par exemple « ${TSV_SAMPLE} ». Reçu : ${lines.length} ligne(s) non vide(s), première ligne « ${first}${cut} ». Voir AGENTS.md du Skill.`,
     );
   };
   if (lines.length !== 2) fail('une ligne d’en-tête et une seule ligne de données');
@@ -1073,10 +1073,13 @@ export class CareerTools {
       try {
         previous = readConfined(root, path, APPEND_FILE_MAX).toString('utf8');
       } catch (e) {
+        // readConfined says « trop volumineux ou non régulier » for both: tell them apart.
         if (e.code !== 'ENOENT')
-          throw /trop volumineux/.test(e.message)
-            ? new Error(`${path} : ajout refusé, le fichier dépasse ${APPEND_FILE_MAX} octets`)
-            : e;
+          throw !/trop volumineux/.test(e.message)
+            ? e
+            : lstatSync(resolve(root, path)).isFile()
+              ? new Error(`${path} : ajout refusé, le fichier dépasse ${APPEND_FILE_MAX} octets`)
+              : new Error(`${path} : ajout refusé, ce chemin n’est pas un fichier ordinaire`);
       }
       full = previous && !previous.endsWith('\n') ? `${previous}\n${text}` : previous + text;
     }

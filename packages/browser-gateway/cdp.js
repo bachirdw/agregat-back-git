@@ -15,7 +15,7 @@ import { isIP } from 'node:net';
 import { AsyncResource } from 'node:async_hooks';
 
 import { ownerTransport } from './owner-transport.js';
-import { paginateText } from './paginate.js';
+import { paginateItems, paginateText } from './paginate.js';
 import { waitForExtension } from './relay-start.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
@@ -215,6 +215,19 @@ export function isGraphqlRead(body) {
     return false;
   }
 }
+// captures-18-11 (E132) : runs in the page over the elements a selector matched : the visible text of
+// each and the absolute address of its link (the element itself, the link around it, or the first
+// link inside it), null without one.
+export function listedElements(elements) {
+  return elements.map((element) => {
+    const link = element.closest('a[href]') ?? element.querySelector('a[href]');
+    return {
+      text: element.innerText ?? element.textContent ?? '',
+      href: link ? link.href : null,
+    };
+  });
+}
+
 // libelles-14-11 : the role X of a selector written exactly `[role=X]` (quoted or not), else null.
 export function selectorRole(selector) {
   const match = String(selector ?? '')
@@ -2649,31 +2662,32 @@ export class CdpBrowser {
           if ((args.limit ?? 1) > 1) {
             const matches = bySelector(args.selector ?? 'body');
             await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
-            const count = Math.min(await matches.count(), args.limit);
-            const texts = [];
-            for (let i = 0; i < count; i++)
-              texts.push(await matches.nth(i).innerText({ timeout: readTimeout() }));
+            // captures-18-11 (E132) : every match read in one page call, with the address of its
+            // link ; `total` counts them all, the response renders a bounded page of them.
+            const found = await matches.evaluateAll(listedElements);
             return {
               url: page.url(),
-              text: texts.join('\n').slice(0, args.maxChars),
-              count,
+              ...paginateItems(found, args),
               loading,
               ...extras,
             };
           }
+          // captures-18-11 (E131) : a long text is paged, never cut in silence.
+          const whole = await (
+            role
+              ? bySelector(args.selector).first()
+              : await this.targetLocator(args.ref ? { ref: args.ref } : (args.selector ?? 'body'))
+          ).innerText({ timeout: readTimeout() });
+          const { page: bounded, ...paging } = paginateText(whole, {
+            offset: args.offset ?? 0,
+            maxChars: args.maxChars,
+          });
           return {
             url: page.url(),
             loading,
             ...extras,
-            text: (
-              await (
-                role
-                  ? bySelector(args.selector).first()
-                  : await this.targetLocator(
-                      args.ref ? { ref: args.ref } : (args.selector ?? 'body'),
-                    )
-              ).innerText({ timeout: readTimeout() })
-            ).slice(0, args.maxChars),
+            text: bounded,
+            ...paging,
           };
         } catch (error) {
           throw await unmatched(error);

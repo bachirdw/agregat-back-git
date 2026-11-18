@@ -175,12 +175,14 @@ test('politique : sérialisation pour le processus MCP', () => {
   assert.deepEqual(q.toJSON(), p.toJSON());
 });
 
-test('redaction : clés, numéros de carte, troncature', () => {
+// captures-18-11 (E131) : le masquage ne coupe plus (ancien attendu : « [tronqué] » au-delà de 50 000) ;
+// la borne est celle du schéma, la pagination dit la suite.
+test('redaction : clés, numéros de carte, sans troncature', () => {
   const out = redactPageText(
     'k AIzaSyABCDEFGHIJKLMNOPQRSTUVWX c 4111 1111 1111 1111 ' + 'x'.repeat(60000),
   );
   assert.ok(!out.includes('AIza') && !out.includes('4111'));
-  assert.ok(out.endsWith('[tronqué]'));
+  assert.ok(out.endsWith('x'.repeat(60000)) && !out.includes('[tronqué]'));
 });
 
 // ---------- Gateway with deterministic provider ----------

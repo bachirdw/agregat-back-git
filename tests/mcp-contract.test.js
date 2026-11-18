@@ -56,7 +56,8 @@ for (const mode of ['fixture', 'isolated']) {
 test('MCP : bornes et valeurs par défaut du registre exposées à l’agent', async (t) => {
   const client = await fixture(t, 'isolated');
   const tool = (await client.listTools()).tools.find((tool) => tool.name === 'browser_extract');
-  assert.equal(tool.inputSchema.properties.limit.maximum, 20);
+  // captures-18-11 (E132) : 1 000 éléments (ancien attendu : 20).
+  assert.equal(tool.inputSchema.properties.limit.maximum, 1000);
   assert.equal(tool.inputSchema.properties.limit.minimum, 1);
   assert.equal(tool.inputSchema.properties.limit.default, 1);
   assert.equal(tool.inputSchema.properties.maxChars.maximum, 50000);
@@ -98,7 +99,7 @@ test('MCP réel : entrées hors limites refusées avant le handler', async (t) =
   const client = await fixture(t, 'isolated');
   for (const args of [
     { limit: 0 },
-    { limit: 21 },
+    { limit: 1001 },
     { limit: 1.5 },
     { limit: null },
     { maxChars: 0 },

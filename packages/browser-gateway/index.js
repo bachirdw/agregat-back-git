@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { browserPolicy } from '../policy-engine/index.js';
 import { notDone } from '../policy-engine/not-done.js';
 import { getCapability } from '../capability-registry/index.js';
-import { paginateText } from './paginate.js';
+import { paginateItems, paginateText } from './paginate.js';
 import { summarizeSubmission } from './submission.js';
 
 // Audit WebSocket (ws2) : an icon button whose tooltip, test id or icon names a send (« Envoyer »,
@@ -37,16 +37,18 @@ export class FixtureBrowser {
   }
 }
 
-const MAX_TEXT = 50000;
 const SECRET_PATTERNS = [
   /AIza[0-9A-Za-z_-]{20,}/g,
   /sk-[A-Za-z0-9_-]{16,}/g,
   /\b(?:\d[ -]?){13,19}\b/g, // card-like numbers
 ];
-export function redactPageText(text, max = MAX_TEXT) {
+// captures-18-11 (E131) : masks only. The page a capture or an extraction renders is already bounded
+// by its schema (capability registry) and paged by paginate.js ; cutting it again here skipped text
+// that `nextOffset` said was rendered.
+export function redactPageText(text) {
   let out = String(text ?? '');
   for (const p of SECRET_PATTERNS) out = out.replace(p, '[masqué]');
-  return out.length > max ? out.slice(0, max) + '\n[tronqué]' : out;
+  return out;
 }
 
 // Audit du 10/11 (constat 12) : the type a page sees for an uploaded file (file.type, the part of a
@@ -559,6 +561,15 @@ export class BrowserGateway {
       ...output,
       ...(output.text !== undefined ? { text: redactPageText(output.text) } : {}),
       ...(output.snapshot !== undefined ? { snapshot: redactPageText(output.snapshot) } : {}),
+      ...(Array.isArray(output.items)
+        ? {
+            items: output.items.map((item) => ({
+              ...item,
+              text: redactPageText(item?.text),
+              ...(item?.href ? { href: redactPageText(item.href) } : {}),
+            })),
+          }
+        : {}),
       ...(requestedUrl && requestedUrl !== output.url ? { requestedUrl } : {}),
     };
   }
@@ -610,13 +621,21 @@ export class FixturePageProvider {
         simulated: true,
       };
     }
-    if (id === 'browser.extract')
-      return {
-        url: this.url,
-        text: page.text.slice(0, args.maxChars),
-        ...reflected,
-        simulated: true,
-      };
+    if (id === 'browser.extract') {
+      // captures-18-11 (E132) : `lists` maps a selector to the elements it matches ({ text, href }).
+      if ((args.limit ?? 1) > 1)
+        return {
+          url: this.url,
+          ...paginateItems(page.lists?.[args.selector ?? 'body'] ?? [], args),
+          ...reflected,
+          simulated: true,
+        };
+      const { page: bounded, ...paging } = paginateText(page.text, {
+        offset: args.offset ?? 0,
+        maxChars: args.maxChars ?? 20000,
+      });
+      return { url: this.url, text: bounded, ...paging, ...reflected, simulated: true };
+    }
     if (id === 'browser.download') {
       const dir = resolve(policy.workspace, 'downloads');
       mkdirSync(dir, { recursive: true });

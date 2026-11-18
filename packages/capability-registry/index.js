@@ -19,9 +19,19 @@ const MAX_TEXT = 100000;
 const MAX_OPTIONS = 200;
 const MAX_PROMPT_TEXT = 10000;
 // E27 : a snapshot is paged like career_read (E7): 24 000 characters by default. freins-01 (13/11) :
-// 200 000 at most (48 000 before).
+// 200 000 at most (48 000 before). captures-18-11 (E131) : the one bound of a page of captured text,
+// defined here only ; the gateway renders every page the schema accepts in full.
+export const PAGE_TEXT_DEFAULT_CHARS = 24000;
+export const PAGE_TEXT_MAX_CHARS = 200000;
+// captures-18-11 (E132) : browser_extract lists up to 1 000 elements of a page in one call.
+export const EXTRACT_MAX_ITEMS = 1000;
 const snapshotOffset = z.number().int().min(0).default(0);
-const snapshotChars = z.number().int().min(1).max(200000).default(24000);
+const snapshotChars = z
+  .number()
+  .int()
+  .min(1)
+  .max(PAGE_TEXT_MAX_CHARS)
+  .default(PAGE_TEXT_DEFAULT_CHARS);
 const ref = z
   .string({ error: 'ref requise : recopie eN ou fNeN tel qu’écrit dans [ref=…] du snapshot' })
   .regex(
@@ -43,7 +53,7 @@ export const capabilities = [
     effect: 'read',
     meter: 'browser_action',
     description:
-      'Arbre d’accessibilité avec références [ref=eN] et [ref=fNeN] réutilisables dans les actions sur la page courante. Capture par pages de maxChars caractères (24 000 par défaut, 200 000 au plus) : si truncated est vrai, recapturer avec offset=nextOffset ; les références valent pour toute la page. Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom : jusqu’en bas, page : d’une hauteur d’écran). À utiliser quand un texte attendu manque à la capture ou que la page charge au défilement.',
+      'Arbre d’accessibilité avec références [ref=eN] et [ref=fNeN] réutilisables dans les actions sur la page courante. Capture par tranches de maxChars caractères (24 000 par défaut, 200 000 au plus), toujours rendues en entier : chaque réponse donne totalChars (taille de toute la capture), la tranche rendue (offset à endOffset), nextOffset (premier caractère non rendu) et pagesLeft (tranches restantes à cette taille). Pour lire toute la page, recapturer avec offset=nextOffset jusqu’à truncated faux (pagesLeft 0) ; les références valent pour toute la page. Pour lister les offres ou les liens d’une page de résultats, browser_extract avec un sélecteur et limit le fait en un appel. Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom : jusqu’en bas, page : d’une hauteur d’écran). À utiliser quand un texte attendu manque à la capture ou que la page charge au défilement.',
     schema: z
       .object({
         url: url.optional(),
@@ -60,12 +70,13 @@ export const capabilities = [
     effect: 'read',
     meter: 'browser_action',
     description:
-      'Texte visible de la référence ref du snapshot, ou du sélecteur CSS historique. limit=3 extrait les trois premiers éléments (défaut : 1). Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom ou page). À utiliser quand un texte attendu manque ou que la page charge au défilement.',
+      'Texte visible de la référence ref du snapshot, ou du sélecteur CSS historique. Un élément (limit 1, défaut) : son texte, paginé comme la capture (offset en caractères, nextOffset si la suite reste à lire). Liste (limit de 2 à 1 000, avec un sélecteur) : tous les éléments qui répondent au sélecteur, chacun avec son texte et l’adresse de son lien (href : le lien qu’est l’élément, qui le contient ou qu’il contient), dans items ; total donne le nombre d’éléments trouvés dans la page, même quand la réponse en rend moins ; offset est alors le rang du premier élément rendu, et nextOffset celui du premier non rendu (borné par limit et maxChars). Pour lister toutes les offres d’une page de résultats : selector sur les cartes ou sur les liens des offres, limit=1000, puis offset=nextOffset tant que truncated est vrai. Paramètres optionnels : waitForText : attend ce texte avant de capturer (insensible à la casse, 8 s au plus ; la réponse indique waitedFor.found) ; scroll : fait défiler pour charger la suite (bottom ou page). À utiliser quand un texte attendu manque ou que la page charge au défilement.',
     schema: z
       .object({
         ref: ref.optional(),
         selector: selector.optional(),
-        limit: z.number().int().min(1).max(20).default(1),
+        limit: z.number().int().min(1).max(EXTRACT_MAX_ITEMS).default(1),
+        offset: z.number().int().min(0).default(0),
         maxChars: z.number().int().min(1).max(50000).default(20000),
         waitForText: waitForText.optional(),
         scroll: scrollMode.optional(),

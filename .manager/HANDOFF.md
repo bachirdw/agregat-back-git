@@ -68,6 +68,14 @@ nouvelle discussion garde tout le reste : guet, essais réels, intégration, reg
    `ecf129a`, sans conflit ; `collecte` avancé avant C pour qu'un seul rejeu SEEK vérifie les deux), suite complète verte,
    API relancée ; essai réel : SEEK rejouée avec Codex. Reste C (`lecture-18-11`, `git cherry-pick a79a747..lecture-18-11`,
    7 commits), puis l'épreuve 1 avec Claude.
+   **Essai réel après B** : b8b6c2f7 (20:04, Codex, même prompt) `completed` en 3 min 48 s : E135 vérifié en réel ; 6
+   captures et 10 extractions en liste au lieu de 24 puis 36 captures ; 158 offres distinctes vues comme avant (cinq
+   pages) ; mode `append` toujours non employé ; E137 et E138 ouverts.
+   **Étape C faite** (20:10 → 20:25) : `lecture-18-11` repris (7 commits, `0ea0a45` à `10e9ac6`, sans conflit), suite
+   complète verte, API relancée ; essai réel : épreuve 1 (évaluation) avec Claude, pour E128. **Les quatre sprints du
+   tableau et `collecte-18-11` sont donc tous intégrés.** Restent : `generique-01` (prêt à 20:08, tête `b367632`,
+   `git cherry-pick dad6c23..generique-01`, quatre fichiers du moteur ; accord du propriétaire demandé à 20:09, pas de
+   réponse à 20:26) et `onglets-03`.
    **Interface** (propriétaire, 19:50) : une autre discussion Claude code un nouvel écran pour voir le multi-agent, dans le
    dépôt du front ; ce n'est pas une priorité du manager, qui garde la priorité sur le code du serveur.
 5. Essais réels après l'intégration, Codex d'abord (il ne consomme pas la limite), puis Claude : la mission SEEK de
@@ -282,8 +290,8 @@ sinon les relancer, sans mission en cours, en le disant au propriétaire. Le gue
 - Anciens : API 4313 + front 5176 (`cto-11-11`, ancien code) ; API 4310 + front 5173 (ancien code du 02/11 lancé
   depuis le dossier interdit). Ne pas les confondre avec 4314/5177.
 - Tests : `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000 npm test && npm run check && npm run format:check` (15 min ;
-  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 19:46 → 20:03**, après
-  l'étape B (`captures-18-11` et `collecte-18-11` corrigés : 1 386 unitaires, 1 384 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
+  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 20:10 → 20:25**, après
+  l'étape C (`lecture-18-11` corrigé : 1 408 unitaires, 1 405 réussis, 0 échec, 2 ignorés, 1 « à faire » qui documente un cas connu non résolu de `lecture` ; Chrome 253/253 ; `check` et `format:check` verts) ;
   front `7b2716c` : 242/242, `tsc` et prettier verts. Jamais pendant une mission navigateur ; jamais pendant que des agents testent.
 - Suivre sans rien toucher : `python3 -I .manager/outils/guet-lecture.py <port> <minutes>` ; Bilan contre
   événements : `node .manager/outils/bilan-vs-events.mjs <mission>` ; collecteur du registre :

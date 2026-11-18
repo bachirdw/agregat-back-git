@@ -199,17 +199,20 @@ test('R2. réglage AGENT_PLATFORM_DELEGATION=0 : le bouton coché ne force plus 
     agent: 'fixture',
     pack: 'core',
     mode: 'workflow',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   assert.equal(plan.input.mode, 'workflow');
   assert.ok(plan.dag);
-  // Lent (no setting) : the button still makes the chief an agent.
+  // Lent (no setting) : the multi-agent mode makes the chief an agent (multi-agent-v3-01 D1 ; the
+  // button alone does not : tests/multi-agent-v3-01-a.test.js).
   const lent = await platform(t);
   const forced = await lent.app.engine.plan({
     prompt: 'Mission FICTIVE.',
     agent: 'fixture',
     pack: 'core',
     mode: 'workflow',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   assert.equal(forced.input.mode, 'agent');
@@ -239,6 +242,7 @@ test('R3. une mère qui finit après sa dernière sous-mission ne laisse rien en
     prompt: 'Mission FICTIVE avec une partie.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   await p.ended(mother.id, 30000);
@@ -256,6 +260,7 @@ test('R3. une mère qui finit après sa dernière sous-mission ne laisse rien en
     prompt: 'Mission FICTIVE SUIVRE.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.ended(reader.id);
   assert.equal(p.app.store.get(reader.id).state, 'completed');
@@ -284,6 +289,7 @@ test('R4. constat : pendant la carte d’accord, la mère est « attend le propr
     prompt: 'Mission FICTIVE, accord à demander.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.waitFor(() => existsSync(join(p.hold, 'asked')));
   await p.waitFor(() => p.app.store.get(mother.id).pendingQuestion);
@@ -338,6 +344,7 @@ test('E139. carte d’accord : mission_lancer en attente porte une note (même t
     prompt: 'Mission FICTIVE, accord à demander.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.waitFor(() => existsSync(join(p.hold, 'asked')));
   const [first, second] = p.results();
@@ -365,6 +372,7 @@ test('E139. carte d’accord : mission_lancer en attente porte une note (même t
     prompt: 'Mission FICTIVE, accord donné.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   await q.ended(given.id, 30000);

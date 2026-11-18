@@ -121,9 +121,12 @@ export const inputSchema = z
     budgetCents: z.number().int().min(0).max(100000).default(0),
     mode: z.enum(['agent', 'workflow']).default('agent'),
     workflow: z.string().max(60).optional(),
+    // multi-agent-v3-01 (D1) : the « Mode multi-agent » switch, off when absent : without it no
+    // mission tool, no chief's sentence, and `delegation` has no effect (the mission of 48a2f4e).
+    multiAgent: z.boolean().optional(),
     // chef-01 : the owner's acceptance of the sub-agents, given before the mission is sent (the
     // button) ; delegation-v2-01 : also written by the platform (`prompt`, `carte`) and kept by a
-    // resumption. Without this field the tools are lent all the same and the owner is asked first.
+    // resumption. Without this field (and with `multiAgent`) the owner is asked first.
     delegation: z
       .object({
         accepted: z.boolean(),
@@ -805,9 +808,9 @@ export class Orchestrator {
     const chosen = v.pack === 'auto' ? null : packs.find((p) => p.id === v.pack);
     const ownPath = Boolean(chosen?.skillManifest || chosen?.workflow.steps.length);
     // chef-01 : the chief is an agent ; a DAG chosen by default (front) never takes its place.
-    // delegation-v2-01 : only when the request carries the acceptance (the button), never because
-    // the tools are lent to every mission led by an agent.
-    if (v.delegation?.accepted && this.delegation.lent) {
+    // multi-agent-v3-01 (D1) : only when the request turns the multi-agent mode on ; the
+    // acceptance alone (`delegation`) changes nothing.
+    if (v.multiAgent === true && this.delegation.lent) {
       v.mode = 'agent';
       delete v.workflow;
     }
@@ -1615,8 +1618,9 @@ export class Orchestrator {
       });
       control.runtime = runtime;
       const info = await runtime.start();
-      // delegation-v2-01 : the mission tools are lent to every mission led by an agent, after the
-      // capability server (first), except a sub-mission or when AGENT_PLATFORM_DELEGATION=0.
+      // delegation-v2-01 : the mission tools, after the capability server (first), for a mission
+      // with `multiAgent` (multi-agent-v3-01 D1), never for a sub-mission nor when
+      // AGENT_PLATFORM_DELEGATION=0.
       const mcpServers = [this.mcpServerFor(run, plan.pack), ...this.delegation.servers(run)];
       gatewayServers = mcpServers;
       let session;
@@ -2235,6 +2239,10 @@ export class Orchestrator {
           },
         });
       }
+      // multi-agent-v3-01 (D2) : a mother that fails stops its sub-missions (cancel : already done ;
+      // server stop : the family stays interrupted).
+      if (!control.cancelled && reason?.message !== SERVER_STOPPED)
+        await this.delegation.stopFamily(run, control);
       // chef-01 : a mother that stops keeps the section of its sub-missions as they are now.
       this.delegation.failureSection(run, control);
       recordDiagnostic();

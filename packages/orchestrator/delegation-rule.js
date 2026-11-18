@@ -97,6 +97,11 @@ export function consentLine(delegation) {
 }
 // A sub-mission cancelled because the owner refused the sub-agents (its own error).
 export const REFUSED_CHILD = 'Sous-agents refusés par le propriétaire';
+// multi-agent-v3-01 (D2) : the cause of a sub-mission stopped because its mother failed, and the
+// line of the mother's Bilan that counts them.
+export const MOTHER_FAILED = 'Arrêtée : la mission principale a échoué';
+export const motherFailedLine = (n) =>
+  `${n} sous-mission(s) arrêtée(s) avec l’échec de la mission principale.`;
 export function synthesisMissed(titles) {
   const named = titles.map((title) => `« ${title} »`).join(', ');
   return `Synthèse finale non faite : la réponse du chef a été écrite avant la fin de ${named} ; leurs résultats ne lui ont pas été remis.`;

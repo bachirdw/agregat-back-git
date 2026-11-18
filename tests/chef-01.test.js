@@ -138,8 +138,9 @@ const daughterPrompts = (p) =>
   p.prompts().filter((entry) => !entry.servers.includes('relay-missions') && entry.prompt?.famille);
 
 // delegation-v2-01 (plan v2, 8.2, `:138` adapté) : the tools and the chief's sentence are lent to
-// every mission led by an agent ; nothing else changes while nothing is launched. The withdrawal
-// setting (AGENT_PLATFORM_DELEGATION=0) gives the prompt of the base : tests/delegation-v2-01-b.test.js.
+// every mission led by an agent ; nothing else changes while nothing is launched. multi-agent-v3-01
+// (D1) : only with `multiAgent: true`. Without it, or with the withdrawal setting
+// (AGENT_PLATFORM_DELEGATION=0), the prompt of the base : tests/delegation-v2-01-b.test.js.
 test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant que rien n’est lancé', async (t) => {
   const p = await platform(t);
   // The chief calls no tool (its steps : none).
@@ -148,6 +149,7 @@ test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant
     prompt: 'Résume ce texte FICTIF.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.ended(plain.id);
   const row = p.app.store.get(plain.id);
@@ -190,6 +192,7 @@ test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant
     prompt: 'Résume ce texte FICTIF.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: false, via: 'carte' },
   });
   await p.ended(declined.id);
@@ -197,6 +200,7 @@ test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant
     prompt: 'Résume ce texte FICTIF.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(chief.id);
@@ -237,6 +241,7 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
     prompt: 'Compare deux rapports FICTIFS avec des sous-missions.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
@@ -342,6 +347,7 @@ test('parallel = 2 avec trois sous-missions : la troisième attend sa place, pui
     prompt: 'Trois tâches FICTIVES en parallèle.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED({ total: 5, parallel: 2 }),
   });
   // Highest number of sub-missions running at the same time.
@@ -400,6 +406,7 @@ test('délai atteint : rien de perdu, résultat rendu ensuite et relu par missio
     prompt: 'Une tâche FICTIVE lente.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
@@ -468,6 +475,7 @@ test('minuteurs du chef en pause pendant mission_attendre (horloge simulée)', a
     prompt: 'Une tâche FICTIVE attendue par le chef.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   const control = p.app.engine.active.get(mother.id);
@@ -509,6 +517,7 @@ test('enveloppe atteinte : erreur au chef, question au propriétaire, puis l’a
     prompt: 'Deux tâches FICTIVES, enveloppe d’une seule.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED({ total: 1, parallel: 1 }),
   });
   await p.waitFor(() => existsSync(join(p.hold, 'refused')));
@@ -560,6 +569,7 @@ test('famille career-ops : les sous-missions partagent l’espace privé, une mi
     prompt: 'Résume mes rapports FICTIFS avec des sous-missions.',
     agent: 'fixture',
     pack: 'career-ops',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.waitFor(() => existsSync(join(p.hold, 'launched')));
@@ -620,6 +630,7 @@ test('annulation en cascade : annuler la mère annule ses sous-missions, en cour
     prompt: 'Trois tâches FICTIVES sans fin.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED({ parallel: 2 }),
   });
   await p.waitFor(() => existsSync(join(p.hold, 'launched')));
@@ -666,6 +677,7 @@ test('mission_annuler : une sous-mission arrêtée par le chef, rendue « cancel
     prompt: 'Deux tâches FICTIVES dont une annulée.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
@@ -697,6 +709,7 @@ test('redémarrage : toute la famille passe interrupted (mère, sous-mission en 
     prompt: 'Deux tâches FICTIVES coupées par un arrêt.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED({ parallel: 1 }),
   });
   await p.waitFor(() => existsSync(join(p.hold, 'launched')));
@@ -729,6 +742,7 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
     prompt: 'Deux tâches FICTIVES et un tableau.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
@@ -788,6 +802,7 @@ test('consigne du chef et des sous-missions identique pour tous les profils d’
       prompt: 'Une tâche FICTIVE déléguée.',
       agent: 'fixture',
       pack: 'core',
+      multiAgent: true,
       delegation: ACCEPTED({ total: 4, parallel: 2 }),
     });
     await p.ended(mother.id, 30000);
@@ -822,12 +837,14 @@ test('une mère ne voit ni ne touche les sous-missions d’une autre mère ; le 
     prompt: 'Tâche de la mère A FICTIVE.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   const motherB = await p.app.engine.create({
     prompt: 'Tâche de la mère B FICTIVE.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.waitFor(() => ['a', 'b'].every((x) => existsSync(join(p.hold, `ready-${x}`))));
@@ -922,6 +939,7 @@ test('reprise de la mère : le nouveau chef garde l’accord et voit les sous-mi
     prompt: 'Première exécution FICTIVE.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED({ total: 4, parallel: 2 }),
   });
   await p.ended(first.id, 30000);
@@ -973,6 +991,7 @@ test('fin du tour du chef avec des sous-missions vivantes : attente, puis un seu
     prompt: 'Mission FICTIVE, synthèse.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.waitFor(() => p.types(mother.id).includes('family_waiting'));

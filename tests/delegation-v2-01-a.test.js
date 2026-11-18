@@ -180,6 +180,7 @@ test('une mission qui ne délègue pas : aucune lecture de la délégation, aucu
     prompt: 'Résume ce texte FICTIF, seul.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(lent.id);
@@ -204,6 +205,7 @@ test('mission_attendre ne consomme rien : une réponse perdue se relit à l’ap
     prompt: 'Une tâche FICTIVE dont la réponse se perd.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.waitFor(() => existsSync(join(p.hold, 'launched')));
@@ -271,6 +273,7 @@ test('attente bornée à 50 s par appel, quel que soit delaiSecondes ; descripti
     prompt: 'Une attente FICTIVE trop longue.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.waitFor(() => delays.length === 1);
@@ -302,6 +305,7 @@ test('délai du tour ACP du chef suspendu pendant mission_attendre', async (t) =
     prompt: MOTHER,
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.waitFor(() => p.app.engine.delegation.families.get(mother.id)?.waiting === 1);
@@ -330,6 +334,7 @@ test('fichiers d’une sous-mission : dans l’événement child_done, relus apr
     prompt: 'Une note FICTIVE.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
@@ -373,6 +378,7 @@ test('fichiers d’une sous-mission de l’espace privé : gardés dans l’espa
     prompt: 'Une note privée FICTIVE.',
     agent: 'fixture',
     pack: 'career-ops',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
@@ -531,6 +537,7 @@ test('compteur d’agents ; une sous-mission en attente du propriétaire laisse 
     prompt: 'Deux tâches FICTIVES, une place.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED({ parallel: 1 }),
   });
   await p.waitFor(() => existsSync(join(p.hold, 'counted')), 30000);
@@ -569,6 +576,7 @@ test('un seul niveau : ni profondeur, ni descendance, et une consigne identique 
     prompt: 'Compare les rapports FICTIFS.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);

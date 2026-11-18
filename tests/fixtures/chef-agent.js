@@ -2,15 +2,16 @@
 // CLI would : when the platform lends it the MCP server `relay-missions` and CHEF_AGENT.steps is
 // given, it is the chief and runs those steps against the mission tools ; otherwise it answers its
 // consigne (`objective`) like a sub-mission. delegation-v2-01 : the server is lent to every mission
-// led by an agent, so a mission without steps answers like any ordinary mission (it lists no tool and
-// never opens the server). Configuration CHEF_AGENT (JSON) :
+// led by an agent (multi-agent-v3-01 : with `multiAgent` only), so a mission without steps
+// answers like any ordinary mission (it lists no tool and never opens the server). Configuration
+// CHEF_AGENT (JSON) :
 //   dir            folder of the logs : prompt-<pid>-<n>.json (each prompt received, with the names of
 //                  the MCP servers lent), chef-results.json (each tool call of the chief and its
 //                  answer), tools.json (the tools listed by `relay-missions`)
 //   steps          chief's steps : { call, args, save? } calls a mission tool (a string « $<save> » in
 //                  args is the id returned by the step saved under that name) ; { waitFile } waits for
 //                  that file ; { touch } writes it ; { readId, save } saves the id read in that file ;
-//                  { sleepMs }
+//                  { sleepMs } ; { fail } ends the chief's turn with that error (multi-agent-v3-01)
 //   reminderSteps  steps of the platform's synthesis turn (turnKind 'family_results')
 //   summary        chief's answer (default « Synthèse FICTIVE du chef ») ; reminderSummary likewise
 //   holdDir        a consigne « ATTENDRE:<name> » waits for <holdDir>/<name> (« BATTEMENT » : a thought
@@ -71,6 +72,7 @@ async function runSteps(steps, mcp) {
     if (step.touch) writeFileSync(step.touch, 'go');
     if (step.readId) saved[step.save] = readFileSync(step.readId, 'utf8').trim();
     if (step.sleepMs) await pause(step.sleepMs);
+    if (step.fail) throw new RequestError(-32000, step.fail);
     if (!step.call) continue;
     const toolCallId = randomUUID();
     const title = `mcp__relay-missions__${step.call}`;

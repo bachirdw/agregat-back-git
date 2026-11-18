@@ -439,6 +439,8 @@ export function createApp({
               agentMode: old.agentMode ?? '',
               browserDomains: old.browserDomains ?? [],
               budgetCents: old.budgetCents,
+              // multi-agent-v3-01 (D1) : a resumed chief keeps the multi-agent mode.
+              ...(old.multiAgent === true && !old.famille ? { multiAgent: true } : {}),
               // chef-01 : a resumed chief keeps the owner's acceptance (and its extensions).
               ...(old.delegation && !old.famille
                 ? {

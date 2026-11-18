@@ -6,6 +6,8 @@
 // de synthèse, et une mission qui ne délègue pas ne change pas. Faux agent ACP
 // (tests/fixtures/chef-agent.js), pack `core` sans Skill. Aucun modèle, aucun navigateur, aucun
 // relais, aucun CLI réel (la détection des agents pointe vers des chemins inexistants). FICTIF.
+// multi-agent-v3-01 (D1) : outils et phrase prêtés seulement avec `multiAgent: true` ; sans lui, la
+// mission de la base 48a2f4e (test 1).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -169,11 +171,12 @@ function extractBase() {
 
 // One ordinary mission (and one that asks the owner a question), from creation to its end : what the
 // agent received (prompt and MCP servers), the events of the mission, its state and its answer.
-async function ordinaryMissions(p) {
+// `extra` : fields added to the request (multi-agent-v3-01 : `multiAgent`), never for the base.
+async function ordinaryMissions(p, extra = {}) {
   const out = [];
   for (const prompt of ['Résume ce texte FICTIF.', 'Tâche FICTIVE QUESTION']) {
     const before = p.prompts().length;
-    const run = await p.app.engine.create({ prompt, agent: 'fixture', pack: 'core' });
+    const run = await p.app.engine.create({ prompt, agent: 'fixture', pack: 'core', ...extra });
     if (prompt.includes('QUESTION')) {
       await p.waitFor(() => p.app.store.get(run.id).pendingQuestion, 15000, 'question');
       p.app.engine.answer(run.id, { action: 'accept', content: { reponse: 'Variante FICTIVE' } });
@@ -192,7 +195,10 @@ async function ordinaryMissions(p) {
   return out;
 }
 
-test('réglage AGENT_PLATFORM_DELEGATION=0 : consigne, serveurs et déroulement identiques à la base 48a2f4e ; sans réglage, seuls la phrase et le second serveur changent', async (t) => {
+// multi-agent-v3-01 (D1) : a mission without `multiAgent`, with no environment variable at all, is
+// the mission of the base ; with it, only the sentence and the second server ; the withdrawal
+// setting (AGENT_PLATFORM_DELEGATION=0) still withdraws them even with `multiAgent`.
+test('sans multiAgent et sans variable d’environnement : consigne, serveurs et déroulement identiques à la base 48a2f4e ; avec multiAgent, seuls la phrase et le second serveur changent ; AGENT_PLATFORM_DELEGATION=0 les retire', async (t) => {
   const baseDir = extractBase();
   if (!baseDir) return t.skip(`commit ${BASE} absent de ce dépôt`);
   t.after(() => rmSync(baseDir, { recursive: true, force: true }));
@@ -203,14 +209,25 @@ test('réglage AGENT_PLATFORM_DELEGATION=0 : consigne, serveurs et déroulement 
   const before = await ordinaryMissions(
     await platform(t, { make: base.createApp, Workspace: baseWorkspace.CareerWorkspace }),
   );
+  assert.equal(process.env.AGENT_PLATFORM_DELEGATION, undefined);
+  const off = await ordinaryMissions(await platform(t));
   const withdrawn = await ordinaryMissions(
     await platform(t, { env: { AGENT_PLATFORM_DELEGATION: '0' } }),
+    { multiAgent: true },
   );
-  const lent = await ordinaryMissions(await platform(t));
+  const lent = await ordinaryMissions(await platform(t), { multiAgent: true });
+  // The switch itself is kept on the mission's row (and only then).
+  const withoutSwitch = (mission) => {
+    assert.ok(mission.keys.includes('multiAgent'));
+    return { ...mission, keys: mission.keys.filter((key) => key !== 'multiAgent') };
+  };
   for (const [index, mission] of before.entries()) {
     assert.equal(mission.state, 'completed');
-    // Withdrawn : the same prompt (every field, every word), the same servers, the same events.
-    assert.deepEqual(withdrawn[index], mission, `mission ${index + 1}`);
+    // Without the switch : the same prompt (every field, every word), the same servers, the same
+    // events, the same row.
+    assert.deepEqual(off[index], mission, `mission ${index + 1} sans multiAgent`);
+    // Withdrawn : likewise, even with the switch.
+    assert.deepEqual(withoutSwitch(withdrawn[index]), mission, `mission ${index + 1} retirée`);
     assert.deepEqual(mission.sent[0].servers, ['platform']);
     // Lent : only the sentence at the end of the instructions and the second server.
     const [baseSent, lentSent] = [mission.sent[0], lent[index].sent[0]];
@@ -225,7 +242,7 @@ test('réglage AGENT_PLATFORM_DELEGATION=0 : consigne, serveurs et déroulement 
     );
     assert.deepEqual(lent[index].sent.slice(1), mission.sent.slice(1));
     assert.deepEqual(
-      { ...lent[index], sent: null },
+      { ...withoutSwitch(lent[index]), sent: null },
       { ...mission, sent: null },
       `déroulement de la mission ${index + 1}`,
     );
@@ -245,6 +262,7 @@ test('outils prêtés mais rien lancé : aucune lecture, aucun événement, aucu
       prompt: 'Cherche des informations FICTIVES sur une personnalité.',
       agent: 'fixture',
       pack: 'core',
+      multiAgent: true,
       ...(delegation ? { delegation } : {}),
     });
     await p.ended(run.id);
@@ -316,6 +334,7 @@ test('voie 1, bouton coché : aucune question, accord écrit au premier lancemen
     prompt: 'Mission FICTIVE, bouton coché.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   await p.waitFor(() => chiefPrompts(p).length === 1);
@@ -355,6 +374,7 @@ test('voie 2, demande écrite dans le prompt : pas de carte, une ligne du fil, a
     prompt: 'Répartis le travail FICTIF entre plusieurs agents.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.ended(mother.id, 30000);
   const row = p.app.store.get(mother.id);
@@ -409,6 +429,7 @@ test('voie 3, carte au premier lancement : sous-missions en attente, une seule q
     prompt: 'Mission FICTIVE en trois parties indépendantes.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.waitFor(() => existsSync(join(p.hold, 'asked')));
   const [first, second, followed] = p.results();
@@ -465,7 +486,12 @@ test('voie 3, refus (choix « continuer seul », ou carte refusée) : sous-missi
   ];
   for (const [index, answer] of answers.entries()) {
     const prompt = `Mission FICTIVE ${'x'.repeat(index + 1)}`;
-    const mother = await p.app.engine.create({ prompt, agent: 'fixture', pack: 'core' });
+    const mother = await p.app.engine.create({
+      prompt,
+      agent: 'fixture',
+      pack: 'core',
+      multiAgent: true,
+    });
     await p.waitFor(() => existsSync(join(p.hold, `asked-${prompt.length}`)));
     await p.waitFor(() => p.app.store.get(mother.id).pendingQuestion);
     p.app.engine.answer(mother.id, answer);
@@ -511,6 +537,7 @@ test('annuler la mère pendant la carte : la sous-mission en attente d’accord 
     prompt: 'Mission FICTIVE annulée.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
   });
   await p.waitFor(() => p.app.store.get(mother.id).pendingQuestion);
   const [child] = p.app.store.children(mother.id);
@@ -541,6 +568,7 @@ test('question d’extension : un choix (oui / non), pas un texte libre', async 
     prompt: 'Deux tâches FICTIVES, enveloppe d’une seule.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: true, via: 'api', total: 1, parallel: 1 },
   });
   await p.waitFor(() => existsSync(join(p.hold, 'refused')));
@@ -585,6 +613,7 @@ test('tour de synthèse : la plateforme attend les sous-missions vivantes, puis 
     prompt: 'Deux sources FICTIVES à comparer.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   await p.waitFor(() => p.types(mother.id).includes('family_waiting'));
@@ -628,6 +657,7 @@ test('tour de synthèse impossible (session de l’agent fermée) : sortie actue
     prompt: 'Une source FICTIVE.',
     agent: 'fixture',
     pack: 'core',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   await p.waitFor(() => p.types(mother.id).includes('family_waiting'));
@@ -644,13 +674,14 @@ test('tour de synthèse impossible (session de l’agent fermée) : sortie actue
 
 // ---- 5. Schéma et mode forcé
 
-test('via : bouton, prompt, carte ou api ; mode agent forcé seulement par l’accord de la requête', async (t) => {
+test('via : bouton, prompt, carte ou api ; mode agent forcé seulement par le mode multi-agent de la requête', async (t) => {
   const p = await platform(t);
   for (const via of ['bouton', 'prompt', 'carte', 'api']) {
     const plan = await p.app.engine.plan({
       prompt: 'Mission FICTIVE.',
       agent: 'fixture',
       pack: 'core',
+      multiAgent: true,
       delegation: { accepted: true, via },
     });
     assert.equal(plan.input.delegation.via, via);
@@ -662,12 +693,17 @@ test('via : bouton, prompt, carte ou api ; mode agent forcé seulement par l’a
         prompt: 'Mission FICTIVE.',
         agent: 'fixture',
         pack: 'core',
+        multiAgent: true,
         delegation: { accepted: true, via },
       }),
     );
-  // A DAG asked by default (front) : untouched without the button (the tools lent to every mission
-  // change nothing), an agent with it.
-  for (const delegation of [undefined, { accepted: false, via: 'carte' }]) {
+  // A DAG asked by default (front) : untouched without the multi-agent mode (multi-agent-v3-01 D1 :
+  // the button alone changes nothing), an agent with it.
+  for (const delegation of [
+    undefined,
+    { accepted: false, via: 'carte' },
+    { accepted: true, via: 'bouton' },
+  ]) {
     const plain = await p.app.engine.plan({
       prompt: 'Mission FICTIVE.',
       agent: 'fixture',
@@ -683,6 +719,7 @@ test('via : bouton, prompt, carte ou api ; mode agent forcé seulement par l’a
     agent: 'fixture',
     pack: 'core',
     mode: 'workflow',
+    multiAgent: true,
     delegation: { accepted: true, via: 'bouton' },
   });
   assert.equal(forced.input.mode, 'agent');

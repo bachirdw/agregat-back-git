@@ -17,12 +17,14 @@
 // reads nothing more. What a sub-mission gives back is read from the database and can be read
 // again as often as needed (nothing is consumed).
 // delegation-v2-01, partie B (plan v2, section 3) : the tools and the chief's sentence are lent to
-// every mission led by an agent (never to a sub-mission ; AGENT_PLATFORM_DELEGATION=0 withdraws
-// them from every mission). Lending obliges to nothing. The owner's acceptance comes from the
-// request (`delegation.accepted`, the button), from the chief saying the owner's request asks for
-// sub-agents (`demandeDuProprietaire`, no card), or from the card asked at the first launch (the
-// sub-missions wait meanwhile) ; a refusal is final for the mission (`refus_proprietaire`). Nothing
-// is written before the first mission_lancer.
+// a mission led by an agent (never to a sub-mission ; AGENT_PLATFORM_DELEGATION=0 withdraws
+// them from every mission) ; multi-agent-v3-01 (D1) : only when its request carries
+// `multiAgent: true` (the « Mode multi-agent » switch, off by default). Lending obliges to
+// nothing. The owner's acceptance comes from the request (`delegation.accepted`, the button),
+// from the chief saying the owner's request asks for sub-agents (`demandeDuProprietaire`, no
+// card), or from the card asked at the first launch (the sub-missions wait meanwhile) ; a refusal
+// is final for the mission (`refus_proprietaire`). Nothing is written before the first
+// mission_lancer.
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { detectAgents, loadProbes } from '../agent-runtime/index.js';
@@ -41,6 +43,7 @@ import {
   EXTENSION_CHOICES,
   MISSION_SERVER,
   MISSION_TOOLS,
+  MOTHER_FAILED,
   REFUSED_MESSAGE,
   REFUSED_CHILD,
   SYNTHESIS_TURN,
@@ -48,6 +51,7 @@ import {
   consentLine,
   consentMessage,
   extensionMessage,
+  motherFailedLine,
   promptNotice,
   synthesisMissed,
   waitSeconds,
@@ -149,10 +153,11 @@ export class Delegation {
 
   // ---- what an execution gets
 
-  // The mission tools, for every mission led by an agent except a sub-mission (one level), through
-  // the platform's internal bridge. Called only when an agent's session opens.
+  // The mission tools, for a mission led by an agent whose request turned the multi-agent mode on
+  // (`multiAgent`, multi-agent-v3-01 D1), never for a sub-mission (one level), through the
+  // platform's internal bridge. Called only when an agent's session opens.
   servers(run) {
-    if (!this.lent || run.famille) return [];
+    if (!this.lent || run.famille || run.multiAgent !== true) return [];
     const token = this.engine.approvalTokens.get(run.id);
     if (!this.engine.approvalBase || !token) {
       // Said only to an owner who accepted : any other mission stays as it was.
@@ -297,9 +302,11 @@ export class Delegation {
         agent: child.agent,
         modele: child.model ?? '',
         state: this.held(child.id) ? 'queued' : child.state,
-        durationMs:
-          (child.finishedAt ? Date.parse(child.finishedAt) : Date.now()) -
-          Date.parse(child.createdAt),
+        // multi-agent-v3-01 (D6) : null for a sub-mission that never started.
+        durationMs: child.startedAt
+          ? (child.finishedAt ? Date.parse(child.finishedAt) : Date.now()) -
+            Date.parse(child.startedAt)
+          : null,
         bilan: this.bilanOf(child),
         envois: this.sendsOf(child),
       })),
@@ -307,8 +314,9 @@ export class Delegation {
   }
   // A failed or cancelled mother keeps the section in its result too.
   failureSection(run, control) {
-    const section = this.bilanSection(run, { motherSends: control?.sendsApproved ?? 0 });
+    let section = this.bilanSection(run, { motherSends: control?.sendsApproved ?? 0 });
     if (!section) return;
+    if (control?.familyStopped) section += '\n' + motherFailedLine(control.familyStopped);
     const row = this.store.get(run.id);
     const result = row.result ?? { simulated: !!row.simulated, summary: 'Bilan', evidence: [] };
     this.store.update(run.id, { result: { ...result, summary: result.summary + section } });
@@ -455,9 +463,15 @@ export class Delegation {
     });
   }
   watch(child, family) {
+    let started = false;
     const listener = (event) => {
       if (event.type !== 'state') return;
       const state = event.data?.state;
+      // multi-agent-v3-01 (D6) : its duration counts from its first `running`, not its creation.
+      if (state === 'running' && !started) {
+        started = true;
+        this.store.update(child.id, { startedAt: event.at });
+      }
       if (terminal.has(state)) {
         this.store.off(child.id, listener);
         this.ended(child, state);
@@ -569,8 +583,9 @@ export class Delegation {
     if (!control || !token || this.engine.approvalTokens.get(motherId) !== token)
       return { status: 403, body: { error: 'Jeton invalide ou mission inactive' } };
     const mother = this.store.get(motherId);
-    // The tools are never lent to a sub-mission, nor to any mission once withdrawn.
-    if (!this.lent || !mother || mother.famille)
+    // The tools are never lent to a sub-mission, nor to a mission without the multi-agent mode, nor
+    // to any mission once withdrawn.
+    if (!this.lent || !mother || mother.famille || mother.multiAgent !== true)
       return { status: 403, body: { error: 'Outils de mission non prêtés à cette mission' } };
     const tool = MISSION_TOOLS[body?.tool];
     if (!tool)
@@ -978,6 +993,16 @@ export class Delegation {
 
   // ---- cancellation, stop
 
+  // multi-agent-v3-01 (D2) : a mother that fails stops its sub-missions (nothing launches any
+  // more), then waits up to 10 s for their end, before its Bilan. Never for any other mission.
+  async stopFamily(run, control) {
+    if (!control?.mere) return;
+    const family = this.family(run.id);
+    family.closing = true;
+    control.familyStopped = this.cascade(run.id, MOTHER_FAILED);
+    const mother = this.store.get(run.id);
+    await this.until(family, () => !this.living(mother).length, AbortSignal.timeout(10000));
+  }
   // Cancels the sub-missions still alive of a mother (one level) ; returns how many. Nothing is
   // read for a mission that launched none.
   cascade(id, reason = 'Annulée avec la mission mère') {

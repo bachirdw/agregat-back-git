@@ -64,7 +64,7 @@ export function announcedSends(answer) {
 }
 
 // `children` : [{ id, titre, agent, modele, state, durationMs, bilan, envois: { approuves,
-// parAccord, refuses } }] in launch order ; `chiefAnswer` : the chief's own answer ; `motherSends` :
+// parAccord, refuses } }] in launch order (multi-agent-v3-01 D6 : durationMs null = never started) ; `chiefAnswer` : the chief's own answer ; `motherSends` :
 // the sends approved in the mother's own mission. delegation-v2-01 : `accord` (how the owner
 // accepted the sub-agents) and `synthese` (results that never reached the chief), lines written by
 // the orchestrator, are put first and after the sub-missions.
@@ -79,7 +79,7 @@ export function familySection({
   const lines = [...(accord ? [accord] : []), `Sous-missions (${children.length}) :`];
   children.forEach((child, index) => {
     lines.push(
-      `${index + 1}. « ${child.titre} » — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${formatDuration(child.durationMs)} (sous-mission ${child.id})`,
+      `${index + 1}. « ${child.titre} » — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
       ...quoteBilan(child.bilan, child.id),
     );
   });

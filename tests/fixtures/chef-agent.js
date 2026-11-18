@@ -7,11 +7,13 @@
 //                  answer), tools.json (the tools listed by `relay-missions`)
 //   steps          chief's steps : { call, args, save? } calls a mission tool (a string « $<save> » in
 //                  args is the id returned by the step saved under that name) ; { waitFile } waits for
-//                  that file ; { touch } writes it ; { sleepMs }
+//                  that file ; { touch } writes it ; { readId, save } saves the id read in that file ;
+//                  { sleepMs }
 //   reminderSteps  steps of the platform's end-of-turn reminder (turnKind 'family')
 //   summary        chief's answer (default « Synthèse FICTIVE du chef ») ; reminderSummary likewise
-//   holdDir        a consigne « ATTENDRE:<name> » waits for <holdDir>/<name> ; « ECHEC » fails the turn ;
-//                  « ECRIRE:<path> » writes that file (native edit call) ; « QUESTION » asks a form.
+//   holdDir        a consigne « ATTENDRE:<name> » waits for <holdDir>/<name> (« BATTEMENT » : a thought
+//                  every 30 ms meanwhile) ; « ECHEC » fails the turn ; « ECRIRE:<path> » writes that file
+//                  (native edit call) ; « QUESTION » asks a form ; « LIMITE » announces a usage limit.
 import {
   agent,
   methods,
@@ -143,6 +145,11 @@ async function daughter(request) {
   clearInterval(beat);
   if (!held) return { stopReason: 'cancelled' };
   if (consigne.includes('ECHEC')) throw new RequestError(-32000, 'Échec FICTIF de la sous-mission');
+  // LIMITE : the agent announces a provider limit, then ends with a bare protocol error.
+  if (consigne.includes('LIMITE')) {
+    await say('You have hit your usage limit FICTIF. Try again at 22:00.');
+    throw new RequestError(-32603, 'Internal error');
+  }
   const written = consigne.match(/ECRIRE:([\w./-]+)/)?.[1];
   if (written) {
     const target = resolve(process.cwd(), written);

@@ -253,7 +253,14 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
   for (const done of waited.result.terminees) {
     assert.equal(typeof done.bilan, 'string');
     assert.equal(done.cause, null);
-    assert.deepEqual(done.envois, { approuves: 0, refuses: 0 });
+    // delegation-v2-01 : the counters, uncertain ones included, and the send line of its Bilan.
+    assert.deepEqual(done.envois, {
+      approuves: 0,
+      parAccord: 0,
+      refuses: 0,
+      incertains: 0,
+      ligne: null,
+    });
   }
   // The files of a sub-mission are those its own calls named ; its Bilan is the platform's.
   const doneA = waited.result.terminees.find((x) => x.id === launchA.result.id);
@@ -266,15 +273,12 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
   assert.deepEqual(
     children.map((child) => [child.id, child.state, child.famille]),
     [
-      [
-        launchA.result.id,
-        'completed',
-        { racine: mother.id, mere: mother.id, profondeur: 1, titre: 'Rapport A' },
-      ],
+      // delegation-v2-01 : one level, no depth.
+      [launchA.result.id, 'completed', { racine: mother.id, mere: mother.id, titre: 'Rapport A' }],
       [
         launchB.result.id,
         'completed',
-        { racine: mother.id, mere: mother.id, profondeur: 1, titre: 'Résume le rapport FICTIF B.' },
+        { racine: mother.id, mere: mother.id, titre: 'Résume le rapport FICTIF B.' },
       ],
     ],
   );
@@ -343,7 +347,7 @@ test('parallel = 2 avec trois sous-missions : la troisième attend sa place, pui
   assert.equal(third.result.etat, 'en_file');
   assert.equal(p.app.store.get(third.result.id).state, 'queued');
   assert.equal(p.app.engine.active.has(third.result.id), false);
-  // The family counts for one of the platform's three slots : its mother's.
+  // delegation-v2-01 : the sub-missions hold none of the three slots ; only the mother counts.
   assert.equal(p.app.engine.activeSlots(), 1);
   const first = p.results()[3].result.missions;
   assert.deepEqual(
@@ -362,7 +366,8 @@ test('parallel = 2 avec trois sous-missions : la troisième attend sa place, pui
   assert.notEqual(afterFirst.etat, 'en_file', 'la troisième a démarré quand la première a fini');
   const last = p.results()[6].result;
   assert.equal(last.delaiAtteint, false);
-  assert.equal(last.terminees.length, 2, 'la première a déjà été rendue');
+  // delegation-v2-01 : nothing is consumed : the first one is given back again.
+  assert.equal(last.terminees.length, 3);
   assert.ok(most <= 2, `au plus deux en même temps (vu : ${most})`);
   assert.ok(p.app.store.children(mother.id).every((child) => child.state === 'completed'));
 });
@@ -400,8 +405,8 @@ test('délai atteint : rien de perdu, résultat rendu ensuite et relu par missio
   const read = followed.result.missions[0];
   for (const key of ['reponse', 'bilan', 'etat', 'fichiers', 'envois', 'cause'])
     assert.deepEqual(read[key], done[key], key);
-  // Each finished one is given back once by a wait without ids.
-  assert.deepEqual(again.result.terminees, []);
+  // delegation-v2-01 : a wait without ids gives it back again, the same (nothing is consumed).
+  assert.deepEqual(again.result.terminees, [done]);
   assert.equal(again.result.delaiAtteint, false);
 });
 
@@ -518,34 +523,8 @@ test('enveloppe atteinte : erreur au chef, question au propriétaire, puis l’a
   assert.ok(types.includes('delegation_extended'));
 });
 
-test('boucle : une consigne identique (au blanc près) à celle de la mère est refusée', async (t) => {
-  const p = await platform(t);
-  p.setConfig(() => ({
-    steps: [
-      {
-        call: 'mission_lancer',
-        args: { consigne: '  Compare   les rapports\nFICTIFS.  ' },
-      },
-      {
-        call: 'mission_lancer',
-        args: { consigne: 'Compare les rapports FICTIFS en deux lignes.' },
-      },
-      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
-    ],
-  }));
-  const mother = await p.app.engine.create({
-    prompt: 'Compare les rapports FICTIFS.',
-    agent: 'fixture',
-    pack: 'core',
-    delegation: ACCEPTED(),
-  });
-  await p.ended(mother.id, 30000);
-  const [loop, other] = p.results();
-  assert.equal(loop.isError, true);
-  assert.equal(loop.result.erreur, 'boucle');
-  assert.equal(other.isError, false);
-  assert.equal(p.app.store.children(mother.id).length, 1);
-});
+// delegation-v2-01 : the « boucle » refusal is withdrawn (plan v2, 8.3) : one level only, and a
+// consigne identical to the mother's is launched (tests/delegation-v2-01-a.test.js).
 
 test('famille career-ops : les sous-missions partagent l’espace privé, une mission étrangère reste refusée', async (t) => {
   const p = await platform(t, { career: true });
@@ -677,7 +656,8 @@ test('mission_annuler : une sous-mission arrêtée par le chef, rendue « cancel
   });
   await p.ended(mother.id, 30000);
   const [launchA, , cancel, waited, again, unknown] = p.results();
-  assert.deepEqual(cancel.result, { id: launchA.result.id, etat: 'cancelled', descendants: 0 });
+  // delegation-v2-01 : one level, no « descendants » any more.
+  assert.deepEqual(cancel.result, { id: launchA.result.id, etat: 'cancelled' });
   const doneA = waited.result.terminees.find((x) => x.id === launchA.result.id);
   assert.equal(doneA.etat, 'cancelled');
   assert.equal(doneA.cause.type, 'erreur');

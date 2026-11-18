@@ -3,17 +3,23 @@
 // `relay-missions`, packages/mission-gateway/server.js) ; each call reaches `call()` here through
 // POST /api/internal/missions/<mission>. A sub-mission (« fille ») is an ordinary mission created by
 // Orchestrator.create() : same planning, same questions, same send cards, same Bilan.
-//  - link : field `famille: { racine, mere, profondeur, titre }` on the sub-mission's row ; the list
-//    of a mother's sub-missions is read from the rows (store.children), no table of its own ;
+//  - link : field `famille: { racine, mere, titre }` on the sub-mission's row ; the list of a
+//    mother's sub-missions is read from the rows (store.children), no table of its own ; one level
+//    only (plan v2 du 18/11) : a sub-mission never launches one ;
 //  - envelope : `total` and `parallel` of the owner's acceptance ; beyond `parallel` a sub-mission
 //    waits for its place (never an error), beyond `total` the owner is asked (question queue) ;
-//  - a family counts for one of the platform's slots and shares the private workspace ;
+//  - the sub-missions hold none of the platform's three slots : the envelope bounds them, and
+//    activity() counts every agent at work ; the family shares the private workspace ;
 //  - the chief's own timers are paused while the platform waits for its sub-missions ;
-//  - cancelling a mission cancels its descendants ; a restart leaves the whole family `interrupted`.
-// Without the field `delegation`, none of this runs : no tool lent, no text added.
+//  - cancelling a mother cancels its sub-missions ; a restart leaves the whole family `interrupted`.
+// delegation-v2-01 : the family is read (store.children) only for a mission that launched a
+// sub-mission (`estMere` on its row, `mere` on its control) : a mission that delegates nothing
+// reads nothing more. What a sub-mission gives back is read from the database and can be read
+// again as often as needed (nothing is consumed).
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { detectAgents } from '../agent-runtime/index.js';
+import { detectAgents, loadProbes } from '../agent-runtime/index.js';
+import { writeConfined } from '../policy-engine/files.js';
 import { terminal } from '../storage/index.js';
 import { ROOT } from './packs.js';
 import { proseQuestion } from './questions.js';
@@ -27,42 +33,44 @@ import {
   MISSION_TOOLS,
   chiefRule,
   familyReminder,
+  waitSeconds,
 } from './delegation-rule.js';
 
 const MAX_ANSWER_CHARS = 50000;
 const AGENTS_CACHE_MS = 60000;
 const FILE_KINDS = new Set(['edit', 'delete', 'move']);
+// A send card's event is stored with this title (packages/storage/index.js, `privatePreview`).
+const SEND_CARD_TITLE = /^Envoi : aperçu privé/;
+const SEND_LINE = /^Envoi par la plateforme : /;
+const UNVERIFIED = 'non vérifié ; ne pas répéter avant vérification';
 const fail = (erreur, message) => Object.assign(new Error(message), { erreur });
-// « identique, au blanc près » : only the white space is not compared.
-const sameWords = (a, b) =>
-  String(a ?? '')
-    .replace(/\s+/g, ' ')
-    .trim() ===
-  String(b ?? '')
-    .replace(/\s+/g, ' ')
-    .trim();
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
 export class Delegation {
   constructor(engine) {
     this.engine = engine;
     this.families = new Map(); // root mission id -> family kept in memory (queue, waiters)
-    this.reported = new Map(); // mother id -> sub-missions already given back by mission_attendre
-    this.finals = new Map(); // sub-mission id -> { envois, fichiers } read when it ended
+    this.finals = new Map(); // sub-mission id -> { envois, fichiers } : cache of `child_done`
     this.briefs = new Map(); // sub-mission id -> { fichiers, soeurs } for its prompt
     this.agentsCache = null;
   }
   get store() {
     return this.engine.store;
   }
+  // A mission whose family may be read : it launched a sub-mission (now : `mere` on its control ;
+  // before, or in an execution it resumes : `estMere` on its row). Nothing is read to know it.
+  hasFamily(run) {
+    return run?.estMere === true || this.engine.active.get(run?.id)?.mere === true;
+  }
   // A mission whose agent is the chief : the owner accepted, and it is no sub-mission itself (the
   // first sprint lends the tools to mothers only).
   accepted(run) {
     return run?.delegation?.accepted === true && !run.famille;
   }
+  // A member of a family : a sub-mission, or a mission that launched one.
   member(id) {
     const run = this.store.get(id);
-    return !!run?.famille || this.accepted(run);
+    return !!run?.famille || this.hasFamily(run);
   }
   envelope(root) {
     return {
@@ -94,27 +102,6 @@ export class Delegation {
   }
   childrenOf(mother) {
     return this.chain(mother).flatMap((run) => this.store.children(run.id));
-  }
-  ancestors(run) {
-    const list = [];
-    const seen = new Set();
-    let current = run;
-    while (current && !seen.has(current.id) && list.length < 50) {
-      seen.add(current.id);
-      list.push(current);
-      current = current.famille?.mere ? this.store.get(current.famille.mere) : null;
-    }
-    return list;
-  }
-  // Every descendant of a mission, sub-missions of sub-missions included.
-  descendants(id, seen = new Set()) {
-    const out = [];
-    for (const child of this.store.children(id)) {
-      if (seen.has(child.id)) continue;
-      seen.add(child.id);
-      out.push(child, ...this.descendants(child.id, seen));
-    }
-    return out;
   }
   held(id) {
     for (const family of this.families.values()) if (family.held.has(id)) return family;
@@ -176,6 +163,7 @@ export class Delegation {
   }
   // The chief ends its turn while sub-missions live : one more turn, once (conception 2.5).
   reminder(motherId) {
+    if (!this.hasFamily({ id: motherId })) return null;
     const mother = this.store.get(motherId);
     if (!this.accepted(mother)) return null;
     const living = this.living(mother);
@@ -189,6 +177,8 @@ export class Delegation {
   // The chief has finished : the mother stays `running` (« attend ses sous-missions ») until its last
   // sub-mission ends, its timers paused : the platform waits, not the agent.
   async settle(motherId, control) {
+    // Only an execution that launched a sub-mission may have one alive.
+    if (!control?.mere) return;
     const mother = this.store.get(motherId);
     if (!this.accepted(mother)) return;
     const family = this.family(motherId);
@@ -230,8 +220,9 @@ export class Delegation {
     for (const check of [...family.waiters]) check();
   }
   // The Bilan's « Sous-missions » section of a mother (empty without sub-mission).
-  bilanSection(motherId, { chiefAnswer = '', motherSends = 0 } = {}) {
-    const mother = this.store.get(motherId);
+  bilanSection(run, { chiefAnswer = '', motherSends = 0 } = {}) {
+    if (!this.hasFamily(run)) return '';
+    const mother = this.store.get(run.id);
     if (!mother) return '';
     const children = this.childrenOf(mother);
     if (!children.length) return '';
@@ -253,12 +244,12 @@ export class Delegation {
     });
   }
   // A failed or cancelled mother keeps the section in its result too.
-  failureSection(motherId, control) {
-    const section = this.bilanSection(motherId, { motherSends: control?.sendsApproved ?? 0 });
+  failureSection(run, control) {
+    const section = this.bilanSection(run, { motherSends: control?.sendsApproved ?? 0 });
     if (!section) return;
-    const row = this.store.get(motherId);
+    const row = this.store.get(run.id);
     const result = row.result ?? { simulated: !!row.simulated, summary: 'Bilan', evidence: [] };
-    this.store.update(motherId, { result: { ...result, summary: result.summary + section } });
+    this.store.update(run.id, { result: { ...result, summary: result.summary + section } });
   }
   // The Bilan of a sub-mission as the platform wrote it (its own lines, without the answer).
   bilanOf(child) {
@@ -267,13 +258,66 @@ export class Delegation {
     const cause = child.error && !text.includes(child.error) ? `- Cause : ${child.error}` : '';
     return [text, cause].filter(Boolean).join('\n');
   }
-  sendsOf(child) {
-    const kept = this.finals.get(child.id)?.envois;
+  // What the platform recorded when the sub-mission ended (`child_done` on its mother) : the
+  // in-memory copy, or the database after a restart.
+  doneOf(child) {
+    const kept = this.finals.get(child.id);
     if (kept) return kept;
     const done = this.store
       .events(child.famille?.mere ?? '')
       .find((event) => event.type === 'child_done' && event.data?.childId === child.id);
-    return done?.data?.envois ?? { approuves: 0, parAccord: 0, refuses: 0 };
+    const fichiers = child.workspace
+      ? this.engine.privateRunFile(child, 'fichiers')
+      : done?.data?.fichiers;
+    return { envois: done?.data?.envois, fichiers: Array.isArray(fichiers) ? fichiers : [] };
+  }
+  sendsOf(child) {
+    return { approuves: 0, parAccord: 0, refuses: 0, incertains: 0, ...this.doneOf(child).envois };
+  }
+  // What the chief gets of a sub-mission's sends : the counters, the send line of its Bilan word
+  // for word (uncertain ones included) ; without that line (it stopped before its Bilan), the send
+  // events it recorded, unverified.
+  sendsGiven(child) {
+    const ligne = this.bilanOf(child)
+      .split('\n')
+      .find((text) => SEND_LINE.test(text));
+    const envois = { ...this.sendsOf(child), ligne: ligne ?? null };
+    if (ligne) return envois;
+    const evenements = this.sendEvents(child.id);
+    return evenements.length
+      ? { ...envois, nonVerifies: { note: UNVERIFIED, evenements } }
+      : envois;
+  }
+  sendEvents(id) {
+    const events = this.store.events(id);
+    const out = [];
+    for (const event of events) {
+      if (event.type === 'send_auto')
+        out.push({
+          type: 'accord_de_mission',
+          capacite: event.data?.capability ?? null,
+          cible: event.data?.target ?? null,
+          at: event.at,
+        });
+      if (event.type !== 'permission' || !SEND_CARD_TITLE.test(event.data?.tool?.title ?? ''))
+        continue;
+      const resolved = events.find(
+        (e) => e.type === 'permission_resolved' && e.data?.id === event.data.id,
+      );
+      const kind = event.data.options?.find(
+        (option) => option.optionId === resolved?.data?.optionId,
+      )?.kind;
+      out.push({
+        type: 'carte',
+        issue: /^allow/.test(kind ?? '')
+          ? 'approuvée'
+          : /^reject/.test(kind ?? '')
+            ? 'refusée'
+            : 'sans réponse',
+        at: event.at,
+      });
+    }
+    return out;
   }
 
   // ---- the sub-mission's own records
@@ -325,12 +369,28 @@ export class Delegation {
       approuves: control?.sendsApproved ?? 0,
       parAccord: control?.sendsGranted ?? 0,
       refuses: Math.max(0, (control?.sendsAsked ?? 0) - ownerApproved),
+      // The approved sends whose effect is not known (same counts as the Bilan's send line).
+      incertains:
+        (control?.sendsUncertain ?? 0) +
+        (control?.sendCalls?.size ?? 0) +
+        (control?.sendsBlocked?.size ?? 0),
     };
-    this.finals.set(child.id, {
+    const fichiers = [...(control?.familyFiles ?? [])].slice(0, 200);
+    this.finals.set(child.id, { envois, fichiers });
+    // A private mission keeps its file names in its own space, as its prompt ; any other mission
+    // in the event, read again after a restart.
+    if (child.workspace)
+      try {
+        writeConfined(child.cwd, `relay/runs/${child.id}-fichiers.json`, JSON.stringify(fichiers));
+      } catch {
+        /* The files then stay in memory only. */
+      }
+    this.store.event(child.famille.mere, 'child_done', {
+      childId: child.id,
+      state,
       envois,
-      fichiers: [...(control?.familyFiles ?? [])].slice(0, 200),
+      ...(child.workspace ? {} : { fichiers }),
     });
-    this.store.event(child.famille.mere, 'child_done', { childId: child.id, state, envois });
   }
   watch(child, family) {
     const listener = (event) => {
@@ -391,15 +451,16 @@ export class Delegation {
     if (!root || !terminal.has(root.state) || family.held.size || family.waiters.size) return;
     if (this.living(root).length) return;
     this.families.delete(family.rootId);
-    this.reported.delete(family.rootId);
   }
 
   // GET /api/runs/:id : `family` of a mother, absent for any other mission.
   view(run) {
-    if (!run?.delegation || run.famille) return {};
+    if (!this.hasFamily(run)) return {};
     const children = this.childrenOf(run);
     if (!children.length) return {};
+    const { agents, enAttenteDuProprietaire } = this.activity();
     return {
+      activity: { agents, awaitingOwner: enAttenteDuProprietaire },
       family: children.map((child) => {
         const { titre, agent, etat, attend } = this.line(child);
         return {
@@ -412,6 +473,22 @@ export class Delegation {
           pendingPermission: this.engine.pendingPermission(child.id),
         };
       }),
+    };
+  }
+
+  // Every agent at work on the machine (missions and sub-missions : the executions started), and
+  // those waiting for the owner (a question, a card to click) : they hold none of the three slots.
+  activity() {
+    let agents = 0;
+    let waiting = 0;
+    for (const id of this.engine.active.keys()) {
+      agents++;
+      if (['awaiting_owner', 'waiting_permission'].includes(this.store.get(id)?.state)) waiting++;
+    }
+    return {
+      agents,
+      enAttenteDuProprietaire: waiting,
+      texte: `${agents} agent(s) en activité (missions et sous-agents), dont ${waiting} en attente du propriétaire`,
     };
   }
 
@@ -470,12 +547,6 @@ export class Delegation {
     const root = this.store.get(mother.id);
     const { total, parallel } = this.envelope(root);
     const consigne = args.consigne.trim();
-    // The only true loop : handing oneself the very same task again.
-    if (this.ancestors(mother).some((run) => sameWords(this.engine.turnObjective(run), consigne)))
-      throw fail(
-        'boucle',
-        'Consigne identique à celle d’une mission ancêtre : la sous-mission referait la même mission.',
-      );
     const launched = this.childrenOf(mother).length + family.pending;
     if (launched >= total) {
       this.askExtension(mother, control, launched + 1, total);
@@ -491,7 +562,7 @@ export class Delegation {
     const agent = args.agent ?? mother.agent;
     const modele = args.modele ?? (agent === mother.agent ? (mother.model ?? '') : '');
     const asked = (args.titre ?? consigne).replace(/\s+/g, ' ').trim();
-    const privateTitle = mother.workspace === 'career-ops' && !this.engine.ownerMode;
+    const privateTitle = !!mother.workspace && !this.engine.ownerMode;
     const titre = privateTitle
       ? `Sous-mission ${launched + 1}`
       : args.titre
@@ -499,14 +570,16 @@ export class Delegation {
         : asked.slice(0, 60);
     const link = {
       link: {
-        racine: mother.famille?.racine ?? mother.id,
+        racine: mother.id,
         mere: mother.id,
-        profondeur: (mother.famille?.profondeur ?? 0) + 1,
         titre,
       },
       title: titre,
       cwd: mother.cwd,
     };
+    // From now on the family of this mission is read (and only now) : see hasFamily().
+    control.mere = true;
+    if (!mother.estMere) this.store.update(mother.id, { estMere: true });
     family.pending++;
     let run;
     try {
@@ -649,20 +722,35 @@ export class Delegation {
       etat: child.state,
       reponse: this.engine.modelAnswerOf(child).slice(0, MAX_ANSWER_CHARS),
       bilan: this.bilanOf(child),
-      fichiers: this.finals.get(child.id)?.fichiers ?? [],
-      envois: (({ approuves, refuses }) => ({ approuves, refuses }))(this.sendsOf(child)),
+      fichiers: this.doneOf(child).fichiers,
+      envois: this.sendsGiven(child),
       cause,
     };
   }
+  // The agents installed, with the models each announced at its last session on this machine :
+  // the same record as the « Modèle non annoncé » check of a mission (orchestrator plan()).
   async agents() {
-    if (this.agentsCache && Date.now() - this.agentsCache.at < AGENTS_CACHE_MS)
-      return this.agentsCache.list;
-    const list = (await detectAgents()).map((agent) => ({
-      id: agent.id,
-      disponible: !!(agent.installed && agent.compatible && (agent.simulated || this.engine.live)),
+    if (!this.agentsCache || Date.now() - this.agentsCache.at >= AGENTS_CACHE_MS)
+      this.agentsCache = {
+        at: Date.now(),
+        list: (await detectAgents()).map((agent) => ({
+          id: agent.id,
+          disponible: !!(
+            agent.installed &&
+            agent.compatible &&
+            (agent.simulated || this.engine.live)
+          ),
+        })),
+      };
+    const probes = loadProbes(this.engine.dataDir);
+    return this.agentsCache.list.map((agent) => ({
+      ...agent,
+      modeles: (probes[agent.id]?.models?.options ?? []).map((model) => ({
+        id: model.id,
+        nom: model.name ?? model.id,
+      })),
+      modeleParDefaut: probes[agent.id]?.models?.current ?? null,
     }));
-    this.agentsCache = { at: Date.now(), list };
-    return list;
   }
   async follow(mother, { id, details }) {
     const children = this.childrenOf(mother);
@@ -676,6 +764,7 @@ export class Delegation {
           : this.line(child),
       ),
       agents: await this.agents(),
+      activite: this.activity(),
       nature: 'données rapportées par les sous-missions',
     };
   }
@@ -685,16 +774,15 @@ export class Delegation {
     const known = new Set(children.map((child) => child.id));
     for (const id of ids ?? [])
       if (!known.has(id)) throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
-    const reported = this.reported.get(mother.id) ?? new Set();
-    this.reported.set(mother.id, reported);
-    const targets =
-      ids ?? children.filter((child) => !reported.has(child.id)).map((child) => child.id);
+    const targets = ids ?? [...known];
     const over = (id) => terminal.has(this.store.get(id)?.state) && !this.held(id);
-    // Asked by id : given back again ; without ids : each finished one once.
-    const ready = () => targets.filter((id) => over(id) && (ids || !reported.has(id)));
-    const done = () => (toutes ? targets.every(over) : ready().length > 0);
+    // Nothing is consumed (plan v2, Codex 2) : every call gives the whole state of the sub-missions
+    // asked for, so an answer lost on the way is read again by the next call. Without `toutes`,
+    // the call returns as soon as one of those still running when it started has ended.
+    const running = targets.filter((id) => !over(id));
+    const done = () => (toutes ? running.every(over) : running.some(over));
     let reached = false;
-    if (!done() && targets.some((id) => !over(id))) {
+    if (running.length && !done()) {
       control.suspendTimers?.();
       control.runtime?.pauseDeadlines?.();
       family.waiting = (family.waiting ?? 0) + 1;
@@ -702,7 +790,7 @@ export class Delegation {
         reached = !(await this.untilOr(
           family,
           done,
-          delaiSecondes * 1000,
+          waitSeconds(delaiSecondes) * 1000,
           signal,
           control.abort.signal,
         ));
@@ -713,10 +801,8 @@ export class Delegation {
       }
     }
     if (control.abort.signal.aborted) throw fail('mission_terminee', 'La mission mère est arrêtée');
-    const finished = ready();
-    for (const id of finished) reported.add(id);
     return {
-      terminees: finished.map((id) => this.outcome(this.store.get(id))),
+      terminees: targets.filter(over).map((id) => this.outcome(this.store.get(id))),
       enCours: targets
         .filter((id) => !over(id))
         .map((id) => {
@@ -730,18 +816,18 @@ export class Delegation {
   async cancelChild(mother, { id, raison }) {
     const child = this.childrenOf(mother).find((run) => run.id === id);
     if (!child) throw fail('introuvable', 'Aucune sous-mission de cette mission avec cet id');
-    if (terminal.has(child.state)) return { id, etat: child.state, descendants: 0 };
-    const reason = `Annulée par la mission mère${raison ? ` : ${raison}` : ''}`;
-    const descendants = this.cascade(id, reason);
-    this.cancelOne(id, reason);
-    return { id, etat: 'cancelled', descendants };
+    if (terminal.has(child.state)) return { id, etat: child.state };
+    this.cancelOne(id, `Annulée par la mission mère${raison ? ` : ${raison}` : ''}`);
+    return { id, etat: 'cancelled' };
   }
 
   // ---- cancellation, stop
 
-  // Cancels every descendant still alive of a mission ; returns how many.
+  // Cancels the sub-missions still alive of a mother (one level) ; returns how many. Nothing is
+  // read for a mission that launched none.
   cascade(id, reason = 'Annulée avec la mission mère') {
-    const living = this.descendants(id).filter((run) => !terminal.has(run.state));
+    if (!this.hasFamily({ id })) return 0;
+    const living = this.store.children(id).filter((run) => !terminal.has(run.state));
     for (const run of living.reverse()) this.cancelOne(run.id, reason);
     return living.length;
   }

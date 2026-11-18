@@ -1081,7 +1081,8 @@ export class Orchestrator {
     });
   }
   // chef-01 : `family` ({ link, title, cwd }) creates a sub-mission for Delegation.launch : it
-  // shares its mother's slot and workspace, and is held (`family.held`) until its family has a place.
+  // holds none of the three slots (see activeSlots), shares its mother's workspace, and is held
+  // (`family.held`) until its family has a place.
   async create(input, previous = null, family = null) {
     if (!family && this.activeSlots() >= 3) throw new Error('Trois exécutions maximum');
     if (previous?.workspace === 'career-ops' && input.prompt === previous.prompt)
@@ -1169,6 +1170,8 @@ export class Orchestrator {
       state: 'queued',
       ...plan.input,
       ...(family ? { famille: family.link } : {}),
+      // delegation-v2-01 : a resumed mother still reads the sub-missions of its chain.
+      ...(previous?.estMere ? { estMere: true } : {}),
       title:
         family?.title ??
         previous?.title ??
@@ -2123,7 +2126,7 @@ export class Orchestrator {
           .join(' ; ') || null;
       if (incomplete.length) value.summary += `\nMission incomplète : ${incomplete.join(' ; ')}.`;
       // chef-01 : the « Sous-missions » section : each sub-mission's Bilan quoted, the totals.
-      value.summary += this.delegation.bilanSection(run.id, {
+      value.summary += this.delegation.bilanSection(run, {
         chiefAnswer: agentSaid,
         motherSends: control.sendsApproved ?? 0,
       });
@@ -2227,7 +2230,7 @@ export class Orchestrator {
         });
       }
       // chef-01 : a mother that stops keeps the section of its sub-missions as they are now.
-      this.delegation.failureSection(run.id, control);
+      this.delegation.failureSection(run, control);
       recordDiagnostic();
       if (!plan.simulated && control.runtime && !control.runtime.sessionId && !control.cancelled)
         saveProbe(this.dataDir, plan.agent.id, {
@@ -2404,7 +2407,8 @@ export class Orchestrator {
     let n = 0;
     for (const id of this.active.keys()) {
       if (this.store.get(id)?.state === 'awaiting_owner') continue;
-      // chef-01 : a family takes one slot, its mother's ; its envelope decides inside.
+      // delegation-v2-01 : the sub-missions hold none of the three slots : the envelope of their
+      // mission bounds them, and Delegation.activity() counts them with every agent at work.
       if (this.store.get(id)?.famille) continue;
       if (
         this.ownerMode &&

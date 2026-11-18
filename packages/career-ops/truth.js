@@ -939,15 +939,23 @@ const ENTRY_TAIL = `(?=\\s*(?:[.,;:!?)\\n]|$)|\\s+(?:ni|et|ou|sans|mais|juste|se
 const ENTRY_FR = `(?:les\\s+|l${APOS}\\s*|chaque\\s+|ces\\s+|cette\\s+)(?:offres?|annonces?|entr[ée]es?)${ENTRY_TAIL}`;
 const ENTRY_EN = `(?:(?:the|any|each|these)\\s+)?(?:offers?|postings?|entries|entry|listings?|ads?)${ENTRY_TAIL}`;
 const CLAUSE_END = '(?=\\s*(?:[.,;:!?)\\n]|$))';
+// review-collecte-18-11 : after a pronoun, the clause must end there too (« une à une » / « one by one »
+// allowed), else it bounds the way of processing (« sans les noter en dessous de 4 », « don't open them
+// in a new tab ») ; a verb alone at the end of a clause only after « sans / ne pas / without / do not… »,
+// never after « n'ouvre pas » or « not » (« si le lien n'ouvre pas », « the page is not opening »).
+const ONE_BY_ONE =
+  '(?:\\s+(?:une?\\s+(?:à|par)\\s+une?|individuellement|one\\s+by\\s+one|individually))?';
+const OBJ_TAIL = `${ONE_BY_ONE}${ENTRY_TAIL}`;
 const SEP_FR = '(?:\\s*,\\s*(?:ni\\s+|ou\\s+|et\\s+)?|\\s+(?:ni|ou|et)\\s+)(?:sans\\s+)?';
 const SEP_EN = '(?:\\s*,\\s*(?:or\\s+|nor\\s+|and\\s+)?|\\s+(?:or|nor|and)\\s+)';
 const COLLECT_ONLY = new RegExp(
   `(?:^|[^\\p{L}\\p{N}])(?:` +
-    `(?:sans|ne\\s+pas|ne\\s+jamais|ni)\\s+(?:jamais\\s+)?${ENTRY_PRONOUN}${NOT_PROCESS_INF}` +
+    `(?:sans|ne\\s+pas|ne\\s+jamais|ni)\\s+(?:jamais\\s+)?${ENTRY_PRONOUN}${NOT_PROCESS_INF}${OBJ_TAIL}` +
     `|(?:sans|ne\\s+pas|ne\\s+jamais)\\s+(?:jamais\\s+)?${NOT_PROCESS_INF}(?:${SEP_FR}${NOT_PROCESS_INF})*(?:\\s+${ENTRY_FR}|${CLAUSE_END})` +
-    `|ne\\s+${ENTRY_PRONOUN}${NOT_PROCESS_CONJ}\\s+(?:pas|jamais|plus|ni)(?![\\p{L}\\p{N}])` +
-    `|(?:ne\\s+|n${APOS}\\s*)${NOT_PROCESS_CONJ}\\s+(?:(?:pas|jamais|plus)(?:\\s+${ENTRY_FR}|${CLAUSE_END})|aucune?\\s+(?:offre|annonce|entr[ée]e)(?![\\p{L}\\p{N}]))` +
-    `|(?:without|do\\s+not|don${APOS}t|never|not|nor)\\s+${NOT_PROCESS_EN}(?:${SEP_EN}${NOT_PROCESS_EN})*(?:\\s+(?:(?:them|it)(?![\\p{L}\\p{N}])|${ENTRY_EN})|${CLAUSE_END})` +
+    `|ne\\s+${ENTRY_PRONOUN}${NOT_PROCESS_CONJ}\\s+(?:(?:pas|jamais|plus)(?![\\p{L}\\p{N}])${OBJ_TAIL}|ni(?![\\p{L}\\p{N}]))` +
+    `|(?:ne\\s+|n${APOS}\\s*)${NOT_PROCESS_CONJ}\\s+(?:(?:pas|jamais|plus)\\s+${ENTRY_FR}|aucune?\\s+(?:offre|annonce|entr[ée]e)${ENTRY_TAIL})` +
+    `|(?:without|do\\s+not|don${APOS}t|never|not|nor)\\s+${NOT_PROCESS_EN}(?:${SEP_EN}${NOT_PROCESS_EN})*\\s+(?:(?:them|it)(?![\\p{L}\\p{N}])${OBJ_TAIL}|${ENTRY_EN})` +
+    `|(?:without|do\\s+not|don${APOS}t|never|nor)\\s+${NOT_PROCESS_EN}(?:${SEP_EN}${NOT_PROCESS_EN})*${CLAUSE_END}` +
     `)`,
   'iu',
 );

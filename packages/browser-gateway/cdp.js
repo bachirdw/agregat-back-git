@@ -15,7 +15,7 @@ import { isIP } from 'node:net';
 import { AsyncResource } from 'node:async_hooks';
 
 import { ownerTransport } from './owner-transport.js';
-import { paginateItems, paginateText } from './paginate.js';
+import { LINK_MAX_CHARS, paginateItems, paginateText } from './paginate.js';
 import { waitForExtension } from './relay-start.js';
 import { requestPinned } from '../policy-engine/http.js';
 import { SENSITIVE_WORDS } from '../policy-engine/run-policy.js';
@@ -217,9 +217,13 @@ export function isGraphqlRead(body) {
 }
 // captures-18-11 (E132) : runs in the page over the elements a selector matched : the visible text of
 // each and the absolute address of its link (the element itself, the link around it, or the first
-// link inside it), null without one.
-export function listedElements(elements) {
-  return elements.map((element) => {
+// link inside it), null without one. review2-captures-18-11 : only the window `offset` to
+// `offset + limit` is read, and an address longer than `linkMax` is left out, its size said.
+export function listedElements(
+  elements,
+  { offset = 0, limit = elements.length, linkMax = Infinity } = {},
+) {
+  return elements.slice(offset, offset + limit).map((element) => {
     const link = element.closest('a[href]') ?? element.querySelector('a[href]');
     // review-captures-18-11 : an SVG <a> has an SVGAnimatedString `href`, not a string ; its
     // attribute is resolved against the page instead of rendering « [object Object] ».
@@ -231,10 +235,9 @@ export function listedElements(elements) {
         href = null;
       }
     }
-    return {
-      text: element.innerText ?? element.textContent ?? '',
-      href,
-    };
+    const text = element.innerText ?? element.textContent ?? '';
+    if (href !== null && href.length > linkMax) return { text, href: null, hrefChars: href.length };
+    return { text, href };
   });
 }
 
@@ -2672,12 +2675,33 @@ export class CdpBrowser {
           if ((args.limit ?? 1) > 1) {
             const matches = bySelector(args.selector ?? 'body');
             await matches.first().waitFor({ state: 'visible', timeout: readTimeout() });
-            // captures-18-11 (E132) : every match read in one page call, with the address of its
-            // link ; `total` counts them all, the response renders a bounded page of them.
-            const found = await matches.evaluateAll(listedElements);
+            // captures-18-11 (E132) : the matches read in one page call, with the address of their
+            // link. review2-captures-18-11 : only the window asked for is read in the page, the total
+            // is counted apart, and the read is bounded in time like the former one.
+            const reading = Promise.all([
+              matches.count(),
+              matches.evaluateAll(listedElements, {
+                offset: args.offset ?? 0,
+                limit: args.limit,
+                linkMax: LINK_MAX_CHARS,
+              }),
+            ]);
+            reading.catch(() => {});
+            let timer;
+            const ms = readTimeout();
+            const [total, found] = await Promise.race([
+              reading,
+              new Promise((_, reject) => {
+                timer = setTimeout(
+                  () =>
+                    reject(new Error(`Lecture des éléments du sélecteur non finie en ${ms} ms.`)),
+                  ms,
+                );
+              }),
+            ]).finally(() => clearTimeout(timer));
             return {
               url: page.url(),
-              ...paginateItems(found, args),
+              ...paginateItems(found, args, { total }),
               loading,
               ...extras,
             };

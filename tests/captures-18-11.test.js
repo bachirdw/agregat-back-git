@@ -126,13 +126,17 @@ test('pagination : offset au-delà de la fin dit qu’il n’y a rien à rendre'
 });
 
 test('E132 : liste bornée par limit, total toujours donné, suite sans trou', () => {
-  const all = paginateItems(CARDS, { limit: EXTRACT_MAX_ITEMS, maxChars: 10000 });
+  // review2-captures-18-11 : chaque texte compte une fois dans maxChars ; count reste, comme avant le
+  // sprint, le nombre d'éléments lus (min(trouvés, limit)) ; un élément coupé est relu à la suite.
+  const all = paginateItems(CARDS, { limit: EXTRACT_MAX_ITEMS, maxChars: 3000 });
   assert.equal(all.total, 300);
-  assert.equal(all.count, all.items.length);
-  assert.ok(all.count < 300, 'maxChars borne la réponse');
-  assert.equal(all.nextOffset, all.count);
-  assert.equal(all.remaining, 300 - all.count);
-  const seen = [...all.items];
+  assert.equal(all.count, 300);
+  assert.ok(all.items.length < 300, 'maxChars borne la réponse');
+  assert.equal(all.text.length, 3000);
+  const whole = all.items.filter((item) => !item.textTruncated);
+  assert.equal(all.nextOffset, whole.length);
+  assert.equal(all.remaining, 300 - whole.length);
+  const seen = [...whole];
   let page = all;
   while (page.truncated) {
     page = paginateItems(CARDS, {
@@ -161,10 +165,13 @@ test('E132 : liste bornée par limit, total toujours donné, suite sans trou', (
 test('E132 : un élément seul plus long que maxChars est coupé en le disant, jamais en silence', () => {
   const big = [{ text: 'y'.repeat(1000), href: 'https://jobs.example.com/a' }, CARDS[0]];
   const out = paginateItems(big, { limit: 10, maxChars: 226 });
-  assert.equal(out.count, 1);
+  // review2-captures-18-11 : le texte compte une fois, le lien jamais à ses dépens (226, plus 100) ;
+  // count reste le nombre d'éléments lus, comme avant le sprint.
+  assert.equal(out.count, 2);
+  assert.equal(out.items.length, 1);
   assert.equal(out.items[0].textTruncated, true);
   assert.equal(out.items[0].textChars, 1000);
-  assert.equal(out.items[0].text.length, 100);
+  assert.equal(out.items[0].text.length, 226);
   assert.equal(out.items[0].href, 'https://jobs.example.com/a');
   assert.equal(out.nextOffset, 1);
   assert.match(out.paging, /coupé à maxChars/);

@@ -125,33 +125,41 @@ test('E132 : quelles que soient les tailles, chaque rang est rendu une fois, tot
     const ranks = [];
     for (let calls = 0; calls <= size + 1; calls++) {
       const out = paginateItems(all, { offset, limit, maxChars });
+      const window = all.slice(offset, offset + limit);
       assert.equal(out.total, size);
-      assert.equal(out.count, out.items.length);
-      assert.ok(out.count <= limit);
-      assert.equal(out.endOffset, Math.min(offset, size) + out.count);
-      assert.equal(out.remaining, size - out.endOffset);
-      assert.equal(out.text, out.items.map((item) => item.text).join('\n'));
+      // review2-captures-18-11 : count, text comme avant le sprint (fenêtre lue, textes joints coupés
+      // à maxChars, chacun compté une fois) ; items, ceux dont le texte commence dans text.
+      assert.equal(out.count, window.length);
+      assert.ok(out.items.length <= out.count);
+      assert.equal(
+        out.text,
+        window
+          .map((element) => element.text)
+          .join('\n')
+          .slice(0, maxChars),
+      );
+      assert.equal(out.endOffset, Math.min(offset, size) + out.items.length);
+      assert.equal(out.remaining, out.truncated ? size - out.nextOffset : 0);
       out.items.forEach((item, k) => {
         const source = all[offset + k];
         if (item.textTruncated) {
-          // Only an element alone above the budget is cut, and it says its whole size.
-          assert.equal(out.count, 1);
+          // Only the last element rendered is cut, and it says its whole size.
+          assert.equal(k, out.items.length - 1);
           assert.equal(item.textChars, source.text.length);
           assert.ok(source.text.startsWith(item.text));
-        } else assert.equal(item.text, source.text);
+          // Cut alone, it is not read again ; cut after others, it is read again from its start.
+          if (out.items.length === 1) ranks.push(offset + k);
+        } else {
+          assert.equal(item.text, source.text);
+          ranks.push(offset + k);
+        }
         assert.equal(item.href, source.href ?? undefined);
-        ranks.push(offset + k);
       });
-      const cost = out.items.reduce(
-        (sum, item) => sum + 2 * item.text.length + (item.href?.length ?? 0),
-        0,
-      );
-      if (!out.items.some((item) => item.textTruncated)) assert.ok(cost <= maxChars);
       if (!out.truncated) {
         assert.equal(out.nextOffset, null);
         break;
       }
-      assert.equal(out.nextOffset, out.endOffset, 'la suite désigne le premier rang non rendu');
+      assert.ok(out.nextOffset > offset, 'la suite avance toujours');
       offset = out.nextOffset;
     }
     assert.deepEqual(
@@ -169,7 +177,9 @@ test('E132 : le cas Chrome « li, limit 20, maxChars 6 » rejoué sans navigateu
     href: null,
   }));
   const out = paginateItems(li, { limit: 20, maxChars: 6 });
-  assert.equal(out.text, 'FIC');
+  // review2-captures-18-11 : retour à l'attendu d'avant le sprint (le texte compte une fois).
+  assert.equal(out.text, 'FICTIF');
+  assert.equal(out.count, 3);
   assert.equal(out.items[0].textTruncated, true);
   assert.equal(out.items[0].textChars, 14);
   assert.equal(out.total, 3);

@@ -40,49 +40,65 @@ export function paginateText(text, { offset = 0, maxChars = PAGE_TEXT_DEFAULT_CH
 }
 
 // captures-18-11 (E132) : the elements a selector matched, each with its text and the address of
-// its link, from rank `offset` : at most `limit` elements and `maxChars` characters (an element's
-// text counts twice, once in `items` and once in the joined `text`, plus its address). `total` is
-// every element found. An element alone above the budget is rendered with its text cut, and says
-// so (`textTruncated`, `textChars`). `nextOffset` is the rank of the first element not rendered.
-export function paginateItems(all, { offset = 0, limit = 1, maxChars = 20000 } = {}) {
+// its link, from rank `offset`. review2-captures-18-11 : as before the sprint, `text` is the texts
+// of the first `limit` elements joined by a newline and cut at `maxChars` (each text counted once,
+// a link never at its expense) and `count` their number ; `items` are the elements whose text
+// starts in it, the last one cut if the cut falls in it (`textTruncated`, `textChars`). `total` is
+// every element found ; a caller that read only the window in the page passes the total it counted
+// (`read.total`). `nextOffset` is the first rank not read in full : the cut element is read again
+// from its start, unless it was alone (its rest does not fit in maxChars).
+export const LINK_MAX_CHARS = 8192;
+
+// The address of a listed element, left out (its size said) above LINK_MAX_CHARS.
+function linkOf(element) {
+  const href = element?.href ? String(element.href) : null;
+  if (element?.hrefChars) return { hrefChars: element.hrefChars };
+  if (href && href.length > LINK_MAX_CHARS) return { hrefChars: href.length };
+  return href ? { href } : {};
+}
+
+export function paginateItems(all, { offset = 0, limit = 1, maxChars = 20000 } = {}, read = {}) {
   const found = Array.isArray(all) ? all : [];
+  const windowed = Number.isInteger(read.total);
+  const total = windowed ? read.total : found.length;
+  const start = Math.min(offset, total);
+  const window = (windowed ? found : found.slice(start)).slice(0, limit);
+  const texts = window.map((element) => String(element?.text ?? ''));
+  const text = texts.join('\n').slice(0, maxChars);
   const items = [];
-  let used = 0;
-  for (let rank = offset; rank < found.length && items.length < limit; rank++) {
-    const text = String(found[rank]?.text ?? '');
-    const href = found[rank]?.href ? String(found[rank].href) : null;
-    const cost = 2 * text.length + (href?.length ?? 0);
-    if (used + cost > maxChars) {
-      if (items.length > 0) break;
-      const room = Math.max(0, Math.floor((maxChars - (href?.length ?? 0)) / 2));
-      items.push({
-        text: text.slice(0, room),
-        ...(href ? { href } : {}),
-        textTruncated: true,
-        textChars: text.length,
-      });
-      break;
-    }
-    items.push({ text, ...(href ? { href } : {}) });
-    used += cost;
+  let at = 0;
+  for (let k = 0; k < window.length; k++) {
+    const whole = texts[k];
+    if (k > 0 && (at > text.length || (at === text.length && whole.length > 0))) break;
+    const shown = text.slice(at, at + whole.length);
+    at += whole.length + 1;
+    items.push({
+      text: shown,
+      ...linkOf(window[k]),
+      ...(shown.length < whole.length ? { textTruncated: true, textChars: whole.length } : {}),
+    });
   }
-  const start = Math.min(offset, found.length);
   const endOffset = start + items.length;
-  const truncated = endOffset < found.length;
-  const nextOffset = truncated ? endOffset : null;
-  const remaining = found.length - endOffset;
-  const cut = items.some((item) => item.textTruncated);
+  const cut = items.at(-1)?.textTruncated === true;
+  const resume = cut && items.length > 1 ? endOffset - 1 : endOffset;
+  const truncated = resume < total;
+  const nextOffset = truncated ? resume : null;
+  const remaining = truncated ? total - resume : 0;
   const paging =
-    `${found.length} élément(s) trouvé(s) : rangs ${start} à ${endOffset} rendus` +
-    (cut ? ' (texte de l’élément rendu coupé à maxChars : voir textChars)' : '') +
+    `${total} élément(s) trouvé(s) : rangs ${start} à ${endOffset} rendus` +
+    (cut
+      ? items.length > 1
+        ? ' (texte du dernier élément rendu coupé à maxChars : voir textChars ; il est relu en entier à la suite)'
+        : ' (texte de l’élément rendu coupé à maxChars : voir textChars)'
+      : '') +
     (truncated
       ? ` ; suite : offset=${nextOffset}, ${remaining} élément(s) restant(s).`
       : ' ; fin de la liste.');
   return {
     items,
-    text: items.map((item) => item.text).join('\n'),
-    count: items.length,
-    total: found.length,
+    text,
+    count: window.length,
+    total,
     offset,
     endOffset,
     truncated,

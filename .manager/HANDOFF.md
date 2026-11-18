@@ -69,15 +69,16 @@ Contradictions relevées : `AGENTS.md` dit encore `git add -A` aux codeurs (règ
 ## 3. Où vit le code (relevé du 18/11 à 12:05 par `git worktree list`, `git branch -vv`)
 | Dossier | Branche | Tête | Contenu | Poussé ? |
 |---|---|---|---|---|
-| `~/Downloads/agregat-back-essai-13-11` | `contacts-13-11` | `git log -1` (commits `[menage-18-11]` du 18/11 par-dessus `ae1164a` ; aucun code changé) | **le code le plus récent** ; 77 commits de code et de rapports au-dessus de `cto-11-11` | non |
+| `~/Downloads/agregat-back-essai-13-11` | `contacts-13-11` | `git log -1` (commits `[menage-18-11]` du 18/11 par-dessus `ae1164a` ; aucun code changé) | **la version unique sur laquelle on avance** (décision du 18/11) ; code le plus récent | **oui, le 18/11** (`origin/contacts-13-11`) |
 | `~/Downloads/agregat-back-reprise` | `reprise-16-11` | `4bbb0f4` | correctif de la reprise (E116), relu et contrôlé, **non intégré** ; 6 commits sur `832aa59` | non |
 | `~/Downloads/agregat-back-cto` | `cto-11-11` | `d88d490` | code des 11-13/11 (API 4313 du propriétaire) | oui le 13/11 ; `origin` à `671406b`, 2 commits de retard (références non rafraîchies) |
 | `~/Downloads/agregat-back-audit` | `audit-nuit-10-11` | `ea6fa14` | audit du 10/11 (161 commits sur `nuit-06-11`) | non |
 | `~/Downloads/agregat-back-nuit` | `nuit-06-11` | `615b8b9` | nuit du 06/11 et suites (107 commits sur `dev`) | non |
 | `~/Downloads/agregat-back-dev` | `dev` = `main` | `d6e8c93` | stable ; 1 commit devant `origin` | en partie |
-| `~/Downloads/agregat-front-cto` | `e104-13-11` | `7b2716c` | front le plus récent, 10 commits sur `transcription-11-11` | non (`transcription-11-11` l'est) |
+| `~/Downloads/agregat-front-cto` | `e104-13-11` | `7b2716c` | **le front de la version unique** ; 10 commits sur `transcription-11-11` | **oui, le 18/11** (`origin/e104-13-11`) |
 Chaîne : `dev` ← `nuit-06-11` ← `audit-nuit-10-11` ← `cto-11-11` ← `contacts-13-11` (← `reprise-16-11`). Rien n'est
-fusionné dans `dev`/`main`. Front : dépôt séparé `~/Downloads/agregat-front` (React/Vite), `main` du front à `d842e35`.
+fusionné dans `dev`/`main` : sur GitHub, `main` reste l'ancien code (back `e48da65`, front `d842e35`) ; il peut
+avancer sans conflit jusqu'à la version unique (il en est un ancêtre), ce qui attend l'ordre du propriétaire. Front : dépôt séparé `~/Downloads/agregat-front` (React/Vite), `main` du front à `d842e35`.
 Arbres de sprint à ranger, tous repris dans `contacts-13-11` (vérifié par `git cherry` ; un commit de `freins-01`
 repris sous un autre hash, `1db9b9f`) : `agregat-back-libelles`, `-cartes`, `-orienter`, `-contacts`, `-freins` ;
 fronts `agregat-front-libelles`, `-orienter`, `-preuves`. Anciens (contenus dans `dev` d'après la veille du 06/11, non
@@ -153,7 +154,9 @@ accordées d'office (E28), E39, attente de 2 h pour l'accord et la question, gar
 brider l'agent, envoi public de `cto-11-11` et `transcription-11-11`, rôle « Confirmer une personne » par le
 navigateur ; 14/11 « Oui, corrige tout » (libellés), message en cours de mission ; 15/11 « Oui, intègre » (cartes),
 copie durable de l'espace d'essai ; 16/11 guetteur permanent, « Oui, corrige » (sprint reprise, pas son intégration) ;
-17/11 expliquer simplement, même résultat Claude/Codex, série de six épreuves ; 18/11 ménage des passations.
+17/11 expliquer simplement, même résultat Claude/Codex, série de six épreuves ; 18/11 ménage des passations ;
+18/11 **une seule version** : celle servie par l'API 4314 et le front 5177 (`contacts-13-11` + `e104-13-11`), poussée
+sur GitHub sur son ordre ; on n'avance plus que sur elle, les anciennes (4310/5173, 4313/5176) ne sont plus relancées.
 **Attendent le propriétaire** (de la plus récente à la plus ancienne, dédoublonnées) :
 1. Intégrer `reprise-16-11` (E116), puis suite complète et relance de 4314 (demandé le 16/11, 19:26 et 19:30).
 2. Correctif du démarrage (E119) : nouvel essai, requête nommée (16/11, 19:30).
@@ -166,7 +169,8 @@ copie durable de l'espace d'essai ; 16/11 guetteur permanent, « Oui, corrige »
 7. Lever les freins restants : clic sur élément recouvert, touche Espace et raccourcis, réseau privé, liste d'un
    dossier par `career_read` (E120) ; enquête sur la lecture des pages par tranches de 24 000 caractères par Codex.
 8. Reporter « un clic par mission » dans le `CLAUDE.md` du dossier interdit (seulement sur son ordre).
-9. Fusionner la chaîne de branches dans `dev` (un seul back, un seul front) ou continuer en branches ; ranger les
+9. Faire de la version unique la branche principale `main` sur GitHub (avance rapide, après une suite complète
+   verte), puis ranger les
    arbres de sprint ; trier le dossier interdit et ses changements non commités.
 10. Confirmer deux choix du manager : carte gardée sur les menus « Envoyer » (13/11) ; phrases « écris un e-mail »
     retirées de l'intention `email` (14/11).
@@ -249,8 +253,8 @@ fichiers attribués par date · E125 question laissée sans réponse. Hors numé
 **Ménage du 18/11** : 979 fichiers retirés de `.manager/` (passation de 864 lignes, journaux de session, 126
 rapports de sprint et de relecture, 100 briefs, les dossiers de preuves, l'ancien plan de nuit et les lanceurs Codex).
 Tout reste lisible par le repère Git local `avant-menage-18-11`, par exemple
-`git show avant-menage-18-11:.manager/reports/passation.md`. La branche n'est pas poussée : ce repère et l'historique
-local sont la seule copie. Les renvois du registre vers un rapport supprimé se lisent de la même façon.
+`git show avant-menage-18-11:.manager/reports/passation.md`. La branche est poussée sur GitHub depuis le 18/11 :
+l'historique y est aussi ; le repère lui-même reste local (il désigne le commit `676d1af`). Les renvois du registre vers un rapport supprimé se lisent de la même façon.
 
 **Tenue de ce fichier** : il se met à jour sur place (état, décisions, défauts) ; on n'empile plus de sections datées.
 Le journal d'une session va dans un rapport court `reports/<id>.md`, supprimé une fois son essentiel reporté ici.

@@ -996,7 +996,37 @@ const PROCESS_REQUEST = new RegExp(
     `|check(?:s|ed|ing)?(?:\\s+\\p{L}+){0,2}\\s+off|mark(?:s|ed|ing)?|evaluat(?:e|es|ed|ing|ion|ions)` +
     `|scor(?:e|es|ed|ing)|rat(?:e|es|ed|ing)|triag(?:e|es|ed|ing)` +
     `|open(?:s|ing)?\\s+(?:them|it|each|every|all|the\\s+(?:offers?|postings?|entries|listings?|links?|ads?))` +
+    // review2-collecte-18-11, seconde passe : other verbs of processing (gère, occupe-toi de, passe en
+    // revue, trie, le tri ; handle, review, go through, sort, deal with, take care of, work through).
+    `|g[ée]r(?:e|es|ez|er|ons|é|ée|és|ées)|g[èe]r(?:e|es|ent)|gestion|occup(?:e|es|ez|er|ons)` +
+    `|pass(?:e|es|ez|er|ons)\\s+en\\s+revue|tri(?:e|es|ez|er|ons|é|ée|és|ées)?` +
+    `|handl(?:e|es|ed|ing)|review(?:s|ed|ing)?|go(?:es|ing)?\\s+through|sort(?:s|ed|ing)?` +
+    `|deal(?:s|ing)?\\s+with|tak(?:e|es|ing)\\s+care\\s+of|work(?:s|ing)?\\s+through` +
     `)(?![\\p{L}\\p{N}])`,
+  'iu',
+);
+// review2-collecte-18-11, seconde passe : the inbox named as what the request is about (« Gère ma boîte
+// d'entrée », « Range ma boîte… », « Tidy up my inbox »), not as where the entries go (« ajoute … à / dans
+// ma boîte d'entrée », « add … to / into my inbox », « remplis / fill the inbox ») nor as what is not to be processed (« ne traite pas
+// la boîte d'entrée », « do not process the inbox »). Whatever the verb : no dispense then.
+const INBOX_OBJECT = new RegExp(
+  `(?<!(?:(?:^|[^\\p{L}\\p{N}])(?:à|au|dans|vers|to|into|in|onto)` +
+    `|(?:^|[^\\p{L}\\p{N}])(?:fill(?:s|ing)?|populat(?:e|es|ing)|rempli[rsz]?|aliment(?:e|es|ez|er))(?:\\s+(?:ma|ta|sa|la|votre|notre|my|the|your|our))?(?:\\s+\\p{L}+)?` +
+    `|(?:ne\\s+|n${APOS}\\s*)(?:traite[sz]?|g[èe]re[sz]?|vide[sz]?|touche[sz]?|ouvre[sz]?)\\s+(?:pas|jamais|plus)` +
+    `|(?:ne\\s+pas|ne\\s+jamais|sans)\\s+(?:traiter|g[ée]rer|vider|toucher|ouvrir)` +
+    `|(?:do\\s+not|don${APOS}t|never|not|without)\\s+(?:process(?:ing)?|handl(?:e|ing)|empty(?:ing)?|clear(?:ing)?|touch(?:ing)?|open(?:ing)?))` +
+    `\\s+(?:(?:ma|ta|sa|la|votre|notre|my|the|your|our)\\s+)?)` +
+    `(?<![\\p{L}\\p{N}])(?:bo[îi]tes?\\s+(?:d${APOS}\\s*entr[ée]e|de\\s+r[ée]ception)|inbox(?:es)?)(?![\\p{L}\\p{N}])`,
+  'iu',
+);
+// review2-collecte-18-11, seconde passe : a part of the entries named first, with a qualifier, then
+// taken up by the negation (« les offres en CDD, ne les ouvre pas », « pour les annonces à Paris, sans
+// les ouvrir », « for postings in German, do not open them »), at the start of a clause.
+const PART_FRONTED = new RegExp(
+  `(?:^|[.;:!?\\n]|,\\s*(?:et|mais|and|but)(?![\\p{L}\\p{N}]))\\s*(?:` +
+    `(?:(?:pour|parmi|avec|sur|concernant|quant\\s+aux?)\\s+)?(?:les|des|ces|l${APOS})\\s*${ENTRY_NOUN}\\s+[^.,;:!?\\n]+?[,;:]\\s*(?:ne\\s|n${APOS}|sans\\s)` +
+    `|(?:(?:for|among|with|regarding|as\\s+for|on)\\s+)?(?:(?:the|those|any|these)\\s+)?(?:offers?|postings?|entries|listings?|ads?|jobs?)\\s+[^.,;:!?\\n]+?[,;:]\\s*(?:do\\s+not|don${APOS}t|never|not|without)(?![\\p{L}\\p{N}])` +
+    `)`,
   'iu',
 );
 const PART_OR_CONDITION = new RegExp(
@@ -1008,7 +1038,9 @@ const PART_OR_CONDITION = new RegExp(
   'iu',
 );
 function collectOnly(words) {
-  if (!COLLECT_ONLY.test(words) || PART_OR_CONDITION.test(words)) return false;
+  if (!COLLECT_ONLY.test(words) || PART_OR_CONDITION.test(words) || PART_FRONTED.test(words))
+    return false;
+  if (INBOX_OBJECT.test(words)) return false;
   return !PROCESS_REQUEST.test(words.replace(COLLECT_NEGATED, ' '));
 }
 export function inboxUnprocessed(truth, prompt) {

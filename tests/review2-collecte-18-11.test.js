@@ -102,6 +102,54 @@ const PARTIAL = [
   'Those already seen, do not open them.',
 ];
 
+// Seconde passe (vérificateur indépendant) : une demande de traitement par un verbe d'abord non listé
+// (gère, occupe-toi de, passe en revue, trie ; handle, review…), ou la boîte d'entrée nommée comme objet
+// de la demande (et non comme destination : « ajoute … à ma boîte d'entrée »). Aucune ne doit dispenser.
+const PROCESSING_2 = [
+  'Gère ma boîte d’entrée sans les ouvrir.',
+  "Gère ma boîte d'entrée sans les ouvrir.",
+  'Occupe-toi de ma boîte d’entrée sans les ouvrir.',
+  'Occupe-toi de ma boîte d’entrée, ne les note pas.',
+  'Passe en revue ma boîte d’entrée sans les ouvrir.',
+  'Passe en revue les offres sans les ouvrir.',
+  'Trie ma boîte d’entrée sans les évaluer.',
+  'Trie les offres sans les ouvrir.',
+  'Gérer la boîte d’entrée FICTIVE, sans les noter.',
+  'Range ma boîte d’entrée sans les ouvrir.',
+  'Dépouille ma boîte d’entrée sans les ouvrir.',
+  'Fais le tri dans ma boîte d’entrée sans les ouvrir.',
+  'Ma boîte d’entrée : sans les ouvrir.',
+  'Reprends ma boîte de réception sans les ouvrir.',
+  'Handle my inbox without opening them.',
+  'Review my inbox without opening them.',
+  'Go through my inbox without opening them.',
+  'Sort my inbox, do not open them.',
+  'Deal with the inbox without scoring them.',
+  'Take care of my inbox; do not open them.',
+  'Work through the inbox without opening them.',
+  'Handle the postings without opening them.',
+  'Review each offer without opening it.',
+  'Tidy up my inbox without evaluating them.',
+  'Remplis et range ma boîte d’entrée sans les ouvrir.',
+];
+
+// Seconde passe : une restriction sur un sous-ensemble sans mot repère (« les offres en CDD », « for
+// postings in German »), avant une négation reprise par un pronom. Aucune ne doit dispenser.
+const PARTIAL_2 = [
+  'Gère ma boîte d’entrée ; les offres en CDD, ne les ouvre pas.',
+  'Handle my inbox; for postings in German, do not open them.',
+  'Les offres en CDD, ne les ouvre pas.',
+  'Les annonces en allemand, ne les note pas.',
+  'Pour les offres en CDD, ne les ouvre pas.',
+  'Parmi les offres, celles en CDD : ne les ouvre pas.',
+  'Pour les annonces à Paris, sans les ouvrir.',
+  'For postings in German, do not open them.',
+  'For the offers in Berlin, don’t open them.',
+  'Among the postings, the German ones: do not open them.',
+  'Postings in German: do not open them.',
+  'With offers on site, never open them.',
+];
+
 // La phrase d'origine (forme seulement) et des collectes pures proches : elles dispensent.
 const PURE_COLLECT = [
   "Parcours les résultats FICTIFS et ajoute chaque offre trouvée à data/pipeline.md (titre, entreprise, adresse de l'offre), sans l'ouvrir une à une, sans la noter et sans l'évaluer.",
@@ -128,6 +176,15 @@ const PURE_COLLECT = [
   'Scan the FICTIONAL results pages and add each offer to data/pipeline.md, never open them.',
   'Fill data/pipeline.md with the FICTIONAL offers without processing the entries.',
   'Copy each FICTIONAL posting into data/pipeline.md without rating it.',
+  // Seconde passe : la boîte d'entrée nommée comme destination, pas comme objet.
+  'Ajoute les offres FICTIVES dans ma boîte d’entrée sans les ouvrir.',
+  'Ajoute chaque offre FICTIVE à ma boîte d’entrée, sans l’ouvrir ni la noter.',
+  'Add the FICTIONAL postings to my inbox without opening them.',
+  'Put each FICTIONAL offer into the inbox without scoring it.',
+  'Ne traite pas la boîte d’entrée ; ajoute les offres FICTIVES à data/pipeline.md sans les ouvrir.',
+  'Do not process the inbox; add the FICTIONAL postings to data/pipeline.md without opening them.',
+  'Remplis ma boîte d’entrée FICTIVE avec les offres trouvées, sans les ouvrir.',
+  'Fill the FICTIONAL inbox, don’t open them.',
 ];
 
 // Comme ownerWords() de packages/orchestrator/index.js : le prompt et les messages livrés, joints
@@ -137,7 +194,7 @@ const ownerWords = (prompt, ...delivered) =>
 
 function misclassified() {
   return {
-    processingAsCollect: [...PROCESSING, ...PARTIAL].filter(
+    processingAsCollect: [...PROCESSING, ...PARTIAL, ...PROCESSING_2, ...PARTIAL_2].filter(
       (p) => inboxUnprocessed(untouched, p) === null,
     ),
     collectNotRecognised: PURE_COLLECT.filter((p) => inboxUnprocessed(untouched, p) !== null),
@@ -149,9 +206,10 @@ test('review2-collecte-18-11 : mesure (au moins 60 traitements, 20 collectes pur
   assert.ok(PURE_COLLECT.length >= 20, `${PURE_COLLECT.length} collectes`);
   const m = misclassified();
   t.diagnostic(
-    `traitements : ${PROCESSING.length} (K1) + ${PARTIAL.length} (K2) ; collectes pures : ${PURE_COLLECT.length}`,
+    `traitements : ${PROCESSING.length} (K1) + ${PARTIAL.length} (K2) + ${PROCESSING_2.length} (verbes, passe 2) + ${PARTIAL_2.length} (sous-ensembles, passe 2) ; collectes pures : ${PURE_COLLECT.length}`,
   );
   t.diagnostic(`traitements classés collecte : ${m.processingAsCollect.length}`);
+  for (const p of m.processingAsCollect) t.diagnostic(`traitement classé collecte : ${p}`);
   t.diagnostic(`collectes non reconnues : ${m.collectNotRecognised.length}`);
   for (const p of m.collectNotRecognised) t.diagnostic(`collecte non reconnue : ${p}`);
 });
@@ -164,6 +222,34 @@ test('review2-collecte-18-11 K1 : une demande de traiter la boîte ne dispense j
 test('review2-collecte-18-11 K2 : une restriction sur une partie ou une condition ne dispense pas', () => {
   for (const prompt of PARTIAL)
     assert.deepEqual(inboxUnprocessed(untouched, prompt), CAUSE, prompt);
+});
+
+test('review2-collecte-18-11 passe 2 : verbe non listé ou boîte objet de la demande, pas de dispense', () => {
+  for (const prompt of PROCESSING_2)
+    assert.deepEqual(inboxUnprocessed(untouched, prompt), CAUSE, prompt);
+});
+
+test('review2-collecte-18-11 passe 2 : sous-ensemble sans mot repère, pas de dispense', () => {
+  for (const prompt of PARTIAL_2)
+    assert.deepEqual(inboxUnprocessed(untouched, prompt), CAUSE, prompt);
+});
+
+test('review2-collecte-18-11 passe 2 : message de sous-ensemble joint au prompt, pas de dispense', () => {
+  const joined = ownerWords(
+    'Gère ma boîte d’entrée FICTIVE',
+    'Les offres en CDD, ne les ouvre pas.',
+  );
+  assert.deepEqual(inboxUnprocessed(untouched, joined), CAUSE);
+  assert.deepEqual(
+    inboxUnprocessed(
+      untouched,
+      ownerWords(
+        'Ajoute les offres FICTIVES au pipeline',
+        'For postings in German, do not open them.',
+      ),
+    ),
+    CAUSE,
+  );
 });
 
 test('review2-collecte-18-11 K3 : un message de circonstance joint au prompt ne dispense pas', () => {

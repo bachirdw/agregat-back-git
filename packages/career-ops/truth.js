@@ -923,6 +923,34 @@ const COUNT_LIMIT = new RegExp(
   `(?:^|[^\\p{L}\\p{N}])(?:${NUMBER}\\s+(?:seules?\\s+|premi[èe]res?\\s*)?${UNIT}|${NUMBER}\\s+(?:seules?|premi[èe]res?)|(?:une?|a|one)\\s+(?:seule?|single)\\s+${UNIT}|(?:seulement|au plus|maximum|max|at most|only|first|limite(?:-toi|z-vous)? à|limit(?:ed)? to)\\s+${NUMBER})(?![\\p{L}\\p{N}])`,
   'iu',
 );
+// collecte-18-11 (E135) : a prompt that says itself not to process the entries (not to open, score,
+// evaluate or process them) asks for a collection, not an inbox processed : nothing is claimed then
+// (« sans l'ouvrir ni la noter », « ne les évalue pas », « n'ouvre pas les offres », « without opening
+// them »). Only about the entries : a pronoun (l', la, les ; them, it), the offers / postings / entries
+// named, or the verb alone at the end of the clause. Any other object (« sans ouvrir le navigateur »,
+// « ne note pas mon adresse »), any qualifier after the entries (« les offres expirées ») : no match.
+const APOS = "['’]";
+const NOT_PROCESS_INF = '(?:ouvrir|noter|[ée]valuer|traiter)(?![\\p{L}\\p{N}])';
+const NOT_PROCESS_CONJ = '(?:ouvre[sz]?|note[sz]?|[ée]value[sz]?|traite[sz]?)(?![\\p{L}\\p{N}])';
+const NOT_PROCESS_EN =
+  '(?:open(?:ing)?|scor(?:e|ing)|rat(?:e|ing)|evaluat(?:e|ing)|process(?:ing)?)(?![\\p{L}\\p{N}])';
+const ENTRY_PRONOUN = `(?:l${APOS}\\s*|la\\s+|les\\s+)`;
+const ENTRY_TAIL = `(?=\\s*(?:[.,;:!?)\\n]|$)|\\s+(?:ni|et|ou|sans|mais|juste|seulement|and|or|nor|without|but|just|only)(?![\\p{L}\\p{N}]))`;
+const ENTRY_FR = `(?:les\\s+|l${APOS}\\s*|chaque\\s+|ces\\s+|cette\\s+)(?:offres?|annonces?|entr[ée]es?)${ENTRY_TAIL}`;
+const ENTRY_EN = `(?:(?:the|any|each|these)\\s+)?(?:offers?|postings?|entries|entry|listings?|ads?)${ENTRY_TAIL}`;
+const CLAUSE_END = '(?=\\s*(?:[.,;:!?)\\n]|$))';
+const SEP_FR = '(?:\\s*,\\s*(?:ni\\s+|ou\\s+|et\\s+)?|\\s+(?:ni|ou|et)\\s+)(?:sans\\s+)?';
+const SEP_EN = '(?:\\s*,\\s*(?:or\\s+|nor\\s+|and\\s+)?|\\s+(?:or|nor|and)\\s+)';
+const COLLECT_ONLY = new RegExp(
+  `(?:^|[^\\p{L}\\p{N}])(?:` +
+    `(?:sans|ne\\s+pas|ne\\s+jamais|ni)\\s+(?:jamais\\s+)?${ENTRY_PRONOUN}${NOT_PROCESS_INF}` +
+    `|(?:sans|ne\\s+pas|ne\\s+jamais)\\s+(?:jamais\\s+)?${NOT_PROCESS_INF}(?:${SEP_FR}${NOT_PROCESS_INF})*(?:\\s+${ENTRY_FR}|${CLAUSE_END})` +
+    `|ne\\s+${ENTRY_PRONOUN}${NOT_PROCESS_CONJ}\\s+(?:pas|jamais|plus|ni)(?![\\p{L}\\p{N}])` +
+    `|(?:ne\\s+|n${APOS}\\s*)${NOT_PROCESS_CONJ}\\s+(?:(?:pas|jamais|plus)(?:\\s+${ENTRY_FR}|${CLAUSE_END})|aucune?\\s+(?:offre|annonce|entr[ée]e)(?![\\p{L}\\p{N}]))` +
+    `|(?:without|do\\s+not|don${APOS}t|never|not|nor)\\s+${NOT_PROCESS_EN}(?:${SEP_EN}${NOT_PROCESS_EN})*(?:\\s+(?:(?:them|it)(?![\\p{L}\\p{N}])|${ENTRY_EN})|${CLAUSE_END})` +
+    `)`,
+  'iu',
+);
 export function inboxUnprocessed(truth, prompt) {
   const inbox = truth.inboxDelta?.() ?? null;
   // E62 : an entry added and processed during the mission is inbox work too — unless entries of
@@ -936,7 +964,8 @@ export function inboxUnprocessed(truth, prompt) {
     ((inbox.addedProcessed || inbox.addedUnconfirmed) && !inbox.missing)
   )
     return null;
-  if (COUNT_LIMIT.test(String(prompt ?? ''))) return null;
+  if (COUNT_LIMIT.test(String(prompt ?? '')) || COLLECT_ONLY.test(String(prompt ?? '')))
+    return null;
   return { proves: INBOX_PROCESSED, cause: `boîte d’entrée non traitée (0 sur ${inbox.pending})` };
 }
 

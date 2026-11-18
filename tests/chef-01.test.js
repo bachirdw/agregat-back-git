@@ -404,3 +404,499 @@ test('délai atteint : rien de perdu, résultat rendu ensuite et relu par missio
   assert.deepEqual(again.result.terminees, []);
   assert.equal(again.result.delaiAtteint, false);
 });
+
+// Simulated clock of the engine's guards : a delay elapses only when the test moves it.
+function fakeTimers() {
+  let now = 0;
+  let seq = 0;
+  const due = new Map();
+  return {
+    setTimeout(fn, ms) {
+      const id = ++seq;
+      due.set(id, { at: now + Math.max(0, Number(ms) || 0), fn });
+      return id;
+    },
+    clearTimeout(id) {
+      due.delete(id);
+    },
+    tick(ms) {
+      const until = now + ms;
+      for (;;) {
+        const next = [...due.entries()]
+          .filter(([, timer]) => timer.at <= until)
+          .sort((a, b) => a[1].at - b[1].at)[0];
+        if (!next) break;
+        now = next[1].at;
+        due.delete(next[0]);
+        next[1].fn();
+      }
+      now = until;
+    },
+  };
+}
+
+test('minuteurs du chef en pause pendant mission_attendre (horloge simulée)', async (t) => {
+  const p = await platform(t);
+  const timers = fakeTimers();
+  p.app.engine.timers = timers;
+  p.app.engine.silentMs = 1000;
+  p.app.engine.toolIdleMs = 2000;
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE BATTEMENT ATTENDRE:a' } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 120 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Une tâche FICTIVE attendue par le chef.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  const control = p.app.engine.active.get(mother.id);
+  await p.waitFor(() => p.app.engine.delegation.families.get(mother.id)?.waiting === 1);
+  // 4 s simulées : bien au-delà du silence (1 s) et de la garde d'outil (2 s) du chef. La
+  // sous-mission montre qu'elle travaille (une pensée toutes les 30 ms) et garde sa mission.
+  for (let i = 0; i < 8; i++) {
+    timers.tick(500);
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  assert.equal(control.abort.signal.aborted, false, String(control.abort.signal.reason));
+  assert.equal(p.app.store.get(mother.id).state, 'running');
+  const stopped = p.app.store
+    .events(mother.id)
+    .filter(
+      (e) => e.type === 'tool_stalled' || (e.type === 'agent_silent' && e.data.stopped === true),
+    );
+  assert.deepEqual(stopped, []);
+  p.touch('a');
+  await p.ended(mother.id, 30000);
+  const row = p.app.store.get(mother.id);
+  assert.equal(row.state, 'completed', row.error);
+  assert.equal(p.results()[1].result.terminees[0].etat, 'completed');
+});
+
+test('enveloppe atteinte : erreur au chef, question au propriétaire, puis l’appel suivant passe', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 1' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2' } },
+      { touch: join(p.hold, 'refused') },
+      { waitFile: join(p.hold, 'answered') },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2' } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES, enveloppe d’une seule.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED({ total: 1, parallel: 1 }),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'refused')));
+  const refused = p.results()[1];
+  assert.equal(refused.isError, true);
+  assert.equal(refused.result.erreur, 'enveloppe_atteinte');
+  const asked = await p.waitFor(() => p.app.store.get(mother.id).pendingQuestion);
+  assert.equal(
+    asked.message,
+    'Le chef veut lancer une 2e sous-mission ; l’enveloppe acceptée est de 1. En autoriser 5 de plus ?',
+  );
+  assert.deepEqual(asked.options, ['oui', 'non']);
+  p.app.engine.answer(mother.id, { action: 'accept', content: { reponse: 'oui' } });
+  p.touch('answered');
+  await p.ended(mother.id, 30000);
+  const row = p.app.store.get(mother.id);
+  assert.equal(row.state, 'completed', row.error);
+  assert.equal(row.delegation.total, 6);
+  assert.equal(row.delegation.extensions.length, 1);
+  assert.equal(p.results()[2].isError, false, JSON.stringify(p.results()[2].result));
+  assert.equal(p.app.store.children(mother.id).length, 2);
+  const types = p.types(mother.id);
+  assert.ok(types.includes('delegation_envelope_reached'));
+  assert.ok(types.includes('delegation_extended'));
+});
+
+test('boucle : une consigne identique (au blanc près) à celle de la mère est refusée', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      {
+        call: 'mission_lancer',
+        args: { consigne: '  Compare   les rapports\nFICTIFS.  ' },
+      },
+      {
+        call: 'mission_lancer',
+        args: { consigne: 'Compare les rapports FICTIFS en deux lignes.' },
+      },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Compare les rapports FICTIFS.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  await p.ended(mother.id, 30000);
+  const [loop, other] = p.results();
+  assert.equal(loop.isError, true);
+  assert.equal(loop.result.erreur, 'boucle');
+  assert.equal(other.isError, false);
+  assert.equal(p.app.store.children(mother.id).length, 1);
+});
+
+test('famille career-ops : les sous-missions partagent l’espace privé, une mission étrangère reste refusée', async (t) => {
+  const p = await platform(t, { career: true });
+  p.setConfig((input) =>
+    input.prompt === 'Mission étrangère FICTIVE.'
+      ? {}
+      : {
+          steps: [
+            {
+              call: 'mission_lancer',
+              args: { consigne: 'Lis le rapport FICTIF 001 ATTENDRE:a', titre: 'Rapport 001' },
+            },
+            { touch: join(p.hold, 'launched') },
+            { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+          ],
+        },
+  );
+  const mother = await p.app.engine.create({
+    prompt: 'Résume mes rapports FICTIFS avec des sous-missions.',
+    agent: 'fixture',
+    pack: 'career-ops',
+    delegation: ACCEPTED(),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'launched')));
+  const [launch] = p.results();
+  assert.equal(launch.isError, false, JSON.stringify(launch.result));
+  // Non-owner mode : a private mission's sub-mission gets a neutral title.
+  assert.equal(launch.result.titre, 'Sous-mission 1');
+  await assert.rejects(
+    p.app.engine.create({
+      prompt: 'Mission étrangère FICTIVE.',
+      agent: 'fixture',
+      pack: 'career-ops',
+    }),
+    /Une seule mission privée à la fois dans cet espace/,
+  );
+  p.touch('a');
+  await p.ended(mother.id, 30000);
+  const child = p.app.store.get(launch.result.id);
+  assert.ok(terminal.has(child.state));
+  assert.doesNotMatch(String(child.error ?? ''), /Une seule mission privée/);
+  assert.equal(child.cwd, p.app.store.get(mother.id).cwd);
+  // The consigne stays in the private space, as a mission's prompt does.
+  assert.equal(child.prompt, 'Mission privée dans l’espace de candidature');
+  assert.equal(
+    JSON.parse(readFileSync(join(child.cwd, `relay/runs/${child.id}-input.json`), 'utf8')).prompt,
+    'Lis le rapport FICTIF 001 ATTENDRE:a',
+  );
+  const daughter = daughterPrompts(p)[0];
+  assert.equal(
+    daughter.prompt.famille.demandeDuProprietaire,
+    'Résume mes rapports FICTIFS avec des sous-missions.',
+  );
+  // Once the family has ended (its executions released), the space is free again.
+  await p.waitFor(
+    () => !p.app.engine.active.has(mother.id) && !p.app.engine.active.has(child.id),
+    15000,
+  );
+  const next = await p.app.engine.create({
+    prompt: 'Mission étrangère FICTIVE.',
+    agent: 'fixture',
+    pack: 'career-ops',
+  });
+  await p.ended(next.id);
+});
+
+test('annulation en cascade : annuler la mère annule ses sous-missions, en cours et en file', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 1 ATTENDRE:jamais' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2 ATTENDRE:jamais' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 3 ATTENDRE:jamais' } },
+      { touch: join(p.hold, 'launched') },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 600 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Trois tâches FICTIVES sans fin.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED({ parallel: 2 }),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'launched')));
+  const ids = p.results().map((r) => r.result.id);
+  await p.waitFor(() => ids.slice(0, 2).every((id) => p.app.store.get(id).state === 'running'));
+  assert.equal(p.app.store.get(ids[2]).state, 'queued');
+  // Both running sub-missions' agents are in their turn.
+  await p.waitFor(() => daughterPrompts(p).length === 2);
+  const cancelled = await p.api(`/api/runs/${mother.id}/cancel`, {});
+  assert.equal(cancelled.status, 200);
+  await p.ended(mother.id);
+  for (const id of ids) await p.ended(id);
+  assert.equal(p.app.store.get(mother.id).state, 'cancelled');
+  for (const id of ids) assert.equal(p.app.store.get(id).state, 'cancelled', id);
+  assert.equal(p.app.store.get(ids[2]).error, 'Annulée avec la mission mère');
+  // The queued one never started : no agent was launched for it.
+  assert.deepEqual(
+    p.app.store
+      .events(ids[2])
+      .filter((e) => e.type === 'state')
+      .map((e) => e.data.state),
+    ['queued', 'cancelled'],
+  );
+  assert.equal(daughterPrompts(p).length, 2);
+});
+
+test('mission_annuler : une sous-mission arrêtée par le chef, rendue « cancelled », sans erreur ensuite', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      {
+        call: 'mission_lancer',
+        args: { consigne: 'Tâche FICTIVE inutile ATTENDRE:jamais' },
+        save: 'A',
+      },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE utile' }, save: 'B' },
+      { call: 'mission_annuler', args: { id: '$A', raison: 'plus utile (FICTIF)' } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+      { call: 'mission_annuler', args: { id: '$A' } },
+      { call: 'mission_suivre', args: { id: '00000000-0000-4000-8000-000000000000' } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES dont une annulée.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  await p.ended(mother.id, 30000);
+  const [launchA, , cancel, waited, again, unknown] = p.results();
+  assert.deepEqual(cancel.result, { id: launchA.result.id, etat: 'cancelled', descendants: 0 });
+  const doneA = waited.result.terminees.find((x) => x.id === launchA.result.id);
+  assert.equal(doneA.etat, 'cancelled');
+  assert.equal(doneA.cause.type, 'erreur');
+  assert.match(doneA.cause.message, /Annulée par la mission mère : plus utile \(FICTIF\)/);
+  assert.equal(again.isError, false);
+  assert.equal(again.result.etat, 'cancelled');
+  assert.equal(unknown.isError, true);
+  assert.equal(unknown.result.erreur, 'introuvable');
+  assert.equal(p.app.store.get(mother.id).state, 'completed');
+});
+
+test('redémarrage : toute la famille passe interrupted (mère, sous-mission en cours, sous-mission en file)', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 1 ATTENDRE:jamais' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2 ATTENDRE:jamais' } },
+      { touch: join(p.hold, 'launched') },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 600 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES coupées par un arrêt.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED({ parallel: 1 }),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'launched')));
+  const ids = [mother.id, ...p.results().map((r) => r.result.id)];
+  await p.waitFor(() => p.app.store.get(ids[1]).state === 'running');
+  // The process dies : the next start reads the same database.
+  const restarted = new Store(join(p.root, 'platform', 'platform.sqlite'));
+  try {
+    for (const id of ids) assert.equal(restarted.get(id).state, 'interrupted', id);
+  } finally {
+    restarted.close();
+  }
+});
+
+test('Bilan de la mère : Bilans des sous-missions cités à l’identique, totaux et confrontation', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      {
+        call: 'mission_lancer',
+        args: { consigne: 'Note FICTIVE ECRIRE:notes/a.md', titre: 'Note A' },
+      },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE ECHEC', titre: 'Échec B' } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+    ],
+    summary: 'Tableau FICTIF. J’ai envoyé 3 e-mails.',
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES et un tableau.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  await p.ended(mother.id, 30000);
+  const row = p.app.store.get(mother.id);
+  assert.equal(row.state, 'completed', row.error);
+  const summary = row.result.summary;
+  const children = p.app.store.children(mother.id);
+  assert.deepEqual(
+    children.map((child) => child.state),
+    ['completed', 'failed'],
+  );
+  const failed = p.results()[2].result.terminees.find((x) => x.etat === 'failed');
+  assert.equal(failed.cause.type, 'erreur');
+  for (const child of children) {
+    const bilan = p.app.engine.delegation.bilanOf(child);
+    assert.ok(bilan.length > 0, child.id);
+    // Quoted word for word, line by line.
+    const quoted = bilan
+      .split('\n')
+      .map((line) => `> ${line}`.trimEnd())
+      .join('\n');
+    assert.ok(summary.includes(quoted), `Bilan de ${child.id} non cité à l’identique`);
+  }
+  assert.match(summary, /\nSous-missions \(2\) :\n1\. « Note A » — agent fixture, terminée, /);
+  assert.match(summary, /\n2\. « Échec B » — agent fixture, en échec, /);
+  assert.match(
+    summary,
+    /Totaux de la famille vus par la plateforme : 1 terminée\(s\), 1 en échec, 0 annulée\(s\), 0 interrompue\(s\) ; envois des sous-missions : 0 approuvé\(s\) \(dont 0 par accord de mission\), 0 refusé\(s\)\./,
+  );
+  assert.match(
+    summary,
+    /Confrontation : le chef annonce 3 envoi\(s\) ; la plateforme a vu 0 envoi\(s\) approuvé\(s\) dans la famille\./,
+  );
+  assert.match(summary, /Consommation : 2 sous-mission\(s\), .* d’agents cumulés \(fixture /);
+  // The chief's answer stays his ; the section belongs to the platform's lines.
+  assert.equal(row.result.answer, 'Tableau FICTIF. J’ai envoyé 3 e-mails.');
+  assert.ok(row.result.platformNotes.includes('Sous-missions (2) :'));
+});
+
+test('consigne du chef et des sous-missions identique pour tous les profils d’agents, sans nom d’agent', async (t) => {
+  const seen = [];
+  for (const profile of profiles) {
+    const p = await platform(t, { identity: profile });
+    p.setConfig(() => ({
+      steps: [
+        { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE' } },
+        { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+      ],
+    }));
+    const mother = await p.app.engine.create({
+      prompt: 'Une tâche FICTIVE déléguée.',
+      agent: 'fixture',
+      pack: 'core',
+      delegation: ACCEPTED({ total: 4, parallel: 2 }),
+    });
+    await p.ended(mother.id, 30000);
+    const chief = chiefPrompt(p).prompt.instructions;
+    const daughter = daughterPrompts(p)[0].prompt.instructions;
+    seen.push({
+      chief: chief.slice(chief.lastIndexOf('\n') + 1),
+      daughter: daughter.slice(daughter.lastIndexOf('\n') + 1),
+      tools: JSON.stringify(p.tools().map(({ name, description }) => [name, description])),
+    });
+  }
+  for (const entry of seen) assert.deepEqual(entry, seen[0]);
+  assert.equal(seen[0].chief, rule.chiefRule({ total: 4, parallel: 2 }));
+  assert.equal(seen[0].daughter, rule.DAUGHTER_RULE);
+  for (const text of [
+    seen[0].chief,
+    seen[0].daughter,
+    seen[0].tools,
+    rule.familyReminder(['Titre FICTIF']),
+  ])
+    assert.doesNotMatch(text, AGENT_NAMES, text);
+});
+
+test('une mère ne voit ni ne touche les sous-missions d’une autre mère ; le jeton d’une mission ne sert qu’à elle', async (t) => {
+  const p = await platform(t);
+  p.setConfig((input) => {
+    const name = input.prompt.includes('mère A') ? 'a' : 'b';
+    return {
+      steps: [
+        { call: 'mission_lancer', args: { consigne: `Tâche FICTIVE ${name} ATTENDRE:go-${name}` } },
+        { touch: join(p.hold, `ready-${name}`) },
+        { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 60 } },
+      ],
+    };
+  });
+  const motherA = await p.app.engine.create({
+    prompt: 'Tâche de la mère A FICTIVE.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  const motherB = await p.app.engine.create({
+    prompt: 'Tâche de la mère B FICTIVE.',
+    agent: 'fixture',
+    pack: 'core',
+    delegation: ACCEPTED(),
+  });
+  await p.waitFor(() => ['a', 'b'].every((x) => existsSync(join(p.hold, `ready-${x}`))));
+  const [childA] = p.app.store.children(motherA.id);
+  const [childB] = p.app.store.children(motherB.id);
+  const tokenA = p.app.engine.approvalTokens.get(motherA.id);
+  const tokenB = p.app.engine.approvalTokens.get(motherB.id);
+  const asA = (tool, args, token = tokenA) =>
+    p.api(`/api/internal/missions/${motherA.id}`, { tool, args }, { 'x-relay-token': token });
+  const all = await asA('mission_suivre', {});
+  assert.deepEqual(
+    all.body.result.missions.map((m) => m.id),
+    [childA.id],
+  );
+  for (const [tool, args] of [
+    ['mission_suivre', { id: childB.id }],
+    ['mission_attendre', { ids: [childB.id], delaiSecondes: 1 }],
+    ['mission_annuler', { id: childB.id }],
+  ]) {
+    const out = await asA(tool, args);
+    assert.equal(out.body.erreur, 'introuvable', tool);
+  }
+  assert.equal(p.app.store.get(childB.id).state, 'running');
+  // B's token does not open A's tools.
+  assert.equal((await asA('mission_suivre', {}, tokenB)).status, 403);
+  // A sub-mission has no mission tool of its own.
+  for (const entry of daughterPrompts(p)) assert.deepEqual(entry.servers, ['platform']);
+  p.touch('go-a');
+  p.touch('go-b');
+  await p.ended(motherA.id, 30000);
+  await p.ended(motherB.id, 30000);
+});
+
+test('Bilan : texte long cité par ses lignes d’envoi et d’échec ; annonces d’envoi lues', () => {
+  const long = [
+    'Ligne FICTIVE '.repeat(300),
+    'Envoi par la plateforme : 2 approuvé(s) par le propriétaire.',
+    'Action(s) échouée(s) : browser_click — page changée',
+  ].join('\n');
+  assert.ok(long.length > QUOTE_LIMIT);
+  assert.deepEqual(quoteBilan(long, 'id-FICTIF'), [
+    '> Envoi par la plateforme : 2 approuvé(s) par le propriétaire.',
+    '> Action(s) échouée(s) : browser_click — page changée',
+    `> … Bilan de ${long.length} caractères : texte complet dans la sous-mission id-FICTIF.`,
+  ]);
+  assert.equal(announcedSends('J’ai envoyé 3 e-mails et 2 messages ont été envoyés.'), 5);
+  assert.equal(announcedSends('Trois offres FICTIVES, note 4/5.'), null);
+  assert.equal(familySection({ children: [] }), '');
+  const section = familySection({
+    children: [
+      {
+        id: 'c1',
+        titre: 'T1',
+        agent: 'a1',
+        modele: '',
+        state: 'completed',
+        durationMs: 65000,
+        bilan: 'Envoi par la plateforme : 1 approuvé(s) par le propriétaire.',
+        envois: { approuves: 1, parAccord: 0, refuses: 1 },
+      },
+    ],
+    chiefAnswer: 'J’ai envoyé 1 e-mail.',
+    motherSends: 0,
+  });
+  assert.match(section, /1 min 05 s/);
+  assert.match(section, /1 approuvé\(s\) \(dont 0 par accord de mission\), 1 refusé\(s\)/);
+  assert.doesNotMatch(section, /Confrontation/);
+});

@@ -1,7 +1,9 @@
 // chef-01 : FAKE ACP agent (no model) for the workflow mode. One script plays both roles, as a real
-// CLI would : when the platform lends it the MCP server `relay-missions`, it is the chief and runs
-// the steps of CHEF_AGENT.steps against the mission tools ; otherwise it is a sub-mission and answers
-// its consigne (`objective`). Configuration CHEF_AGENT (JSON) :
+// CLI would : when the platform lends it the MCP server `relay-missions` and CHEF_AGENT.steps is
+// given, it is the chief and runs those steps against the mission tools ; otherwise it answers its
+// consigne (`objective`) like a sub-mission. delegation-v2-01 : the server is lent to every mission
+// led by an agent, so a mission without steps answers like any ordinary mission (it lists no tool and
+// never opens the server). Configuration CHEF_AGENT (JSON) :
 //   dir            folder of the logs : prompt-<pid>-<n>.json (each prompt received, with the names of
 //                  the MCP servers lent), chef-results.json (each tool call of the chief and its
 //                  answer), tools.json (the tools listed by `relay-missions`)
@@ -9,7 +11,7 @@
 //                  args is the id returned by the step saved under that name) ; { waitFile } waits for
 //                  that file ; { touch } writes it ; { readId, save } saves the id read in that file ;
 //                  { sleepMs }
-//   reminderSteps  steps of the platform's end-of-turn reminder (turnKind 'family')
+//   reminderSteps  steps of the platform's synthesis turn (turnKind 'family_results')
 //   summary        chief's answer (default « Synthèse FICTIVE du chef ») ; reminderSummary likewise
 //   holdDir        a consigne « ATTENDRE:<name> » waits for <holdDir>/<name> (« BATTEMENT » : a thought
 //                  every 30 ms meanwhile) ; « ECHEC » fails the turn ; « ECRIRE:<path> » writes that file
@@ -111,7 +113,7 @@ async function chief(request) {
   const mcp = await connectMcp(server);
   try {
     if (prompts === 1) log('tools.json', (await mcp.listTools()).tools);
-    const reminder = request?.platform?.turnKind === 'family';
+    const reminder = request?.platform?.turnKind === 'family_results';
     const ok = await runSteps(reminder ? cfg.reminderSteps : cfg.steps, mcp);
     if (!ok) return { stopReason: 'cancelled' };
     await say({
@@ -212,7 +214,9 @@ const app = agent({ name: 'chef-agent' })
       servers: servers.map((s) => s.name),
       prompt: request ?? raw,
     });
-    return servers.some((s) => s.name === 'relay-missions') ? chief(request) : daughter(request);
+    return servers.some((s) => s.name === 'relay-missions') && Array.isArray(cfg.steps)
+      ? chief(request)
+      : daughter(request);
   });
 connection = app.connect(
   ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin)),

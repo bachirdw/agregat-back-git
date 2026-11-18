@@ -1,118 +1,230 @@
-# Mode workflow à agent chef : contrat de l'API et des outils (sprint `chef-01`)
+# Sous-agents d'une mission : contrat de l'API et des outils (`delegation-v2-01`)
 
-Premier pas du mode workflow décidé par le propriétaire le 18/11/2026 (conception :
-`.manager/reports/workflow-chef-conception-18-11.md`). L'agent de la mission, **le chef**, peut confier des parties de
-la mission à des **sous-missions**, missions Relay ordinaires, et en reçoit la réponse et le Bilan. Ce document est le
-contrat que le front (sprint `accord-02`) peut suivre ; ce qui n'existe pas encore est dit en fin de page.
+Délégation à des sous-missions, étape 1 du plan v2 du 18/11/2026
+(`.manager/reports/delegation-conception-v2-18-11.md` de l'arbre `agregat-back-chef`), qui remplace le contrat du sprint
+`chef-01`. L'agent de la mission, **le chef**, **peut** confier des parties délimitées du travail à des
+**sous-missions**, missions Relay ordinaires, et en reçoit les résultats ; il reste celui qui décide et qui écrit la
+réponse finale. **Autoriser n'oblige jamais** : Relay ne lit pas le prompt, ne compte pas les étapes et ne pousse pas à
+déléguer. Ce document est le contrat que le front peut suivre ; ce qui n'existe pas encore est dit en fin de page.
 
-## 1. Activation : champ `delegation` de `POST /api/runs`
+## 1. Qui reçoit les outils
 
-Le front pose la carte d'avertissement et recueille l'accord **avant** d'envoyer la mission ; la requête porte cet
-accord tel quel :
+- **Toute mission menée par un agent** (mode agent : la session ACP de la mission) reçoit, dès l'ouverture de sa
+  session, un second serveur MCP `relay-missions` (après le serveur de capacités, qui reste en tête) et, à la fin de ses
+  consignes, la phrase du chef (section 5).
+- **Jamais** une sous-mission (un seul niveau) ; **jamais** un parcours qui n'est pas mené par un agent (DAG d'un pack,
+  `mode: "workflow"`).
+- **Réglage de retrait** : `AGENT_PLATFORM_DELEGATION=0` dans l'environnement de l'API, lu au démarrage comme les autres
+  réglages `AGENT_PLATFORM_*`, retire outils et phrase à toutes les missions. Avec ce réglage, la consigne envoyée à
+  l'agent, la liste des serveurs MCP et le déroulement d'une mission sont identiques à la base `48a2f4e` (prouvé par
+  `tests/delegation-v2-01-b.test.js`, qui fait tourner le code de la base extrait par `git archive`).
+- **Une mission qui ne délègue pas ne change pas** : tant que le chef n'a appelé aucun `mission_lancer`, aucun événement,
+  aucune lecture de plus, aucune ligne de Bilan, aucun tour de plus, aucune carte. Seuls changent la phrase et le second
+  serveur.
+
+## 2. L'accord du propriétaire : trois voies
+
+Avant la première sous-mission, le propriétaire a été informé de la consommation et a donné son accord, par l'une de
+trois voies. Un accord vaut pour la mission et son enveloppe ; il n'est plus redemandé, et la reprise de la mission le
+garde (`POST /api/runs/:id/resume`). L'accord d'**envoi** n'est jamais concerné : chaque carte d'envoi reste au clic.
+
+| Voie                          | Ce que fait le propriétaire                                                                                                 | Ce qui se passe                                                                                                                                                                                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Bouton                     | il coche « Autoriser les sous-agents » (texte de la section 6) avant l'envoi ; la requête porte `delegation.accepted: true` | aucune question ; au premier `mission_lancer`, événement `delegation_accepted`                                                                                                                                                                                  |
+| 2. Demande dans le prompt     | il écrit qu'il veut des sous-agents                                                                                         | Relay ne lit rien : le chef lance avec `demandeDuProprietaire: true` ; **pas de carte** ; événement `delegation_accepted { via: "prompt", message }`, dont `message` est la ligne du fil (section 6) ; Bilan : « demande écrite dans le prompt, selon l'agent » |
+| 3. Carte au premier lancement | rien                                                                                                                        | le premier `mission_lancer` crée la sous-mission **en attente** et rend `etat: "attend_accord"` ; la carte (question à choix) s'ouvre dans la file de questions de la mère ; le chef n'est pas bloqué                                                           |
+
+### 2.1 Champ `delegation` de `POST /api/runs`
 
 ```json
 {
   "prompt": "…",
   "delegation": {
     "accepted": true,
-    "via": "case",
-    "total": 10,
+    "via": "bouton",
+    "total": 6,
     "parallel": 3,
-    "acceptedAt": "2026-11-18T18:40:00+11:00"
+    "acceptedAt": "2026-11-19T00:40:00+11:00"
   }
 }
 ```
 
-| Champ        | Type                                      | Défaut | Sens                                                                                                       |
-| ------------ | ----------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
-| `accepted`   | booléen                                   | requis | `true` : le propriétaire a accepté ; `false` : il a refusé (événement `delegation_declined`, rien d'autre) |
-| `via`        | `case` \| `mot` \| `proposition` \| `api` | `api`  | la voie par laquelle l'accord a été recueilli                                                              |
-| `total`      | entier 1 à 200                            | 10     | sous-missions au plus pour toute la mission                                                                |
-| `parallel`   | entier 1 à 8                              | 3      | sous-missions en même temps au plus                                                                        |
-| `acceptedAt` | date ISO avec fuseau                      | absent | heure de l'accord                                                                                          |
+| Champ        | Type                                     | Défaut | Sens                                                                                                        |
+| ------------ | ---------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| `accepted`   | booléen                                  | requis | `true` : accord donné ; `false` : refus (tout `mission_lancer` rend `refus_proprietaire`, aucune question)  |
+| `via`        | `bouton` \| `prompt` \| `carte` \| `api` | `api`  | voie de l'accord ; `prompt` et `carte` sont écrits par la plateforme (et repris tels quels par une reprise) |
+| `total`      | entier 1 à 200                           | **6**  | sous-missions au plus pour la mission                                                                       |
+| `parallel`   | entier 1 à 8                             | **3**  | sous-missions en même temps au plus                                                                         |
+| `acceptedAt` | date ISO avec fuseau                     | absent | heure de l'accord                                                                                           |
 
-- **Sans ce champ, rien ne change** : aucun outil de mission n'est prêté, aucun texte n'est ajouté au prompt de l'agent,
-  aucun champ nouveau n'est écrit sur la mission.
-- Avec `accepted: true`, la mission part en mode agent (un `mode: "workflow"` envoyé par défaut par le front n'en fait
-  pas un DAG), et la mission porte `delegation` sur sa ligne.
-- La reprise d'une mère (`POST /api/runs/:id/resume`) garde son `delegation` : le nouveau chef retrouve ses outils et
-  voit les sous-missions des exécutions précédentes.
+- **Case non cochée : ne pas envoyer le champ.** Sans champ, les outils sont prêtés quand même et l'accord est demandé
+  par la carte au premier lancement (voie 3), ou donné par la demande écrite dans le prompt (voie 2).
+- Les anciennes valeurs `case`, `mot` et `proposition` de `chef-01` sont refusées (requête invalide).
+- Avec `accepted: true` dans la requête, et seulement alors, la mission part en mode agent (un `mode: "workflow"` envoyé
+  par défaut par le front n'en fait pas un DAG). Les outils prêtés à toutes les missions ne forcent rien.
+- Rien n'est écrit à la création : l'événement `delegation_accepted` n'arrive qu'au premier `mission_lancer` de
+  l'exécution (voies 1 et 2) ou à l'accord sur la carte (voie 3).
 
-## 2. Les outils prêtés au chef
+### 2.2 La carte d'accord (voie 3)
 
-Serveur MCP `relay-missions` (`packages/mission-gateway/server.js`), ajouté à la session ACP de la mère **seulement**
-quand `delegation.accepted` est vrai ; les sous-missions ne l'ont pas. Les mêmes outils et les mêmes textes pour tous
-les agents (`packages/orchestrator/delegation-rule.js`). Chaque outil rend du JSON en texte ; une erreur rend
+Question de la plateforme, placée dans la file de questions de la mère (carte « Demandes » existante ; la mère passe
+`awaiting_owner` tant qu'elle est ouverte), répondue par la route existante `POST /api/runs/:id/answer`
+(`docs/api-questions.md`) :
+
+```json
+{
+  "kind": "form",
+  "message": "Autoriser les sous-agents\nL’agent de ta mission pourra, s’il le juge utile, … Les envois restent à ton clic.",
+  "requestedSchema": {
+    "type": "object",
+    "properties": {
+      "choix": {
+        "type": "string",
+        "title": "Choix",
+        "oneOf": [
+          { "const": "autoriser", "title": "Autoriser pour cette mission" },
+          { "const": "continuer_seul", "title": "Non, continue seul" }
+        ]
+      }
+    },
+    "required": ["choix"]
+  }
+}
+```
+
+- Une seule carte par mission ; les `mission_lancer` suivants avant la réponse créent aussi des sous-missions en
+  attente (`attend_accord`), sans nouvelle question.
+- `{ "action": "accept", "content": { "choix": "autoriser" } }` : `delegation = { accepted: true, via: "carte", total,
+parallel, acceptedAt }` sur la mission, événement `delegation_accepted { via: "carte" }`, les sous-missions en
+  attente démarrent (dans la limite de `parallel`).
+- `{ "choix": "continuer_seul" }` ou `{ "action": "decline" }` : `delegation = { accepted: false, via: "carte", total,
+parallel }`, événement `delegation_declined { via: "carte" }`, les sous-missions en attente sont annulées (erreur
+  « Sous-agents refusés par le propriétaire »), tout `mission_lancer` suivant rend `refus_proprietaire`, **aucune
+  nouvelle question** dans la mission ; Bilan : « Sous-agents proposés par l'agent, refusés : mission menée par un seul
+  agent. »
+- Question fermée sans réponse (fin de la mission, ou délai `AGENT_PLATFORM_QUESTION_TIMEOUT_MS` s'il est configuré) :
+  rien n'est décidé, les sous-missions en attente sont annulées, un lancement suivant redemande.
+
+## 3. Les outils du chef
+
+Serveur `relay-missions` (`packages/mission-gateway/server.js`). Les mêmes outils et les mêmes textes pour tous les
+agents (`packages/orchestrator/delegation-rule.js`). Chaque outil rend du JSON en texte ; une erreur rend
 `isError: true` et `{ "erreur": "<code>", "message": "…" }`. Un appel ne voit et ne touche que les sous-missions de la
 mission qui appelle (et de ses exécutions reprises).
 
-| Outil              | Paramètres                                                                                         | Résultat                                                                                                                                                                                                                              |
-| ------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mission_lancer`   | `consigne` (1 à 8 000 car.), `titre` (≤ 80), `agent`, `modele`, `fichiers` (≤ 20 chemins relatifs) | `{ id, titre, etat: "en_cours"\|"en_file", agent, modele, famille: { lancees, enCours, total, parallel } }`                                                                                                                           |
-| `mission_suivre`   | `id` (facultatif), `details` (défaut `false`)                                                      | `{ missions: [{ id, titre, agent, modele, etat, depuis, inactiveDepuis, attend, outils, dernierOutil }], agents: [{ id, disponible }], nature }` ; avec `details` et une sous-mission finie, les champs de `mission_attendre` en plus |
-| `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (1 à 600, défaut 50)                | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois: { approuves, refuses }, cause }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                 |
-| `mission_annuler`  | `id`, `raison` (≤ 500)                                                                             | `{ id, etat: "cancelled", descendants }` ; une sous-mission déjà finie rend son état                                                                                                                                                  |
+| Outil              | Paramètres                                                                                                                            | Résultat                                                                                                                                                                                                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mission_lancer`   | `consigne` (1 à 8 000 car.), `titre` (≤ 80), `agent`, `modele`, `fichiers` (≤ 20 chemins relatifs), `demandeDuProprietaire` (booléen) | `{ id, titre, etat: "en_cours"\|"en_file"\|"attend_accord", agent, modele, famille: { lancees, enCours, total, parallel } }`                                                                                                                                                                                                    |
+| `mission_suivre`   | `id` (facultatif), `details` (défaut `false`)                                                                                         | `{ missions: [{ id, titre, agent, modele, etat, depuis, inactiveDepuis, attend, outils, dernierOutil }], agents: [{ id, disponible, modeles: [{ id, nom }], modeleParDefaut }], activite: { agents, enAttenteDuProprietaire, texte }, nature }` ; avec `details` et une sous-mission finie, les champs de `terminees[]` en plus |
+| `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)      | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                                                                                                                                   |
+| `mission_annuler`  | `id`, `raison` (≤ 500)                                                                                                                | `{ id, etat: "cancelled" }` ; une sous-mission déjà finie rend son état                                                                                                                                                                                                                                                         |
 
-Erreurs : `enveloppe_atteinte`, `agent_indisponible`, `modele_inconnu`, `boucle` (consigne identique, au blanc près, à
-celle d'une mission ancêtre), `fichier_hors_espace`, `introuvable`, `mission_terminee`, `parametres_invalides`.
+Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
+`introuvable`, `mission_terminee`, `parametres_invalides`. Le refus `boucle` de `chef-01` est supprimé (un seul niveau).
 
 Règles :
 
-- **Défauts d'une sous-mission** : agent, modèle, pack, Skill, navigateur, domaines, budget et dossier de la mère.
-- **Place** : au-delà de `parallel`, la sous-mission est mise en file (`en_file`) et démarre seule quand une place se
-  libère ; une sous-mission qui attend le propriétaire (question, ou carte d'envoi en mode propriétaire) ne tient pas
-  de place, comme pour les trois exécutions de la plateforme.
-- **Enveloppe** : au-delà de `total`, l'appel rend `enveloppe_atteinte` et la plateforme pose au propriétaire, dans la
-  file de questions de la mère, « Le chef veut lancer une Ne sous-mission ; l'enveloppe acceptée est de T. En autoriser
-  5 de plus ? » ; sur « oui », `delegation.total` augmente de 5 (`delegation.extensions`) et l'appel suivant passe.
-- **Attente** : chaque sous-mission finie est rendue **une fois** par `mission_attendre` sans `ids` ; demandée par `ids`,
-  elle est rendue à nouveau ; elle reste lisible par `mission_suivre { id, details: true }`. Pendant l'attente, les
+- **Agent et modèle** : choisis par le chef à chaque lancement, parmi les agents et les modèles annoncés que donne
+  `mission_suivre` (même source que le contrôle « Modèle non annoncé ») ; sans choix, ceux de la mère. Pack, Skill,
+  espace, navigateur, domaines et budget : ceux de la mère.
+- **Sous-mission retenue** : `attend_accord` (`attend: "accord"`) tant que le propriétaire n'a pas accepté ; `en_file`
+  (`attend: "place"`) au-delà de `parallel`, elle démarre seule quand une place se libère. Une sous-mission qui attend le
+  propriétaire (question, ou carte d'envoi en mode propriétaire) ne tient pas de place.
+- **Enveloppe** : au-delà de `total`, l'appel rend `enveloppe_atteinte` et, si l'accord est donné, la plateforme pose
+  une question **à choix** (`choix` : `oui` « Oui, 5 de plus », ou `non`) : « Le chef veut lancer une Ne sous-mission ;
+  l'enveloppe acceptée est de T. En autoriser 5 de plus ? » ; sur `oui`, `delegation.total` augmente de 5
+  (`delegation.extensions`) et l'appel suivant passe.
+- **Attente relisible** : `mission_attendre` ne consomme rien ; chaque appel rend l'état complet des sous-missions
+  demandées (`terminees` = toutes celles finies) ; une réponse perdue se relit à l'appel suivant ou par
+  `mission_suivre { id, details: true }`, y compris après la fin de la mère et après un redémarrage. Sans `toutes`,
+  l'appel rend la main dès qu'une des sous-missions en cours au début de l'appel a fini. Pendant l'attente, les
   minuteurs du chef (silence, outil figé, délai de mission, délai du tour ACP) sont en pause.
-- `reponse` est la réponse finale de la sous-mission (50 000 caractères au plus) ; `bilan` est son Bilan tel que la
-  plateforme l'a écrit (ses lignes à elle, sans la réponse) ; `fichiers` les fichiers nommés par **ses** appels
-  d'outils terminés (écritures, `career_write`, noms rapportés par sa passerelle), jamais par date ; `cause` d'un échec :
+- `reponse` : la réponse finale de la sous-mission (50 000 caractères au plus, données) ; `bilan` : son Bilan tel que la
+  plateforme l'a écrit ; `fichiers` : les fichiers nommés par **ses** appels d'outils terminés, relus de l'événement
+  `child_done` (pour une mission de l'espace privé : `relay/runs/<id>-fichiers.json` de l'espace, jamais la base) ;
+  `envois = { approuves, parAccord, refuses, incertains, ligne, nonVerifies? }` : `ligne` est la ligne « Envoi par la
+  plateforme : … » de son Bilan mot pour mot ; sans cette ligne (sous-mission interrompue, en échec ou annulée),
+  `nonVerifies: { note: "non vérifié ; ne pas répéter avant vérification", evenements }` ; `cause` d'un échec :
   `{ type: "limite_usage"|"erreur", agent, reprise, message }`.
-- **Fin du tour du chef avec des sous-missions vivantes** : un tour de plus, une fois (« Tes sous-missions … sont encore
-  en cours : attends-les avec mission_attendre ou annule-les avec mission_annuler, puis termine. ») ; si le chef termine
-  encore, la mère reste `running` (événement `family_waiting`) jusqu'à la fin de la dernière, puis écrit son Bilan.
+- **Tour de synthèse** : si des sous-missions vivent encore quand le chef termine son tour, la mère reste `running`
+  (événement `family_waiting`), ses minuteurs en pause, jusqu'à leur fin ; puis la même session reçoit **un seul** tour
+  `{ familyResults: { nature, terminees: [...] }, instructions, platform: { turnKind: "family_results" } }` avec leurs
+  résultats (mêmes champs que `terminees[]`) et la consigne « compare, retire les doublons, écris ta réponse finale » ;
+  sa réponse remplace la précédente. Si la session de l'agent est fermée, ou si la mission se clôt avant (question
+  refusée), la mère attend la fin des sous-missions puis écrit son Bilan avec la ligne « Synthèse finale non faite : la
+  réponse du chef a été écrite avant la fin de « … » ; leurs résultats ne lui ont pas été remis. » Le tour de rappel de
+  `chef-01` est supprimé.
 
-## 3. Route interne (passerelle → plateforme)
+## 4. Route interne (passerelle → plateforme)
 
 `POST /api/internal/missions/<mère>`, en-têtes `x-platform-request: 1` et `x-relay-token: <jeton de la mère>` (le même
 que sa passerelle de capacités), corps `{ "tool": "mission_…", "args": { … } }`. Réponses : `200 { result }` ou
-`200 { erreur, message }` ; `403` pour un jeton invalide, une mission inactive ou une mission sans accord. La requête de
-`mission_attendre` reste ouverte jusqu'à `delaiSecondes` ; si la passerelle la quitte, l'attente s'arrête.
+`200 { erreur, message }` ; `403` pour un jeton invalide, une mission inactive, une sous-mission, ou des outils retirés
+par le réglage. La requête de `mission_attendre` reste ouverte au plus 50 s ; si la passerelle la quitte, l'attente
+s'arrête.
 
-## 4. Ce que la plateforme écrit
+## 5. Ce que la plateforme écrit
 
-- **Lien** : chaque sous-mission porte `famille: { racine, mere, profondeur, titre }` ; la liste des sous-missions d'une
-  mère se lit dans la base (`store.children`). En mode non propriétaire, une sous-mission d'une mission career-ops est
-  titrée « Sous-mission N » et sa consigne reste dans l'espace privé (`relay/runs/<id>-input.json`), comme un prompt.
-- **Événements de la mère** : `delegation_accepted` / `delegation_declined`, `child_launched { childId, titre, agent,
-modele }`, `child_state { childId, state }`, `child_done { childId, state, envois }`, `delegation_envelope_reached`,
-  `delegation_extended`, `family_waiting`.
+- **Phrase du chef** (fin des consignes, une seule pour tous les agents) : elle dit quand déléguer est utile (parties
+  indépendantes, par exemple plusieurs sources ; gros volume ; long travail annexe) et quand travailler seul est souvent
+  le mieux, que rien n'oblige à déléguer, que le chef choisit agent et modèle selon la difficulté, et que chaque
+  sous-mission consomme l'abonnement ; sa fin suit l'accord : « le propriétaire l'a autorisé : jusqu'à N sous-missions,
+  M à la fois », « … indique-le en lançant (demandeDuProprietaire) ; sinon le propriétaire sera consulté avant la
+  première sous-mission ; s'il refuse, continue seul », ou « le propriétaire a refusé les sous-agents pour cette
+  mission : continue seul ».
+- **Phrase de la sous-mission** : la demande du propriétaire, jointe, prime ; rendre ses résultats dans sa réponse
+  finale ; d'autres sous-missions peuvent travailler dans le même espace : n'écrire que dans des fichiers propres à sa
+  part et laisser à l'agent principal les fichiers communs. Elle ne nomme aucun fichier ni script d'un Skill ; ce qui
+  est propre à un Skill se dit dans son pack.
+- **Lien** : chaque sous-mission porte `famille: { racine, mere, titre }` (plus de `profondeur`) ; la mère porte
+  `estMere: true` dès son premier lancement (recopié par une reprise). La liste des sous-missions se lit dans la base
+  (`store.children`), jamais par `store.list()`. En mode non propriétaire, une sous-mission d'une mission de l'espace
+  privé est titrée « Sous-mission N ».
+- **Événements de la mère** (aucun avant le premier `mission_lancer`) : `delegation_accepted { via, total, parallel,
+acceptedAt, message? }`, `delegation_declined { via }`, `child_launched { childId, titre, agent, modele }`,
+  `child_state { childId, state }`, `child_done { childId, state, envois, fichiers? }`,
+  `delegation_envelope_reached`, `delegation_extended`, `family_waiting { enCours }`, et les événements `question` /
+  `answer` de la carte.
 - **`GET /api/runs/:id`** d'une mère qui a des sous-missions : `family: [{ id, titre, agent, state, attend,
-pendingQuestion, pendingPermission }]` (absent sinon).
-- **Bilan de la mère** : après les lignes habituelles, une section « Sous-missions (n) » : une entrée par sous-mission
-  (titre, agent, modèle, état, durée, identifiant) suivie de **son Bilan cité mot pour mot** (`> …` ; au-delà de 3 000
-  caractères, ses lignes d'envoi et d'actions échouées entières et un renvoi à la sous-mission) ; les totaux vus par la
-  plateforme (terminées, en échec, annulées, interrompues ; envois approuvés, dont par accord de mission, refusés,
-  comptés par les compteurs de la plateforme et non dans les textes) ; une ligne « Confrontation » quand la réponse du
-  chef annonce un nombre d'envois différent ; la consommation (durée cumulée des agents, par agent).
+pendingQuestion, pendingPermission }]` et `activity: { agents, awaitingOwner }` (absents sinon).
+- **Bilan de la mère** : après les lignes habituelles, la ligne d'accord (« Accord des sous-agents : case « Autoriser les
+  sous-agents » cochée avant l'envoi » / « donné avec la requête de la mission » / « demande écrite dans le prompt,
+  selon l'agent » / « donné sur la carte au premier lancement »), puis « Sous-missions (n) » : une entrée par
+  sous-mission (titre, agent, modèle, état, durée, identifiant) suivie de **son Bilan cité mot pour mot** ; la ligne
+  « Synthèse finale non faite » le cas échéant ; les totaux vus par la plateforme ; la confrontation des envois
+  annoncés ; la consommation (durée cumulée des agents). Refus sur la carte : la seule ligne « Sous-agents proposés par
+  l'agent, refusés : mission menée par un seul agent. »
 
-## 5. Famille et espace
+## 6. Textes montrés au propriétaire
 
-- Une famille compte pour **une** des trois exécutions de la plateforme (celle de la mère).
+Bouton et carte (texte 3.4 du plan, tel quel ; N et M = l'enveloppe) :
+
+> Autoriser les sous-agents
+> L'agent de ta mission pourra, s'il le juge utile, confier des parties du travail à d'autres agents qui travaillent en
+> même temps. Chacun consomme ton abonnement comme une mission ordinaire : avec plusieurs agents à la fois, ta limite
+> d'usage peut être atteinte plus vite. Autoriser n'oblige pas : pour une demande simple, un seul agent travaillera.
+> Au plus N sous-agents pour cette mission, M en même temps (modifiables). Les envois restent à ton clic.
+
+Ligne du fil de la voie 2 (`delegation_accepted.message`) : « Sous-agents lancés à ta demande : chacun consomme ton
+abonnement comme une mission ordinaire ; enveloppe : N au plus, M en même temps. »
+
+Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
+
+## 7. Famille et espace
+
+- Les sous-missions ne prennent aucune des trois places de la plateforme : l'enveloppe de leur mission les borne, et le
+  compteur « N agent(s) en activité (missions et sous-agents), dont K en attente du propriétaire » (`activite` de
+  `mission_suivre`, `activity` de `GET /api/runs/:id`) les compte. Pas de plafond pour toute la machine (3 missions qui
+  délèguent chacune 3 sous-agents = 12 agents).
 - Les membres d'une famille partagent l'espace career-ops ; toute autre mission y reste refusée tant que la famille vit.
-- Annuler une mission (bouton du propriétaire ou `mission_annuler`) annule sa descendance : en cours (questions fermées,
-  carte d'envoi refusée) et en file.
+- Annuler une mission annule ses sous-missions (un niveau) : en cours (questions fermées, carte d'envoi refusée), en file
+  et en attente d'accord.
 - Au redémarrage de l'API, toute la famille non finie passe `interrupted` ; un arrêt propre interrompt aussi les
-  sous-missions en file.
-- Les cartes d'envoi restent au clic du propriétaire, sous-mission par sous-mission (règle inchangée).
+  sous-missions retenues. Rien n'est relancé automatiquement.
+- Les cartes d'envoi restent au clic du propriétaire, sous-mission par sous-mission.
 
-## 6. Pas encore fait (sprints suivants)
+## 8. Pas encore fait
 
-Front (carte d'avertissement, trois voies, bloc des sous-missions) et `POST /api/delegation/check` (`accord-02`) ;
-`mission_preciser` (`accord-02`) ; `mission_lancer { reprendre }` et reprise de famille détaillée, outils prêtés à toute
-la famille, accord d'envoi de famille, agent épuisé noté jusqu'à l'heure de reprise, filet d'écriture de l'espace partagé
-(`famille-04`) ; navigateur à plusieurs onglets ou bail (`onglets-03`, `bail-05`).
+Front : case « Autoriser les sous-agents » avec l'enveloppe modifiable, compteur, liste des sous-missions
+(`delegation-v2-02`) ; `mission_preciser` ; `mission_lancer { reprendre }` et reprise de famille détaillée ; identifiant
+d'appel dans `send_auto`. Aucun essai réel n'a encore été fait avec Claude, Codex, Gemini ou OpenCode.

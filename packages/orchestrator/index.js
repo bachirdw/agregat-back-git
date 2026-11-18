@@ -121,12 +121,13 @@ export const inputSchema = z
     budgetCents: z.number().int().min(0).max(100000).default(0),
     mode: z.enum(['agent', 'workflow']).default('agent'),
     workflow: z.string().max(60).optional(),
-    // chef-01 : the owner's acceptance of the workflow mode, given before the mission is sent.
-    // Without this field nothing of that mode runs.
+    // chef-01 : the owner's acceptance of the sub-agents, given before the mission is sent (the
+    // button) ; delegation-v2-01 : also written by the platform (`prompt`, `carte`) and kept by a
+    // resumption. Without this field the tools are lent all the same and the owner is asked first.
     delegation: z
       .object({
         accepted: z.boolean(),
-        via: z.enum(['case', 'mot', 'proposition', 'api']).default('api'),
+        via: z.enum(['bouton', 'prompt', 'carte', 'api']).default('api'),
         total: z.number().int().min(1).max(MAX_TOTAL).default(DEFAULT_ENVELOPE.total),
         parallel: z.number().int().min(1).max(MAX_PARALLEL).default(DEFAULT_ENVELOPE.parallel),
         acceptedAt: z.string().datetime({ offset: true }).optional(),
@@ -804,6 +805,8 @@ export class Orchestrator {
     const chosen = v.pack === 'auto' ? null : packs.find((p) => p.id === v.pack);
     const ownPath = Boolean(chosen?.skillManifest || chosen?.workflow.steps.length);
     // chef-01 : the chief is an agent ; a DAG chosen by default (front) never takes its place.
+    // delegation-v2-01 : only when the request carries the acceptance (the button), never because
+    // the tools are lent to every mission led by an agent.
     if (v.delegation?.accepted) {
       v.mode = 'agent';
       delete v.workflow;
@@ -1213,7 +1216,6 @@ export class Orchestrator {
       writeConfined(run.cwd, `relay/runs/${id}-input.json`, JSON.stringify({ prompt: run.prompt }));
       this.store.create({ ...run, prompt: 'Mission privée dans l’espace de candidature' });
     } else this.store.create(run);
-    this.delegation.created(run);
     const control = { abort: new AbortController(), runtime: null };
     if (family) family.held = { run, plan, control };
     else {
@@ -1613,7 +1615,8 @@ export class Orchestrator {
       });
       control.runtime = runtime;
       const info = await runtime.start();
-      // chef-01 : the mission tools are lent only when the owner accepted the workflow mode.
+      // delegation-v2-01 : the mission tools are lent to every mission led by an agent, after the
+      // capability server (first), except a sub-mission or when AGENT_PLATFORM_DELEGATION=0.
       const mcpServers = [this.mcpServerFor(run, plan.pack), ...this.delegation.servers(run)];
       gatewayServers = mcpServers;
       let session;
@@ -1661,7 +1664,7 @@ export class Orchestrator {
       const toolRoles = formatToolRoles(plan.pack.skillManifest);
       checkpoint = previous ? this.checkpointFor(previous) : null;
       // chef-01 : the chief's sentence, or a sub-mission's sentence and family ; nothing otherwise.
-      const familyPrompt = this.delegation.promptParts(run);
+      const familyPrompt = this.delegation.promptParts(run, mcpServers);
       const prompt = JSON.stringify({
         objective: run.prompt,
         ...familyPrompt.fields,
@@ -1788,7 +1791,7 @@ export class Orchestrator {
         }
       };
       let ownerMessageTurns = 0;
-      // chef-01 : the one more turn of a chief whose sub-missions still run (conception 2.5).
+      // delegation-v2-01 : the one synthesis turn of a chief whose sub-missions still ran (plan v2).
       let familyTurn = false;
       for (;;) {
         // A steering request still in flight is answered before the turn is read as over.
@@ -1815,15 +1818,17 @@ export class Orchestrator {
           // Messages of the owner not taken into the turn : one more turn carries them all.
           const waiting = this.pendingOwnerMessages(control);
           if (!waiting.length || ownerMessageTurns >= MAX_OWNER_MESSAGE_TURNS) {
-            const reminder = familyTurn ? null : this.delegation.reminder(run.id);
-            if (!reminder || !runtime.continueSession()) break;
+            const results = familyTurn
+              ? null
+              : await this.delegation.synthesis(run.id, control, runtime);
+            if (!results) break;
             familyTurn = true;
             text = '';
             afterTool = false;
             messageStarts = [];
             armSilence();
             response = await nextTurn(
-              JSON.stringify({ platform: { turnKind: 'family' }, instructions: reminder }),
+              JSON.stringify({ ...results, platform: { turnKind: 'family_results' } }),
             );
             clearSilence();
             if (control.abort.signal.aborted) throw control.abort.signal.reason;

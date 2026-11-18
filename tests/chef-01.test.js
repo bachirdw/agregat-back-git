@@ -1,6 +1,8 @@
 // chef-01 : mode workflow, premier pas (conception du 18/11, sprint 1). Un agent chef reçoit les
-// outils de mission (serveur MCP `relay-missions`) seulement quand le propriétaire a accepté le mode
-// (`delegation` de POST /api/runs) ; ses sous-missions sont des missions ordinaires. Faux agent ACP
+// outils de mission (serveur MCP `relay-missions`) ; delegation-v2-01 (plan v2) : prêtés à toute
+// mission menée par un agent, l'accord du propriétaire (`delegation` de POST /api/runs, demande dans
+// le prompt ou carte) étant demandé au premier lancement ; ses sous-missions sont des missions
+// ordinaires. Faux agent ACP
 // (tests/fixtures/chef-agent.js) par le même chemin que l'agent réel : session ACP, serveurs MCP
 // prêtés, pont interne de la plateforme. Aucun modèle, aucun navigateur, aucun relais, aucun CLI
 // réel (la détection des agents pointe vers des chemins inexistants). Textes FICTIFS.
@@ -135,8 +137,13 @@ const chiefPrompt = (p) => p.prompts().find((entry) => entry.servers.includes('r
 const daughterPrompts = (p) =>
   p.prompts().filter((entry) => !entry.servers.includes('relay-missions') && entry.prompt?.famille);
 
-test('sans delegation : aucun outil mission_* prêté, prompt et mission inchangés', async (t) => {
+// delegation-v2-01 (plan v2, 8.2, `:138` adapté) : the tools and the chief's sentence are lent to
+// every mission led by an agent ; nothing else changes while nothing is launched. The withdrawal
+// setting (AGENT_PLATFORM_DELEGATION=0) gives the prompt of the base : tests/delegation-v2-01-b.test.js.
+test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant que rien n’est lancé', async (t) => {
   const p = await platform(t);
+  // The chief calls no tool (its steps : none).
+  p.setConfig(() => ({ steps: [] }));
   const plain = await p.app.engine.create({
     prompt: 'Résume ce texte FICTIF.',
     agent: 'fixture',
@@ -147,8 +154,9 @@ test('sans delegation : aucun outil mission_* prêté, prompt et mission inchang
   assert.equal(row.state, 'completed', row.error);
   assert.equal('delegation' in row, false);
   assert.equal('famille' in row, false);
+  assert.equal('estMere' in row, false);
   const [entry] = p.prompts();
-  assert.deepEqual(entry.servers, ['platform']);
+  assert.deepEqual(entry.servers, ['platform', rule.MISSION_SERVER]);
   assert.deepEqual(Object.keys(entry.prompt), [
     'objective',
     'attachments',
@@ -158,12 +166,17 @@ test('sans delegation : aucun outil mission_* prêté, prompt et mission inchang
     'workflow',
     'instructions',
   ]);
-  assert.doesNotMatch(entry.prompt.instructions, /Mode workflow|sous-mission/);
+  assert.ok(entry.prompt.instructions.endsWith('\n' + rule.chiefRule(undefined)));
+  const instructions = entry.prompt.instructions.slice(
+    0,
+    -('\n' + rule.chiefRule(undefined)).length,
+  );
+  assert.doesNotMatch(instructions, /Mode workflow|sous-mission/);
   assert.ok(!p.types(plain.id).some((type) => /^(delegation|child|family)_/.test(type)));
   const view = await p.api(`/api/runs/${plain.id}`);
   assert.equal('family' in view.body, false);
-  assert.doesNotMatch(row.result.summary, /Sous-missions/);
-  // Its token does not open the mission tools.
+  assert.doesNotMatch(row.result.summary, /Sous-missions|Sous-agents/);
+  // Another mission's token does not open its mission tools.
   const refused = await p.api(
     `/api/internal/missions/${plain.id}`,
     { tool: 'mission_suivre', args: {} },
@@ -171,16 +184,15 @@ test('sans delegation : aucun outil mission_* prêté, prompt et mission inchang
   );
   assert.equal(refused.status, 403);
 
-  // The same mission with the owner's acceptance : the same instructions, plus the chief's
-  // sentence at the end ; a refusal lends nothing.
+  // The owner's refusal or acceptance given with the request : the same instructions, only the end
+  // of the chief's sentence differs ; nothing is written while nothing is launched.
   const declined = await p.app.engine.create({
     prompt: 'Résume ce texte FICTIF.',
     agent: 'fixture',
     pack: 'core',
-    delegation: { accepted: false, via: 'case' },
+    delegation: { accepted: false, via: 'carte' },
   });
   await p.ended(declined.id);
-  assert.ok(p.types(declined.id).includes('delegation_declined'));
   const chief = await p.app.engine.create({
     prompt: 'Résume ce texte FICTIF.',
     agent: 'fixture',
@@ -190,17 +202,17 @@ test('sans delegation : aucun outil mission_* prêté, prompt et mission inchang
   await p.ended(chief.id);
   const sent = p.prompts();
   assert.equal(sent.length, 3);
-  const declinedPrompt = sent.find(
-    (e) => !e.servers.includes('relay-missions') && e !== entry && e.prompt.objective,
-  );
-  assert.deepEqual(declinedPrompt.servers, ['platform']);
-  const withTools = chiefPrompt(p);
-  assert.deepEqual(withTools.servers, ['platform', rule.MISSION_SERVER]);
-  assert.equal(
-    withTools.prompt.instructions,
-    entry.prompt.instructions + '\n' + rule.chiefRule({ total: 10, parallel: 3 }),
-  );
-  assert.ok(p.types(chief.id).includes('delegation_accepted'));
+  for (const [id, delegation] of [
+    [declined.id, { accepted: false }],
+    [chief.id, ACCEPTED()],
+  ]) {
+    assert.ok(!p.types(id).some((type) => /^(delegation|child|family)_/.test(type)), id);
+    const own = sent.filter(
+      (e) => e.prompt.instructions === instructions + '\n' + rule.chiefRule(delegation),
+    );
+    assert.equal(own.length, 1, id);
+    assert.deepEqual(own[0].servers, ['platform', rule.MISSION_SERVER]);
+  }
   assert.deepEqual(
     p.tools().map((tool) => tool.name),
     ['mission_lancer', 'mission_suivre', 'mission_attendre', 'mission_annuler'],
@@ -235,7 +247,7 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
   assert.equal(launchA.result.etat, 'en_cours');
   assert.equal(launchA.result.titre, 'Rapport A');
   assert.equal(launchB.result.titre, 'Résume le rapport FICTIF B.');
-  assert.deepEqual(launchB.result.famille, { lancees: 2, enCours: 2, total: 10, parallel: 3 });
+  assert.deepEqual(launchB.result.famille, { lancees: 2, enCours: 2, total: 6, parallel: 3 });
   assert.equal(waited.isError, false, JSON.stringify(waited.result));
   assert.equal(waited.result.delaiAtteint, false);
   assert.deepEqual(waited.result.enCours, []);
@@ -508,8 +520,10 @@ test('enveloppe atteinte : erreur au chef, question au propriétaire, puis l’a
     asked.message,
     'Le chef veut lancer une 2e sous-mission ; l’enveloppe acceptée est de 1. En autoriser 5 de plus ?',
   );
-  assert.deepEqual(asked.options, ['oui', 'non']);
-  p.app.engine.answer(mother.id, { action: 'accept', content: { reponse: 'oui' } });
+  // delegation-v2-01 : a choice, no free text read for « oui ».
+  assert.equal(asked.kind, 'form');
+  assert.deepEqual(asked.requestedSchema.properties.choix.oneOf, [...rule.EXTENSION_CHOICES]);
+  p.app.engine.answer(mother.id, { action: 'accept', content: { choix: 'oui' } });
   p.touch('answered');
   await p.ended(mother.id, 30000);
   const row = p.app.store.get(mother.id);
@@ -786,14 +800,9 @@ test('consigne du chef et des sous-missions identique pour tous les profils d’
     });
   }
   for (const entry of seen) assert.deepEqual(entry, seen[0]);
-  assert.equal(seen[0].chief, rule.chiefRule({ total: 4, parallel: 2 }));
+  assert.equal(seen[0].chief, rule.chiefRule(ACCEPTED({ total: 4, parallel: 2 })));
   assert.equal(seen[0].daughter, rule.DAUGHTER_RULE);
-  for (const text of [
-    seen[0].chief,
-    seen[0].daughter,
-    seen[0].tools,
-    rule.familyReminder(['Titre FICTIF']),
-  ])
+  for (const text of [seen[0].chief, seen[0].daughter, seen[0].tools, rule.SYNTHESIS_TURN])
     assert.doesNotMatch(text, AGENT_NAMES, text);
 });
 
@@ -944,65 +953,49 @@ test('reprise de la mère : le nouveau chef garde l’accord et voit les sous-mi
   assert.match(row.result.summary, /Sous-missions \(2\) :/);
 });
 
-test('fin du tour du chef avec des sous-missions vivantes : un tour de rappel, puis la mère attend la dernière', async (t) => {
+// delegation-v2-01 (plan v2, Codex 4, `:967` adapté) : no reminder any more ; the platform waits for
+// the sub-missions still alive at the end of the chief's turn, then ONE synthesis turn gives the
+// chief their results ; the mother stays running meanwhile and ends after the last one.
+test('fin du tour du chef avec des sous-missions vivantes : attente, puis un seul tour de synthèse avec leurs résultats', async (t) => {
   const p = await platform(t);
-  p.setConfig((input) =>
-    input.prompt.includes('rappel suivi')
-      ? {
-          steps: [
-            {
-              call: 'mission_lancer',
-              args: { consigne: 'Tâche FICTIVE ATTENDRE:a', titre: 'Tâche A' },
-            },
-          ],
-          reminderSteps: [
-            { touch: join(p.hold, 'a') },
-            { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
-          ],
-          reminderSummary: 'Synthèse FICTIVE après attente.',
-        }
-      : {
-          steps: [
-            {
-              call: 'mission_lancer',
-              args: { consigne: 'Tâche FICTIVE ATTENDRE:b', titre: 'Tâche B' },
-            },
-          ],
-        },
-  );
-  // 1. The chief follows the reminder : it waits for its sub-mission in the extra turn.
-  const followed = await p.app.engine.create({
-    prompt: 'Mission FICTIVE, rappel suivi.',
+  p.setConfig(() => ({
+    steps: [
+      {
+        call: 'mission_lancer',
+        args: { consigne: 'Tâche FICTIVE ATTENDRE:a', titre: 'Tâche A' },
+      },
+    ],
+    // In the synthesis turn the results are joined ; read again, they are the same.
+    reminderSteps: [{ call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } }],
+    reminderSummary: 'Synthèse FICTIVE après attente.',
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Mission FICTIVE, synthèse.',
     agent: 'fixture',
     pack: 'core',
     delegation: ACCEPTED(),
   });
-  await p.ended(followed.id, 30000);
-  const row = p.app.store.get(followed.id);
-  assert.equal(row.state, 'completed', row.error);
-  assert.equal(row.result.answer, 'Synthèse FICTIVE après attente.');
-  const reminder = p.prompts().find((entry) => entry.prompt?.platform?.turnKind === 'family');
-  assert.equal(reminder.prompt.instructions, rule.familyReminder(['Tâche A']));
-  assert.equal(p.results().at(-1).result.terminees.length, 1);
-  assert.ok(!p.types(followed.id).includes('family_waiting'));
-
-  // 2. The chief ends again : the mother stays running until its last sub-mission ends.
-  const ignored = await p.app.engine.create({
-    prompt: 'Mission FICTIVE, rappel ignoré.',
-    agent: 'fixture',
-    pack: 'core',
-    delegation: ACCEPTED(),
-  });
-  await p.waitFor(() => p.types(ignored.id).includes('family_waiting'));
-  assert.equal(p.app.store.get(ignored.id).state, 'running');
-  const [child] = p.app.store.children(ignored.id);
+  await p.waitFor(() => p.types(mother.id).includes('family_waiting'));
+  assert.equal(p.app.store.get(mother.id).state, 'running');
+  const [child] = p.app.store.children(mother.id);
   assert.equal(p.app.store.get(child.id).state, 'running');
-  p.touch('b');
-  await p.ended(ignored.id, 30000);
-  const done = p.app.store.get(ignored.id);
+  assert.equal(p.prompts().filter((e) => !e.prompt?.famille).length, 1, 'aucun rappel');
+  p.touch('a');
+  await p.ended(mother.id, 30000);
+  const done = p.app.store.get(mother.id);
   assert.equal(done.state, 'completed', done.error);
+  assert.equal(done.result.answer, 'Synthèse FICTIVE après attente.');
+  const turns = p.prompts().filter((e) => !e.prompt?.famille);
+  assert.equal(turns.length, 2);
+  assert.equal(turns[1].prompt.platform.turnKind, 'family_results');
+  assert.equal(turns[1].prompt.instructions, rule.SYNTHESIS_TURN);
+  assert.deepEqual(
+    turns[1].prompt.familyResults.terminees.map((r) => [r.id, r.etat]),
+    [[child.id, 'completed']],
+  );
+  assert.equal(p.results().at(-1).result.terminees.length, 1);
   const childDone = p.app.store.get(child.id);
-  assert.equal(childDone.state, 'completed');
   assert.ok(Date.parse(done.finishedAt) >= Date.parse(childDone.finishedAt));
-  assert.match(done.result.summary, /1\. « Tâche B » — agent fixture, terminée/);
+  assert.match(done.result.summary, /1\. « Tâche A » — agent fixture, terminée/);
+  assert.doesNotMatch(done.result.summary, /Synthèse finale non faite/);
 });

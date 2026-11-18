@@ -16,23 +16,39 @@
 // sub-mission (`estMere` on its row, `mere` on its control) : a mission that delegates nothing
 // reads nothing more. What a sub-mission gives back is read from the database and can be read
 // again as often as needed (nothing is consumed).
+// delegation-v2-01, partie B (plan v2, section 3) : the tools and the chief's sentence are lent to
+// every mission led by an agent (never to a sub-mission ; AGENT_PLATFORM_DELEGATION=0 withdraws
+// them from every mission). Lending obliges to nothing. The owner's acceptance comes from the
+// request (`delegation.accepted`, the button), from the chief saying the owner's request asks for
+// sub-agents (`demandeDuProprietaire`, no card), or from the card asked at the first launch (the
+// sub-missions wait meanwhile) ; a refusal is final for the mission (`refus_proprietaire`). Nothing
+// is written before the first mission_lancer.
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { detectAgents, loadProbes } from '../agent-runtime/index.js';
 import { writeConfined } from '../policy-engine/files.js';
 import { terminal } from '../storage/index.js';
 import { ROOT } from './packs.js';
-import { proseQuestion } from './questions.js';
+import { publicQuestion } from './questions.js';
 import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
 import {
+  CONSENT_CHOICES,
   DAUGHTER_RULE,
   DEFAULT_ENVELOPE,
   ENVELOPE_EXTENSION,
+  EXTENSION_CHOICES,
   MISSION_SERVER,
   MISSION_TOOLS,
+  REFUSED_MESSAGE,
+  REFUSED_CHILD,
+  SYNTHESIS_TURN,
   chiefRule,
-  familyReminder,
+  consentLine,
+  consentMessage,
+  extensionMessage,
+  promptNotice,
+  synthesisMissed,
   waitSeconds,
 } from './delegation-rule.js';
 
@@ -44,6 +60,20 @@ const SEND_CARD_TITLE = /^Envoi : aperçu privé/;
 const SEND_LINE = /^Envoi par la plateforme : /;
 const UNVERIFIED = 'non vérifié ; ne pas répéter avant vérification';
 const fail = (erreur, message) => Object.assign(new Error(message), { erreur });
+// A question of the platform answered by a choice (a form with titled options), never a free text.
+const choiceQuestion = (message, choices) =>
+  publicQuestion(
+    randomUUID(),
+    {
+      message,
+      requestedSchema: {
+        type: 'object',
+        properties: { choix: { type: 'string', title: 'Choix', oneOf: [...choices] } },
+        required: ['choix'],
+      },
+    },
+    new Date().toISOString(),
+  );
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
 export class Delegation {
@@ -53,6 +83,8 @@ export class Delegation {
     this.finals = new Map(); // sub-mission id -> { envois, fichiers } : cache of `child_done`
     this.briefs = new Map(); // sub-mission id -> { fichiers, soeurs } for its prompt
     this.agentsCache = null;
+    // Read at start, as the other AGENT_PLATFORM_* settings : 0 withdraws tools and sentence.
+    this.lent = process.env.AGENT_PLATFORM_DELEGATION !== '0';
   }
   get store() {
     return this.engine.store;
@@ -62,10 +94,9 @@ export class Delegation {
   hasFamily(run) {
     return run?.estMere === true || this.engine.active.get(run?.id)?.mere === true;
   }
-  // A mission whose agent is the chief : the owner accepted, and it is no sub-mission itself (the
-  // first sprint lends the tools to mothers only).
-  accepted(run) {
-    return run?.delegation?.accepted === true && !run.famille;
+  // The owner's acceptance written on the mission : true, false (refused), or undefined (not yet).
+  consent(row) {
+    return row?.delegation?.accepted;
   }
   // A member of a family : a sub-mission, or a mission that launched one.
   member(id) {
@@ -110,21 +141,15 @@ export class Delegation {
 
   // ---- what an execution gets
 
-  // Written on the mother when it is created : the owner's acceptance (or refusal), as given.
-  created(run) {
-    if (!run.delegation || run.famille) return;
-    const { accepted, via, total, parallel, acceptedAt } = run.delegation;
-    this.store.event(run.id, accepted ? 'delegation_accepted' : 'delegation_declined', {
-      via,
-      ...(accepted ? { total, parallel, acceptedAt: acceptedAt ?? null } : {}),
-    });
-  }
-  // The mission tools, for a chief only, through the platform's internal bridge.
+  // The mission tools, for every mission led by an agent except a sub-mission (one level), through
+  // the platform's internal bridge. Called only when an agent's session opens.
   servers(run) {
-    if (!this.accepted(run)) return [];
+    if (!this.lent || run.famille) return [];
     const token = this.engine.approvalTokens.get(run.id);
     if (!this.engine.approvalBase || !token) {
-      this.store.event(run.id, 'delegation_unavailable', { reason: 'pont interne absent' });
+      // Said only to an owner who accepted : any other mission stays as it was.
+      if (run.delegation?.accepted === true)
+        this.store.event(run.id, 'delegation_unavailable', { reason: 'pont interne absent' });
       return [];
     }
     return [
@@ -142,10 +167,11 @@ export class Delegation {
       },
     ];
   }
-  // What the prompt of an execution gets : nothing without a family.
-  promptParts(run) {
-    if (this.accepted(run))
-      return { fields: {}, rule: '\n' + chiefRule(this.envelope(this.store.get(run.id) ?? run)) };
+  // What the prompt of an execution gets : the chief's sentence when the mission tools were lent
+  // (`servers`, read from the run as created : nothing is read), a sub-mission's sentence and family.
+  promptParts(run, servers = []) {
+    if (servers.some((server) => server.name === MISSION_SERVER))
+      return { fields: {}, rule: '\n' + chiefRule(run.delegation) };
     if (!run?.famille) return { fields: {}, rule: '' };
     const mother = this.store.get(run.famille.mere);
     const brief = this.briefs.get(run.id) ?? {};
@@ -161,18 +187,44 @@ export class Delegation {
       rule: '\n' + DAUGHTER_RULE,
     };
   }
-  // The chief ends its turn while sub-missions live : one more turn, once (conception 2.5).
-  reminder(motherId) {
-    if (!this.hasFamily({ id: motherId })) return null;
+  // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
+  // platform waits for their end (the chief's timers paused), then the same session gets ONE more
+  // turn with their results joined. Null when there is nothing to give (nothing is read for a
+  // mission that launched none) or when the session is closed (the Bilan then says it).
+  async synthesis(motherId, control, runtime) {
+    if (!control?.mere) return null;
     const mother = this.store.get(motherId);
-    if (!this.accepted(mother)) return null;
     const living = this.living(mother);
-    return living.length
-      ? familyReminder(living.map((child) => child.famille?.titre ?? child.id))
-      : null;
+    if (!living.length) return null;
+    const family = this.family(motherId);
+    if (runtime.continueSession()) {
+      await this.waitLiving(motherId, mother, control, family);
+      if (!control.abort.signal.aborted && runtime.continueSession())
+        return {
+          familyResults: {
+            nature: 'données rapportées par les sous-missions',
+            terminees: living.map((child) => this.outcome(this.store.get(child.id))),
+          },
+          instructions: SYNTHESIS_TURN,
+        };
+    }
+    this.missed(family, living);
+    return null;
+  }
+  // Sub-missions whose results never reached the chief before its last answer.
+  missed(family, children) {
+    family.unsynthesized ??= new Set();
+    for (const child of children) family.unsynthesized.add(child.famille?.titre ?? child.id);
   }
   living(mother) {
     return this.childrenOf(mother).filter((child) => !terminal.has(child.state));
+  }
+  waitLiving(motherId, mother, control, family) {
+    this.store.event(motherId, 'family_waiting', { enCours: this.living(mother).length });
+    control.suspendTimers?.();
+    return this.until(family, () => !this.living(mother).length, control.abort.signal).finally(() =>
+      control.resumeTimers?.(),
+    );
   }
   // The chief has finished : the mother stays `running` (« attend ses sous-missions ») until its last
   // sub-mission ends, its timers paused : the platform waits, not the agent.
@@ -180,17 +232,13 @@ export class Delegation {
     // Only an execution that launched a sub-mission may have one alive.
     if (!control?.mere) return;
     const mother = this.store.get(motherId);
-    if (!this.accepted(mother)) return;
     const family = this.family(motherId);
     family.closing = true;
-    if (!this.living(mother).length) return;
-    this.store.event(motherId, 'family_waiting', { enCours: this.living(mother).length });
-    control.suspendTimers?.();
-    try {
-      await this.until(family, () => !this.living(mother).length, control.abort.signal);
-    } finally {
-      control.resumeTimers?.();
-    }
+    const living = this.living(mother);
+    if (!living.length) return;
+    // Their results reach no turn of the chief any more : the Bilan says it.
+    this.missed(family, living);
+    await this.waitLiving(motherId, mother, control, family);
   }
   // Resolves when `ready()` holds, the signal aborts or `ms` elapse (real clock : the delay of a
   // tool call, not one of the chief's guards). True when `ready()` holds.
@@ -219,14 +267,20 @@ export class Delegation {
   wake(family) {
     for (const check of [...family.waiters]) check();
   }
-  // The Bilan's « Sous-missions » section of a mother (empty without sub-mission).
+  // The Bilan's « Sous-missions » section of a mother (empty without sub-mission) : how the owner
+  // accepted (or refused), the sub-missions, and the results that never reached the chief.
   bilanSection(run, { chiefAnswer = '', motherSends = 0 } = {}) {
     if (!this.hasFamily(run)) return '';
     const mother = this.store.get(run.id);
     if (!mother) return '';
-    const children = this.childrenOf(mother);
-    if (!children.length) return '';
+    // A sub-mission cancelled by the owner's refusal never ran : the refusal line says it.
+    const children = this.childrenOf(mother).filter((child) => child.error !== REFUSED_CHILD);
+    const accord = consentLine(mother.delegation);
+    if (!children.length) return mother.delegation?.accepted === false ? '\n' + accord : '';
+    const missed = [...(this.families.get(run.id)?.unsynthesized ?? [])];
     return familySection({
+      accord,
+      synthese: missed.length ? synthesisMissed(missed) : '',
       chiefAnswer,
       motherSends,
       children: children.map((child) => ({
@@ -435,6 +489,8 @@ export class Delegation {
   }
   pump(family) {
     const root = this.store.get(family.rootId);
+    // Held for the owner's card : nothing starts before the acceptance.
+    if (this.consent(root) !== true) return;
     const { parallel } = this.envelope(root);
     while (family.held.size && this.occupied(family) < parallel) {
       const [id, entry] = family.held.entries().next().value;
@@ -499,8 +555,9 @@ export class Delegation {
     if (!control || !token || this.engine.approvalTokens.get(motherId) !== token)
       return { status: 403, body: { error: 'Jeton invalide ou mission inactive' } };
     const mother = this.store.get(motherId);
-    if (!this.accepted(mother))
-      return { status: 403, body: { error: 'Mode workflow non accepté pour cette mission' } };
+    // The tools are never lent to a sub-mission, nor to any mission once withdrawn.
+    if (!this.lent || !mother || mother.famille)
+      return { status: 403, body: { error: 'Outils de mission non prêtés à cette mission' } };
     const tool = MISSION_TOOLS[body?.tool];
     if (!tool)
       return {
@@ -545,11 +602,13 @@ export class Delegation {
   async launch(mother, control, args) {
     const family = this.family(mother.id);
     const root = this.store.get(mother.id);
+    // Refused by the owner (card, or the request) : the chief goes on alone ; nothing is asked again.
+    if (this.consent(root) === false) throw fail('refus_proprietaire', REFUSED_MESSAGE);
     const { total, parallel } = this.envelope(root);
     const consigne = args.consigne.trim();
     const launched = this.childrenOf(mother).length + family.pending;
     if (launched >= total) {
-      this.askExtension(mother, control, launched + 1, total);
+      if (this.consent(root) === true) this.askExtension(mother, control, launched + 1, total);
       throw fail(
         'enveloppe_atteinte',
         `Enveloppe acceptée par le propriétaire atteinte (${total} sous-missions) ; la plateforme lui demande s’il en autorise davantage.`,
@@ -577,6 +636,16 @@ export class Delegation {
       title: titre,
       cwd: mother.cwd,
     };
+    // The first launch of this execution : an acceptance given with the request is written now
+    // (nothing before : a mission that delegates nothing writes nothing) ; the chief saying the
+    // owner's request asks for sub-agents is the owner's acceptance (voie 2 : a line, no card).
+    if (!control.mere && this.consent(root) === true) this.acceptedEvent(root);
+    else if (
+      this.consent(root) !== true &&
+      args.demandeDuProprietaire === true &&
+      !family.consentAsked
+    )
+      this.accept(mother.id, 'prompt', promptNotice(root?.delegation));
     // From now on the family of this mission is read (and only now) : see hasFamily().
     control.mere = true;
     if (!mother.estMere) this.store.update(mother.id, { estMere: true });
@@ -629,11 +698,19 @@ export class Delegation {
     const child = this.store.get(run.id);
     this.watch(child, family);
     this.store.event(mother.id, 'child_launched', { childId: run.id, titre, agent, modele });
+    const consent = this.consent(this.store.get(mother.id));
+    // Refused while this one was being created : it never starts.
+    if (consent === false) {
+      this.cancelHeld(run.id, REFUSED_CHILD);
+      throw fail('refus_proprietaire', REFUSED_MESSAGE);
+    }
+    // No acceptance yet : the sub-mission waits, the owner gets the card (once).
+    if (consent !== true) this.askConsent(mother, control);
     this.pump(family);
     return {
       id: run.id,
       titre,
-      etat: family.held.has(run.id) ? 'en_file' : 'en_cours',
+      etat: this.heldState(run.id) ?? 'en_cours',
       agent,
       modele,
       famille: {
@@ -644,25 +721,74 @@ export class Delegation {
       },
     };
   }
+  // The owner's acceptance, written on the mission (kept by its resumption) and in its thread.
+  accept(motherId, via, message = null) {
+    const row = this.store.get(motherId);
+    const { total, parallel } = this.envelope(row);
+    const delegation = {
+      accepted: true,
+      via,
+      total,
+      parallel,
+      acceptedAt: new Date().toISOString(),
+    };
+    this.store.update(motherId, { delegation });
+    this.acceptedEvent({ id: motherId, delegation }, message);
+    const family = this.families.get(motherId);
+    if (family) {
+      this.pump(family);
+      this.wake(family);
+    }
+  }
+  acceptedEvent(row, message = null) {
+    const { via, total, parallel, acceptedAt } = row.delegation;
+    this.store.event(row.id, 'delegation_accepted', {
+      via,
+      total,
+      parallel,
+      acceptedAt: acceptedAt ?? null,
+      ...(message ? { message } : {}),
+    });
+  }
+  // Voie 3 (plan v2, 3.2) : the card of the first sub-mission, in the mother's question queue,
+  // answered by a choice ; the chief is not blocked meanwhile (its sub-missions wait).
+  askConsent(mother, control) {
+    const family = this.family(mother.id);
+    if (family.consentAsked) return;
+    family.consentAsked = true;
+    const row = this.store.get(mother.id);
+    const question = choiceQuestion(consentMessage(row?.delegation), CONSENT_CHOICES);
+    Promise.resolve(this.engine.enqueueQuestion(mother.id, question, control)).then((reply) => {
+      const choice = reply?.action === 'accept' ? reply.content?.choix : null;
+      if (choice === 'autoriser') return this.accept(mother.id, 'carte');
+      // The mission ends meanwhile (or the question expired) : nothing is decided ; its waiting
+      // sub-missions end with it, and a later launch asks again.
+      if (reply?.action === 'cancel') {
+        family.consentAsked = false;
+        for (const id of [...family.held.keys()])
+          this.cancelHeld(id, 'Accord des sous-agents resté sans réponse');
+        return this.wake(family);
+      }
+      const current = this.store.get(mother.id);
+      const { total, parallel } = this.envelope(current);
+      this.store.update(mother.id, {
+        delegation: { accepted: false, via: 'carte', total, parallel },
+      });
+      this.store.event(mother.id, 'delegation_declined', { via: 'carte' });
+      for (const id of [...family.held.keys()]) this.cancelHeld(id, REFUSED_CHILD);
+      this.wake(family);
+    });
+  }
   // Beyond the envelope the platform does not block in silence : it asks the owner, once at a time.
   askExtension(mother, control, nth, total) {
     const family = this.family(mother.id);
     if (family.asking) return;
     family.asking = true;
     this.store.event(mother.id, 'delegation_envelope_reached', { total, asked: nth });
-    const question = proseQuestion(
-      randomUUID(),
-      {
-        message: `Le chef veut lancer une ${nth}e sous-mission ; l’enveloppe acceptée est de ${total}. En autoriser ${ENVELOPE_EXTENSION} de plus ?`,
-        options: ['oui', 'non'],
-      },
-      new Date().toISOString(),
-    );
+    const question = choiceQuestion(extensionMessage(nth, total), EXTENSION_CHOICES);
     Promise.resolve(this.engine.enqueueQuestion(mother.id, question, control)).then((reply) => {
       family.asking = false;
-      const yes =
-        reply?.action === 'accept' && /^\s*(?:oui|yes|ok)\b/i.test(String(reply.content?.reponse));
-      if (!yes) return;
+      if (reply?.action !== 'accept' || reply.content?.choix !== 'oui') return;
       const current = this.store.get(mother.id)?.delegation;
       if (!current) return;
       const extensions = [
@@ -678,8 +804,14 @@ export class Delegation {
       });
     });
   }
+  // A sub-mission held by the platform : waiting for the owner's card, or for its place.
+  heldState(id) {
+    const family = this.held(id);
+    if (!family) return null;
+    return this.consent(this.store.get(family.rootId)) === true ? 'en_file' : 'attend_accord';
+  }
   line(child) {
-    const held = this.held(child.id);
+    const held = this.heldState(child.id);
     const events = this.store.events(child.id);
     const last = events.at(-1);
     const lastTool = [...events]
@@ -690,11 +822,13 @@ export class Delegation {
       titre: child.famille?.titre ?? child.title,
       agent: child.agent,
       modele: child.model ?? '',
-      etat: held ? 'en_file' : child.state,
+      etat: held ?? child.state,
       depuis: seconds(child.createdAt),
       inactiveDepuis: last ? seconds(last.at) : seconds(child.createdAt),
       attend: held
-        ? 'place'
+        ? held === 'en_file'
+          ? 'place'
+          : 'accord'
         : child.state === 'awaiting_owner'
           ? 'question'
           : this.engine.pendingPermission(child.id)

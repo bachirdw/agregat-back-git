@@ -10,7 +10,11 @@ commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non r
 l'autorisation du propriétaire (18:45 : « quand tu te sens trop lourd, délègue ou fais une passation toi-même »). L'ancienne
 discussion ne reste ouverte que pour recevoir la fin du sprint `chef-01`, qu'elle a lancé, et prévenir la nouvelle.
 **Reprise** (18:53) : la nouvelle discussion du manager est en place ; état vérifié (4314, 4321, 5177, 19988 en écoute),
-guetteur relancé à 18:51 ; 420c8fe8 n'est plus en cours à 18:52 (relevé à faire) ; limite d'usage 77 % à 18:53.
+guetteur relancé à 18:51 (depuis 18:55 : script d'attente en tâche de fond, un sous-agent Sonnet n'écrit que la section
+d'une mission finie). **Répartition** (18:58, d'après l'ancienne discussion) : elle garde la piste « mode workflow »
+(`chef-01`, `onglets-03` dans `~/Downloads/agregat-back-onglets`, puis la suite), dans ses arbres, sans rien écrire dans
+`agregat-back-essai-13-11`, sans mission sur l'API 4314 et sans rien intégrer ; elle remet des branches contrôlées. La
+nouvelle discussion garde tout le reste : guet, essais réels, intégration, registre, HANDOFF.
 
 **À faire, dans l'ordre**
 1. Vérifier l'état réel (section 4 : `date`, `git status`, `lsof` 4314/4321/5177/19988, `GET /api/runs`, limite d'usage) et
@@ -124,7 +128,10 @@ Playwriter 19988. Mission en cours : 420c8fe8 (SEEK, Codex). 40 missions en base
 seule) avec le script `.manager/outils/attendre-mission.py 4314 <fichier d'état> <secondes>` et le fichier d'état
 `.data/guet-etat.txt` (identifiants déjà relevés : garder ce fichier pour ne rien sauter ni relever deux fois) ; rapport
 `reports/guet-18-11.md`, une ligne au tableau et une section par mission, sans donnée personnelle ni thème des questions.
-**Limite d'usage** : 67 % à 18:42 (remise à zéro vers 22:00) ; elle monte d'environ 7 points par quart d'heure avec un
+**Limite d'usage** : **règle levée pour le soir du 18/11** (ordre du propriétaire reçu par l'ancienne discussion du manager
+vers 18:57 et transmis : il réinitialisera la limite quand elle atteindra 100 %, veut finir avant 22 h pour pouvoir
+tester, et admet des sous-agents codeurs en parallèle) ; la règle habituelle, ci-après, reprend ensuite, sauf mot
+contraire de sa part. Relevés : 67 % à 18:42, 79 % à 18:54 (remise à zéro vers 22:00) ; elle monte d'environ 7 points par quart d'heure avec un
 sprint Opus en cours ; plus de nouveau chantier au-delà de 70 %, tout arrêter à 85 % (règle du 05/11). Les missions Claude
 du propriétaire consomment la même limite, les missions Codex non.
 **Arbres de sprint du 18/11** (tous dans `~/Downloads/`) : `agregat-back-questions`, `-scripts`, `-precision` (intégrés, à

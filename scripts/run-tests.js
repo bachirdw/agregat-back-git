@@ -35,6 +35,8 @@ const BROWSER = new Set([
   'cartes-recherche.test.js',
   // review-cartes-14-11 : envois possibles autour d'une recherche, pixel qui recopie la requête.
   'review-cartes-recherche.test.js',
+  // faux-blocage-01 : bouton du formulaire d'une zone de recherche déclarée (journal de la page).
+  'faux-blocage-01-chrome.test.js',
 ]);
 const files = readdirSync('tests')
   .filter((f) => f.endsWith('.test.js'))

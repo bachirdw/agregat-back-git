@@ -579,6 +579,8 @@ const describeElement = (el) => {
     href: control.getAttribute('href'),
     target: control.getAttribute('target'),
     autocomplete: control.getAttribute('autocomplete'),
+    // faux-blocage-01 : inside a search zone the page declares (as enterContext reads it).
+    search: !!control.closest('[role="search" i], search'),
   };
 };
 

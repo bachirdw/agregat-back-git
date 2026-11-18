@@ -52,7 +52,9 @@ Méthode
 - **Expliquer simplement** (17/11) : le propriétaire a une petite base technique et débute en IA ; dire quoi,
   pourquoi, quel effet, quelle brique.
 - **Même résultat quel que soit l'agent** (17/11) : chaque épreuve se joue avec Claude et avec Codex ; un écart entre
-  agents est un défaut de la plateforme.
+  agents est un défaut de la plateforme. **Mêmes autorisations et mêmes permissions pour tous les agents** (18/11 :
+  Claude, Codex, puis Gemini et OpenCode) ; aucune particularité d'un agent codée en dur, sauf si elle sert à le faire
+  marcher comme les autres ; les différences inévitables entre fournisseurs sont dites.
 - **Guetteur** (sous-agent en lecture seule qui suit les missions par `GET /api/runs` et écrit `reports/guet-JJ-MM.md`)
   gardé en place et relancé jusqu'à l'ordre d'arrêt du propriétaire (16/11).
 - Un sous-agent ne reformule jamais une commande refusée ni ne l'enrobe dans un script (17/11) ; seule la panne

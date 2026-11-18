@@ -5,7 +5,7 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 18:19 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 18:22 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
@@ -77,10 +77,8 @@ ranger parmi les « verdicts » les quatre scripts qui sortent en 1 sur un simpl
 la phrase commune ; garder le message d'une question dont seules les options sont hors bornes ; E117 (fin sur un
 brouillon) ; E119 (échec au démarrage) ; E118 (Bilan inexact).
 
-**Non poussé (au 17:35)** : les commits locaux depuis `637758b` (rapports seulement, aucun code). Le premier, `914ca2f`, garde dans son
-historique une ligne du guet citant les thèmes d'une question de l'agent, dont un touche à la situation personnelle du
-propriétaire (retirée au commit suivant) : ne pas pousser sans son choix (accepter la mention, ou l'autoriser à refaire
-ce commit local, ce que la règle Git interdit sinon).
+**Poussé le 18/11 à 18:22** sur son « Oui, pousse » : `contacts-13-11` et `main` à `514c5c4` (back). Il a accepté que la
+mention des thèmes d'une question de l'agent reste dans l'historique du commit `914ca2f`. Les commits suivants sont locaux.
 **En service à 18:19** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
 (code intégré) ; page fictive 4321 et front 5177 dans des onglets de la discussion d'avant (vérifier par `lsof` ; sinon
 les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (38 missions en base).

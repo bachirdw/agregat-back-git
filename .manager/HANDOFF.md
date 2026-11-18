@@ -5,7 +5,7 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 17:35 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 17:54 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
@@ -38,12 +38,21 @@ traités ; les épreuves 4 et 5 avec le propriétaire. Le manager répond lui-m�
 à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte
 d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
 
+**En cours au 17:54** : (1) sprint `precision-18-11` (E130) lancé à 17:38 sur son « Oui, corrige » : arbre
+`~/Downloads/agregat-back-precision`, brief `.manager/briefs/precision-18-11.md`, codeur puis deux relecteurs puis un
+correcteur (Opus) ; ensuite contrôle du manager, essai réel avec Codex et Claude, puis accord du propriétaire avant
+d'intégrer. (2) Demande du propriétaire de 17:40 : **débrider le scan** (il veut des milliers d'offres ramenées, admet
+60 à 70 % de non postulables) ; enquête rendue dans `reports/freins-scan-18-11.md` : le scan du Skill est borné par ses
+sources (29 entreprises presque toutes étrangères, réglage de `portals.yml` dans son espace), la recherche par le
+navigateur perd 90 à 99 % des résultats (une page lue, tranches de 24 000 caractères) ; brides de plateforme E131 à
+E134 ; rien corrigé, essai réel proposé (SEEK, 5 pages, collecte sans note, Claude puis Codex).
+
 **Décisions du propriétaire du 18/11** : ménage des passations ; une seule version, poussée et devenue `main` ; correctif
 de la reprise intégré ; des faits et des essais avant toute correction ; mêmes autorisations pour tous les agents, rien
 de codé en dur pour un agent ; ne rien ajouter qui restreigne l'agent ou l'empêche d'aller au bout (ce qui évite qu'un
 défaut se reproduise est admis) ; sous-agents Opus en parallèle pour aller vite ; continuer à éprouver l'agent ; le
 manager lance lui-même les épreuves sans envoi ; passation vers une nouvelle discussion (15:12) ; « Oui, intègre » pour
-les deux correctifs (15:20).
+les deux correctifs (15:20) ; « Oui, corrige » pour E130 par la phrase de précision (17:36) ; débrider le scan (17:40).
 **À lui proposer ensuite, dans cet ordre** : **E130** (question de Codex perdue dans l'adaptateur `codex-acp` 2.2.2 ;
 faits, sondes et pistes dans `reports/e130-faits-18-11.md` ; essai réel de 17:33 : une phrase de précision dans le prompt
 suffit, Codex pose par le champ JSON et Claude garde son formulaire ; décision demandée à 17:40, pas encore donnée) ; E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
@@ -278,7 +287,7 @@ incomplet ou inexact · E119 échec au démarrage sans nouvel essai · E120 `car
 `cv-templates` bloqué mais dit réussi · E122 `sweep` en échec sans texte · E123 échec affiché deux fois · E124
 fichiers attribués par date · E125 question laissée sans réponse · E126 avec Codex les questions n'arrivent pas au propriétaire (consigne du
 pack sans format du champ `question`) · E127 champ `question` mal formé : réponse refusée, JSON brut affiché · E128 mission en échec « notée sans
-lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E130 question de Codex posée par son outil interne, jamais reçue.
+lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E130 question de Codex posée par son outil interne, jamais reçue (sprint en cours) · E131 capture recoupée en silence à 50 000 · E132 une petite part des résultats de recherche vue · E133 écriture bornée à 200 000 octets · E134 minuteur d'outil à 120 s.
 E120, E121, E126, E127 : correctifs intégrés le 18/11 ; E121 vérifié en réel avec Codex, E126 non résolu avec Codex (E130), E120 et E127 non exercés (section 0). Hors numéros : A7, A11 (audit du 12/11) ;
 « Se connecter » sans carte ; « Easy Apply » encore `candidate` ; messages en cours de mission non persistés.
 
@@ -307,7 +316,7 @@ E120, E121, E126, E127 : correctifs intégrés le 18/11 ; E121 vérifié en rée
 | Fichier | Sert à |
 |---|---|
 | `.manager/HANDOFF.md` | ce fichier : seule lecture d'entrée |
-| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E130 avec certitude ; collecteur des échecs en base |
+| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E134 avec certitude ; collecteur des échecs en base |
 | `.manager/CARTE.md` | où vit quoi dans Relay et ce qu'on prend des dépôts de référence (04/11) |
 | `.manager/reuse-plan.md`, `PLAN-reuse.md`, `reuse-map.md` | plan de réutilisation des dépôts de référence validé le 27/10 |
 | `.manager/PLAN-04-11.md` | plan des chantiers C0-C15 (C9-C15 non retrouvés comme faits) |
@@ -315,6 +324,7 @@ E120, E121, E126, E127 : correctifs intégrés le 18/11 ; E121 vérifié en rée
 | `.manager/outils/` | lanceur d'API, guetteur, suivi, démos, page fictive (appelés par des tests et ce fichier) |
 | `.manager/briefs/questions-18-11.md`, `scripts-18-11.md` | briefs des deux correctifs intégrés le 18/11, à retirer une fois les essais réels faits |
 | `.manager/reports/questions-agents-18-11.md` | faits et essais réels du 18/11 sur la façon dont Claude et Codex posent une question (E126, E127) |
+| `.manager/reports/freins-scan-18-11.md` | ce qui bride le scan et la recherche d'offres : entonnoirs chiffrés, freins, leviers, essais proposés (18/11) |
 | `.manager/reports/e130-faits-18-11.md` | E130 : où se perd la question de Codex, sondes, essais réels et pistes (décision du propriétaire attendue) |
 | `.manager/reports/reprise-16-11.md`, `review-reprise-16-11.md` | rapports du correctif de la reprise : diagnostic, limites, étude du rechargement exact de session (décision 3) |
 | `.manager/reports/carte-envoi-etude-01.md` | étude R1/R2/R3 dont dépend la décision 14 |

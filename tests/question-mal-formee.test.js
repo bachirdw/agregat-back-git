@@ -358,7 +358,7 @@ for (const [name, input, options] of CONSIGNES)
       const { instructions } = await sent(t, input, { ...options, profile });
       assert.equal(instructions.split(OWNER_QUESTION_RULE).length - 1, 1, profile.id);
       assert.ok(instructions.includes(FORMAT), profile.id);
-      assert.match(instructions, /N’écris jamais que tu attends une réponse sans avoir fait/);
+      assert.match(instructions, /pose ta question par l’une de ces deux voies/);
       seen.add(instructions);
     }
     assert.equal(seen.size, 1, 'consigne différente selon l’agent');

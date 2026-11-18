@@ -139,7 +139,7 @@ propriétaire n'a pas donné d'ordre (31/10). Description générale : `docs/arc
 | E-mails et messages | brouillon par lien de composition vers une adresse d'essai : Claude (92a4af8b), Codex (82987d00), 13/11 ; décideur LinkedIn : Claude (cbcec574), Codex (a3ddfb7e) ; brouillons Gmail (09/11) | lien de composition court | aucun envoi à un tiers |
 | Suivi et relance | intention `followup` : Claude (952c59a6), Gemini (74f0aba3), 13/11 ; « Applied » et relance semée après l'envoi réel (13/11, dans une copie) | — | relance avec Codex |
 | Bilan | produit à chaque mission ; plusieurs lignes fausses ou manquantes (E102, E103, E118) | — | — |
-| Reprise | réponse à une question par formulaire dans la même session (E4, 4/4) ; `/resume` perdait la mission d'origine et les réponses (E116, missions des 15-16/11) | correctif intégré le 18/11 : la session neuve reçoit réponses, messages, constats de la plateforme et dernière réponse du modèle ; ligne « Point de reprise envoyé à l'agent » au Bilan | **le correctif avec un vrai agent** (Claude et Codex) |
+| Reprise | réponse à une question par formulaire dans la même session (E4, 4/4) ; `/resume` perdait la mission d'origine et les réponses (E116, missions des 15-16/11) | correctif intégré le 18/11 : la session neuve reçoit réponses, messages, constats de la plateforme et dernière réponse du modèle ; ligne « Point de reprise envoyé à l'agent » au Bilan | avec Claude ; avec des réponses à transmettre (18/11, Codex, e05973ab : ligne « Point de reprise » au Bilan, fichier de préparation retrouvé et non refait, mais aucune réponse à transmettre faute de question enregistrée, E126) |
 | Message en cours de mission | — | route `POST /api/runs/:id/message`, bouton « Envoyer à l'agent » | **jamais** (0 `owner_message` sur toutes les missions des 15-17/11) |
 Effets réels sur les données du propriétaire : une candidature envoyée (13/11) ; un CV adapté dans son compte SEEK
 (06/11) ; profils LinkedIn consultés ; brouillons dans sa messagerie (vers une adresse `example.test`, 13/11).
@@ -162,8 +162,9 @@ sur GitHub sur son ordre, puis devenue `main` (back et front) après suite verte
 de la reprise intégré, suite verte, API relancée à 12:54 ; on n'avance plus que sur elle, les
 anciennes (4310/5173, 4313/5176) ne sont plus relancées.
 **Attendent le propriétaire** (de la plus récente à la plus ancienne, dédoublonnées) :
-1. Essai réel de la reprise corrigée (intégrée le 18/11 sur son ordre) : répondre aux questions d'une mission, la
-   laisser finir, puis la reprendre ; à jouer avec Claude et avec Codex.
+1. Corriger E126 et E127 (questions de Codex qui n'arrivent pas) : le propriétaire a demandé le 18/11 des faits
+   avant toute correction ; faits et essais dans `reports/questions-agents-18-11.md` ; rien n'est corrigé. Puis essai
+   réel de la reprise avec des réponses à transmettre, avec Claude et avec Codex.
 2. Correctif du démarrage (E119) : nouvel essai, requête nommée (16/11, 19:30).
 3. Lire comme une question la fin d'un brouillon qui demande un avis (E117) ; rechargement exact de session
    (`session/load`) ; doublon du message à la première reprise (rapports de `reprise-16-11`).
@@ -213,7 +214,8 @@ dite « ignorée » · E109 plafond de la phase Chrome · E111 Codex pilote l'é
 routage d'intention · E116 reprise qui perdait les réponses : corrigé le 18/11, non vérifié en réel · E117 terminée en attente d'un avis · E118 Bilan
 incomplet ou inexact · E119 échec au démarrage sans nouvel essai · E120 `career_read` d'un dossier refusé · E121
 `cv-templates` bloqué mais dit réussi · E122 `sweep` en échec sans texte · E123 échec affiché deux fois · E124
-fichiers attribués par date · E125 question laissée sans réponse. Hors numéros : A7, A11 (audit du 12/11) ;
+fichiers attribués par date · E125 question laissée sans réponse · E126 avec Codex les questions n'arrivent pas au propriétaire (consigne du
+pack sans format du champ `question`) · E127 champ `question` mal formé : réponse refusée, JSON brut affiché. Hors numéros : A7, A11 (audit du 12/11) ;
 « Se connecter » sans carte ; « Easy Apply » encore `candidate` ; messages en cours de mission non persistés.
 
 ## 9. Méthode et leçons
@@ -241,12 +243,13 @@ fichiers attribués par date · E125 question laissée sans réponse. Hors numé
 | Fichier | Sert à |
 |---|---|
 | `.manager/HANDOFF.md` | ce fichier : seule lecture d'entrée |
-| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E125 avec certitude ; collecteur des échecs en base |
+| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E127 avec certitude ; collecteur des échecs en base |
 | `.manager/CARTE.md` | où vit quoi dans Relay et ce qu'on prend des dépôts de référence (04/11) |
 | `.manager/reuse-plan.md`, `PLAN-reuse.md`, `reuse-map.md` | plan de réutilisation des dépôts de référence validé le 27/10 |
 | `.manager/PLAN-04-11.md` | plan des chantiers C0-C15 (C9-C15 non retrouvés comme faits) |
 | `.manager/MISSION.md`, `api-usage.md`, `BACKLOG.md` | cahier des charges, journal des coûts (cités par `CLAUDE.md`/`AGENTS.md`), demandes de fond |
 | `.manager/outils/` | lanceur d'API, guetteur, suivi, démos, page fictive (appelés par des tests et ce fichier) |
+| `.manager/reports/questions-agents-18-11.md` | faits et essais réels du 18/11 sur la façon dont Claude et Codex posent une question (E126, E127) |
 | `.manager/reports/reprise-16-11.md`, `review-reprise-16-11.md` | rapports du correctif de la reprise : diagnostic, limites, étude du rechargement exact de session (décision 3) |
 | `.manager/reports/carte-envoi-etude-01.md` | étude R1/R2/R3 dont dépend la décision 14 |
 | `.manager/reports/nuit-12-11.md` | propositions d'architecture du 12/11 dont dépend la décision 19 |

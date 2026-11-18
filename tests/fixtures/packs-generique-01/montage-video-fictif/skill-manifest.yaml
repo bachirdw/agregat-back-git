@@ -1,0 +1,32 @@
+# Manifeste de Skill FICTIF (generique-01) : deux intentions, quelques étapes.
+pack: montage-video-fictif
+intents:
+  - id: monter-video
+    title: Monter une vidéo FICTIVE
+    priority: 10
+    phrases: [monte la vidéo, monter la vidéo]
+    steps:
+      - id: lire-rushes
+        title: Lire les rushes FICTIFS
+        tool: evidence_echo
+        precondition: Les rushes FICTIFS sont dans le dossier de la mission
+        done: Les rushes FICTIFS sont lus
+        optional: false
+        required: true
+      - id: rendre
+        title: Rendre la vidéo FICTIVE
+        tool: rendu_video_fictif
+        precondition: Les rushes FICTIFS sont lus
+        done: La vidéo FICTIVE est rendue
+        optional: true
+  - id: sous-titrer
+    title: Sous-titrer une vidéo FICTIVE
+    priority: 5
+    phrases: [sous-titre la vidéo, sous-titrer la vidéo]
+    steps:
+      - id: transcrire
+        title: Transcrire la piste FICTIVE
+        tool: evidence_echo
+        precondition: La vidéo FICTIVE est disponible
+        done: La transcription FICTIVE est écrite
+        optional: false

@@ -168,3 +168,11 @@ export function careerScriptDelay(update, limitsOf) {
     ? limitsOf(input.command).timeout + 15000
     : null;
 }
+
+// generique-01 (G4) : the delay the pack declares for this tool in its manifest (`toolTimeouts`,
+// ms), whatever the adapter's naming ; null when the pack declares none for it.
+export function declaredToolDelay(update, delays) {
+  if (!delays) return null;
+  const { tool } = readToolCall(update);
+  return Object.hasOwn(delays, tool) ? delays[tool] : null;
+}

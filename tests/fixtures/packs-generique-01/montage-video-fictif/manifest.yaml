@@ -1,0 +1,19 @@
+# Pack FICTIF de test (sprint generique-01) : un Skill sans rapport avec l'emploi, fait de deux
+# manifestes et d'aucun index.js. Chargé seulement par les tests (AGENT_PLATFORM_TEST_PACKS_DIR),
+# jamais par domain-packs/.
+id: montage-video-fictif
+name: Montage vidéo FICTIF
+version: 0.0.1
+description: Pack FICTIF de test, sans outil propre ni vérificateur.
+keywords: []
+skills: []
+workflow:
+  id: montage-fictif
+  title: Monter une vidéo FICTIVE
+  steps:
+    - tool: evidence_echo
+      title: evidence_echo
+      arguments: { text: 'Rushes FICTIFS lus' }
+# Un rendu FICTIF peut rester silencieux 150 s sans être déclaré figé (délai commun : 120 s).
+toolTimeouts:
+  rendu_video_fictif: 150000

@@ -8,7 +8,9 @@ import { proofWatch } from './proofs.js';
 import { NAVIGATE_URL_MAX } from '../capability-registry/index.js';
 import { CallRegistry, approvalCall } from './calls.js';
 import { chargeUsage } from './meter.js';
-import { basename } from 'node:path';
+import { basename, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { registerCareerTools } from '../career-ops/tools.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -18,7 +20,7 @@ import { BrowserGateway, CdpBrowser, FixtureBrowser } from '../browser-gateway/i
 import { shadowSinkFromEnv } from '../browser-gateway/send-shadow.js';
 import { RunPolicy } from '../policy-engine/run-policy.js';
 import { describeCapabilities, getCapability } from '../capability-registry/index.js';
-import { getPack } from '../orchestrator/packs.js';
+import { getPack, packFolder } from '../orchestrator/packs.js';
 import { answeredListing } from '../orchestrator/exit-code.js';
 
 // Capability gateway exposed to agents over MCP (stdio). Configuration comes from the platform:
@@ -376,8 +378,10 @@ if (pack.id === 'career-ops') {
       : undefined,
   });
 }
-if (pack.id !== 'core') {
-  const plugin = await import(new URL(`../../domain-packs/${pack.id}/index.js`, import.meta.url));
+// generique-01 (G2) : a pack without `index.js` brings no tool of its own ; the gateway starts.
+const packPlugin = resolve(packFolder(pack.id), 'index.js');
+if (pack.id !== 'core' && existsSync(packPlugin)) {
+  const plugin = await import(pathToFileURL(packPlugin).href);
   plugin.register(server);
   // Real data sources only when the platform grants network hosts for this run (pack policy).
   if (process.env.RELAY_NETWORK && plugin.registerLive) {

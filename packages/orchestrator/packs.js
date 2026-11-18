@@ -1,10 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { validateWorkflow } from '../workflow-engine/definition.js';
-import { loadSkillManifest, selectSkillIntents } from './skill-router.js';
+import { loadSkillManifest, selectSkillIntents, skillManifestSchema } from './skill-router.js';
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const schema = z.object({
   dag: z.unknown().optional(),
@@ -29,6 +29,11 @@ const schema = z.object({
   skills: z.array(z.object({ id: z.string(), file: z.string() })),
   // Files of the pack's own library whose absence is a normal state (read as « absent »).
   optionalFiles: z.array(z.string().min(1).max(300)).max(50).default([]),
+  // generique-01 (G4) : how long, in ms, a tool of the pack may stay silent before the platform
+  // declares it frozen (a long render, a big export). Without it, the common delay applies.
+  toolTimeouts: z
+    .record(z.string().regex(/^[a-z][a-zA-Z0-9_]*$/), z.number().int().positive())
+    .optional(),
   workflow: z.object({
     id: z.string(),
     title: z.string(),
@@ -41,30 +46,50 @@ const schema = z.object({
     ),
   }),
 });
-export const packs = readdirSync(resolve(ROOT, 'domain-packs'), { withFileTypes: true })
-  .filter(
-    (entry) =>
-      entry.isDirectory() && existsSync(resolve(ROOT, 'domain-packs', entry.name, 'manifest.yaml')),
-  )
-  .map((entry) => entry.name)
+// generique-01 : the folder of each pack, `domain-packs/<id>` unless a test pack says otherwise.
+const folders = new Map();
+export const packFolder = (id) => folders.get(id) ?? resolve(ROOT, 'domain-packs', id);
+function readPack(folder, skillManifest) {
+  const pack = schema.parse(parse(readFileSync(resolve(folder, 'manifest.yaml'), 'utf8')));
+  // `dags` lists every workflow of the pack; `dag` stays the default one.
+  pack.dags = [...(pack.dag ? [pack.dag] : []), ...(pack.dags ?? [])];
+  for (const d of pack.dags) validateWorkflow(d); // fail fast on an invalid pack DAG
+  if (existsSync(resolve(folder, 'skill-manifest.yaml'))) pack.skillManifest = skillManifest();
+  return pack;
+}
+const packIds = (base) =>
+  readdirSync(base, { withFileTypes: true })
+    .filter(
+      (entry) => entry.isDirectory() && existsSync(resolve(base, entry.name, 'manifest.yaml')),
+    )
+    .map((entry) => entry.name);
+export const packs = packIds(resolve(ROOT, 'domain-packs'))
   .sort((a, b) => (a === 'core' ? -1 : b === 'core' ? 1 : a.localeCompare(b)))
-  .map((id) => {
-    const pack = schema.parse(
-      parse(readFileSync(resolve(ROOT, 'domain-packs', id, 'manifest.yaml'), 'utf8')),
-    );
-    // `dags` lists every workflow of the pack; `dag` stays the default one.
-    pack.dags = [...(pack.dag ? [pack.dag] : []), ...(pack.dags ?? [])];
-    for (const d of pack.dags) validateWorkflow(d); // fail fast on an invalid pack DAG
-    if (existsSync(resolve(ROOT, 'domain-packs', id, 'skill-manifest.yaml')))
-      pack.skillManifest = loadSkillManifest(id);
-    return pack;
-  });
+  .map((id) => readPack(resolve(ROOT, 'domain-packs', id), () => loadSkillManifest(id)));
+// generique-01, tests only : AGENT_PLATFORM_TEST_PACKS_DIR names a folder of FICTIF packs, read
+// after those of `domain-packs/` by the same rule (a `manifest.yaml` per pack). Unset (the normal
+// case), nothing changes.
+const testPacks = process.env.AGENT_PLATFORM_TEST_PACKS_DIR;
+if (testPacks)
+  for (const id of packIds(testPacks).sort()) {
+    if (packs.some((pack) => pack.id === id)) throw new Error(`Pack de test en double : ${id}`);
+    const folder = resolve(testPacks, id);
+    const manifest = () => {
+      const value = skillManifestSchema.parse(
+        parse(readFileSync(resolve(folder, 'skill-manifest.yaml'), 'utf8')),
+      );
+      if (value.pack !== id) throw new Error('Manifeste associé au mauvais pack');
+      return value;
+    };
+    packs.push(readPack(folder, manifest));
+    folders.set(id, folder);
+  }
 export const skillDefinitions = packs.flatMap((p) =>
   p.skills.map((s) => ({
     id: s.id,
     version: p.version,
     reviewed: true,
-    path: resolve(ROOT, 'domain-packs', p.id, s.file),
+    path: resolve(packFolder(p.id), s.file),
   })),
 );
 // Deterministic workflow proposal: the declared DAG whose keywords best match the objective, among
@@ -114,6 +139,9 @@ export function getPack(id, objective = '', selectedSkills = []) {
 }
 export async function verifyPack(id, result, objective, inputs = {}) {
   if (id === 'core') return result;
-  const plugin = await import(new URL(`../../domain-packs/${id}/index.js`, import.meta.url));
+  // generique-01 (G2) : a pack without `index.js` has no verifier of its own : as `core`.
+  const file = resolve(packFolder(id), 'index.js');
+  if (!existsSync(file)) return result;
+  const plugin = await import(pathToFileURL(file).href);
   return plugin.verify(result, objective, inputs);
 }

@@ -75,6 +75,7 @@ import {
   isGatewayToolCall,
   isPlatformToolCall,
   careerScriptDelay,
+  declaredToolDelay,
 } from './tool-guard.js';
 import { readToolCall } from './tool-call.js';
 import { scriptLimits } from '../career-ops/tools.js';
@@ -524,6 +525,9 @@ export class Orchestrator {
         ? 'playwriter'
         : (process.env.AGENT_PLATFORM_BROWSER ?? (this.live ? 'isolated' : 'fixture')));
     const env = { RELAY_BROWSER: browser, RELAY_TOOL_CALL_PREMETERED: preMeteredTools ? '1' : '0' };
+    // generique-01, tests only : the gateway reads the same FICTIF packs as the platform.
+    if (process.env.AGENT_PLATFORM_TEST_PACKS_DIR)
+      env.AGENT_PLATFORM_TEST_PACKS_DIR = process.env.AGENT_PLATFORM_TEST_PACKS_DIR;
     if (pack.id === 'career-ops') {
       env.RELAY_CAREER_WORKSPACE = this.careerOf(run).path();
       for (const key of [
@@ -778,10 +782,13 @@ export class Orchestrator {
         throw new Error('L’espace privé charge uniquement le Skill career-ops revu');
     }
     if (v.workspace) this.career.path();
+    // generique-01 (G1) : the chosen pack is kept when it has a path of its own — a Skill manifest
+    // or workflow steps — read on the pack, never from a list of names. `auto`, `core` (neither)
+    // and such a pack without either still switch to the owner's free browsing.
+    const chosen = v.pack === 'auto' ? null : packs.find((p) => p.id === v.pack);
+    const ownPath = Boolean(chosen?.skillManifest || chosen?.workflow.steps.length);
     const browserWorkflow =
-      this.ownerMode &&
-      !['najah', 'career-ops'].includes(v.pack) &&
-      (!v.workflow || ['auto', 'browser-agent'].includes(v.workflow));
+      this.ownerMode && !ownPath && (!v.workflow || ['auto', 'browser-agent'].includes(v.workflow));
     if (browserWorkflow) {
       v.mode = 'agent';
       v.pack = 'core';
@@ -1381,7 +1388,10 @@ export class Orchestrator {
         this.store.event(run.id, 'tool_released', { toolCallId, via: 'model_output' }),
       // Audit du 10/11 : a long script of the Skill (scan 600 s, generate-pdf 300 s…) keeps its own
       // timeout, with a margin for the gateway to answer, instead of the common 120 s.
-      idleFor: (update) => careerScriptDelay(update, scriptLimits),
+      // generique-01 (G4) : otherwise, the delay the pack declares for this tool, if any.
+      idleFor: (update) =>
+        careerScriptDelay(update, scriptLimits) ??
+        declaredToolDelay(update, plan.pack.toolTimeouts),
       onStall: (id) => {
         const afterMs = toolGuard.delayOf(id);
         this.store.event(run.id, 'tool_stalled', { toolCallId: id, afterMs });

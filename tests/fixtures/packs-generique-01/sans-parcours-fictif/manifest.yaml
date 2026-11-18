@@ -1,0 +1,12 @@
+# Pack FICTIF de test (generique-01) : ni manifeste de Skill ni étape propre. En mode propriétaire,
+# il bascule vers la navigation libre comme `core` : la règle est lue sur le pack, pas sur son nom.
+id: sans-parcours-fictif
+name: Sans parcours FICTIF
+version: 0.0.1
+description: Pack FICTIF de test, sans parcours propre.
+keywords: []
+skills: []
+workflow:
+  id: rien-fictif
+  title: Aucun parcours FICTIF
+  steps: []

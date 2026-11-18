@@ -5,7 +5,7 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 17:59 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 18:19 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
@@ -38,21 +38,30 @@ traités ; les épreuves 4 et 5 avec le propriétaire. Le manager répond lui-m�
 à la question d'un essai technique, jamais à une question personnelle d'une vraie épreuve, et n'accorde jamais une carte
 d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
 
-**Prêt, attend un oui du propriétaire (demandé à 17:59)** : sprint `precision-18-11` (E130), arbre
-`~/Downloads/agregat-back-precision`, tête `dd758e2`, 6 commits sur `93e463f`. Contenu : `OWNER_QUESTION_RULE`
-(`packages/orchestrator/owner-question-rule.js`) dit qu'un outil de question qui n'attend pas la réponse n'est pas un
-formulaire ; le relecteur a aussi retiré le nom « AskUserQuestion » de la phrase (règle « aucun nom d'outil d'un
-agent ») ; `docs/api-questions.md` ; tests `review-precision-18-11` et trois fichiers adaptés. Codé, relu par deux
-relecteurs puis un correcteur, contrôlé par le manager (186 tests ciblés sur 186, `check` et prettier verts). **Essai
-réel sur le code du sprint** (API temporaire 4315, pack `core`, arrêtée ensuite) : Codex ouvre sa question (`prose`,
-043c3325), Claude garde son formulaire (`form`, 6fca2bbb), les deux vont au bout. Non vérifié : le parcours career-ops
-(épreuve 3) avec la phrase intégrée. Marche à suivre après son oui : aucune mission en cours, arrêt de l'API 4314,
-`git cherry-pick 93e463f..precision-18-11`, suite complète, relance, registre, puis épreuve 3 avec Codex et Claude.
-**Demande du propriétaire de 17:40 : débrider le scan** (il veut des milliers d'offres ramenées, admet 60 à 70 % de non
-postulables) ; enquête rendue dans `reports/freins-scan-18-11.md` : le scan du Skill est borné par ses sources (29
-entreprises presque toutes étrangères, réglage de `portals.yml` dans son espace), la recherche par le navigateur perd
-90 à 99 % des résultats (une page lue, tranches de 24 000 caractères) ; brides de plateforme E131 à E134 ; rien
-corrigé ; essai réel proposé (SEEK, 5 pages, collecte sans note, Claude puis Codex).
+**Intégré à 18:16 sur son « Oui »** : `precision-18-11` (E130) : six commits repris (`c3ceaa3` à `f030bca`), suite complète
+verte (18:02 → 18:15), API relancée. Vérifié en réel : épreuve 3 avec Codex (ace76d9e) : la question s'ouvre (`prose`),
+en attente de ses réponses dans l'interface. Lanceur : outil déclaré figé après 10 min au lieu de 120 s (E134).
+**Sprints en cours (ordre du propriétaire de 18:03 et 18:05 : coder et corriger en parallèle sur les défauts établis)**,
+un arbre isolé par sprint, codeur Opus puis relecteur-correcteur Opus, puis contrôle du manager et **accord du
+propriétaire avant chaque intégration** (elle arrête l'API ; il lance des missions en même temps) :
+| Sprint | Arbre | Défauts | Fichiers |
+|---|---|---|---|
+| `ecriture-18-11` | `~/Downloads/agregat-back-ecriture` | E133 (ajout de lignes, borne d'écriture), E129 (message du TSV) | `packages/career-ops/tools.js`, schéma de l'outil d'écriture |
+| `lecture-18-11` | `~/Downloads/agregat-back-lecture` | E128 (annonce lue par un script du Skill) | `domain-packs/career-ops/skill-manifest.yaml`, `packages/orchestrator/skill-router.js` |
+| `prompt-prime-18-11` | `~/Downloads/agregat-back-prompt` | le prompt prime sur le Skill (demande de 18:01) | `packages/career-ops/integration.js` |
+| `captures-18-11` | `~/Downloads/agregat-back-captures` | E131 (coupe silencieuse), E132 (liste des offres d'une page) | `packages/browser-gateway/`, `packages/capability-registry/index.js` |
+Briefs : `.manager/briefs/<sprint>.md`. Les tests qui démarrent un navigateur ne sont pas lancés par les sprints : ils
+passent avec la suite complète à l'intégration. Intégrer un sprint à la fois, base `a79a747` (`4b7b3b6` pour captures).
+**Mode workflow multi-agents** : étude rendue (`reports/workflows-etude-18-11.md`) ; décisions du propriétaire de 18:13
+(section 7 de l'étude : agent chef, trois voies d'activation avec avertissement et accord préalables, essai à plusieurs
+onglets, dégel de l'architecture sur ce seul point) ; conception détaillée confiée à une session Opus à part
+(« Mode workflow : conception (agent chef) », arbre de la session, branche `workflow-18-11`), sans code pour l'instant.
+**Débrider le scan** (demande de 17:40) : enquête dans `reports/freins-scan-18-11.md` ; brides de plateforme en cours de
+correction (sprints ci-dessus) ; reste à jouer : essai réel « le plus d'offres possible » sur SEEK, Claude puis Codex ;
+levier dans l'espace du propriétaire : ajouter des employeurs australiens à `portals.yml`.
+**Autorisations du 18/11 (18:01 à 18:09)** : le prompt prime sur le Skill ; une limite écrite dans le prompt n'est pas
+un défaut ; délégation à des sessions et sous-agents (Opus pour le complexe, Sonnet pour le simple, le manager
+orchestre) ; mode rapide admis si c'est trop long ; il lance ses propres missions pendant ce temps.
 
 **Décisions du propriétaire du 18/11** : ménage des passations ; une seule version, poussée et devenue `main` ; correctif
 de la reprise intégré ; des faits et des essais avant toute correction ; mêmes autorisations pour tous les agents, rien
@@ -72,7 +81,7 @@ brouillon) ; E119 (échec au démarrage) ; E118 (Bilan inexact).
 historique une ligne du guet citant les thèmes d'une question de l'agent, dont un touche à la situation personnelle du
 propriétaire (retirée au commit suivant) : ne pas pousser sans son choix (accepter la mention, ou l'autoriser à refaire
 ce commit local, ce que la règle Git interdit sinon).
-**En service à 17:35** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
+**En service à 18:19** : API 4314 relancée à 15:35 dans l'onglet Terminal « API essai 4314 » de la discussion du manager
 (code intégré) ; page fictive 4321 et front 5177 dans des onglets de la discussion d'avant (vérifier par `lsof` ; sinon
 les relancer, section 4) ; relais Playwriter 19988 actif ; aucune mission en cours (38 missions en base).
 **Guetteur** : relancé à 15:18 (sous-agent Sonnet de la discussion du manager, lecture seule, `GET /api/runs` toutes les
@@ -182,8 +191,8 @@ sinon les relancer, sans mission en cours, en le disant au propriétaire. Le gue
 - Anciens : API 4313 + front 5176 (`cto-11-11`, ancien code) ; API 4310 + front 5173 (ancien code du 02/11 lancé
   depuis le dossier interdit). Ne pas les confondre avec 4314/5177.
 - Tests : `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000 npm test && npm run check && npm run format:check` (15 min ;
-  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 15:21 → 15:34**, avec les
-  correctifs des questions et des scripts (1 321 unitaires, 1 319 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
+  sans le plafond relevé la phase Chrome expire, E109). Dernière suite verte : **18/11, 18:02 → 18:15**, avec le
+  correctif `precision-18-11` (1 328 unitaires, 1 326 réussis, 0 échec, 2 ignorés ; Chrome 253/253 ; `check` et `format:check` verts) ;
   front `7b2716c` : 242/242, `tsc` et prettier verts. Jamais pendant une mission navigateur ; jamais pendant que des agents testent.
 - Suivre sans rien toucher : `python3 -I .manager/outils/guet-lecture.py <port> <minutes>` ; Bilan contre
   événements : `node .manager/outils/bilan-vs-events.mjs <mission>` ; collecteur du registre :
@@ -294,7 +303,7 @@ incomplet ou inexact · E119 échec au démarrage sans nouvel essai · E120 `car
 `cv-templates` bloqué mais dit réussi · E122 `sweep` en échec sans texte · E123 échec affiché deux fois · E124
 fichiers attribués par date · E125 question laissée sans réponse · E126 avec Codex les questions n'arrivent pas au propriétaire (consigne du
 pack sans format du champ `question`) · E127 champ `question` mal formé : réponse refusée, JSON brut affiché · E128 mission en échec « notée sans
-lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E130 question de Codex posée par son outil interne, jamais reçue (sprint en cours) · E131 capture recoupée en silence à 50 000 · E132 une petite part des résultats de recherche vue · E133 écriture bornée à 200 000 octets · E134 minuteur d'outil à 120 s.
+lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E130 question de Codex posée par son outil interne : corrigé et vérifié en réel le 18/11 · E131 capture recoupée en silence à 50 000 · E132 une petite part des résultats de recherche vue · E133 écriture bornée à 200 000 octets · E134 minuteur d'outil à 120 s.
 E120, E121, E126, E127 : correctifs intégrés le 18/11 ; E121 vérifié en réel avec Codex, E126 non résolu avec Codex (E130), E120 et E127 non exercés (section 0). Hors numéros : A7, A11 (audit du 12/11) ;
 « Se connecter » sans carte ; « Easy Apply » encore `candidate` ; messages en cours de mission non persistés.
 

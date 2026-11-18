@@ -225,7 +225,7 @@ test('E128 FICTIF : la consigne et l’ordre du Skill disent la lecture par scri
   );
   assert.match(
     order,
-    /Lire réellement l'annonce de chaque entrée avec career_read ou browser_extract ou browser_snapshot \(jds\/\) ou career_script \(fetch-jd, browser-extract, texte de l’annonce rendu\)/,
+    /Lire réellement l'annonce de chaque entrée avec career_read ou browser_extract ou browser_snapshot \(jds\/\) ou career_script \(fetch-jd, browser-extract, texte rendu\)/,
   );
   assert.doesNotMatch(order + READ_BEFORE_SCORE, /claude|codex|gemini|opencode/i);
 });

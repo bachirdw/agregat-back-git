@@ -358,7 +358,7 @@ export function formatSkillOrder(selection) {
     selection
       .map(
         ({ pack, intent }) =>
-          `${pack} / ${intent.title} : ${intent.steps.map((step, index) => `${index + 1}. ${step.title} avec ${step.tool}${step.alternativeTools?.length ? ' ou ' + step.alternativeTools.join(' ou ') : ''}${step.argument ? ' (' + step.argument + ')' : ''}${step.scriptReads ? ` ou ${step.scriptReads.tool} (${step.scriptReads.scripts.join(', ')}, texte de l’annonce rendu)` : ''} ; précondition : ${step.precondition} ; fait si : ${step.done}${step.optional ? ' ; facultatif' : ''}`).join(' → ')}`,
+          `${pack} / ${intent.title} : ${intent.steps.map((step, index) => `${index + 1}. ${step.title} avec ${step.tool}${step.alternativeTools?.length ? ' ou ' + step.alternativeTools.join(' ou ') : ''}${step.argument ? ' (' + step.argument + ')' : ''}${step.scriptReads ? ` ou ${step.scriptReads.tool} (${step.scriptReads.scripts.join(', ')}, texte rendu)` : ''} ; précondition : ${step.precondition} ; fait si : ${step.done}${step.optional ? ' ; facultatif' : ''}`).join(' → ')}`,
       )
       .join('\n') +
     requiredOrder(selection)
@@ -540,12 +540,74 @@ function outputText(update) {
   visit(update.rawOutput ?? update.content, 0);
   return parts.join('\n');
 }
+// review2-lecture-18-11 (L1, L2) : the exact address of an item read by script, host without « www. »,
+// path without its final slash, query fields sorted (tracking fields `utm_*` aside), fragment aside.
+function itemKey(value) {
+  try {
+    const url = new URL(withScheme(String(value)));
+    const query = [...url.searchParams]
+      .filter(([key]) => !/^utm_/i.test(key))
+      .map(([key, field]) => `${key}=${field}`)
+      .sort();
+    return `${bareHost(url.host)}${url.pathname.replace(/\/+$/, '')}${query.length ? '?' + query.join('&') : ''}`;
+  } catch {
+    return null;
+  }
+}
+// review2-lecture-18-11 (L1) : the identifiers that name the item of an address read by script, from
+// its last path segment or a query field that names one item (QUERY_ITEM), never from a segment the
+// pages of one site share (« /Carrieres_2026/job/<item> »).
+function ownIdentifiers(value) {
+  try {
+    const url = new URL(withScheme(String(value)));
+    const last = url.pathname.split('/').filter(Boolean).at(-1) ?? '';
+    const fields = [...url.searchParams]
+      .filter(([key]) => QUERY_ITEM.test(key.toLowerCase()))
+      .map(([, field]) => field);
+    return [...last.split(/[^A-Za-z0-9_-]+/), ...fields]
+      .filter((token) => /^[\w-]{6,}$/.test(token) && /\d/.test(token))
+      .map((token) => `${bareHost(url.host)} ${token.toLowerCase()}`);
+  } catch {
+    return [];
+  }
+}
+// review2-lecture-18-11 (L3) : what a script printed on its standard output, and the address it
+// reports having reached. The platform answers a script's stdout then its stderr in one text ; a
+// stdout that is one line of JSON (an extractor's { url, title, text }) is told apart : the lines
+// after it are the error output and count for nothing, its `url` is the page reached, not text.
+function scriptOutput(update) {
+  const parts = [];
+  let reached = null;
+  const visit = (value, depth, printed) => {
+    if (depth > 6 || value === null || value === undefined) return;
+    if (typeof value === 'string') {
+      if (/^\s*[[{]/.test(value)) {
+        for (const candidate of [value, value.split('\n')[0]])
+          try {
+            visit(JSON.parse(candidate), depth + 1, true);
+            return;
+          } catch {
+            // Plain text that starts like JSON.
+          }
+      }
+      parts.push(value);
+    } else if (Array.isArray(value)) value.forEach((item) => visit(item, depth + 1, printed));
+    else if (typeof value === 'object')
+      for (const [key, item] of Object.entries(value)) {
+        if (printed && key === 'url' && typeof item === 'string') reached ??= item;
+        else visit(item, depth + 1, printed);
+      }
+  };
+  visit(update.rawOutput ?? update.content, 0, false);
+  return { text: parts.join('\n'), reached };
+}
 // E128 (mission 751f33c8, 18/11) : the URL of the item whose text a completed call of one of the
 // step's scripts rendered, or null. The script ran (exit code 0 read from its answer, never a
 // mention in its text), printed at least `minChars` characters, and was given the item's URL first,
 // never one of the pack's list pages. The URL is the one the call was given : a script's text may
-// quote other addresses, none of which names the item. The gateway's own update carries neither the URL nor the output : it
-// proves nothing here, the agent's update of the same call does.
+// quote other addresses, none of which names the item ; the page a script reports it reached must
+// be that same item (review2-lecture-18-11). The gateway's own update carries neither the URL nor
+// the output : it proves nothing here, the agent's update of the same call does.
 function scriptReadUrl(step, update, name) {
   const rule = step.scriptReads;
   if (!rule || rule.tool !== name) return null;
@@ -559,9 +621,18 @@ function scriptReadUrl(step, update, name) {
   const answer = update.rawOutput ?? update.content;
   const code = answeredExitCode(answer);
   if (code !== 0 && code !== '0') return null;
-  if (outputText(update).trim().length < rule.minChars) return null;
+  const { text, reached } = scriptOutput(update);
+  if (text.trim().length < rule.minChars) return null;
   const url = /^https?:\/\//i.test(args[0] ?? '') && pageKey(args[0]) ? args[0] : null;
   if (!url || (step.listPage && listPage(url, step.listPage.words))) return null;
+  // review2-lecture-18-11 (L3) : the page the script reports it reached is the one read ; a list
+  // page, or any other page than the item asked for (an expired item redirected, a sign-in page),
+  // reads nothing.
+  if (reached !== null) {
+    if (!/^https?:\/\//i.test(reached) || !pageKey(reached)) return null;
+    if (step.listPage && listPage(reached, step.listPage.words)) return null;
+    if (itemKey(reached) !== itemKey(url)) return null;
+  }
   return url;
 }
 // E55, E58 : whether a call's effect proves a step that declares a proof. The gateway measures
@@ -910,9 +981,11 @@ export class SkillProgress {
         )
       )
         causes.push(cause);
-    // E128 : an item whose text a script of the pack rendered is read, as a captured page is.
-    const read = new Set([...readPages, ...this.scriptReads].map(pageKey));
+    const read = new Set(readPages.map(pageKey));
     const scored = new Set(this.scored);
+    // review2-lecture-18-11 (L1, L2) : the full addresses scored under each page, for the reads by
+    // script (two items of one path, told apart by their query, are one page here).
+    const addresses = new Map();
     // E93 : the identifiers of each scored page, from its whole address when the turn record has it.
     const identifiers = new Map([...scored].map((page) => [page, itemIdentifiers(page)]));
     for (const offer of scoredOffers) {
@@ -920,19 +993,28 @@ export class SkillProgress {
       if (!page) continue;
       scored.add(page);
       identifiers.set(page, [...(identifiers.get(page) ?? []), ...itemIdentifiers(offer.url)]);
+      addresses.set(page, [...(addresses.get(page) ?? []), offer.url]);
     }
-    // E128 : an item rendered by a script is also known by its identifier on the same host : the
-    // last one of its address (its query field, else its last path token), never a token that the
-    // pages of one site share (review-lecture-18-11 : « /Careers_2026/job/<item> »).
-    const selected = new Set([
-      ...readPages.flatMap(selectedItems),
-      ...this.scriptReads.flatMap((url) => itemIdentifiers(url).slice(-1)),
-    ]);
+    const selected = new Set(readPages.flatMap(selectedItems));
+    // E128, review2-lecture-18-11 (L1, L2) : an item whose text a script of the pack rendered is
+    // read under its exact address, or under another address of the same host that carries the same
+    // own identifier (last path segment, item query field) ; nothing wider.
+    const scriptKeys = new Set(this.scriptReads.map(itemKey));
+    const scriptItems = new Set(this.scriptReads.flatMap(ownIdentifiers));
+    // Every item scored under the page must be read so ; a page known by its path only, by its path.
+    const byScript = (page) =>
+      (addresses.get(page) ?? [page]).every(
+        (address) =>
+          scriptKeys.has(itemKey(address)) ||
+          ownIdentifiers(address).some((item) => scriptItems.has(item)),
+      );
     const unread = sourceRead
       ? 0
       : [...scored].filter(
           (page) =>
-            !read.has(page) && !(identifiers.get(page) ?? []).some((item) => selected.has(item)),
+            !read.has(page) &&
+            !(identifiers.get(page) ?? []).some((item) => selected.has(item)) &&
+            !byScript(page),
         ).length;
     if (unread) causes.push(`${unread} offre(s) notée(s) sans lecture de leur page`);
     return causes;

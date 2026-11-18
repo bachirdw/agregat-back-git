@@ -5,7 +5,7 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 18/11/2026, 18:22 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 18/11/2026, 18:30 ; ce bloc se remplace à chaque passation)
 **Fait à 15:35, sur le « Oui, intègre » du propriétaire (15:20)** : les deux correctifs sont intégrés dans
 `contacts-13-11` (douze commits repris par `cherry-pick`, de `f2470e9` à `9530250`, sans conflit), API arrêtée de 15:21 à
 15:35, suite complète verte (section 4), API relancée, puis poussée sur GitHub (`contacts-13-11` et `main`).
@@ -41,17 +41,18 @@ d'envoi. Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
 **Intégré à 18:16 sur son « Oui »** : `precision-18-11` (E130) : six commits repris (`c3ceaa3` à `f030bca`), suite complète
 verte (18:02 → 18:15), API relancée. Vérifié en réel : épreuve 3 avec Codex (ace76d9e) : la question s'ouvre (`prose`),
 en attente de ses réponses dans l'interface. Lanceur : outil déclaré figé après 10 min au lieu de 120 s (E134).
-**Sprints en cours (ordre du propriétaire de 18:03 et 18:05 : coder et corriger en parallèle sur les défauts établis)**,
-un arbre isolé par sprint, codeur Opus puis relecteur-correcteur Opus, puis contrôle du manager et **accord du
-propriétaire avant chaque intégration** (elle arrête l'API ; il lance des missions en même temps) :
-| Sprint | Arbre | Défauts | Fichiers |
-|---|---|---|---|
-| `ecriture-18-11` | `~/Downloads/agregat-back-ecriture` | E133 (ajout de lignes, borne d'écriture), E129 (message du TSV) | `packages/career-ops/tools.js`, schéma de l'outil d'écriture |
-| `lecture-18-11` | `~/Downloads/agregat-back-lecture` | E128 (annonce lue par un script du Skill) | `domain-packs/career-ops/skill-manifest.yaml`, `packages/orchestrator/skill-router.js` |
-| `prompt-prime-18-11` | `~/Downloads/agregat-back-prompt` | le prompt prime sur le Skill (demande de 18:01) | `packages/career-ops/integration.js` |
-| `captures-18-11` | `~/Downloads/agregat-back-captures` | E131 (coupe silencieuse), E132 (liste des offres d'une page) | `packages/browser-gateway/`, `packages/capability-registry/index.js` |
-Briefs : `.manager/briefs/<sprint>.md`. Les tests qui démarrent un navigateur ne sont pas lancés par les sprints : ils
-passent avec la suite complète à l'intégration. Intégrer un sprint à la fois, base `a79a747` (`4b7b3b6` pour captures).
+**Quatre sprints prêts, attendent un oui du propriétaire (demandé à 18:30)**. Chacun : codeur Opus, relecteur-correcteur
+Opus indépendant, contrôle du manager (arbre propre, périmètre respecté, tests du sprint relancés, fusion à blanc sans
+conflit). Aucun essai réel. **Les tests qui démarrent un navigateur n'ont pas été lancés** : ils passent avec la suite
+complète à l'intégration (une mission réelle tournait). Intégrer les quatre ensemble : aucune mission en cours, arrêt de
+l'API, quatre `cherry-pick`, une seule suite complète, relance, puis essais réels avec Claude et Codex.
+| Sprint | Arbre, tête | `cherry-pick` | Ce qui change | Tests du sprint | À décider par le propriétaire |
+|---|---|---|---|---|---|
+| `ecriture-18-11` (E133, E129) | `~/Downloads/agregat-back-ecriture`, `9d72b72` | `a79a747..ecriture-18-11` | `career_write` a un mode `append` (ajout en fin de fichier, mêmes contrôles) ; la borne de 200 000 octets vaut par appel, plus pour le fichier ; refus du TSV avec l'en-tête attendu, un exemple et la ligne reçue (`packages/career-ops/tools.js`, `docs/api-career-ops.md`) | 10 sur 10 | borne de 10 Mo du fichier relu en ajout |
+| `lecture-18-11` (E128) | `~/Downloads/agregat-back-lecture`, `e9c60c3` | `a79a747..lecture-18-11` | une annonce dont un script du Skill déclaré par le pack (`scriptReads` : `fetch-jd`, `browser-extract`) a rendu le texte (code 0, 500 caractères au moins, adresse de l'annonce) compte comme lue ; le rejeu des événements de 751f33c8 ne donne plus « notée sans lecture » (`skill-manifest.yaml`, `skill-router.js`) | 14 sur 14 | seuil de 500 caractères ; reprise et note hors intention qui ne voient pas ces lectures (`orchestrator/index.js`, non touché) |
+| `prompt-prime-18-11` | `~/Downloads/agregat-back-prompt`, `083e8ce` | `a79a747..prompt-prime-18-11` | consigne du pack : « Le prompt du propriétaire prime sur le Skill : il décide de ce qui est fait (périmètre, volume, sources, seuils), le Skill dit comment le faire… » (`OWNER_PROMPT_PRIME`, `packages/career-ops/integration.js`) | 4 sur 4 | l'étape `scan` reste exigée par le pack même quand le prompt choisit ses sources (manifeste, hors sprint) |
+| `captures-18-11` (E131, E132) | `~/Downloads/agregat-back-captures`, `cc3c6ee` | `4b7b3b6..captures-18-11` | plus de coupe à 50 000 : une capture demandée dans les bornes est rendue en entier, la suite est toujours désignée, chaque tranche dit la taille totale et les tranches restantes ; `browser_extract` liste jusqu'à 1 000 éléments avec leur texte, l'adresse de leur lien et le total (`packages/browser-gateway/`, `packages/capability-registry/index.js`) | 18 sur 18, plus voisins | masquage des suites de 13 chiffres appliqué aussi aux adresses des liens ; tailles de tranche par défaut inchangées |
+Rapports dans chaque arbre : `.manager/reports/<sprint>.md` et `review-<sprint>.md`. Briefs : `.manager/briefs/<sprint>.md`.
 **Mode workflow multi-agents** : étude rendue (`reports/workflows-etude-18-11.md`) ; décisions du propriétaire de 18:13
 (section 7 de l'étude : agent chef, trois voies d'activation avec avertissement et accord préalables, essai à plusieurs
 onglets, dégel de l'architecture sur ce seul point) ; conception détaillée confiée à une session Opus à part

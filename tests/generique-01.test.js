@@ -275,6 +275,9 @@ test('G4 : délai déclaré lu quel que soit l’adaptateur ; rien sans déclara
   );
 });
 
+// Intégration du 18/11 : pour career-ops, les empreintes du plan et de la consigne sont celles de
+// c64c7b7 (la version unique juste avant generique-01, après lecture-18-11 qui change le manifeste
+// et la consigne de career-ops), relevées par ce même fichier lancé sur ce commit.
 // Inertie : empreintes relevées sur la base dad6c23 (avant generique-01) par la même sonde, pour
 // career-ops, najah, core et auto, en mode propriétaire et hors mode propriétaire : plan, outils
 // offerts, consigne envoyée à l'agent (instructions et workflow), fin de mission (faux agent ACP)
@@ -311,10 +314,10 @@ const BASE = {
   'owner:career-ops': {
     pack: 'career-ops',
     browserWorkflow: false,
-    plan: '68d4a3cf70356127',
+    plan: '3604e299f9c46806',
     tools:
       'browser_snapshot career_document career_documents career_offer_save career_offers career_read career_script career_write email_send evidence_echo jobs_search_live linkedin_draft opportunities_rank_live sponsor_check_uk',
-    consigne: 'c0ca1d166fb92e3e a124687289ffe553',
+    consigne: '7810b28f8d124ca1 a124687289ffe553',
     fin: 'completed ad5c26450a4e0d05',
   },
   'api:core': {
@@ -348,10 +351,10 @@ const BASE = {
   'api:career-ops': {
     pack: 'career-ops',
     browserWorkflow: false,
-    plan: 'b906476cb772eb0c',
+    plan: '1383e5515324cbc2',
     tools:
       'browser_snapshot career_document career_documents career_offer_save career_offers career_read career_script career_write email_send evidence_echo jobs_search_live linkedin_draft opportunities_rank_live sponsor_check_uk',
-    consigne: 'c0ca1d166fb92e3e a124687289ffe553',
+    consigne: '7810b28f8d124ca1 a124687289ffe553',
     fin: 'completed 9cfa13691ac483f5',
   },
 };

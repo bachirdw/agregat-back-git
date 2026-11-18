@@ -13,6 +13,10 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 delete process.env.AGENT_PLATFORM_TEST_PACKS_DIR;
+// Intégration du 18/11 : ce fichier ne doit pas sonder les agents CLI installés sur la machine
+// (`.data/agents.json` local, absent des arbres de sprint) : la table de 288 plans prenait sinon
+// plus de dix minutes dans un dossier où une API a déjà tourné. Les plans n'en dépendent pas.
+process.env.AGENT_PLATFORM_AGENTS_CONFIG = join(tmpdir(), 'agents-absents.json');
 const { createApp } = await import('../apps/api/server.js');
 const { CareerWorkspace } = await import('../packages/career-ops/workspace.js');
 const { reviewCareer } = await import('../packages/career-ops/integration.js');

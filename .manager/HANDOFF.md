@@ -5,6 +5,57 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
+## 0. Où reprendre maintenant (état au 18/11/2026, 15:15 ; ce bloc se remplace à chaque passation)
+**Ce qui attend un oui du propriétaire** : intégrer les deux correctifs prêts. Demandé à 15:10 ; il a répondu par une
+demande de passation vers une nouvelle discussion. Ne pas intégrer sans son oui.
+| Branche | Arbre | Tête | Contenu | État |
+|---|---|---|---|---|
+| `questions-18-11` | `~/Downloads/agregat-back-questions` | `23c8e39`, 6 commits sur `668a32d` | E126, E127 : phrase commune `OWNER_QUESTION_RULE` (`packages/orchestrator/owner-question-rule.js`) reprise par `packages/career-ops/integration.js`, `packages/orchestrator/index.js` et `doubt-rule.js` ; une question mal formée n'est plus refusée (`result.js`, `index.js`, `workflow-run.js`) ; `docs/api-questions.md` ; tests `question-mal-formee`, `review-questions-18-11` | codé, relu par deux relecteurs puis un correcteur, contrôlé par le manager (266 tests ciblés sur 266) |
+| `scripts-18-11` | `~/Downloads/agregat-back-scripts` | `5f287f7`, 6 commits sur `c3d2eca` | E121, E120 : `packages/career-ops/tools.js` (lecture du chemin réel du `node_modules` de l'espace, liste d'un dossier), `truth.js`, `packages/orchestrator/exit-code.js`, `skill-router.js`, `packages/mcp-gateway/server.js`, `apps/api/server.js` ; tests `career-script-node-modules-lien`, `career-script-issue`, `lecture-liste-acp`, `review-scripts-18-11` | codé, relu, contrôlé par le manager (129 tests ciblés sur 129) |
+Aucun fichier commun aux deux branches ; aucune garde ni branche par agent ajoutée (contrôlé). Rapports dans chaque
+branche : `.manager/reports/questions-18-11.md`, `review-questions-18-11.md`, `scripts-18-11.md`, `review-scripts-18-11.md`.
+
+**Marche à suivre après son oui** : (1) vérifier qu'aucune mission ne tourne (`GET /api/runs`) ; (2) arrêter l'API 4314
+(on ne commite pas de code dans le dossier d'une API en marche) ; (3) dans `agregat-back-essai-13-11` :
+`git cherry-pick 668a32d..questions-18-11` puis `git cherry-pick c3d2eca..scripts-18-11` ; (4) suite complète
+(section 4, environ 15 min) ; (5) si elle est verte : relancer l'API, mettre à jour le registre (E120, E121, E126, E127)
+et ce fichier, puis `git push origin contacts-13-11 contacts-13-11:main` ; (6) essais réels, voir plus bas.
+
+**Série d'épreuves** (une mission à la fois ; lancées par le manager avec `.manager/outils/lancer-mission.py 4314 <agent> <modèle|-> playwriter career-ops "<prompt>"`, relevé par le guetteur dans `reports/guet-18-11.md`) :
+| Épreuve | Codex | Claude |
+|---|---|---|
+| 1 Évaluation | dcfad0f2 (17/11) : 2 notes sur 3, étape `sweep` en échec sans texte (E122) | 751f33c8 (18/11) : 3 rapports notés, mais `failed` « 3 offre(s) notée(s) sans lecture de leur page » (E128) ; 3 écritures TSV refusées puis réussies (E129) |
+| 2 CV | e1ce4cd8 : JSON du CV prêt, **pas de PDF**, script bloqué (E121) | à jouer |
+| 3 Lettre | 1cf4490e : questions jamais reçues (E126) ; reprise e05973ab : point de reprise transmis, fichier non refait, rien à transmettre | 16/11 (0e397f84, f70f2d13) : formulaires ouverts, fin sur un brouillon (E117) ; à rejouer |
+| 4 Candidature page fictive 4321 | au propriétaire (son clic) | au propriétaire |
+| 5 Contact LinkedIn | à jouer avec lui (pilote son Chrome) | idem |
+| 6 Relance | cc2bff45 : réussie ; question `prose` ouverte et répondue ; e-mail en brouillon (`sent: false`), ce qui convient au propriétaire | à jouer |
+Essais réels à faire après l'intégration : rejouer avec Codex et avec Claude le prompt « Essai technique du manager, sans
+rapport avec une candidature : ne lance aucune étape du Skill, ne lis et n'écris aucun fichier, n'ouvre pas le navigateur.
+Pose-moi une seule question : « La lettre doit-elle être en français ou en anglais ? », avec ces deux choix. Attends ma
+réponse, puis réponds seulement « Langue retenue : » suivi de mon choix. » (attendu : une question s'ouvre avec les deux
+agents ; avant correctif, Codex rendait un JSON brut, f17c0c91) ; puis l'épreuve 2 avec Codex (attendu : un PDF) et
+l'épreuve 3 avec Codex (attendu : les questions arrivent). Sonde hors plateforme : `.manager/outils/sonde-formulaire.mjs`.
+
+**Décisions du propriétaire du 18/11** : ménage des passations ; une seule version, poussée et devenue `main` ; correctif
+de la reprise intégré ; des faits et des essais avant toute correction ; mêmes autorisations pour tous les agents, rien
+de codé en dur pour un agent ; ne rien ajouter qui restreigne l'agent ou l'empêche d'aller au bout (ce qui évite qu'un
+défaut se reproduise est admis) ; sous-agents Opus en parallèle pour aller vite ; continuer à éprouver l'agent ; le
+manager lance lui-même les épreuves sans envoi ; passation vers une nouvelle discussion (15:12).
+**À lui proposer ensuite, dans cet ordre** : E128 (la règle du pack sur les outils qui valent lecture d'une annonce) ;
+ranger parmi les « verdicts » les quatre scripts qui sortent en 1 sur un simple constat (`clean-markers`,
+`check-table-freshness`, `audit-portals --strict`, `tracker sync --check`) ; garder ou non le nom « AskUserQuestion » dans
+la phrase commune ; garder le message d'une question dont seules les options sont hors bornes ; E117 (fin sur un
+brouillon) ; E119 (échec au démarrage) ; E118 (Bilan inexact).
+
+**En service à 15:14** : API 4314, page fictive 4321 et front 5177, lancés dans trois onglets Terminal de la discussion
+précédente (vérifier par `lsof` qu'ils écoutent encore ; sinon les relancer, section 4) ; relais Playwriter 19988 actif ;
+aucune mission en cours (30 missions en base). **Guetteur** : celui de la discussion précédente est arrêté ; en relancer
+un (Sonnet, lecture seule, script de fond, rapport `reports/guet-JJ-MM.md`) dès la reprise, règle du 16/11.
+**Limite d'usage** : 60 % de la fenêtre de 5 h à 15:09 (remise à zéro vers 17:00) ; ne plus lancer de chantier au-delà
+de 70 %, tout arrêter à 85 % (règle du 05/11). Les agents du propriétaire qui sont des missions Claude consomment la
+même limite ; les missions Codex non.
+
 ## 1. Ce qu'est Relay
 - **Relay** (ce dépôt) est une plateforme locale qui fait travailler des **agents CLI** (programmes d'IA en ligne de
   commande : Claude Code, Codex, Gemini, OpenCode) sur une mission écrite par le propriétaire (le « prompt »).
@@ -217,7 +268,9 @@ routage d'intention · E116 reprise qui perdait les réponses : corrigé le 18/1
 incomplet ou inexact · E119 échec au démarrage sans nouvel essai · E120 `career_read` d'un dossier refusé · E121
 `cv-templates` bloqué mais dit réussi · E122 `sweep` en échec sans texte · E123 échec affiché deux fois · E124
 fichiers attribués par date · E125 question laissée sans réponse · E126 avec Codex les questions n'arrivent pas au propriétaire (consigne du
-pack sans format du champ `question`) · E127 champ `question` mal formé : réponse refusée, JSON brut affiché. Hors numéros : A7, A11 (audit du 12/11) ;
+pack sans format du champ `question`) · E127 champ `question` mal formé : réponse refusée, JSON brut affiché · E128 mission en échec « notée sans
+lecture » alors que le texte vient d'un script du Skill · E129 écritures TSV refusées, message peu clair. E120, E121,
+E126, E127 : correctifs prêts, non intégrés (section 0). Hors numéros : A7, A11 (audit du 12/11) ;
 « Se connecter » sans carte ; « Easy Apply » encore `candidate` ; messages en cours de mission non persistés.
 
 ## 9. Méthode et leçons
@@ -230,7 +283,7 @@ pack sans format du champ `question`) · E127 champ `question` mal formé : rép
   (constitution, règle du pack, Skill, prompt système, registre de décisions), ligne vérifiée par trois tests au plus
   bas niveau (par le même chemin que l'agent), rejeu ; on ne corrige jamais une sortie ; trois cycles sans progrès =
   compartiment trop gros.
-- **Série en cours (17/11)** : six épreuves, une mission à la fois, guetteur en place : 1 évaluation, 2 CV, 3 lettre
+- **Série en cours (17 et 18/11, état détaillé en section 0)** : six épreuves, une mission à la fois, guetteur en place : 1 évaluation, 2 CV, 3 lettre
   avec message en cours de mission, 4 candidature sur la page FICTIVE 4321, 5 contact, 6 relance. Épreuve 1 jouée avec
   Codex (dcfad0f2, 17/11). Épreuves 2 à 6 à jouer, puis toutes à rejouer avec Claude.
 - Leçons : une reprise n'est pas une suite (pour corriger une mission en cours : « Envoyer à l'agent » ; mission finie :
@@ -245,12 +298,13 @@ pack sans format du champ `question`) · E127 champ `question` mal formé : rép
 | Fichier | Sert à |
 |---|---|
 | `.manager/HANDOFF.md` | ce fichier : seule lecture d'entrée |
-| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E127 avec certitude ; collecteur des échecs en base |
+| `.manager/reports/registre-erreurs.md` + `.manager/registre-erreurs.py` | défauts E1-E129 avec certitude ; collecteur des échecs en base |
 | `.manager/CARTE.md` | où vit quoi dans Relay et ce qu'on prend des dépôts de référence (04/11) |
 | `.manager/reuse-plan.md`, `PLAN-reuse.md`, `reuse-map.md` | plan de réutilisation des dépôts de référence validé le 27/10 |
 | `.manager/PLAN-04-11.md` | plan des chantiers C0-C15 (C9-C15 non retrouvés comme faits) |
 | `.manager/MISSION.md`, `api-usage.md`, `BACKLOG.md` | cahier des charges, journal des coûts (cités par `CLAUDE.md`/`AGENTS.md`), demandes de fond |
 | `.manager/outils/` | lanceur d'API, guetteur, suivi, démos, page fictive (appelés par des tests et ce fichier) |
+| `.manager/briefs/questions-18-11.md`, `scripts-18-11.md` | briefs des deux correctifs prêts, à retirer une fois intégrés |
 | `.manager/reports/questions-agents-18-11.md` | faits et essais réels du 18/11 sur la façon dont Claude et Codex posent une question (E126, E127) |
 | `.manager/reports/reprise-16-11.md`, `review-reprise-16-11.md` | rapports du correctif de la reprise : diagnostic, limites, étude du rechargement exact de session (décision 3) |
 | `.manager/reports/carte-envoi-etude-01.md` | étude R1/R2/R3 dont dépend la décision 14 |

@@ -1,2 +1,0 @@
-Preparing worktree (detached HEAD 1413b34)
-fatal: could not create directory of '.git/worktrees/audit-seek-01.rHjtgS': Operation not permitted

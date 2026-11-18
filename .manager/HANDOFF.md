@@ -69,7 +69,7 @@ Contradictions relevées : `AGENTS.md` dit encore `git add -A` aux codeurs (règ
 ## 3. Où vit le code (relevé du 18/11 à 12:05 par `git worktree list`, `git branch -vv`)
 | Dossier | Branche | Tête | Contenu | Poussé ? |
 |---|---|---|---|---|
-| `~/Downloads/agregat-back-essai-13-11` | `contacts-13-11` | `ae1164a` + 2 commits `[menage-18-11]` | **le code le plus récent** ; 77 commits au-dessus de `cto-11-11` | non |
+| `~/Downloads/agregat-back-essai-13-11` | `contacts-13-11` | `git log -1` (commits `[menage-18-11]` du 18/11 par-dessus `ae1164a` ; aucun code changé) | **le code le plus récent** ; 77 commits de code et de rapports au-dessus de `cto-11-11` | non |
 | `~/Downloads/agregat-back-reprise` | `reprise-16-11` | `4bbb0f4` | correctif de la reprise (E116), relu et contrôlé, **non intégré** ; 6 commits sur `832aa59` | non |
 | `~/Downloads/agregat-back-cto` | `cto-11-11` | `d88d490` | code des 11-13/11 (API 4313 du propriétaire) | oui le 13/11 ; `origin` à `671406b`, 2 commits de retard (références non rafraîchies) |
 | `~/Downloads/agregat-back-audit` | `audit-nuit-10-11` | `ea6fa14` | audit du 10/11 (161 commits sur `nuit-06-11`) | non |
@@ -168,7 +168,8 @@ copie durable de l'espace d'essai ; 16/11 guetteur permanent, « Oui, corrige »
    arbres de sprint ; trier le dossier interdit et ses changements non commités.
 10. Confirmer deux choix du manager : carte gardée sur les menus « Envoyer » (13/11) ; phrases « écris un e-mail »
     retirées de l'intention `email` (14/11).
-11. E54 (plusieurs intentions par mission ; brief prêt, diagnostic dans le journal du 13/11), E102 seconde cause
+11. E54 (plusieurs intentions par mission ; brief prêt, diagnostic dans le journal du 13/11, à relire par
+    `git show avant-menage-18-11:.manager/reports/contacts-13-11.md`), E102 seconde cause
     (clic compté comme « champs préparés »), E103 et avertissement d'E105 (Bilan).
 12. Écart avec E39 : rôle « Confirmer une personne » par le navigateur alors que le Skill dit « via WebSearch ».
 13. Ajouts au pack : intentions `interview-prep`, `agent-inbox`, étapes facultatives de `apply`.
@@ -234,10 +235,20 @@ fichiers attribués par date · E125 question laissée sans réponse. Hors numé
 | `.manager/CARTE.md` | où vit quoi dans Relay et ce qu'on prend des dépôts de référence (04/11) |
 | `.manager/reuse-plan.md`, `PLAN-reuse.md`, `reuse-map.md` | plan de réutilisation des dépôts de référence validé le 27/10 |
 | `.manager/PLAN-04-11.md` | plan des chantiers C0-C15 (C9-C15 non retrouvés comme faits) |
-| `.manager/MISSION.md`, `PLAN.md`, `api-usage.md`, `BACKLOG.md` | cahier des charges, plan initial et journal des coûts (cités par `CLAUDE.md`/`AGENTS.md`) ; demandes de fond |
+| `.manager/MISSION.md`, `api-usage.md`, `BACKLOG.md` | cahier des charges, journal des coûts (cités par `CLAUDE.md`/`AGENTS.md`), demandes de fond |
 | `.manager/outils/` | lanceur d'API, guetteur, suivi, démos, page fictive (appelés par des tests et ce fichier) |
+| `.manager/briefs/reprise-16-11.md` | brief du correctif de la reprise, pas encore intégré |
 | `.manager/reports/carte-envoi-etude-01.md` | étude R1/R2/R3 dont dépend la décision 14 |
-| rapports cités par `README.md`, `docs/` ou des tests | preuves anciennes référencées (voir la proposition de ménage) |
+| `.manager/reports/nuit-12-11.md` | propositions d'architecture du 12/11 dont dépend la décision 19 |
+| `.manager/reports/menage-18-11.md` | ce qui a été supprimé le 18/11, pourquoi, et comment le relire |
+| `.manager/reports/docs-01.md`, `playwriter-01.md`, `owner-mode-01.md`, `sprint-01.md`, `review-arch-01.md`, `astra-01.md`, `audit-10-11/correctifs-en.md`, `evidence/docs-01/`, `playwriter-01-evidence/`, `sprint-09-evidence/` | gardés seulement parce que `README.md`, `docs/` ou un test les citent |
 | `.manager/reports/guet-JJ-MM.md` du jour | rapport du guetteur en cours |
-Ce qui a été supprimé reste lisible par Git : `git show ae1164a:.manager/reports/<fichier>` (branche locale, non
-poussée : à garder tant que la branche existe).
+
+**Ménage du 18/11** : 979 fichiers retirés de `.manager/` (passation de 864 lignes, journaux de session, 126
+rapports de sprint et de relecture, 100 briefs, les dossiers de preuves, l'ancien plan de nuit et les lanceurs Codex).
+Tout reste lisible par le repère Git local `avant-menage-18-11`, par exemple
+`git show avant-menage-18-11:.manager/reports/passation.md`. La branche n'est pas poussée : ce repère et l'historique
+local sont la seule copie. Les renvois du registre vers un rapport supprimé se lisent de la même façon.
+
+**Tenue de ce fichier** : il se met à jour sur place (état, décisions, défauts) ; on n'empile plus de sections datées.
+Le journal d'une session va dans un rapport court `reports/<id>.md`, supprimé une fois son essentiel reporté ici.

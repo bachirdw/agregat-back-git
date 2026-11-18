@@ -4,7 +4,7 @@ Tu travailles sous la supervision d'un manager (Claude). Il relit chaque commit,
 tes rapports. Il préfère une erreur avouée à un succès inventé.
 
 ## Contexte
-- Mission complète : `.manager/MISSION.md`. Plan de nuit : `.manager/PLAN.md`. Ton brief du sprint en cours
+- Mission complète : `.manager/MISSION.md`. Plan : `.manager/PLAN-04-11.md`. État courant : `.manager/HANDOFF.md`. Ton brief du sprint en cours
   est dans `.manager/briefs/`. Les rapports des sprints précédents sont dans `.manager/reports/`.
 - Dépôts open source clonés (complets, lecture et expérimentation libres) : `/Users/diaw/Downloads/agent-repos-agregat/`.
   Tu peux y cloner d'autres dépôts utiles (`git clone --depth 200`). Ne modifie pas leur historique.

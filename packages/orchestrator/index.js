@@ -27,7 +27,7 @@ import {
 import { ROOT, getDag, getPack, packs, proposeDag, verifyPack } from './packs.js';
 import { allowedPermission } from '../policy-engine/index.js';
 import { terminal } from '../storage/index.js';
-import { executionResult, parseAgentResult, proseAnswer } from './result.js';
+import { executionResult, parseAgentResult, proseAnswer, unreadQuestionLine } from './result.js';
 import {
   browserObservationFailure,
   isBrowserToolName,
@@ -1747,9 +1747,11 @@ export class Orchestrator {
           unreadQuestion = null;
           if (question && options.length) question = { ...question, options };
           if (!question) unaskedQuestions++;
+          // review-questions-18-11 : past MAX_QUESTIONS the question is not asked (closed below).
+          const asked = Boolean(question) && questionCount.asked < MAX_QUESTIONS;
           this.store.event(run.id, 'question_unreadable', {
-            asked: Boolean(question),
-            options: question ? options.length : 0,
+            asked,
+            options: asked ? options.length : 0,
           });
         }
         if (!question) {
@@ -2019,8 +2021,7 @@ export class Orchestrator {
       ).length;
       if (asked) value.summary += `\nQuestions : ${asked} posée(s), ${answered} répondue(s).`;
       // questions-18-11 (E127) : a question joined by the agent that the platform could not read.
-      if (unaskedQuestions)
-        value.summary += `\nQuestion de l’agent non posée : l’agent a joint une question que la plateforme n’a pas pu lire${unaskedQuestions > 1 ? ` (${unaskedQuestions} fois)` : ''} ; elle n’a pas été posée au propriétaire.`;
+      if (unaskedQuestions) value.summary += `\n${unreadQuestionLine(unaskedQuestions)}`;
       // orienter-14-11 : the owner's messages, one platform line each (no text).
       for (const line of formatOwnerMessageLines(control.ownerMessages.list))
         value.summary += '\n' + line;

@@ -6,7 +6,7 @@ import { connectMcp } from '../mcp-gateway/client.js';
 import { WorkflowEngine, validateWorkflow } from '../workflow-engine/index.js';
 import { ROOT, verifyPack } from './packs.js';
 import { readToolCall } from './tool-call.js';
-import { executionResult, parseAgentResult } from './result.js';
+import { executionResult, parseAgentResult, unreadQuestionLine } from './result.js';
 import {
   assessBrowserClaims,
   browserObservationFailure,
@@ -322,6 +322,16 @@ export async function executeWorkflow(orch, run, plan, control) {
         }
         orch.meter(run.id, definition.simulated ? 'fixture_turn' : 'byoa_model_turn', 1);
         const result = executionResult(parsed.value, definition);
+        // review-questions-18-11 : a step asks only by form ; a `question` field it could not read
+        // is not asked, and is said (event, platform line), never dropped in silence.
+        if (parsed.unreadQuestion) {
+          orch.store.event(run.id, 'question_unreadable', {
+            stepId: step.id,
+            asked: false,
+            options: 0,
+          });
+          result.summary = [result.summary.trim(), unreadQuestionLine()].filter(Boolean).join('\n');
+        }
         let unprovenWarning = null;
         if (browserObserved || plan.browserWorkflow) {
           // Same rule as the agent mode (audit 10/11, constat 3) : an unproven navigation no longer

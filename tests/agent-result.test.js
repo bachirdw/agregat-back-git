@@ -172,8 +172,14 @@ test('audit 10/11 FICTIF : un objet question seul est une réponse au contrat', 
   assert.equal(merged.value.summary, 'Formulaire FICTIF rempli.');
   assert.deepEqual(merged.value.evidence, ['étape 1']);
   assert.equal(merged.value.question.message, 'J’envoie ?');
+  // review-questions-18-11 : l'objet question seul mais illisible n'est plus refusé ; il est retiré
+  // et signalé (`unreadQuestion`), comme un champ question illisible dans la réponse au contrat.
+  const unread = parseAgentResult('{"question":{"message":""}}');
+  assert.equal(unread.ok, true, JSON.stringify(unread));
+  assert.equal(unread.value.summary, '');
+  assert.equal(unread.value.question, undefined);
+  assert.deepEqual(unread.unreadQuestion, { options: [] });
   // Un objet sans question ni contrat reste hors contrat.
-  assert.equal(parseAgentResult('{"question":{"message":""}}').ok, false);
   assert.equal(parseAgentResult('{"foo":1}').ok, false);
 });
 

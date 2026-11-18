@@ -39,6 +39,9 @@ const shortTexts = (value) => {
   const texts = value.map((item) => (typeof item === 'string' ? item.trim() : ''));
   return texts.every((item) => item && item.length <= MAX_OPTION_LENGTH) ? texts : null;
 };
+// The platform line of the Bilan for such a question not asked (mission, or workflow step).
+export const unreadQuestionLine = (times = 1) =>
+  `Question de l’agent non posée : l’agent a joint une question que la plateforme n’a pas pu lire${times > 1 ? ` (${times} fois)` : ''} ; elle n’a pas été posée au propriétaire.`;
 export function unreadQuestionOptions(value) {
   const direct = shortTexts(value);
   if (direct) return direct;
@@ -124,7 +127,12 @@ function questionOnly(json) {
     // Relecture du 11/11 (constat 2) : a string is a question only when the object holds nothing
     // else ; `{"question": "…", "answer": "5"}` quoted from a form is not the agent asking.
     (typeof json.question !== 'string' || Object.keys(json).length === 1) &&
-    questionField.safeParse(json.question).success
+    (questionField.safeParse(json.question).success ||
+      // review-questions-18-11 : the lone object the common rule shows, but not readable
+      // (`{"question":{"choices":[…]}}`) : still the agent asking ; taken out below (`unreadQuestion`).
+      (Object.keys(json).length === 1 &&
+        typeof json.question === 'object' &&
+        json.question !== null))
   );
 }
 // Every `{` of the text (the last MAX_STARTS) with the object it opens, parsed when it is JSON.

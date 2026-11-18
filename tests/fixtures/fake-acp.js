@@ -7,7 +7,8 @@
 // proseQuestion: the first turn ends with a structured `question` in its JSON answer (no form); the
 // owner's answer turn ({"platform":{"turnKind":"answer"}}) is quoted back ({message?, options?,
 // always?: ask again on every turn, bare?: the lone {"question"} object after prose, reply?: the
-// asking turn's whole JSON answer as given}). callsFile: ACP methods received so far, written at each prompt.
+// asking turn's whole JSON answer as given, replies?: the answers of the successive turns, apart?:
+// the contract answer then its `question` as a lone object}). callsFile: ACP methods received so far, written at each prompt.
 // composeTool: a call the agent composes for minutes before handing it over (stall-01, E49):
 // {path, title?, goFile?, text?, permission?: false, mcp?: true, stall?: true, doneFile?}; see the prompt
 // handler. doneFile: written once the hand-over is complete (decision received, MCP call answered).
@@ -53,6 +54,7 @@ const never = () => new Promise(() => {});
 const steerings = [];
 const steered = [];
 const prompts = [];
+let proseTurns = 0;
 const guard = async (method) => {
   calls.push(method);
   if (cfg.crashOn === method) process.exit(3);
@@ -463,8 +465,11 @@ const app = agent({ name: 'fake-acp' })
       const answering = request?.platform?.turnKind === 'answer';
       // questions-18-11 : reply, the asking turn's JSON answer exactly as given (a `question` field
       // of any shape, or none) ; the answer turn is quoted back as usual.
-      const reply =
-        answering && !cfg.proseQuestion.always
+      // review-questions-18-11 : replies, the JSON answers of the successive turns (then as above).
+      const turn = proseTurns++;
+      const reply = cfg.proseQuestion.replies?.[turn]
+        ? cfg.proseQuestion.replies[turn]
+        : answering && !cfg.proseQuestion.always
           ? {
               simulated: false,
               summary: `Réponse reçue : ${request.answer?.reponse ?? ''}`,
@@ -487,10 +492,13 @@ const app = agent({ name: 'fake-acp' })
           // describe, after a sentence of prose (audit du 10/11, constat 2).
           content: {
             type: 'text',
+            // apart (review-questions-18-11) : the contract answer, then the lone {"question":…}.
             text:
               cfg.proseQuestion.bare && reply.question
                 ? `Il me manque une précision FICTIVE.\n${JSON.stringify({ question: reply.question })}`
-                : JSON.stringify(reply),
+                : cfg.proseQuestion.apart && 'question' in reply
+                  ? `${JSON.stringify({ ...reply, question: undefined })}\n${JSON.stringify({ question: reply.question })}`
+                  : JSON.stringify(reply),
           },
         },
       });

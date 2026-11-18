@@ -9,6 +9,8 @@ commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non r
 **Passation du manager** (18:48) : le manager de l'après-midi du 18/11 passe la main à une nouvelle discussion, sur
 l'autorisation du propriétaire (18:45 : « quand tu te sens trop lourd, délègue ou fais une passation toi-même »). L'ancienne
 discussion ne reste ouverte que pour recevoir la fin du sprint `chef-01`, qu'elle a lancé, et prévenir la nouvelle.
+**Reprise** (18:53) : la nouvelle discussion du manager est en place ; état vérifié (4314, 4321, 5177, 19988 en écoute),
+guetteur relancé à 18:51 ; 420c8fe8 n'est plus en cours à 18:52 (relevé à faire) ; limite d'usage 77 % à 18:53.
 
 **À faire, dans l'ordre**
 1. Vérifier l'état réel (section 4 : `date`, `git status`, `lsof` 4314/4321/5177/19988, `GET /api/runs`, limite d'usage) et
@@ -19,10 +21,16 @@ discussion ne reste ouverte que pour recevoir la fin du sprint `chef-01`, qu'ell
    pages parcourues, offres distinctes vues, lignes ajoutées (avant : `data/pipeline.md` 117 lignes, 75 entrées en
    attente), marques de coupe, cause d'arrêt. C'est le point de comparaison « avant ».
 3. Contrôler le sprint `chef-01` à son retour (voir « Mode workflow »).
-4. **Intégrer ensemble les quatre sprints prêts** (tableau plus bas), et `chef-01` avec eux s'il est propre : aucune
-   mission en cours, prévenir le propriétaire de l'arrêt, arrêter l'API 4314, un `cherry-pick` par sprint, **une seule
-   suite complète** (elle lance aussi les tests navigateur que les sprints n'ont pas pu lancer), relancer l'API, registre.
-   Si un test échoue : s'arrêter, ne rien pousser, dire lequel. Pas de suite complète pendant qu'un sprint teste.
+4. **Intégrer les quatre sprints prêts par étapes, du moins sensible au plus sensible** (consigne « aller doucement »,
+   section 2 ; ordre proposé au propriétaire à 18:53, sa réponse est attendue avant de commencer) : A `prompt-prime-18-11`
+   et `ecriture-18-11` (additifs) ; B `captures-18-11` (passerelle du navigateur) ; C `lecture-18-11` (`skill-router.js`).
+   À chaque étape : aucune mission en cours, prévenir le propriétaire de l'arrêt, arrêter l'API 4314, `cherry-pick`, suite
+   complète (elle lance aussi les tests navigateur que les sprints n'ont pas pu lancer), relancer l'API, **un essai réel
+   avant l'étape suivante**, registre. Si un test échoue : s'arrêter, ne rien pousser, dire lequel. Pas de suite complète
+   pendant qu'un sprint teste. Les fichiers des quatre sprints sont disjoints entre eux et avec `chef-01`, et rien d'autre
+   que `.manager/` n'a bougé sur `contacts-13-11` depuis leur base (vérifié à 18:51). **`chef-01` n'est pas intégré**
+   avant la contre-expertise de Codex et le mot du propriétaire ; à son retour, vérifier que ses changements dans
+   `orchestrator/index.js` et `apps/api/server.js` sont des branchements courts, inertes sans accord.
 5. Essais réels après l'intégration, Codex d'abord (il ne consomme pas la limite), puis Claude : la mission SEEK de
    l'étape 2 rejouée à l'identique (comparer), puis sans borne de pages ; épreuve 3 (lettre) jusqu'au PDF ; épreuve 1
    (évaluation) avec Claude pour E128.
@@ -161,6 +169,14 @@ Méthode
 - « Ne prends pas de décisions, dis-moi et je tranche » ; prévenir des grandes décisions ; dire toutes les erreurs.
 - **Expliquer simplement** (17/11) : le propriétaire a une petite base technique et débute en IA ; dire quoi,
   pourquoi, quel effet, quelle brique.
+- **Aller doucement sur ce qui marche** (18/11, reçue par l'ancienne discussion du manager et transmise à 18:52 ; ses
+  mots : « Par contre, code ne modifie pas ce qui vient d'être implémenté et qui marche déjà. On va éviter de trop
+  modifier le code pour éviter les régressions au maximum. On va plutôt aller doucement sur ce qui est sensible et qui
+  marche déjà, comme par exemple notre moteur même, l'orchestrateur, le fichier. Et on va juste itérer sur ce qui est
+  fait et qui marche déjà. »). Interprétation du manager, à confirmer par lui : intégrer par petites étapes, du moins
+  sensible au plus sensible, avec une suite complète et un essai réel entre deux ; dans le code sensible qui marche
+  (orchestrateur, passerelle du navigateur, API), préférer des fichiers nouveaux, des changements additifs, des
+  branchements courts et inertes par défaut ; demander aux relecteurs l'angle « rien d'existant ne change ».
 - **Même résultat quel que soit l'agent** (17/11) : chaque épreuve se joue avec Claude et avec Codex ; un écart entre
   agents est un défaut de la plateforme. **Mêmes autorisations et mêmes permissions pour tous les agents** (18/11 :
   Claude, Codex, puis Gemini et OpenCode) ; aucune particularité d'un agent codée en dur, sauf si elle sert à le faire

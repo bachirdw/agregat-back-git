@@ -7,7 +7,24 @@ Deux voies, une seule file et une seule route de réponse (`pendingQuestion.kind
 - `form` : question posée par l'elicitation ACP (formulaire, AskUserQuestion côté Claude).
 - `prose` : agent sans formulaire. Il termine sa réponse JSON par un champ `question` :
   `{"simulated":false,"summary":"","evidence":[],"question":{"message":"…","options":["…"]}}`
-  (`message` 1 à 4 000 caractères ; `options` facultatives, 8 au plus, 1 à 200 caractères chacune ; `summary` peut alors être vide). Relay ouvre la question ; à la réponse acceptée, il envoie un nouveau tour **dans la même session** (pas de `session/new` ni de `session/load`) : `{"answer":{"reponse":"…"},"platform":{"turnKind":"answer"},"instructions":"Réponse du propriétaire à ta question ; poursuis la mission dans cette session."}`. Une réponse en prose libre, sans ce champ, reste traitée comme une réponse finale : aucune détection de question dans le texte.
+  (`message` 1 à 4 000 caractères ; `options` facultatives, 8 au plus, 1 à 200 caractères chacune ; `summary` peut alors être vide). Une question en simple chaîne (`"question":"…"`) vaut `{"message":"…"}`. Relay ouvre la question ; à la réponse acceptée, il envoie un nouveau tour **dans la même session** (pas de `session/new` ni de `session/load`) : `{"answer":{"reponse":"…"},"platform":{"turnKind":"answer"},"instructions":"Réponse du propriétaire à ta question ; poursuis la mission dans cette session."}`. Sans ce champ, une réponse dont le dernier paragraphe demande une décision au propriétaire (`decisionRequest`, `packages/orchestrator/questions.js` : « veux-tu… », « dis-moi… », point d'interrogation final, formules de politesse écartées) est aussi une question `prose`, sans choix ; toute autre réponse est finale.
+
+## Consigne commune envoyée aux agents
+
+Une seule phrase, la même pour tous les agents (Claude, Codex, Gemini, OpenCode) et tous les packs, définie dans `packages/orchestrator/owner-question-rule.js` (`OWNER_QUESTION_RULE`) :
+
+> Pour poser une question au propriétaire : utilise le formulaire de question de ton agent (AskUserQuestion / elicitation ACP) s’il t’en offre un ; sinon termine ta réponse JSON par le champ question au format exact {"question":{"message":"…","options":["…","…"]}} (message obligatoire, options facultatives). Dans les deux cas, la mission attend la réponse du propriétaire dans la même session. N’écris jamais que tu attends une réponse sans avoir fait l’un des deux.
+
+Elle est citée par la consigne du pack career-ops (`CAREER_INSTRUCTIONS`, `packages/career-ops/integration.js`) et par celle des missions navigateur (`packages/orchestrator/index.js`) ; `withDoubtRule` (`packages/orchestrator/doubt-rule.js`) l'ajoute à toute autre consigne de mission qui ne la cite pas (la règle de doute y renvoie). Chaque prompt de mission la porte une fois. Les étapes agent d'un workflow DAG ne la reçoivent pas (elles ne lisent que les questions de formulaire).
+
+## Question mal formée
+
+Un champ `question` présent qui ne se lit pas (objet sans `message`, `message` ou `options` hors des bornes, nombre, booléen, liste…) ne fait plus refuser la réponse de l'agent : il est retiré et le reste de la réponse (`simulated`, `summary`, `evidence`) est gardé. Le JSON brut de l'agent n'est jamais affiché comme réponse.
+
+- Si le dernier paragraphe de `summary` se lit comme une question (`decisionRequest`), la question `prose` est ouverte avec ce texte. Ses choix sont la première liste de courtes chaînes trouvée dans le champ (le champ lui-même s'il est une liste, sinon l'une de ses clés, quel que soit son nom : `choices`, `items`…), dans les bornes ci-dessus (1 à 8 chaînes de 1 à 200 caractères) ; sinon aucun choix. La suite est celle d'une question au bon format.
+- Sinon la réponse est gardée telle quelle, la mission se termine normalement, et le Bilan porte une ligne de la plateforme (rangée dans `platformNotes`) : « Question de l’agent non posée : l’agent a joint une question que la plateforme n’a pas pu lire ; elle n’a pas été posée au propriétaire. » (suivie de « (n fois) » si cela arrive à plusieurs tours de la mission).
+- Dans les deux cas, l'événement `question_unreadable` `{ "asked": true|false, "options": n }` le trace (aucun texte de l'agent).
+- `"question": null` ou une chaîne vide : rien à poser, rien à signaler.
 
 ## États
 

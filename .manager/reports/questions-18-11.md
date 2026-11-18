@@ -42,3 +42,7 @@ Heures lues à l'horloge (`date`) avant d'être écrites.
   réponse gardée, `unreadQuestion`), `tests/reponse-prose.test.js` (`question: 3`), et `tests/fix-resume.test.js`
   (fragments de l'ancienne consigne navigateur remplacés par ceux de la règle commune).
   Nouveau `tests/question-mal-formee.test.js` (14 tests, pris par `scripts/run-tests.js` en phase sans navigateur).
+- 14:45 — étape 3, `docs/api-questions.md` : sections « Consigne commune envoyée aux agents » (la phrase, où elle
+  est définie, qui la cite) et « Question mal formée » (comportement, ligne du Bilan, événement). Phrase périmée
+  corrigée au passage : « aucune détection de question dans le texte » était faux depuis E52 (`decisionRequest`) ;
+  la simple chaîne du 11/11 est maintenant dite.

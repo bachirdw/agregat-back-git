@@ -6,7 +6,7 @@
 //   RELAY_APPROVAL_TOKEN   the mission's own token (the same as its capability gateway's)
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { MISSION_SERVER, MISSION_TOOLS } from '../orchestrator/delegation-rule.js';
+import { MISSION_SERVER, MISSION_TOOLS, waitSeconds } from '../orchestrator/delegation-rule.js';
 
 const server = new McpServer({ name: MISSION_SERVER, version: '0.1.0' });
 const reply = (value, isError = false) => ({
@@ -25,7 +25,7 @@ for (const [name, tool] of Object.entries(MISSION_TOOLS))
       const token = process.env.RELAY_APPROVAL_TOKEN;
       if (!url || !token)
         return reply({ erreur: 'indisponible', message: 'Pont vers la plateforme absent' }, true);
-      const waitMs = name === 'mission_attendre' ? (args.delaiSecondes ?? 50) * 1000 : 0;
+      const waitMs = name === 'mission_attendre' ? waitSeconds(args.delaiSecondes) * 1000 : 0;
       const signal = AbortSignal.any([
         AbortSignal.timeout(waitMs + MARGIN_MS),
         ...(extra?.signal ? [extra.signal] : []),

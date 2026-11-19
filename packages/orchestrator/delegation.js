@@ -811,6 +811,16 @@ export class Delegation {
     family.resuming ??= new Map();
     family.pendingCounted ??= 0;
     const taskId = previous ? taskOf(previous) : null;
+    // multi-agent-v3-02 (F) : one attempt of a task at a time (running, queued, waiting for the
+    // owner or a prerequisite, or being created) : the Bilan's last attempt is the last ended.
+    if (taskId) {
+      const alive = children.find((c) => !terminal.has(c.state) && taskOf(c) === taskId);
+      if (alive || family.resuming.get(taskId))
+        throw fail(
+          'reprise_en_cours',
+          `Une tentative de cette tâche est encore en cours${alive ? ` (id ${alive.id})` : ''} : attends sa fin.`,
+        );
+    }
     const reprise = previous
       ? 1 +
         children.filter((c) => c.famille?.reprend && taskOf(c) === taskId).length +

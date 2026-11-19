@@ -384,3 +384,45 @@ test('E. accord des sous-agents pas encore donné : enveloppe atteinte sans pré
   await p.app.engine.cancel(mother.id, 'Fin du test FICTIF');
   await p.ended(mother.id, 15000);
 });
+
+// multi-agent-v3-02 (F) : une seule tentative d'une tâche à la fois.
+test('F. reprendre une tâche dont une reprise tourne encore : reprise_en_cours avec son id ; après sa fin, la reprise passe', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE ECHEC', titre: 'A' }, save: 'a' },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+      {
+        call: 'mission_lancer',
+        args: { consigne: 'Reprise FICTIVE ATTENDRE:r ECHEC', reprend: '$a' },
+        save: 'a2',
+      },
+      { call: 'mission_lancer', args: { consigne: 'Reprise FICTIVE bis', reprend: '$a' } },
+      { touch: join(p.hold, 'refused') },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+      { call: 'mission_lancer', args: { consigne: 'Reprise FICTIVE ter', reprend: '$a2' } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Une tâche FICTIVE reprise deux fois.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED(),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'refused')), 15000, 'seconde reprise');
+  const [, , resumed, twice] = p.results();
+  assert.equal(resumed.isError, false, JSON.stringify(resumed.result));
+  assert.equal(twice.isError, true);
+  assert.equal(twice.result.erreur, 'reprise_en_cours');
+  assert.equal(
+    twice.result.message,
+    `Une tentative de cette tâche est encore en cours (id ${resumed.result.id}) : attends sa fin.`,
+  );
+  p.touch('r');
+  await p.ended(mother.id, 30000);
+  const third = p.results()[6];
+  assert.equal(third.isError, false, JSON.stringify(third.result));
+  assert.equal(p.app.store.children(mother.id).length, 3);
+});

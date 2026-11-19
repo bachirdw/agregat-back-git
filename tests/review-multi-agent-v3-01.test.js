@@ -97,7 +97,9 @@ const failedTask = async (f, consigne = 'Tâche FICTIVE') => {
   return run.id;
 };
 
-test('constat 1 : quatre reprises simultanées d’une même tâche, deux seulement hors enveloppe', async (t) => {
+// multi-agent-v3-02 (F) : une seule tentative d'une tâche à la fois ; les reprises simultanées
+// d'une même tâche sont refusées (reprise_en_cours), sauf la première.
+test('constat 1 : quatre reprises simultanées d’une même tâche : une seule passe, les autres reprise_en_cours', async (t) => {
   const f = fakeEngine(t, { total: 1 });
   const task = await failedTask(f);
   const results = await Promise.allSettled(
@@ -110,31 +112,44 @@ test('constat 1 : quatre reprises simultanées d’une même tâche, deux seulem
   );
   const ok = results.filter((r) => r.status === 'fulfilled');
   const refused = results.filter((r) => r.status === 'rejected');
-  assert.deepEqual(ok.map((r) => f.rows.get(r.value.id).famille.reprise).sort(), [1, 2]);
+  assert.deepEqual(
+    ok.map((r) => f.rows.get(r.value.id).famille.reprise),
+    [1],
+  );
   assert.deepEqual(
     refused.map((r) => r.reason.erreur),
-    ['enveloppe_atteinte', 'enveloppe_atteinte'],
+    ['reprise_en_cours', 'reprise_en_cours', 'reprise_en_cours'],
   );
   const counter = f.delegation.counter(f.rows.get(f.mother.id));
-  assert.equal(counter.lancees, 3);
+  assert.equal(counter.lancees, 2);
   assert.equal(counter.dansEnveloppe, 1);
-  // Une fois les reprises en base, rien n'est compté deux fois : le rang suivant est 3.
   const family = f.delegation.families.get(f.mother.id);
   assert.equal(family.resuming?.size ?? 0, 0);
 });
 
-test('constat 1 : deux reprises simultanées passent, avec les rangs 1 et 2 comme deux reprises successives', async (t) => {
+test('constat 1 : reprises successives d’une même tâche : rangs 1, 2, puis la troisième compte dans l’enveloppe', async (t) => {
   const f = fakeEngine(t, { total: 1 });
   const task = await failedTask(f);
-  const results = await Promise.all(
-    [1, 2].map(() =>
-      f.delegation.launch(f.rows.get(f.mother.id), f.control, {
-        consigne: 'Reprise FICTIVE',
-        reprend: task,
-      }),
-    ),
+  const ranks = [];
+  let previous = task;
+  for (let n = 0; n < 2; n++) {
+    const run = await f.delegation.launch(f.rows.get(f.mother.id), f.control, {
+      consigne: 'Reprise FICTIVE',
+      reprend: previous,
+    });
+    ranks.push(f.rows.get(run.id).famille.reprise);
+    f.store.update(run.id, { state: 'failed' });
+    await tick();
+    previous = run.id;
+  }
+  assert.deepEqual(ranks, [1, 2]);
+  await assert.rejects(
+    f.delegation.launch(f.rows.get(f.mother.id), f.control, {
+      consigne: 'Reprise FICTIVE',
+      reprend: previous,
+    }),
+    (error) => error.erreur === 'enveloppe_atteinte',
   );
-  assert.deepEqual(results.map((r) => f.rows.get(r.id).famille.reprise).sort(), [1, 2]);
 });
 
 test('constat 2 : une sous-mission en création pendant l’échec de la mère ne démarre jamais', async (t) => {

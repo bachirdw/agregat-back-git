@@ -5,17 +5,17 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 19/11/2026, 11:45 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 19/11/2026, 14:45 ; ce bloc se remplace à chaque passation)
 **Deux versions vivent côte à côte** (décision du propriétaire du 19/11 : le mode multi-agent est un essai, il ne va pas sur
 la branche principale ; aucune fusion, aucun push) :
 | | Version de travail | Branche de test |
 |---|---|---|
 | Dossier, branche | `~/Downloads/agregat-back-essai-13-11`, `contacts-13-11` | `~/Downloads/agregat-back-delegation`, `delegation-v2-01` |
-| Contenu | **sans** le mode multi-agent (retiré le 19/11 par `447829c`, code identique à celui du 18/11 au soir) | mode multi-agent v3 et les correctifs du 19/11 (tête de code `fe76490`) |
-| Suite complète | verte le 19/11 08:32 → 08:46 : 1 428 unitaires (1 425 réussis, 0 échec), Chrome 253/253 | verte le 19/11 11:08 → 11:23 : 1 534 unitaires (1 531 réussis, 0 échec, 2 ignorés, 1 « à faire »), Chrome 265/265 |
-| API | 4314 (relancée 08:47, tâche de fond de la discussion du manager) | 4315 (relancée 11:23, lancée à la main avec quatre pages FICTIVES admises : 4321 à 4324) |
-Tout le détail, dans l'ordre : [`reports/nuit-18-11.md`](reports/nuit-18-11.md) (journal de la nuit et de la matinée, compte
-rendu à la fin). Défauts E139 à E145 : `reports/registre-erreurs.md`. Rien n'est poussé depuis `514c5c4`.
+| Contenu | **sans** le mode multi-agent (retiré le 19/11 par `447829c`, code identique à celui du 18/11 au soir) | mode multi-agent v3 et tous les correctifs du 19/11 (tête `c6c2e9f`) |
+| Suite complète | verte le 19/11 08:32 → 08:46 : 1 428 unitaires (1 425 réussis, 0 échec), Chrome 253/253 | verte le 19/11 14:17 → 14:32 : 1 552 unitaires (1 549 réussis, 0 échec, 2 ignorés, 1 « à faire »), Chrome 265/265 |
+| API | 4314 (relancée 08:47, tâche de fond de la discussion du manager) | 4315 (relancée 14:32, lancée à la main avec quatre pages FICTIVES admises : 4321 à 4324) |
+Tout le détail, dans l'ordre : [`reports/nuit-18-11.md`](reports/nuit-18-11.md) (journal de la nuit, de la matinée et de
+l'après-midi du 19/11). Défauts E139 à E151 : `reports/registre-erreurs.md`. Rien n'est poussé depuis `514c5c4`.
 
 **Ce que contient la branche de test** (rapports dans `.manager/reports/` de son arbre ; contrat : `docs/api-delegation.md`) :
 - `delegation-v2-01` (nuit) : outils `mission_lancer`, `mission_suivre`, `mission_attendre`, `mission_annuler`, accord par
@@ -26,38 +26,56 @@ rendu à la fin). Défauts E139 à E145 : `reports/registre-erreurs.md`. Rien n'
   **dossier de résultats** par sous-mission (`relay/missions/<mère>/<n>-<titre>/`) et réponse courte ; durée réelle.
 - `demarrage-01` : modèle donné à la session dès sa création (cause prouvée de E141 et E142, Claude). `natifs-01` : sous-agents
   internes des agents au Bilan. `faux-blocage-01` et `-02` : deux des trois cartes d'envoi ouvertes à tort pendant une
-  recherche. `review-multi-agent-v3-01` : cinq défauts importants trouvés par une relecture contradictoire, corrigés.
-  `dossier-resultats-01` (E145) : l'outil d'écriture du pack admet le dossier de résultats.
+  recherche. `review-multi-agent-v3-01` : cinq défauts importants corrigés. `dossier-resultats-01` (E145).
+- **`multi-agent-v3-02` (après-midi, rapport `multi-agent-v3-02.md`)**, douze corrections issues d'une relecture et des essais :
+  nouvelle **phrase du chef** (dit ce que le propriétaire attend quand le mode est allumé : plusieurs parties indépendantes de
+  plusieurs minutes → sous-missions en même temps ; demande simple, petite étape, étapes dépendantes → seul ; pas deux
+  sous-missions sur le même site) ; champ **`espace`** (chemin absolu du dossier de travail) dans les résultats des outils
+  (E146) ; résultat complet d'une sous-mission remis **une fois** au chef ; `mission_attendre` `toutes=true` rend la main sur
+  un échec ; refus d'élargir l'enveloppe retenu (`enveloppe_refusee`) ; pas deux reprises de la même tâche en même temps
+  (`reprise_en_cours`) ; Bilan d'une mère annulée ou en échec fidèle (E148) ; `.csv` dans le dossier de résultats ; modèle
+  donné à la création aussi dans le moteur de workflow ; `<input type=submit>` d'une zone de recherche.
 - État des lieux et besoin du propriétaire : `reports/etat-des-lieux-multi-agent-19-11.md`, `briefs/multi-agent-v3-01.md`.
 
-**Ce que les essais réels ont établi** (journal, tableaux) :
-- Le mode gagne sur des **parts longues et indépendantes, avec la méthode donnée par le chef et les résultats par fichiers** :
-  CV et lettre pour 4 offres en 15,0 min (8 PDF), pour 6 offres en 14,4 min (12 PDF, 5 fois plus vite sur la partie
-  parallèle) ; quatre formulaires FICTIFS en parallèle en 5,3 min, arrêt aux quatre cartes d'envoi, 0 envoi.
-- Il perd sur des parts courtes ou qui se gênent : dossier à trois fiches 13,8 min contre 6,0 seul ; grosse recherche d'offres
-  27 et 38 min contre 25 et 20 (avant correctifs : redécouverte par chaque sous-agent, résultats recopiés par les modèles, deux
-  onglets d'un même site deux fois plus lents, faux blocages).
-- Pour 200 à 300 offres, la limite est l'abonnement (quelques dizaines d'offres par fenêtre de 5 h avec sonnet, estimation).
+**Ce que les essais réels ont établi** (journal, tableaux ; consignes « neutres » = le prompt ne dit pas comment s'organiser) :
+- **Un agent « seul » se répartit déjà le travail avec ses propres sous-agents internes** : Claude (3 sous-agents internes
+  pour un dossier à trois fiches : 6,0 min), Codex (3 sous-agents internes pour CV et lettre de 3 offres : 8,7 min, 6 PDF).
+  Le Bilan les montre. Mode allumé, consigne neutre, ancienne phrase : Codex a fait pareil (8,4 min, aucune sous-mission Relay).
+- Mission courte, mode allumé : Claude et Codex travaillent seuls (0,5 et 0,7 min, 0 sous-mission).
+- Dossier sur Internet, Claude, mode allumé, consigne neutre : le chef lance de lui-même 3 sous-missions, 13,3 min contre
+  6,0 seul ; 4 min perdues à chercher les fichiers des sous-missions (E146, corrigé), le reste : lecture par le navigateur
+  au lieu d'un téléchargement direct, attente par tranches de 50 s.
+- Quatre formulaires FICTIFS, consigne neutre, Codex : 10,0 min seul ; 8,7 min mode allumé **sans déléguer** (ancienne
+  phrase, E147). **Avec la nouvelle phrase, le chef lance de lui-même 3 sous-missions** (formulaires, et aussi les trois
+  fiches du dossier) ; durée non mesurée : limite d'usage de Codex atteinte à 14:35 (retour annoncé 16:37).
+- Matin (prompts qui demandaient les sous-missions) : CV et lettre pour 6 offres en 14,4 min (12 PDF), quatre formulaires
+  fictifs en 5,3 min jusqu'aux 4 cartes d'envoi (0 envoi), deux agents différents dans une même mission.
+- **Ce que le mode apporte qu'un agent seul n'a pas** : plusieurs onglets de navigateur en même temps (formulaires, sites),
+  des agents différents dans une mission (deux abonnements), et le contrôle (enveloppe, reprise d'une seule partie, cartes
+  par sous-mission, arrêt de la famille, Bilan par partie). Pour un travail sur des fichiers, les sous-agents internes font
+  aussi vite.
+- Pour 200 à 300 offres, la limite est l'abonnement. Codex a atteint sa limite trois fois le 19/11, Claude est à 93 % à 14:37.
 - Les collectes répétées sur les sites d'emploi ont déclenché une vérification « humain » (E144) : collectes suspendues.
 
 **À décider par le propriétaire**
 1. Garder le mode multi-agent (derrière son interrupteur) et l'intégrer à la version de travail, ou le laisser en essai.
    Le front doit envoyer `multiAgent: true` quand l'interrupteur est allumé (non câblé).
 2. Reprendre sur la version de travail les correctifs qui valent **aussi pour un agent seul** : démarrage de Claude (E141,
-   E142) et faux blocages de recherche (E143). Ils ne sont aujourd'hui que sur la branche de test.
-3. Faux blocage « présence de la messagerie » (E143, cas 3) : non corrigé, aucune règle sûre ; mesurer en mode ombre ?
-4. Cadence des collectes sur les sites d'emploi (E144). Pousser ou non. E119 (nouvel essai du démarrage). E140 (Bilan).
-5. Points mineurs de la relecture (liste dans `reports/review-multi-agent-v3-01.md` de la branche de test).
+   E142, et le même correctif pour le moteur de workflow), faux blocages de recherche (E143). Ils ne sont que sur la branche de test.
+3. Carte d'accord et carte d'extension : elles mettent la mère en « attend ta réponse » et suspendent ses minuteries alors
+   que le chef continue de travailler (E151, non corrigé : touche la file des questions du moteur).
+4. Faux blocage « présence de la messagerie » (E143, cas 3) : non corrigé. Cadence des collectes (E144). E119, E140.
 
-**Prochaines étapes proposées** : rejouer une recherche d'offres réduite avec les correctifs (un site par sous-mission,
-méthode donnée, résultats par fichiers) pour mesurer le gain ; essai Gemini avec le propriétaire (clé retirée par
-`api-branche.sh`) ; modèle léger pour les spécialistes ; le mode workflow à étapes passe encore par l'ancien choix de modèle.
+**Prochaines étapes proposées** : mesurer avec Claude, puis avec Codex après 16:37, les formulaires fictifs et le dossier
+comparatif avec la nouvelle phrase (consignes `c4.txt` et `c2.txt` du bloc-notes de la discussion, reprises dans le journal) ;
+Claude seul sur 2 ou 3 offres (non joué, faute de marge) ; recherche d'offres réduite, un site par sous-mission ; Gemini.
 
 **Pour relancer l'API d'essai 4315** (depuis `agregat-back-delegation`) : la commande de `api-branche.sh` avec `PORT=4315` et
 `AGENT_PLATFORM_BROWSER_LOCAL_ORIGINS=http://127.0.0.1:4321,http://127.0.0.1:4322,http://127.0.0.1:4323,http://127.0.0.1:4324` ;
 pages FICTIVES : `node tests/support/apply-page.js <port>`. Une mission multi-agent : `POST /api/runs` avec
 `"multiAgent": true` et, pour l'accord donné d'avance, `"delegation": {"accepted": true, "via": "bouton", "total": 6, "parallel": 3}`.
-Arbres de travail du 19/11 (à ranger après décision) : `-delegation` (branche de test), `-indeed`, `-demarrage`, `-natifs`, `-revue`.
+Arbres de travail du 19/11 (à ranger après décision) : `-delegation` (branche de test), `-indeed`, `-demarrage`, `-natifs`,
+`-revue`, `-v3-02`.
 
 ## 0-bis. Bloc précédent (18/11, 21:03) : mandat de nuit, marche d'une intégration, épreuves et prompts
 **MANDAT DE NUIT du propriétaire (18/11, 21:30, il dort ; le manager code en autonomie jusqu'à 5 h le 19/11)**. Ses mots,

@@ -5,7 +5,21 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 19/11/2026, 14:45 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 19/11/2026, 22:25 ; ce bloc se remplace à chaque passation)
+**Question ouverte du propriétaire (19/11, fin de journée) : à quoi sert le mode multi-agent, puisque Codex et Claude lancent
+déjà seuls leurs sous-agents internes ?** Il veut une vraie plus-value, pas seulement « afficher et arrêter ». Réponse donnée
+par le manager, à partir des mesures : aucun gain de vitesse pour un travail sur des fichiers (CV, lettres, dossiers) ; trois
+apports seulement : (1) plusieurs onglets de navigateur en même temps (4 formulaires fictifs : 10,0 min pour Codex seul l'un
+après l'autre, 6,0 min pour Claude avec 4 sous-missions ; agents différents, gain modeste, loin du « divisé par 3 » attendu ;
+l'explication « les sous-agents internes partagent l'onglet de la mission » est une lecture, pas prouvée par un test) ;
+(2) Claude et Codex dans une même mission, donc deux abonnements (vu une fois) ; (3) reprise d'une seule partie en échec.
+**Recommandation en attente de sa décision** : ne pas le garder comme mode général ; soit le réduire à ces usages, soit
+l'abandonner en gardant les correctifs utiles à toutes les missions. **Essai décisif à faire en premier** : le même agent,
+8 formulaires FICTIFS, mode éteint puis mode allumé (consigne `c4` du journal, à étendre à 8 pages ; seules 4321 à 4324
+tournent). Aucun code nouveau sur le mode avant sa décision.
+**Les deux API sont arrêtées** (fin de la discussion du manager) : 4314 et 4315 à relancer (commande plus bas) ; pages
+FICTIVES 4321 à 4324 et relais 19988 en écoute à 22:24.
+
 **Deux versions vivent côte à côte** (décision du propriétaire du 19/11 : le mode multi-agent est un essai, il ne va pas sur
 la branche principale ; aucune fusion, aucun push) :
 | | Version de travail | Branche de test |
@@ -13,7 +27,7 @@ la branche principale ; aucune fusion, aucun push) :
 | Dossier, branche | `~/Downloads/agregat-back-essai-13-11`, `contacts-13-11` | `~/Downloads/agregat-back-delegation`, `delegation-v2-01` |
 | Contenu | **sans** le mode multi-agent (retiré le 19/11 par `447829c`, code identique à celui du 18/11 au soir) | mode multi-agent v3 et tous les correctifs du 19/11 (tête `c6c2e9f`) |
 | Suite complète | verte le 19/11 08:32 → 08:46 : 1 428 unitaires (1 425 réussis, 0 échec), Chrome 253/253 | verte le 19/11 14:17 → 14:32 : 1 552 unitaires (1 549 réussis, 0 échec, 2 ignorés, 1 « à faire »), Chrome 265/265 |
-| API | 4314 (relancée 08:47, tâche de fond de la discussion du manager) | 4315 (relancée 14:32, lancée à la main avec quatre pages FICTIVES admises : 4321 à 4324) |
+| API | 4314, **arrêtée** (à relancer : `.manager/outils/api-branche.sh 4314 ~/Downloads/career-ops-essai`) | 4315, **arrêtée** (à relancer à la main, voir plus bas) |
 Tout le détail, dans l'ordre : [`reports/nuit-18-11.md`](reports/nuit-18-11.md) (journal de la nuit, de la matinée et de
 l'après-midi du 19/11). Défauts E139 à E152 : `reports/registre-erreurs.md`. Rien n'est poussé depuis `514c5c4`.
 

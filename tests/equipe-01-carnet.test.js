@@ -142,7 +142,8 @@ test('E3. le chef note, une sous-mission lancée ensuite reçoit la note ; outil
   await p.ended(mother.id, 30000);
   const row = p.app.store.get(mother.id);
   assert.equal(row.state, 'completed', row.error);
-  // The chief's tools : the four mission tools and the two of the notebook.
+  // The chief's tools : the mission tools (equipe-01 E2 : mission_continuer included) and the two
+  // of the notebook.
   assert.deepEqual(
     p.tools().map((tool) => tool.name),
     [
@@ -150,6 +151,7 @@ test('E3. le chef note, une sous-mission lancée ensuite reçoit la note ; outil
       'mission_suivre',
       'mission_attendre',
       'mission_annuler',
+      'mission_continuer',
       'carnet_noter',
       'carnet_lire',
     ],

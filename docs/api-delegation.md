@@ -283,7 +283,12 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
 - **Regard indépendant** : rôle `autreAgent: true` et pas d'`agent` donné : la plateforme prend le premier agent
   installé et disponible (ordre de la liste de `mission_suivre`, `agents`) différent de ceux des auteurs (les
   sous-missions de `relit` ; sans `relit` : l'agent de la mère). Aucun autre : l'agent par défaut, et le résultat porte
-  `note` (`SAME_AGENT_NOTE`). Un `agent` donné par le chef est toujours respecté.
+  `note` (`SAME_AGENT_NOTE`). Un `agent` donné par le chef est toujours respecté. En mode réel (essai réel du
+  20/11) : jamais l'agent simulé de la plateforme, ni un agent dont le dernier essai de session enregistré sur la
+  machine a échoué (`session: false`) ; parmi les autres, ceux dont la session est prouvée (`session: true`) passent
+  d'abord, dans l'ordre de la liste. Hors mode réel, le choix reste le premier de la liste.
+- **Agent simulé dans `agents`** (`mission_suivre`) : il porte le champ `simule: true`, lui seul ; en mode réel il est `disponible: false` (il reste
+  disponible hors mode réel, pour les essais).
 - **Verdict** (rôle `verdict: true`) : lu par la plateforme quand la sous-mission est finie, à chaque lecture (rien
   d'écrit en base) : `verdict.json` de son dossier de résultats (lecture confinée, 20 Ko au plus), sinon la dernière
   ligne « Verdict : … » de sa réponse, sinon `{ valeur: "a_corriger", source: "absent" }`. Forme : `verdict { valeur:

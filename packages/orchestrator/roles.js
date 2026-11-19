@@ -152,9 +152,15 @@ export const roleList = (roles) =>
 
 // The agent of an independent look : the first installed and available agent (in the order of the
 // list) that none of the authors uses ; null when there is none.
-export function otherAgent(agents, authors) {
+// equipe-01 (essai réel du 20/11) : in real mode (`live`), never a simulated agent (`simule`) nor an
+// agent whose last session test on this machine failed (`probes[id].session === false`), and those
+// whose session is proven (`session: true`) first ; out of real mode, the choice is unchanged.
+export function otherAgent(agents, authors, { live = false, probes = {} } = {}) {
   const used = new Set(authors.filter(Boolean));
-  return (agents ?? []).find((agent) => agent?.disponible && !used.has(agent.id))?.id ?? null;
+  const free = (agents ?? []).filter((agent) => agent?.disponible && !used.has(agent.id));
+  if (!live) return free[0]?.id ?? null;
+  const real = free.filter((agent) => !agent.simule && probes?.[agent.id]?.session !== false);
+  return (real.find((agent) => probes?.[agent.id]?.session === true) ?? real[0])?.id ?? null;
 }
 
 const clip = (value) => String(value ?? '').slice(0, MAX_FIELD);

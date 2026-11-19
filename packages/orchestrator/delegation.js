@@ -927,6 +927,7 @@ export class Delegation {
       ? otherAgent(
           installed,
           args.relit ? args.relit.map((id) => sisters.get(id).agent) : [mother.agent],
+          { live: this.engine.live, probes: loadProbes(this.engine.dataDir) },
         )
       : null;
     const agent = args.agent ?? reviewer ?? base.agent;
@@ -1293,13 +1294,16 @@ export class Delegation {
     if (!this.agentsCache || Date.now() - this.agentsCache.at >= AGENTS_CACHE_MS)
       this.agentsCache = {
         at: Date.now(),
+        // equipe-01 (essai réel du 20/11) : the simulated agent is said so, and is not available
+        // for a real work in real mode.
         list: (await detectAgents()).map((agent) => ({
           id: agent.id,
           disponible: !!(
             agent.installed &&
             agent.compatible &&
-            (agent.simulated || this.engine.live)
+            (agent.simulated ? !this.engine.live : this.engine.live)
           ),
+          ...(agent.simulated ? { simule: true } : {}),
         })),
       };
     const probes = loadProbes(this.engine.dataDir);

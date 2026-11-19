@@ -45,6 +45,10 @@ const CHEF = resolve('tests/fixtures/chef-agent.js');
 const ACCEPTED = { accepted: true, via: 'api', total: 10, parallel: 3 };
 // A second agent « installed » for the independent look : the fake agent plays it.
 const OTHER = 'codex';
+// equipe-01 (essai réel du 20/11) : the ids of real agents played by the fake one in these tests ;
+// the rows of those in NAMED keep the agent's name (the author of a reviewed work).
+const NAMED = new Set(['claude', 'gemini']);
+const PLAYED = new Set([OTHER, ...NAMED]);
 
 async function platform(t, { agents = null } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'equipe-01-FICTIF-')));
@@ -61,9 +65,10 @@ async function platform(t, { agents = null } = {}) {
   const originalPlan = app.engine.plan.bind(app.engine);
   app.engine.plan = async (input, options) => {
     const plan = await originalPlan(
-      input.agent === OTHER ? { ...input, agent: 'fixture' } : input,
+      PLAYED.has(input.agent) ? { ...input, agent: 'fixture' } : input,
       options,
     );
+    if (NAMED.has(input.agent)) plan.input = { ...plan.input, agent: input.agent };
     plan.agent = {
       ...plan.agent,
       command: process.execPath,
@@ -190,6 +195,58 @@ test('E1 : choix d’un autre agent : le premier disponible différent des auteu
   assert.equal(roles.otherAgent(list, ['fixture', 'b']), 'c');
   assert.equal(roles.otherAgent(list, ['fixture', 'b', 'c']), null);
   assert.equal(roles.otherAgent([], ['fixture']), null);
+});
+
+// equipe-01 (essai réel du 20/11, sous-mission 5b3d24a8) : the shapes of agents() in real mode before
+// the fix (the simulated agent first and « disponible ») and of the record of the session tests.
+const REAL_LIST = [
+  { id: 'fixture', disponible: true, simule: true },
+  { id: 'gemini', disponible: true },
+  { id: 'opencode', disponible: true },
+  { id: 'codex', disponible: true },
+  { id: 'claude', disponible: true },
+];
+const PROBES = {
+  gemini: { session: false, error: 'Internal error FICTIVE' },
+  codex: { session: true },
+  claude: { session: true },
+};
+
+test('E1 (essai réel) : en mode réel, ni agent simulé ni agent en échec de session ; session prouvée préférée', () => {
+  const real = { live: true, probes: PROBES };
+  assert.equal(roles.otherAgent(REAL_LIST, ['claude'], real), 'codex');
+  assert.equal(roles.otherAgent(REAL_LIST, ['codex'], real), 'claude');
+  // Without a proven session, an agent never tested comes next, in the order of the list.
+  assert.equal(roles.otherAgent(REAL_LIST, ['claude', 'codex'], real), 'opencode');
+  // Only a simulated agent or an agent whose last session test failed : none (default and note).
+  assert.equal(roles.otherAgent(REAL_LIST, ['claude', 'codex', 'opencode'], real), null);
+  assert.equal(
+    roles.otherAgent(REAL_LIST.slice(0, 2).concat(REAL_LIST[4]), ['claude'], real),
+    null,
+  );
+  // Out of real mode (simulated agents of the tests) : today's choice, the first in the list.
+  assert.equal(roles.otherAgent(REAL_LIST, ['claude']), 'fixture');
+  assert.equal(roles.otherAgent(REAL_LIST, ['claude'], { live: false, probes: PROBES }), 'fixture');
+});
+
+test('E1 (essai réel) : agents() marque l’agent simulé, indisponible en mode réel seulement', async (t) => {
+  const p = await platform(t);
+  const delegation = p.app.engine.delegation;
+  const shown = async (live) => {
+    p.app.engine.live = live;
+    delegation.agentsCache = null;
+    return delegation.agents();
+  };
+  const demo = await shown(false);
+  const fixture = demo.find((agent) => agent.id === 'fixture');
+  assert.equal(fixture.simule, true);
+  assert.equal(fixture.disponible, true);
+  for (const agent of demo.filter((a) => a.id !== 'fixture'))
+    assert.equal('simule' in agent, false, agent.id);
+  const real = await shown(true);
+  assert.equal(real.find((agent) => agent.id === 'fixture').simule, true);
+  assert.equal(real.find((agent) => agent.id === 'fixture').disponible, false);
+  p.app.engine.live = false;
 });
 
 test('E1 : verdict lu : fichier, sinon dernière ligne de la réponse, sinon absent ; valeurs bornées', (t) => {
@@ -545,6 +602,54 @@ test('E1 : agent indiqué par le chef respecté même avec un autre agent instal
   assert.equal(given.agent, 'fixture');
   // Without relit, the author is the mother's agent.
   assert.equal(chosen.agent, OTHER);
+});
+
+test('E1 (essai réel) : vérificateur d’un travail de claude en mode réel → l’autre agent réel prouvé, sinon même agent et note', async (t) => {
+  const p = await platform(t, { agents: REAL_LIST });
+  p.app.engine.live = true;
+  t.after(() => (p.app.engine.live = false));
+  mkdirSync(p.app.engine.dataDir, { recursive: true });
+  writeFileSync(join(p.app.engine.dataDir, 'agent-probes.json'), JSON.stringify(PROBES));
+  const mother = await p.mother([
+    {
+      call: 'mission_lancer',
+      args: { consigne: 'Écris FICTIF', titre: 'Travail', agent: 'claude' },
+      save: 'a',
+    },
+    {
+      call: 'mission_lancer',
+      args: { consigne: 'Relis FICTIF\nVerdict : approuve', role: 'verificateur', relit: ['$a'] },
+    },
+    { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+  ]);
+  await p.ended(mother.id, 30000);
+  const [, review] = call(p, 'mission_lancer').map((r) => r.result);
+  assert.equal(review.agent, 'codex');
+  assert.equal(review.note, undefined);
+});
+
+test('E1 (essai réel) : seuls un agent simulé et un agent en échec comme autres → agent par défaut et note', async (t) => {
+  const p = await platform(t, { agents: [REAL_LIST[0], REAL_LIST[1], REAL_LIST[4]] });
+  p.app.engine.live = true;
+  t.after(() => (p.app.engine.live = false));
+  mkdirSync(p.app.engine.dataDir, { recursive: true });
+  writeFileSync(join(p.app.engine.dataDir, 'agent-probes.json'), JSON.stringify(PROBES));
+  const mother = await p.mother([
+    {
+      call: 'mission_lancer',
+      args: { consigne: 'Écris FICTIF', titre: 'Travail', agent: 'claude' },
+      save: 'a',
+    },
+    {
+      call: 'mission_lancer',
+      args: { consigne: 'Relis FICTIF\nVerdict : approuve', role: 'verificateur', relit: ['$a'] },
+    },
+    { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+  ]);
+  await p.ended(mother.id, 30000);
+  const [, review] = call(p, 'mission_lancer').map((r) => r.result);
+  assert.equal(review.agent, p.app.store.get(mother.id).agent);
+  assert.equal(review.note, rule.SAME_AGENT_NOTE);
 });
 
 test('E1 : mission multiAgent sans rôle : ni champ neuf, ni événement de plus, ni ligne de Bilan', async (t) => {

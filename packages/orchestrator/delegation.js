@@ -1260,6 +1260,19 @@ export class Delegation {
       AbortSignal.timeout(10000),
     );
   }
+  // multi-agent-v3-02 (H) : a mother cancelled by the owner : its sub-missions, already cancelled by
+  // cancel()'s cascade, end before its Bilan (at most 10 s) ; no new cascade. Nothing for a mission
+  // that launched none.
+  async waitStopped(run, control) {
+    if (!control?.mere) return;
+    const family = this.family(run.id);
+    const mother = this.store.get(run.id);
+    await this.until(
+      family,
+      () => !family.pending && !this.living(mother).length,
+      AbortSignal.timeout(10000),
+    );
+  }
   // Cancels the sub-missions still alive of a mother (one level) ; returns how many. Nothing is
   // read for a mission that launched none.
   cascade(id, reason = 'Annulée avec la mission mère') {

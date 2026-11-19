@@ -426,3 +426,59 @@ test('F. reprendre une tâche dont une reprise tourne encore : reprise_en_cours 
   assert.equal(third.isError, false, JSON.stringify(third.result));
   assert.equal(p.app.store.children(mother.id).length, 3);
 });
+
+// multi-agent-v3-02 (H) : mère annulée par le propriétaire : son Bilan attend la fin de ses filles.
+test('H. mère annulée avec deux filles en cours : le Bilan les dit annulées, aucune « en cours »', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE A ATTENDRE:jamais', titre: 'A' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE B ATTENDRE:jamais', titre: 'B' } },
+      { touch: join(p.hold, 'launched') },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 50 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES annulées.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED(),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'launched')), 15000, 'lancement');
+  const [a, b] = p.results().map((r) => r.result.id);
+  await p.waitFor(
+    () => [a, b].every((id) => p.app.store.get(id)?.state === 'running'),
+    15000,
+    'A et B en cours',
+  );
+  p.app.engine.cancel(mother.id, 'Annulée par le propriétaire FICTIF');
+  await p.ended(mother.id, 30000);
+  const row = p.app.store.get(mother.id);
+  assert.equal(row.state, 'cancelled');
+  const summary = row.result.summary;
+  assert.match(summary, /\n1\. « A » — agent fixture, annulée, /);
+  assert.match(summary, /\n2\. « B » — agent fixture, annulée, /);
+  assert.match(summary, /0 terminée\(s\), 0 en échec, 2 annulée\(s\)/);
+  assert.doesNotMatch(summary, /en cours/);
+});
+
+test('H. contrôle : une mission ordinaire annulée n’appelle aucune attente de famille', async (t) => {
+  const p = await platform(t);
+  const calls = [];
+  const { delegation } = p.app.engine;
+  for (const name of ['waitStopped', 'until', 'stopFamily']) {
+    const original = delegation[name].bind(delegation);
+    delegation[name] = (...args) => (calls.push(name), original(...args));
+  }
+  const run = await p.app.engine.create({
+    prompt: 'Tâche FICTIVE ATTENDRE:jamais',
+    agent: 'fixture',
+    pack: 'core',
+  });
+  await p.waitFor(() => p.app.store.get(run.id)?.state === 'running', 15000, 'en cours');
+  p.app.engine.cancel(run.id, 'Annulée par le propriétaire FICTIF');
+  await p.ended(run.id, 15000);
+  assert.equal(p.app.store.get(run.id).state, 'cancelled');
+  assert.deepEqual(calls, []);
+});

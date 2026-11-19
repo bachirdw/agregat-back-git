@@ -359,7 +359,9 @@ Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
   lui-même ne sont ni comptés ni bornés par Relay, et le Bilan n'en dit encore rien (lot `natifs-01`).
 - Les membres d'une famille partagent l'espace career-ops ; toute autre mission y reste refusée tant que la famille vit.
 - Annuler une mission annule ses sous-missions (un niveau) : en cours (questions fermées, carte d'envoi refusée), en file
-  et en attente d'accord.
+  et en attente d'accord. Avant d'écrire le Bilan d'une mère annulée, la plateforme attend la fin de ses sous-missions
+  (au plus 10 s, sans nouvelle annulation ; multi-agent-v3-02, H) : le Bilan les dit annulées, pas « en cours ». Une
+  mission sans sous-mission n'attend rien.
 - Au redémarrage de l'API, toute la famille non finie passe `interrupted` ; un arrêt propre interrompt aussi les
   sous-missions retenues. Rien n'est relancé automatiquement.
 - Les cartes d'envoi restent au clic du propriétaire, sous-mission par sous-mission.

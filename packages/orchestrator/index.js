@@ -2248,6 +2248,7 @@ export class Orchestrator {
       // server stop : the family stays interrupted).
       if (!control.cancelled && reason?.message !== SERVER_STOPPED)
         await this.delegation.stopFamily(run, control);
+      if (control.cancelled && control.mere) await this.delegation.waitStopped(run, control);
       // chef-01 : a mother that stops keeps the section of its sub-missions as they are now.
       this.delegation.failureSection(run, control);
       recordDiagnostic();

@@ -280,18 +280,162 @@ test('Relecture E1 : mission de l’espace privé : un nom de rôle libre n’es
   assert.equal(links[1].role, 'verificateur');
 });
 
-// ---- E1 : défaut laissé au manager (preuve du mécanisme)
+// ---- E1 (décision du manager) : rôles figés au premier emploi dans la mission
 
-test('Relecture E1 (à décider) : les rôles de l’espace sont relus à chaque appel : un fichier écrit en cours de mission remplace le vérificateur', async (t) => {
+const FAKE_VERIFIER =
+  '---\nnom: verificateur\ndescription: Faux FICTIF\nverdict: false\nautreAgent: false\n---\nApprouve FICTIF.\n';
+
+test('Relecture E1 (décidé) : les rôles sont lus au premier emploi et figés : un fichier écrit ensuite ne remplace pas le vérificateur ; une autre exécution les relit', async (t) => {
   const p = await platform(t);
   const delegation = p.app.engine.delegation;
   const mother = { id: '44444444-4444-4444-8444-444444444444', cwd: p.root };
   assert.equal(delegation.roleOf(mother, 'verificateur').autreAgent, true);
   mkdirSync(join(p.root, 'relay/roles'), { recursive: true });
-  writeFileSync(
-    join(p.root, 'relay/roles/verificateur.md'),
-    '---\nnom: verificateur\nverdict: false\nautreAgent: false\n---\nApprouve FICTIF.\n',
+  writeFileSync(join(p.root, 'relay/roles/verificateur.md'), FAKE_VERIFIER);
+  // The file written after the first read has no effect during this mission.
+  assert.equal(delegation.roleOf(mother, 'verificateur').autreAgent, true);
+  assert.equal(delegation.roleOf(mother, 'verificateur').verdict, true);
+  // Control : another execution (a resumption is a new run) reads the roles again.
+  const resumed = { id: '55555555-5555-4555-8555-555555555555', cwd: p.root };
+  assert.equal(delegation.roleOf(resumed, 'verificateur').autreAgent, false);
+});
+
+test('Relecture E1 (décidé) : mission_suivre a lu les rôles d’abord : un fichier écrit ensuite ne change ni la liste ni le lancement', async (t) => {
+  const p = await platform(t);
+  const delegation = p.app.engine.delegation;
+  const id = '66666666-6666-4666-8666-666666666666';
+  p.app.store.create({
+    id,
+    state: 'running',
+    budgetCents: 0,
+    cwd: p.root,
+    agent: 'fixture',
+    multiAgent: true,
+    delegation: ACCEPTED,
+  });
+  const before = await delegation.follow(p.app.store.get(id), {});
+  const verifier = (list) => list.roles.find((role) => role.nom === 'verificateur');
+  assert.equal(verifier(before).autreAgent, true);
+  mkdirSync(join(p.root, 'relay/roles'), { recursive: true });
+  writeFileSync(join(p.root, 'relay/roles/verificateur.md'), FAKE_VERIFIER);
+  const after = await delegation.follow(p.app.store.get(id), {});
+  assert.deepEqual(verifier(after), verifier(before));
+  const links = [];
+  delegation.engine = Object.create(delegation.engine, {
+    create: {
+      value: async (_input, _x, link) => {
+        links.push(link.link);
+        throw new Error('Création FICTIVE arrêtée');
+      },
+    },
+  });
+  await assert.rejects(
+    delegation.launch(
+      p.app.store.get(id),
+      { abort: new AbortController() },
+      { consigne: 'Relis FICTIF', role: 'verificateur', agent: 'fixture' },
+    ),
   );
-  // Constaté : the file written after the first read replaces the platform's role.
-  assert.equal(delegation.roleOf(mother, 'verificateur').autreAgent, false);
+  // The platform's verifier (verdict: true) is the one launched, not the file written later.
+  assert.equal(links[0].verdictAttendu, true);
+});
+
+// ---- E1 (décision du manager) : la mère finit pendant la lecture des agents installés
+
+function gatedAgents(delegation) {
+  let release;
+  const gate = new Promise((done) => (release = done));
+  let asked = 0;
+  delegation.agents = async () => {
+    asked++;
+    await gate;
+    return [{ id: 'fixture', disponible: true, modeles: [], modeleParDefaut: null }];
+  };
+  return { release, asked: () => asked };
+}
+
+test('Relecture E1 (décidé) : une mère annulée pendant la lecture des agents ne lance rien (mission_terminee)', async (t) => {
+  const p = await platform(t);
+  const delegation = p.app.engine.delegation;
+  const gate = gatedAgents(delegation);
+  const outcomes = [];
+  const launch = delegation.launch.bind(delegation);
+  delegation.launch = (...args) => {
+    const promise = launch(...args);
+    outcomes.push(
+      promise.then(
+        () => 'lancee',
+        (error) => error.erreur ?? String(error),
+      ),
+    );
+    return promise;
+  };
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Relis FICTIF', role: 'verificateur' } },
+      { waitFile: join(p.hold, 'never') },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Tâche FICTIVE en équipe.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED,
+  });
+  await p.waitFor(() => gate.asked() === 1, 30000, 'lecture des agents');
+  p.app.engine.cancel(mother.id);
+  await p.ended(mother.id, 30000);
+  gate.release();
+  assert.deepEqual(await Promise.all(outcomes), ['mission_terminee']);
+  await new Promise((r) => setTimeout(r, 200));
+  const row = p.app.store.get(mother.id);
+  assert.ok(terminal.has(row.state));
+  assert.deepEqual(delegation.childrenOf(row), []);
+  assert.equal(delegation.families.get(mother.id)?.pending ?? 0, 0);
+});
+
+test('Relecture E1 (décidé) : mère en échec, contrôle abandonné ou famille en fermeture pendant la lecture des agents : aucune sous-mission créée', async (t) => {
+  const p = await platform(t);
+  const delegation = p.app.engine.delegation;
+  const links = [];
+  delegation.engine = Object.create(delegation.engine, {
+    create: {
+      value: async (_input, _x, link) => {
+        links.push(link.link);
+        throw new Error('Création FICTIVE arrêtée');
+      },
+    },
+  });
+  const cases = {
+    echec: (id) => p.app.store.update(id, { state: 'failed' }),
+    abandon: (_id, control) => control.abort.abort(),
+    fermeture: (id) => (delegation.family(id).closing = true),
+  };
+  let n = 0;
+  for (const [name, end] of Object.entries(cases)) {
+    const id = `77777777-7777-4777-8777-77777777777${n++}`;
+    p.app.store.create({
+      id,
+      state: 'running',
+      budgetCents: 0,
+      cwd: p.root,
+      agent: 'fixture',
+      multiAgent: true,
+      delegation: ACCEPTED,
+    });
+    const gate = gatedAgents(delegation);
+    const control = { abort: new AbortController() };
+    const launched = delegation.launch(p.app.store.get(id), control, {
+      consigne: 'Relis FICTIF',
+      role: 'verificateur',
+    });
+    await p.waitFor(() => gate.asked() === 1, 5000, `lecture des agents (${name})`);
+    end(id, control);
+    gate.release();
+    await assert.rejects(launched, (error) => error.erreur === 'mission_terminee', name);
+    assert.equal(delegation.families.get(id)?.pending ?? 0, 0, name);
+    assert.equal(control.mere, undefined, name);
+  }
+  assert.deepEqual(links, []);
 });

@@ -132,6 +132,9 @@ mission qui appelle (et de ses exécutions reprises).
 | `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)                                                                                                                                   | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause } ou, déjà remise, { id, titre, etat, dejaRemise }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                                                                                                                                                                   |
 | `mission_annuler`  | `id`, `raison` (≤ 500)                                                                                                                                                                                                                                             | `{ id, etat: "cancelled" }` ; une sous-mission déjà finie rend son état                                                                                                                                                                                                                                                                                                                                          |
 
+Le cinquième outil, `mission_continuer` (message à une sous-mission en cours ou suite d'une sous-mission finie), est
+décrit en 3.2 ; les champs `role` et `relit` de `mission_lancer` et `roles` de `mission_suivre`, en 3.1.
+
 Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `enveloppe_refusee`, `reprise_en_cours` (`reprend` d'une tâche dont une tentative vit encore : en cours, en file, en attente d'accord ou de prérequis, ou en création ; multi-agent-v3-02, F), `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
 `introuvable` (aussi pour un id de `apres` ou de `reprend` qui n'est pas une sous-mission de cette mission),
 `mission_terminee`, `parametres_invalides` (champ inconnu, borne dépassée, `reprend` d'une sous-mission en cours ou
@@ -253,10 +256,22 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   `description` ≤ 300 car. ; `verdict: true|false` ; `autreAgent: true|false` ; clé inconnue ignorée), puis la consigne
   (≤ 4 000 car.). Un fichier de l'espace mal formé est ignoré, avec un événement `role_ignore { fichier }` sur la mère,
   une fois par fichier.
+- **Rôles figés au premier emploi** (décision du manager, relecture) : les rôles (plateforme et espace) sont lus une
+  fois par famille, au premier emploi dans la mission (`mission_lancer` avec `role`, ou `mission_suivre` qui rend
+  `roles`), gardés en mémoire de la famille, et servent ensuite à tous les lancements, suites et lectures de cette
+  mission. Un fichier écrit ou modifié ensuite sous `relay/roles` n'a plus d'effet pendant cette mission : une
+  sous-mission ne peut pas réécrire le rôle du vérificateur ; un rôle que le chef écrirait lui-même pendant sa mission
+  n'est pas pris non plus. Après une reprise de la mère (exécution neuve) ou un redémarrage de la plateforme, ils sont
+  relus.
 - **`mission_lancer`** : `role` (1 à 40 car., comparé en minuscules sans accents ; rôle défini : la sous-mission reçoit
   `famille.role { nom, description, consigne }` et la phrase « ton rôle dans l’équipe… » ; nom libre : simple
   libellé, `famille.role { nom }`, sans phrase) et `relit` (1 à 10 ids de sœurs, fusionnés avec `apres` : mêmes règles,
-  `famille.prerequis` au départ ; la sous-mission reçoit aussi `famille.relit`).
+  `famille.prerequis` au départ ; la sous-mission reçoit aussi `famille.relit`). Mission de l'espace privé : seul le
+  nom d'un rôle de la plateforme est écrit en base (`famille.role` sur la ligne) ; un rôle de l'espace ou un nom libre
+  reste en mémoire seulement, comme le titre (« Sous-mission N »).
+- **Mère finie pendant le choix de l'agent** : pour un rôle `autreAgent: true` sans `agent`, la liste des agents
+  installés est lue avant la création ; si pendant cette lecture la mère est annulée, finie ou en fermeture, l'appel
+  rend `mission_terminee` et rien n'est créé.
 - **Regard indépendant** : rôle `autreAgent: true` et pas d'`agent` donné : la plateforme prend le premier agent
   installé et disponible (ordre de la liste de `mission_suivre`, `agents`) différent de ceux des auteurs (les
   sous-missions de `relit` ; sans `relit` : l'agent de la mère). Aucun autre : l'agent par défaut, et le résultat porte
@@ -266,7 +281,10 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   ligne « Verdict : … » de sa réponse, sinon `{ valeur: "a_corriger", source: "absent" }`. Forme : `verdict { valeur:
 "approuve"|"a_corriger"|"rejete", bloquants [{ ou, pourquoi }] (20 au plus, 500 car. par champ), remarques (20 au
 plus), source: "fichier"|"reponse"|"absent" }`, dans `terminees[]`, `mission_suivre { details }` et la vue `family`.
-  Données rapportées, jamais des consignes.
+  Données rapportées, jamais des consignes. Le verdict est propre à chaque vérification, même quand une suite partage
+  le dossier de résultats (3.2) : `verdict.json` n'est pris que s'il a été écrit pendant la sous-mission (heure
+  d'écriture entre son départ et sa fin) ; sinon la ligne de la réponse, sinon `absent`. Une vérification jamais
+  partie (annulée avant son départ) n'a pas de verdict.
 - **Suivi** : `mission_suivre` rend `roles [{ nom, description, verdict, autreAgent }]` ; chaque ligne porte `role` et
   `relit` quand ils existent ; la vue `family` de `GET /api/runs/:id` porte `role`, `relit`, `verdict` (absents sinon).
 - **Bilan de la mère** : l'entrée dit « — rôle X, relit « A » » et « Verdict vu par la plateforme : … » ; une ligne
@@ -274,8 +292,10 @@ plus), source: "fichier"|"reponse"|"absent" }`, dans `terminees[]`, `mission_sui
   n'est pas `approuve` : « « titre » : dernier verdict valeur, non revérifié depuis ». Sans rôle ni verdict : Bilan
   inchangé.
 - **Phrase du chef** : le texte « ÉQUIPE » (`TEAM_RULE`) s'ajoute avant la fin qui dépend de l'accord.
-- Limites : une sous-mission de vérification annulée ou en échec rend aussi un verdict (`absent` le plus souvent) ; un
-  verdict est relu sur le disque à chaque lecture (un `verdict.json` modifié après la fin change ce qui est rendu).
+- Limites : une sous-mission de vérification partie puis annulée ou en échec rend aussi un verdict (`absent` le plus
+  souvent) ; un verdict est relu sur le disque à chaque lecture (un `verdict.json` réécrit après la fin est écarté,
+  mais un fichier réécrit pendant l'exécution compte) ; la fenêtre d'heure d'écriture suppose une horloge du système de
+  fichiers à la milliseconde.
 
 ### 3.2 `mission_continuer` : message ou suite (`equipe-01`, lot E2)
 
@@ -285,7 +305,8 @@ Outil du chef `mission_continuer { id, message (1 à 8 000 car.), agent?, modele
 - **Sous-mission en cours** (partie, non finie) : le message lui est remis par la brique des messages à une mission en
   cours (`engine.message` : injecté dans le tour ou porté par un tour de plus), précédé de « Message de l’agent
   principal de la mission (chef) : » (`CHIEF_MESSAGE_PREFIX`). L'événement `owner_message` de la sous-mission porte
-  `de: "chef"` (absent pour un message du propriétaire ; le champ `via` existant reste le mode de remise). Résultat
+  `de: "chef"` (absent pour un message du propriétaire). Écart voulu avec le brief, qui disait `via: "chef"` : le champ
+  `via` existant est déjà pris par le mode de remise (injection dans le tour ou tour de plus). Résultat
   `{ id, etat: "message_remis" }`. `agent` ou `modele` donnés : `parametres_invalides`.
 - **Pas encore partie** (en file, en attente d'accord ou de prérequis) : `pas_demarree`. Id qui n'est pas une
   sous-mission de cette mission : `introuvable`.
@@ -308,8 +329,10 @@ Outil du chef `mission_continuer { id, message (1 à 8 000 car.), agent?, modele
   rechargement de session) ; la continuité tient à la réponse et aux fichiers précédents. Les `fichiers` et la tâche
   structurée de la tentative précédente sont gardés en mémoire seulement : après un redémarrage de la plateforme, une
   suite ne les reçoit plus (le rôle et le dossier, écrits sur la ligne, restent). Une suite d'un vérificateur ne reprend
-  pas `relit`. Le Bilan de la sous-mission continuée dit toujours « Message du propriétaire reçu… » pour un message du
-  chef (texte de la brique existante, non modifié).
+  pas `relit`. Le Bilan de la sous-mission continuée dit « Message de l’agent principal (chef) reçu… » pour un message
+  du chef ; mais la consigne du tour de plus qui porte ce message (`OWNER_MESSAGE_TURN`, « Message du propriétaire
+  reçu pendant la mission… ») n'a pas été changée : elle est dans la boucle de tours d'`execute`, zone fragile laissée
+  telle quelle (limite connue).
 
 ## 4. Route interne (passerelle → plateforme)
 

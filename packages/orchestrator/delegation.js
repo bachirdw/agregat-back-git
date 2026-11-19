@@ -726,7 +726,7 @@ export class Delegation {
     const children = this.childrenOf(root);
     if (children.some((child) => !terminal.has(child.state))) return;
     if (this.families.get(family.rootId) === family) this.families.delete(family.rootId);
-    this.roleWarnings?.delete(family.rootId);
+    this.roleSets?.delete(family.rootId);
     for (const child of children) {
       this.finals.delete(child.id);
       this.briefs.delete(child.id);
@@ -843,6 +843,15 @@ export class Delegation {
     // counter of the launch is taken (no wait between them and the creation).
     const team = args.role ? this.roleOf(mother, args.role) : null;
     const installed = team?.autreAgent && !args.agent ? await this.agents() : null;
+    // equipe-01 (relecture, décision du manager) : the mother may have ended during that wait : the
+    // check of call() again (nothing awaited from here to the counters below).
+    if (
+      installed &&
+      (control.abort.signal.aborted ||
+        terminal.has(this.store.get(mother.id)?.state) ||
+        this.families.get(mother.id)?.closing)
+    )
+      throw fail('mission_terminee', 'La mission mère se termine ou est annulée');
     const family = this.family(mother.id);
     const root = this.store.get(mother.id);
     // Refused by the owner (card, or the request) : the chief goes on alone ; nothing is asked again.
@@ -1086,16 +1095,16 @@ export class Delegation {
   }
   // equipe-01 (E1) : the roles of a mission (platform's, then its workspace's) ; a workspace file
   // not read as a role is said once on the mother (`role_ignore`).
+  // equipe-01 (relecture, décision du manager) : read once per family (this execution of the
+  // mother), at their first use, then kept : a file written later under relay/roles has no effect
+  // during this mission. A resumption (a new run) or a restart reads them again.
   roles(mother) {
+    this.roleSets ??= new Map();
+    const kept = this.roleSets.get(mother.id);
+    if (kept) return kept;
     const { roles, ignored } = loadRoles(mother.cwd);
-    this.roleWarnings ??= new Map();
-    const seen = this.roleWarnings.get(mother.id) ?? new Set();
-    this.roleWarnings.set(mother.id, seen);
-    for (const fichier of ignored)
-      if (!seen.has(fichier)) {
-        seen.add(fichier);
-        this.store.event(mother.id, 'role_ignore', { fichier });
-      }
+    this.roleSets.set(mother.id, roles);
+    for (const fichier of ignored) this.store.event(mother.id, 'role_ignore', { fichier });
     return roles;
   }
   // A defined role, or a free name (a mere label).

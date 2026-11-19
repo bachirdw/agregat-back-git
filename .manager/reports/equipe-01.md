@@ -314,3 +314,92 @@ Points non vérifiés :
   ligne « Verdict : … » de la réponse prendrait alors le relais.
 - `docs/api-delegation.md` n'a pas été mis à jour pour ces précisions : dossier commun et verdict propre, et rôle non
   écrit en base pour une mission privée.
+
+## Corrections décidées par le manager (20/11, 08:36 à 08:50)
+Trois points « à décider » de la relecture, tranchés par le manager. Commit `1423716` (code, tests, doc).
+
+### 1. Course au lancement (point 8 de la relecture)
+- Fait : `packages/orchestrator/delegation.js`, `launch()`, juste après
+  `const installed = team?.autreAgent && !args.agent ? await this.agents() : null;`. Seulement quand cette attente a eu
+  lieu (`installed` non nul), le contrôle d'entrée de `call()` est refait : signal d'abandon du contrôle, état terminal
+  de la mère **relu dans le magasin** (`this.store.get(mother.id)`), famille en fermeture (`closing`). Même erreur
+  `mission_terminee`, même message. La lecture des agents n'a pas bougé ; les compteurs n'ont pas été touchés.
+- Vérifié en lisant : de ce contrôle à `family.pending++`, aucune attente. Les appels du chemin sont tous synchrones :
+  `family`, `consent`, `envelope`, `childrenOf`, `askExtension`, `resultsFolder`, `acceptedEvent`, `accept` (aucun
+  n'est `async`, aucun `await` ni `then` entre les deux lignes). La première attente qui suit est
+  `await this.engine.create(...)`, après les compteurs.
+- Tests (dans `tests/equipe-01-relecture.test.js`, `delegation.agents` remplacé par une promesse que le test libère) :
+  - parcours avec le faux agent `chef-agent.js` : le chef lance un `verificateur` sans `agent` ; pendant la lecture
+    des agents, la mère est annulée (`engine.cancel`) ; une fois la mère finie, la lecture est libérée. Le lancement
+    rend `mission_terminee`, la mère n'a aucune sous-mission, `pending` vaut 0 ;
+  - appel direct de `launch` pour trois cas : mère passée en `failed` dans le magasin, contrôle abandonné, famille en
+    fermeture. Chaque cas rend `mission_terminee`, aucune création (`engine.create` jamais appelé), `pending` 0,
+    `control.mere` non posé.
+- Contrôle négatif (constaté) : condition neutralisée (`false &&`), les deux tests échouent. Dans le parcours, une
+  sous-mission est créée sous la mère annulée (ligne `cancelled`, erreur « Mission mère terminée avant le départ ») ;
+  dans l'appel direct, `engine.create` est appelé. Ce second test s'arrête au premier cas (`echec`) ; les cas
+  `abandon` et `fermeture` n'ont pas eu de rouge propre.
+- Limite : la petite fenêtre signalée par les relecteurs demeure. Entre le retour de `stopFamily` et l'écriture de
+  l'état terminal, une lecture des agents qui se termine pourrait encore passer ce contrôle. Non reproduite.
+
+### 2. Rôles de l'espace figés (point 9 de la relecture)
+- Fait : `delegation.js`, `roles(mother)`. Les rôles (plateforme puis `relay/roles` de l'espace) sont lus une fois par
+  famille, c'est-à-dire par exécution de la mère (`mother.id`), à leur premier emploi : `mission_lancer` avec `role`
+  (`roleOf`) ou `mission_suivre` (`roles`). Ils sont gardés dans `this.roleSets` (nouvelle table, effacée par `forget`
+  comme l'ancienne `roleWarnings`, qu'elle remplace) et servent ensuite à tous les lancements, suites (`continuation.js`
+  passe par `launch`, donc par `roleOf`) et lectures. `role_ignore` est écrit à cette seule lecture, donc toujours une
+  fois par fichier. Une reprise de la mère crée une exécution neuve (autre id) ; un redémarrage vide la mémoire : dans
+  les deux cas, les rôles sont relus (écrit dans la doc).
+- Pourquoi une table à part et non `family` : un simple `mission_suivre` ne doit pas créer de famille (test
+  `review-delegation-v2-01`, « famille créée pour une simple lecture »).
+- Tests : l'ancien test qui constatait le mécanisme est adapté au plus juste. Le fichier écrit après la première
+  lecture ne change plus le vérificateur (`autreAgent` et `verdict` restent `true`). Contrôle dans le même test : une
+  autre exécution (autre id, comme une reprise) lit le fichier. Test neuf « mission_suivre a lu les rôles d'abord » :
+  après un fichier écrit, la ligne `verificateur` de `roles` est inchangée, et un lancement `verificateur` porte
+  toujours `verdictAttendu: true` (rôle de la plateforme).
+- Contrôle négatif (constaté) : cache neutralisé (`const kept = null`), les deux tests échouent. Les tests du point 1
+  restent verts.
+- Limites : une entrée de `roleSets` n'est effacée que par `forget`, donc pour une mère qui a eu une famille. Une mère
+  qui a seulement appelé `mission_suivre`, sans rien lancer, garde son entrée en mémoire jusqu'au redémarrage (comme
+  `roleWarnings` avant). Un rôle que le chef écrirait lui-même pendant sa mission n'est plus pris en compte.
+
+### 3. Documentation (`docs/api-delegation.md`)
+- (a) Section 3.1, Verdict : le verdict est propre à chaque vérification même quand une suite partage le dossier ;
+  `verdict.json` n'est pris que s'il a été écrit pendant la sous-mission ; une vérification jamais partie n'a pas de
+  verdict. La limite de 3.1, devenue fausse après la relecture, est corrigée : un fichier réécrit après la fin est
+  écarté.
+- (b) Section 3.1, `mission_lancer` : pour une mission de l'espace privé, seul le nom d'un rôle de la plateforme est
+  écrit en base.
+- (c) Section 3.1 : « Rôles figés au premier emploi », avec la relecture après une reprise ou un redémarrage. La
+  course du point 1 est décrite dans la même section (« Mère finie pendant le choix de l'agent »).
+- (d) Section 3.2 : `de: "chef"` sur l'événement, présenté comme un écart voulu avec le brief (`via` est déjà pris par
+  le mode de remise). La limite de fin de 3.2 est corrigée : le Bilan dit maintenant « Message de l'agent principal
+  (chef) reçu… ». La consigne du tour de plus reste celle du propriétaire.
+- (e) Une ligne `mission_continuer` aurait reformaté tout le tableau de la section 3 (le nom, en code, est plus large
+  que la première colonne). À la place, une phrase sous le tableau renvoie à 3.2 (et à 3.1 pour `role`, `relit`,
+  `roles`).
+- Non fait, signalé : la phrase de 3.2 sur « non revérifié » (« tant qu'aucune vérification ne relit une tentative de
+  la tâche ») est antérieure au correctif 3 de la relecture : une vérification doit relire la dernière tentative. Elle
+  n'a pas été réécrite, car elle sort des points (a) à (e).
+
+### Limite connue, non corrigée sur décision du manager
+- Point 7 de la relecture : la consigne du tour de plus qui porte un message du chef (`OWNER_MESSAGE_TURN`,
+  « Message du propriétaire reçu pendant la mission… », `packages/orchestrator/index.js`) n'a pas été changée. Elle
+  est dans la boucle de tours d'`execute`, zone fragile laissée telle quelle. Le texte remis en cours de tour et le
+  Bilan ne portent plus l'étiquette propriétaire.
+
+### Résultats réels (constaté, 08:44 à 08:48)
+Avant correctif, `equipe-01-relecture` : 9 tests, 5 réussis, 4 en échec (les quatre tests neufs ou adaptés).
+Après correctif, un fichier à la fois
+(`AGENT_PLATFORM_AGENTS_CONFIG=/tmp/absent-agents-equipe.json node --test --test-reporter=spec tests/<f>.test.js`) :
+`equipe-01-relecture` 9/9, `equipe-01-roles` 13/13, `equipe-01-continuer` 6/6, `equipe-01-carnet` 12/12 ; voisins :
+`multi-agent-v3-01-a` 7, `-b` 8, `multi-agent-v3-02` 11, `-02-c` 2, `delegation-v2-01-a` 10, `-b` 12,
+`review-delegation-v2-01` 5, `review-multi-agent-v3-01` 13, `chef-01` 16, `dossier-resultats-01` 13, `natifs-01` 9,
+`generique-01` 15, `fix-resume` 28, `reprise-memoire` 8, `message-proprietaire` 25, `platform` 11, `owner-mode` 14 :
+0 échec. Un premier passage de la même liste avec le rapporteur par défaut n'a rien affiché d'exploitable (mon filtre
+`grep` ne correspondait pas à sa sortie). Il a été rejoué avec `--test-reporter=spec`.
+`npm run check` : « Syntaxe JavaScript valide. » `npx prettier --check` sur `delegation.js`,
+`equipe-01-relecture.test.js` et `api-delegation.md` : conforme, après un `prettier --write` sur le fichier de test.
+Ce rapport n'était déjà pas conforme à Prettier dans `c1fb352`. Il n'a pas été reformaté, pour ne pas réécrire les
+sections précédentes.
+Aucun agent réel, aucun port fixe, aucun réseau. Pas de `npm test` complet.

@@ -308,13 +308,16 @@ export class BrowserGateway {
     // search zone the page declares (role="search", <search>) chooses what to see, as Enter in its
     // field does (cartes-14-11 B) : a widget. A write to a submission path keeps its card (cdp.js).
     // review-multi-agent-v3-01 : only the form's submit button (a candidate only in GET, see
-    // ownerClickKind) ; any other button of a form in the zone stays a candidate.
+    // ownerClickKind) ; any other button of a form in the zone stays a candidate. multi-agent-v3-02
+    // (J) : an <input type="submit"> plays the same part, under the same narrow rule (it holds no
+    // secret : the submission-trigger check of isSensitiveElement is not read for it then).
+    let zoneInputSubmit = false;
     if (
       clickKind === 'candidate' &&
       element?.search === true &&
       element.inForm &&
-      element.tag === 'button' &&
-      element.buttonType === 'submit' &&
+      ((element.tag === 'button' && element.buttonType === 'submit') ||
+        (element.tag === 'input' && element.inputType === 'submit')) &&
       element.tag !== 'a' &&
       element.role !== 'menuitem' &&
       (!element.ariaHasPopup || element.ariaHasPopup === 'false') &&
@@ -322,11 +325,14 @@ export class BrowserGateway {
       !element.formHasFile &&
       element.formCrossSite === false &&
       !sendHint(element)
-    )
+    ) {
       clickKind = 'widget';
+      zoneInputSubmit = element.tag === 'input';
+    }
     const secretField =
       !!element &&
       !fields &&
+      !zoneInputSubmit &&
       this.policy.isSensitiveElement({
         tag: element.tag,
         inputType: element.inputType,

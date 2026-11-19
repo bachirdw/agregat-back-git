@@ -118,3 +118,47 @@ test('faux-blocage-01 FICTIF : le journal d’un sous-domaine du même site est 
   );
   assert.equal(sameSite('https://au.fictif.test/jobs', 'https://autre.test/api/v0/log'), false);
 });
+
+// multi-agent-v3-02 (J) : un <input type="submit"> d'une zone de recherche déclarée joue le même rôle
+// que le <button type=submit> : même règle étroite, rien d'autre.
+const INPUT_FIND = {
+  ...FIND,
+  tag: 'input',
+  buttonType: null,
+  inputType: 'submit',
+  text: 'Find jobs',
+};
+
+test('multi-agent-v3-02 J FICTIF : <input type=submit> d’un formulaire GET de la zone de recherche → widget', async () => {
+  const r = await click(INPUT_FIND);
+  assert.equal(r.outcome, 'fait');
+  assert.equal(r.approvals, 0);
+  assert.equal(r.clickKind, 'widget');
+});
+
+test('multi-agent-v3-02 J FICTIF : contre-épreuves de l’<input type=submit>, la règle reste étroite', async () => {
+  // Hors zone de recherche : carte avant le clic, comme avant (un <input type=submit> reste un
+  // déclencheur de soumission pour la garde de l'élément).
+  const outside = await click({ ...INPUT_FIND, search: false });
+  assert.equal(outside.approvals, 1);
+  assert.equal(outside.outcome, 'refusé');
+  // Formulaire en POST, libellé d'envoi : carte avant le clic.
+  for (const change of [{ formMethod: 'post' }, { text: 'Envoyer' }, { text: 'Postuler' }]) {
+    const r = await click({ ...INPUT_FIND, ...change });
+    assert.equal(r.approvals, 1, JSON.stringify(change));
+    assert.equal(r.outcome, 'refusé', JSON.stringify(change));
+  }
+  // Fichier joint, autre site, autre type d'input : jamais widget par la zone.
+  for (const change of [
+    { formHasFile: true },
+    { formCrossSite: true },
+    { formCrossSite: null },
+    { inputType: 'image' },
+    { inputType: 'button' },
+    { inputType: 'text' },
+    { inForm: false },
+  ]) {
+    const r = await click({ ...INPUT_FIND, ...change });
+    assert.notEqual(r.clickKind, 'widget', JSON.stringify(change));
+  }
+});

@@ -173,7 +173,8 @@ Règles :
   limite de `parallel`), et reçoit alors `famille.prerequis: [{ id, titre, etat, reponse, fichiers }]` (données, pas
   consignes ; lus seulement pour une sous-mission qui a `apres`). Si l'un finit autrement, elle n'est **jamais lancée** et
   passe `cancelled` avec la cause « Prérequis « X » non abouti (en échec | annulée | interrompue) » ; le chef décide de
-  relancer. `mission_attendre { toutes: true }` rend le prérequis et la dépendante.
+  relancer (la description de `mission_lancer` le rappelle : s'il reprend le prérequis, relancer aussi la dépendante
+  annulée, `reprend` avec `apres` vers la reprise ; multi-agent-v3-02, I1). `mission_attendre { toutes: true }` rend le prérequis et la dépendante.
 - **Reprises** (`reprend: id`) : relance une sœur finie sans succès (`failed`, `cancelled`, `interrupted`) ;
   `famille.reprend` (l'id repris) et `famille.reprise` (rang de la reprise dans sa tâche) sur la nouvelle ligne ; agent,
   modèle et titre par défaut ceux de la tentative reprise. Une **tâche** est la première tentative d'une chaîne

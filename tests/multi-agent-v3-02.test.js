@@ -482,3 +482,11 @@ test('H. contrôle : une mission ordinaire annulée n’appelle aucune attente d
   assert.equal(p.app.store.get(run.id).state, 'cancelled');
   assert.deepEqual(calls, []);
 });
+
+// multi-agent-v3-02 (I1) : la description de mission_lancer dit de relancer la dépendante annulée.
+test('I1. mission_lancer : relancer aussi la sous-mission annulée quand on reprend un prérequis', () => {
+  assert.match(
+    rule.MISSION_TOOLS.mission_lancer.description,
+    /si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée \(reprend, avec apres vers la reprise\)/,
+  );
+});

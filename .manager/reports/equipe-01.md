@@ -281,3 +281,36 @@ outils). Les 19 autres fichiers étaient déjà verts. `npm run check` : « Synt
 - Ordre ÉQUIPE / SUITE / CARNET dans la phrase du chef : choisi par l'intégration, le brief ne le fixait pas.
 - Les doutes des trois lots restent ouverts pour le manager, en particulier `de: "chef"` au lieu de `via: "chef"` (E2)
   et la marque `carnet: true` écrite sur la ligne de la mère (E3).
+
+## Relecture (20/11, 08:10 à 08:22)
+Neuf défauts rendus par trois relecteurs qui n'avaient exécuté aucun test. Pour chacun, un test dans
+`tests/equipe-01-relecture.test.js` (faux agents). Preuve du rouge : la même version du test a été jouée sur une
+copie de la tête `0c79189` (`git archive`, hors de l'arbre). Résultat : 5 tests en échec sur 6. Le test combiné
+E1/E3 a ensuite été rejoué sur cette copie en appliquant les correctifs un à un : chacune de ses trois assertions
+échoue avant son correctif. Le vert a été obtenu après le commit `45df698`.
+
+| # | Lot | Défaut | Verdict | Correctif |
+|---|-----|--------|---------|-----------|
+| 1 | E2 (bloquant) | Une suite de vérificateur écrase le `verdict.json` de la vérification qu'elle continue | **Confirmé, corrigé** : `verdictOf(V1)` rendait `approuve` au lieu de `a_corriger` ; une suite sans fichier lisait celui de V1 | `roles.js` `readVerdict` : prend en compte le fichier seulement si son heure d'écriture se situe entre `startedAt` et `finishedAt` de la sous-mission ; sinon, la ligne de la réponse ou `absent`. `delegation.js` `verdictOf` passe ces deux dates. Le dossier commun voulu par le brief est conservé. |
+| 2 | E1 | Verdict « a_corriger » inventé pour une vérification annulée avant son départ | **Confirmé, corrigé** : Bilan « Vérifications : 1 … », « « B » : dernier verdict a_corriger, non revérifié depuis » et « Verdict vu par la plateforme : a_corriger (source : absent) » pour une sous-mission « jamais démarrée » | `verdictOf` : aucun verdict sans `startedAt`. La variante « V2 annulée par la mère avant son départ » est couverte par la même condition. |
+| 3 | E2 | Une vérification qui relit une tentative dépassée efface « non revérifié » | **Confirmé, corrigé** (test pur) | `roles.js` `verificationLines` : un verdict compte pour sa tâche seulement s'il relit la dernière tentative de cette tâche lancée avant lui. Contrôle négatif : une vérification qui relit la suite efface bien la ligne. |
+| 4 | E3 | La ligne « Carnet d’équipe » apparaît dans le Bilan de chaque sous-mission, y compris en échec, et est citée en double dans celui de la mère | **Confirmé, corrigé** : constaté avant correctif, 3 occurrences dans le Bilan de la mère, avec des décomptes différents | `delegation.js` `bilanSection` : la ligne n'est ajoutée que pour une mère (`run.famille` absent). |
+| 5 | E3 | Notes marquées « remises » quand l'appel `mission_attendre` est abandonné | **Confirmé, corrigé** : le second appel rendait `nouvelles: []` | `delegation.js` `call` : `forChief` n'est pas appelé quand `signal.aborted`. |
+| 6 | E1 | Mission privée : un nom de rôle libre est écrit en base (`famille.role`) | **Confirmé, corrigé** : `famille.role` valait `Secret FICTIF` | `delegation.js` `launch` : dans une mission privée (même condition que le titre masqué), seul le nom d'un rôle de la plateforme est écrit en base. Le rôle reste en mémoire (`briefs`). `continuation.js` reprend le nom depuis `briefs` pour une suite. Limite : après un redémarrage, la suite d'une sous-mission privée à rôle libre perd ce rôle. |
+| 7 | E2 | Le message du chef est présenté comme un message du propriétaire | **Confirmé, corrigé en partie** : la ligne de Bilan disait « Message du propriétaire reçu à … » | `index.js` (fonctions de texte seulement) : le Bilan écrit « Message de l’agent principal (chef) reçu à … ». Le texte remis en cours de tour (steering) et `ownerMessage` ne portent plus l'étiquette propriétaire devant le préfixe du chef. **À décider par le manager** : la consigne du tour de plus (`OWNER_MESSAGE_TURN`, « Message du propriétaire reçu pendant la mission… ») est passée dans la boucle de tours de `execute`, une zone fragile : elle n'a pas été modifiée. Le libellé « Message de l’agent principal (chef) » n'est pas un texte du brief. |
+| 8 | E1 | `await this.agents()` avant `family.pending++` : course avec `stopFamily` / `waitStopped` | **Non testé, à décider par le manager** | Lu dans le code : l'attente précède bien `control.mere = true` et `family.pending++`, et `stopFamily` sort dès que `!control.mere`. Le scénario est donc plausible, mais il n'a pas été reproduit faute de temps. Pistes : refaire après l'attente le contrôle d'entrée de `call` (abort, mère terminale, `closing`), ce qui laisse une petite fenêtre entre le retour de `stopFamily` et l'écriture de l'état ; ou lire les agents après `family.pending++`, ce qui touche les compteurs de `launch()`, une zone fragile. |
+| 9 | E1 | Rôles de l'espace relus à chaque appel : une sous-mission peut réécrire `relay/roles/verificateur.md` | **Mécanisme confirmé, à décider par le manager** | Le test (vert, il constate le comportement actuel) montre qu'un fichier écrit après la première lecture remplace le vérificateur de la plateforme (`autreAgent` passe à `false`). Ce n'est pas corrigé, parce que c'est un choix de règle : figer les rôles au départ de la mère (lecture au départ, branchée dans `index.js`) ou ignorer un fichier écrit après ce départ. Dans les deux cas, un rôle que le chef écrirait lui-même pendant sa mission ne serait plus pris en compte. |
+
+Résultats réels après correctifs (un fichier à la fois, `AGENT_PLATFORM_AGENTS_CONFIG` absent) : `equipe-01-relecture`
+6/6, `equipe-01-roles` 13/13, `equipe-01-continuer` 6/6, `equipe-01-carnet` 12/12 ; voisins : `multi-agent-v3-01-a` 7,
+`-b` 8, `multi-agent-v3-02` 11, `-02-c` 2, `delegation-v2-01-a` 10, `-b` 12, `review-delegation-v2-01` 5,
+`review-multi-agent-v3-01` 13, `chef-01` 16, `dossier-resultats-01` 13, `natifs-01` 9, `generique-01` 15, `fix-resume`
+28, `reprise-memoire` 8, `message-proprietaire` 25, `platform` 11, `owner-mode` 14 : 0 échec. `npm run check` : syntaxe
+valide. `npx prettier --check` sur les fichiers touchés : conforme.
+
+Points non vérifiés :
+- La fenêtre d'heure d'écriture du `verdict.json` suppose une horloge du système de fichiers à la milliseconde (APFS,
+  ext4). Sur un système à la seconde, un fichier écrit dans la même seconde que le départ pourrait être écarté : la
+  ligne « Verdict : … » de la réponse prendrait alors le relais.
+- `docs/api-delegation.md` n'a pas été mis à jour pour ces précisions : dossier commun et verdict propre, et rôle non
+  écrit en base pour une mission privée.

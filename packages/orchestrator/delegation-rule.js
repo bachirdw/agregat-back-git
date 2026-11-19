@@ -46,13 +46,16 @@ export const REFUSED_MESSAGE = 'L' + REFUSED.slice(1, -1) + ', sans lui reposer 
 // chief does not ask the owner the same question itself and goes on with its own part.
 export const CONSENT_PENDING_NOTE =
   'La plateforme consulte le propriétaire (carte d’accord des sous-agents) : ne lui pose pas la question toi-même et continue ta part du travail sans attendre ; mission_suivre ou mission_attendre te diront sa réponse : s’il accepte, la sous-mission démarre seule ; s’il refuse, elle est annulée : continue seul.';
+// equipe-01 (E1) : the « ÉQUIPE » text, put before the end that follows the owner's acceptance.
+export const TEAM_RULE =
+  'compose une équipe plutôt que des copies de toi-même : donne à chaque sous-mission un rôle (role ; les rôles définis et leur description sont dans mission_suivre : roles ; un nom libre est accepté) et une consigne complète, car elle repart sans ta mémoire (le but, ce que tu sais déjà, ce qui est fini quand c’est fini) ; avant ta réponse finale, fais vérifier tout livrable important par une sous-mission de vérification (relit : les ids des sous-missions dont elle relit le travail ; sans agent indiqué, la plateforme lui donne un autre agent que l’auteur quand il y en a un d’installé, pour un regard indépendant) : elle rend un verdict (approuve, a_corriger, rejete) avec les points bloquants ; un verdict a_corriger se traite ; le compte rendu d’une sous-mission est un rapport, pas une preuve : contrôle ses fichiers ou fais-les vérifier avant de t’en servir ; la fin de ton tour vaut réponse finale : les sous-agents internes de ton agent encore en arrière-plan sont alors arrêtés, attends donc leurs résultats avant de conclure (tes sous-missions de la plateforme, elles, sont attendues par la plateforme) ; ';
 export function chiefRule(delegation) {
   if (delegation?.accepted === true) {
     const { total, parallel } = envelopeOf(delegation);
-    return `${CHIEF_RULE}le propriétaire l’a autorisé : jusqu’à ${total} sous-missions, ${parallel} à la fois.`;
+    return `${CHIEF_RULE}${TEAM_RULE}le propriétaire l’a autorisé : jusqu’à ${total} sous-missions, ${parallel} à la fois.`;
   }
   if (delegation?.accepted === false) return CHIEF_REFUSED;
-  return `${CHIEF_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
+  return `${CHIEF_RULE}${TEAM_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
 }
 
 // The sub-mission's sentence (plan v2, section 6) : no file nor script of a Skill is named here.
@@ -63,10 +66,19 @@ const DAUGHTER_TAIL =
 export const DAUGHTER_RULE = `${DAUGHTER_HEAD}rends tes résultats dans ta réponse finale, qui est remise à l’agent principal ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans des fichiers propres à ta part (un nom qui commence par ton titre, ou par l’identifiant que l’agent principal t’a donné)${DAUGHTER_TAIL}`;
 // multi-agent-v3-01 (D9) : with a results folder given by the platform, the detailed results go in
 // its files and the final answer stays short ; without one, the sentence above.
-export const daughterRule = (folder) =>
-  folder
-    ? `${DAUGHTER_HEAD}ton dossier de résultats est ${folder} (famille.dossierResultats) : écris-y tes résultats détaillés (listes, tableaux, données, documents), dans des fichiers au format que demande ta consigne ; ta réponse finale, remise à l’agent principal, reste courte : ce qui est fait, les chiffres clés, les chemins de tes fichiers, ce qui manque ou a échoué ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans ton dossier ou dans des fichiers propres à ta part${DAUGHTER_TAIL}`
-    : DAUGHTER_RULE;
+// equipe-01 (E1) : the role's sentences of a sub-mission that has a role (and a verdict to give).
+export const ROLE_RULE =
+  'ton rôle dans l’équipe est donné dans famille.role (nom et consigne) : tiens-t’y ; ';
+export const VERDICT_RULE =
+  'écris ton verdict dans le fichier verdict.json de ton dossier de résultats : {"verdict":"approuve"|"a_corriger"|"rejete","bloquants":[{"ou":"…","pourquoi":"…"}],"remarques":["…"]} (approuve : rien à corriger ; a_corriger : corrections précises ; rejete : à refaire) et rappelle-le dans ta réponse finale par une ligne « Verdict : approuve », « Verdict : a_corriger » ou « Verdict : rejete » ; ';
+export const roleRule = (role) => (role ? ROLE_RULE + (role.verdict ? VERDICT_RULE : '') : '');
+// The role's sentences go right after the head ; without a role the sentence is the one before.
+export const daughterRule = (folder, role = null) =>
+  roleRule(role)
+    ? daughterRule(folder).replace(DAUGHTER_HEAD, DAUGHTER_HEAD + roleRule(role))
+    : folder
+      ? `${DAUGHTER_HEAD}ton dossier de résultats est ${folder} (famille.dossierResultats) : écris-y tes résultats détaillés (listes, tableaux, données, documents), dans des fichiers au format que demande ta consigne ; ta réponse finale, remise à l’agent principal, reste courte : ce qui est fait, les chiffres clés, les chemins de tes fichiers, ce qui manque ou a échoué ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans ton dossier ou dans des fichiers propres à ta part${DAUGHTER_TAIL}`
+      : DAUGHTER_RULE;
 
 // The one synthesis turn (plan v2, Codex 4) : the results of the sub-missions that were still alive
 // at the end of the chief's turn are joined (familyResults), once they have all ended.
@@ -134,6 +146,10 @@ export const ENVELOPE_DECLINED =
 // multi-agent-v3-02 (E) : without the owner's acceptance of sub-agents, no extension card is asked.
 export const envelopeReachedNoConsent = (total) =>
   `Enveloppe atteinte (${total} sous-missions comptées) alors que l’accord du propriétaire pour les sous-agents n’est pas encore donné : aucune question d’élargissement ne lui est posée avant cet accord ; continue avec les sous-missions déjà lancées (mission_suivre donne l’enveloppe : famille.total et famille.dansEnveloppe).`;
+// equipe-01 (E1) : joined to mission_lancer's result when a verification role found no agent other
+// than the authors'.
+export const SAME_AGENT_NOTE =
+  'Aucun autre agent installé et disponible que celui des auteurs : la vérification est faite par l’agent par défaut (regard moins indépendant).';
 export function synthesisMissed(titles) {
   const named = titles.map((title) => `« ${title} »`).join(', ');
   return `Synthèse finale non faite : la réponse du chef a été écrite avant la fin de ${named} ; leurs résultats ne lui ont pas été remis.`;
@@ -144,7 +160,7 @@ const id = z.string().uuid();
 export const MISSION_TOOLS = {
   mission_lancer: {
     description:
-      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause ; si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée (reprend, avec apres vers la reprise)). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers ; dossierResultats et les chemins de fichiers sont relatifs à l’espace de travail de la mission, ton dossier de travail, dont espace donne le chemin absolu.',
+      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause ; si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée (reprend, avec apres vers la reprise)). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers ; dossierResultats et les chemins de fichiers sont relatifs à l’espace de travail de la mission, ton dossier de travail, dont espace donne le chemin absolu. role : rôle de la sous-mission dans l’équipe (rôles définis et leur description : mission_suivre, roles ; un nom libre est accepté) ; relit : ids des sous-missions dont elle vérifie le travail (elle attend leur fin et reçoit leurs résultats ; sans agent indiqué, un rôle de vérification reçoit un autre agent que l’auteur quand il y en a un d’installé) ; un rôle de vérification rend un verdict (approuve, a_corriger, rejete) lisible dans terminees.',
     schema: z
       .object({
         consigne: z.string().trim().min(1).max(8000),
@@ -160,6 +176,9 @@ export const MISSION_TOOLS = {
         resultatAttendu: z.string().trim().min(1).max(2000).optional(),
         apres: z.array(id).min(1).max(20).optional(),
         reprend: id.optional(),
+        // equipe-01 (E1).
+        role: z.string().trim().min(1).max(40).optional(),
+        relit: z.array(id).min(1).max(10).optional(),
       })
       .strict(),
   },

@@ -163,6 +163,14 @@ async function daughter(request) {
       resolve(process.cwd(), request.famille.dossierResultats, deposited),
       'a;b\n1;2\n',
     );
+  // equipe-01 (E1) : « VERDICT_JSON:<json> » (to the end of its line) writes verdict.json in its
+  // results folder.
+  const verdict = consigne.match(/VERDICT_JSON:(.*)$/m)?.[1];
+  if (verdict && request?.famille?.dossierResultats)
+    writeFileSync(
+      resolve(process.cwd(), request.famille.dossierResultats, 'verdict.json'),
+      verdict,
+    );
   const written = consigne.match(/ECRIRE:([\w./-]+)/)?.[1];
   if (written) {
     const target = resolve(process.cwd(), written);

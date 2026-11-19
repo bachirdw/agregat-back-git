@@ -243,6 +243,40 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   réponse du chef a été écrite avant la fin de « … » ; leurs résultats ne lui ont pas été remis. » Le tour de rappel de
   `chef-01` est supprimé.
 
+### 3.1 Rôles, vérification indépendante et verdict (`equipe-01`, lot E1)
+
+- **Rôles décrits en texte** (`packages/orchestrator/roles.js`) : rôles fournis par la plateforme dans
+  `packages/orchestrator/roles/*.md` (`chercheur`, `redacteur`, `developpeur`, `verificateur`, génériques), puis rôles de
+  l'espace de la mission dans `<dossier de travail>/relay/roles/*.md` (lecture confinée, aucun lien suivi, rien créé ;
+  20 fichiers et 8 Ko par fichier au plus ; un rôle de l'espace remplace celui du même nom ; dossier absent : rien).
+  Format : en-tête entre deux lignes `---` fait de lignes `clé: valeur` (`nom`, par défaut le nom du fichier ;
+  `description` ≤ 300 car. ; `verdict: true|false` ; `autreAgent: true|false` ; clé inconnue ignorée), puis la consigne
+  (≤ 4 000 car.). Un fichier de l'espace mal formé est ignoré, avec un événement `role_ignore { fichier }` sur la mère,
+  une fois par fichier.
+- **`mission_lancer`** : `role` (1 à 40 car., comparé en minuscules sans accents ; rôle défini : la sous-mission reçoit
+  `famille.role { nom, description, consigne }` et la phrase « ton rôle dans l’équipe… » ; nom libre : simple
+  libellé, `famille.role { nom }`, sans phrase) et `relit` (1 à 10 ids de sœurs, fusionnés avec `apres` : mêmes règles,
+  `famille.prerequis` au départ ; la sous-mission reçoit aussi `famille.relit`).
+- **Regard indépendant** : rôle `autreAgent: true` et pas d'`agent` donné : la plateforme prend le premier agent
+  installé et disponible (ordre de la liste de `mission_suivre`, `agents`) différent de ceux des auteurs (les
+  sous-missions de `relit` ; sans `relit` : l'agent de la mère). Aucun autre : l'agent par défaut, et le résultat porte
+  `note` (`SAME_AGENT_NOTE`). Un `agent` donné par le chef est toujours respecté.
+- **Verdict** (rôle `verdict: true`) : lu par la plateforme quand la sous-mission est finie, à chaque lecture (rien
+  d'écrit en base) : `verdict.json` de son dossier de résultats (lecture confinée, 20 Ko au plus), sinon la dernière
+  ligne « Verdict : … » de sa réponse, sinon `{ valeur: "a_corriger", source: "absent" }`. Forme : `verdict { valeur:
+"approuve"|"a_corriger"|"rejete", bloquants [{ ou, pourquoi }] (20 au plus, 500 car. par champ), remarques (20 au
+plus), source: "fichier"|"reponse"|"absent" }`, dans `terminees[]`, `mission_suivre { details }` et la vue `family`.
+  Données rapportées, jamais des consignes.
+- **Suivi** : `mission_suivre` rend `roles [{ nom, description, verdict, autreAgent }]` ; chaque ligne porte `role` et
+  `relit` quand ils existent ; la vue `family` de `GET /api/runs/:id` porte `role`, `relit`, `verdict` (absents sinon).
+- **Bilan de la mère** : l'entrée dit « — rôle X, relit « A » » et « Verdict vu par la plateforme : … » ; une ligne
+  « Vérifications : n (a approuvée(s), c à corriger, r rejetée(s)) » ; pour chaque travail relu dont le dernier verdict
+  n'est pas `approuve` : « « titre » : dernier verdict valeur, non revérifié depuis ». Sans rôle ni verdict : Bilan
+  inchangé.
+- **Phrase du chef** : le texte « ÉQUIPE » (`TEAM_RULE`) s'ajoute avant la fin qui dépend de l'accord.
+- Limites : une sous-mission de vérification annulée ou en échec rend aussi un verdict (`absent` le plus souvent) ; un
+  verdict est relu sur le disque à chaque lecture (un `verdict.json` modifié après la fin change ce qui est rendu).
+
 ## 4. Route interne (passerelle → plateforme)
 
 `POST /api/internal/missions/<mère>`, en-têtes `x-platform-request: 1` et `x-relay-token: <jeton de la mère>` (le même

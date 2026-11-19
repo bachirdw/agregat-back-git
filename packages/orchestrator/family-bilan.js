@@ -4,6 +4,8 @@
 // records (states, send counters), and a line confronts the chief's announced sends with them.
 // Pure functions : the orchestrator gives the rows, nothing here reads the database.
 
+import { verificationLines } from './roles.js';
+
 // Above this length a quoted Bilan keeps only its send and failed-action lines whole.
 export const QUOTE_LIMIT = 3000;
 const STATE_LABEL = {
@@ -83,7 +85,13 @@ export function familySection({
   children.forEach((child, index) => {
     const resumed = byId.get(child.reprend);
     lines.push(
-      `${index + 1}. « ${child.titre} »${resumed ? ` (reprise de « ${resumed.titre} »)` : ''} — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
+      `${index + 1}. « ${child.titre} »${resumed ? ` (reprise de « ${resumed.titre} »)` : ''}${teamLabel(child, byId)} — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
+      // equipe-01 (E1) : the verdict read by the platform (data reported by the sub-mission).
+      ...(child.verdict
+        ? [
+            `Verdict vu par la plateforme : ${child.verdict.valeur} (source : ${child.verdict.source}${child.verdict.bloquants?.length ? ` ; ${child.verdict.bloquants.length} point(s) bloquant(s)` : ''})`,
+          ]
+        : []),
       ...quoteBilan(child.bilan, child.id),
     );
   });
@@ -99,6 +107,7 @@ export function familySection({
   );
   // multi-agent-v3-01 (D4) : with resumed attempts, the tasks counted by their last attempt.
   if (children.some((child) => byId.has(child.reprend))) lines.push(taskLine(children, byId));
+  lines.push(...verificationLines(children));
   const announced = announcedSends(chiefAnswer);
   const seen = approved + (Number(motherSends) || 0);
   if (announced !== null && announced !== seen)
@@ -117,6 +126,17 @@ export function familySection({
       .join(', ')}).`,
   );
   return '\n' + lines.join('\n');
+}
+
+// equipe-01 (E1) : « — rôle X, relit « A » » ; empty without role nor reviewed work.
+function teamLabel(child, byId) {
+  const parts = [
+    ...(child.role ? [`rôle ${child.role}`] : []),
+    ...(child.relit?.length
+      ? [`relit ${child.relit.map((id) => `« ${byId.get(id)?.titre ?? id} »`).join(', ')}`]
+      : []),
+  ];
+  return parts.length ? ` — ${parts.join(', ')}` : '';
 }
 
 // A task is the first attempt of a `reprend` chain ; its state is the state of its last attempt.

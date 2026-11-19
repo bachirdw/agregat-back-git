@@ -36,6 +36,7 @@ import { ROOT } from './packs.js';
 import { publicQuestion } from './questions.js';
 import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
+import { loadRoles, otherAgent, readVerdict, roleKey, roleList } from './roles.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
@@ -47,6 +48,7 @@ import {
   MOTHER_FAILED,
   REFUSED_MESSAGE,
   REFUSED_CHILD,
+  SAME_AGENT_NOTE,
   SYNTHESIS_TURN,
   chiefRule,
   consentLine,
@@ -89,6 +91,7 @@ const choiceQuestion = (message, choices) =>
 // resumptions of a task.
 const counts = (child) => !(child.famille?.reprise <= 2);
 const TASK_FIELDS = ['objectif', 'informations', 'perimetre', 'resultatAttendu'];
+const note = (texts) => (texts.some(Boolean) ? { note: texts.filter(Boolean).join(' ') } : {});
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
 export class Delegation {
@@ -198,10 +201,23 @@ export class Delegation {
     if (!run?.famille) return { fields: {}, rule: '' };
     const mother = this.store.get(run.famille.mere);
     const brief = this.briefs.get(run.id) ?? {};
-    const { apres, dossierResultats } = run.famille;
+    const { apres, dossierResultats, relit } = run.famille;
     return {
       fields: {
         famille: {
+          // equipe-01 (E1) : its role in the team, and the sub-missions whose work it checks.
+          ...(brief.role
+            ? {
+                role: brief.role.consigne
+                  ? {
+                      nom: brief.role.nom,
+                      description: brief.role.description,
+                      consigne: brief.role.consigne,
+                    }
+                  : { nom: brief.role.nom },
+              }
+            : {}),
+          ...(relit ? { relit } : {}),
           demandeDuProprietaire: mother ? this.engine.turnObjective(mother) : null,
           mere: run.famille.mere,
           soeurs: brief.soeurs ?? [],
@@ -220,7 +236,7 @@ export class Delegation {
             : {}),
         },
       },
-      rule: '\n' + daughterRule(dossierResultats),
+      rule: '\n' + daughterRule(dossierResultats, brief.role?.consigne ? brief.role : null),
     };
   }
   // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
@@ -362,6 +378,10 @@ export class Delegation {
         bilan: this.bilanOf(child),
         envois: this.sendsOf(child),
         reprend: child.famille?.reprend,
+        // equipe-01 (E1) : absent without role nor verdict.
+        role: child.famille?.role,
+        relit: child.famille?.relit,
+        verdict: this.verdictOf(child),
       })),
     });
   }
@@ -681,6 +701,7 @@ export class Delegation {
     const children = this.childrenOf(root);
     if (children.some((child) => !terminal.has(child.state))) return;
     if (this.families.get(family.rootId) === family) this.families.delete(family.rootId);
+    this.roleWarnings?.delete(family.rootId);
     for (const child of children) {
       this.finals.delete(child.id);
       this.briefs.delete(child.id);
@@ -705,6 +726,7 @@ export class Delegation {
           attend,
           pendingQuestion: child.pendingQuestion ?? null,
           pendingPermission: this.engine.pendingPermission(child.id),
+          ...this.teamOf(child),
         };
       }),
     };
@@ -784,6 +806,10 @@ export class Delegation {
   }
 
   async launch(mother, control, args) {
+    // equipe-01 (E1) : the role, and the agents installed for an independent look, read before any
+    // counter of the launch is taken (no wait between them and the creation).
+    const team = args.role ? this.roleOf(mother, args.role) : null;
+    const installed = team?.autreAgent && !args.agent ? await this.agents() : null;
     const family = this.family(mother.id);
     const root = this.store.get(mother.id);
     // Refused by the owner (card, or the request) : the chief goes on alone ; nothing is asked again.
@@ -795,7 +821,11 @@ export class Delegation {
     // multi-agent-v3-01 (D3, D4) : prerequisites and the resumed attempt are sisters ; the first
     // two resumptions of a task (its first attempt) are outside the envelope.
     const sisters = new Map(children.map((child) => [child.id, child]));
-    for (const id of [...(args.apres ?? []), ...(args.reprend ? [args.reprend] : [])])
+    for (const id of [
+      ...(args.apres ?? []),
+      ...(args.relit ?? []),
+      ...(args.reprend ? [args.reprend] : []),
+    ])
       if (!sisters.has(id))
         throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
     const previous = sisters.get(args.reprend) ?? null;
@@ -842,7 +872,14 @@ export class Delegation {
         throw fail('fichier_hors_espace', `Chemin hors de l’espace de la mission : ${path}`);
     // A resumption takes the agent, the model and the title of the attempt it resumes by default.
     const base = previous ?? mother;
-    const agent = args.agent ?? base.agent;
+    // equipe-01 (E1) : a role for an independent look gets an agent other than its authors'.
+    const reviewer = installed
+      ? otherAgent(
+          installed,
+          args.relit ? args.relit.map((id) => sisters.get(id).agent) : [mother.agent],
+        )
+      : null;
+    const agent = args.agent ?? reviewer ?? base.agent;
     const modele = args.modele ?? (agent === base.agent ? (base.model ?? '') : '');
     const named = args.titre ?? previous?.famille?.titre;
     const asked = (named ?? consigne).replace(/\s+/g, ' ').trim();
@@ -861,7 +898,12 @@ export class Delegation {
         racine: mother.id,
         mere: mother.id,
         titre,
-        ...(args.apres ? { apres: [...new Set(args.apres)] } : {}),
+        ...(args.apres || args.relit
+          ? { apres: [...new Set([...(args.apres ?? []), ...(args.relit ?? [])])] }
+          : {}),
+        ...(args.relit ? { relit: [...new Set(args.relit)] } : {}),
+        ...(team ? { role: team.nom } : {}),
+        ...(team?.verdict ? { verdictAttendu: true } : {}),
         ...(previous ? { reprend: previous.id, reprise } : {}),
         ...(folder ? { dossierResultats: folder } : {}),
       },
@@ -946,6 +988,18 @@ export class Delegation {
       fichiers,
       soeurs,
       ...(Object.keys(tache).length ? { tache } : {}),
+      ...(team
+        ? {
+            role: team.consigne
+              ? {
+                  nom: team.nom,
+                  description: team.description,
+                  consigne: team.consigne,
+                  verdict: team.verdict,
+                }
+              : { nom: team.nom },
+          }
+        : {}),
     });
     this.observe(link.held.control, run.cwd);
     family.held.set(run.id, link.held);
@@ -972,7 +1026,46 @@ export class Delegation {
       modele,
       ...(folder ? { dossierResultats: folder, espace: resolve(mother.cwd) } : {}),
       famille: this.counter(mother),
-      ...(etat === 'attend_accord' ? { note: CONSENT_PENDING_NOTE } : {}),
+      ...note([
+        etat === 'attend_accord' && CONSENT_PENDING_NOTE,
+        installed && !reviewer && SAME_AGENT_NOTE,
+      ]),
+    };
+  }
+  // equipe-01 (E1) : the roles of a mission (platform's, then its workspace's) ; a workspace file
+  // not read as a role is said once on the mother (`role_ignore`).
+  roles(mother) {
+    const { roles, ignored } = loadRoles(mother.cwd);
+    this.roleWarnings ??= new Map();
+    const seen = this.roleWarnings.get(mother.id) ?? new Set();
+    this.roleWarnings.set(mother.id, seen);
+    for (const fichier of ignored)
+      if (!seen.has(fichier)) {
+        seen.add(fichier);
+        this.store.event(mother.id, 'role_ignore', { fichier });
+      }
+    return roles;
+  }
+  // A defined role, or a free name (a mere label).
+  roleOf(mother, name) {
+    return this.roles(mother).get(roleKey(name)) ?? { nom: name.trim() };
+  }
+  // The verdict of a verification sub-mission once ended (data reported by it), else null.
+  verdictOf(child) {
+    if (!child?.famille?.verdictAttendu || !terminal.has(child.state)) return null;
+    return readVerdict({
+      cwd: child.cwd,
+      folder: child.famille.dossierResultats,
+      answer: this.engine.modelAnswerOf(child),
+    });
+  }
+  // Role, reviewed sub-missions and verdict of a row, each absent when it has none.
+  teamOf(child) {
+    const verdict = this.verdictOf(child);
+    return {
+      ...(child.famille?.role ? { role: child.famille.role } : {}),
+      ...(child.famille?.relit ? { relit: child.famille.relit } : {}),
+      ...(verdict ? { verdict } : {}),
     };
   }
   // The owner's acceptance, written on the mission (kept by its resumption) and in its thread.
@@ -1100,6 +1193,8 @@ export class Delegation {
       outils: this.store.usage(child.id).entries.filter((e) => e.dimension === 'tool_observed')
         .length,
       dernierOutil: lastTool ? readToolCall(lastTool.data).tool.slice(0, 80) || null : null,
+      ...(child.famille?.role ? { role: child.famille.role } : {}),
+      ...(child.famille?.relit ? { relit: child.famille.relit } : {}),
     };
   }
   // What a finished sub-mission gives back : its answer (data), its Bilan, its files, its sends.
@@ -1122,6 +1217,7 @@ export class Delegation {
       fichiers: this.doneOf(child).fichiers,
       envois: this.sendsGiven(child),
       cause,
+      ...(this.verdictOf(child) ? { verdict: this.verdictOf(child) } : {}),
     };
   }
   // The agents installed, with the models each announced at its last session on this machine :
@@ -1163,6 +1259,7 @@ export class Delegation {
       agents: await this.agents(),
       activite: this.activity(),
       famille: this.counter(mother),
+      roles: roleList(this.roles(mother)),
       ...this.space(mother, children),
       nature: 'données rapportées par les sous-missions',
     };

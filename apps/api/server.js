@@ -269,6 +269,8 @@ export function createApp({
               .map(({ finish, ...p }) => p),
             // chef-01 : the sub-missions of a mother, only when it has some.
             ...engine.delegation.view(run),
+            // equipe-carnet : the team notebook of a multi-agent mother, only when it has notes.
+            ...engine.delegation.carnet.view(run),
           });
       }
       const privateResult = path.match(/^\/api\/career\/runs\/([a-f0-9-]{36})\/result$/);

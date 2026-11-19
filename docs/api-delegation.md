@@ -435,6 +435,43 @@ Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
   sous-missions retenues. Rien n'est relancé automatiquement.
 - Les cartes d'envoi restent au clic du propriétaire, sous-mission par sous-mission.
 
+## 7 bis. Carnet d'équipe (`equipe-carnet`, brief `equipe-01`, lot E3)
+
+Un carnet par famille multi-agent (clé : la première exécution de la chaîne de la mère), logique dans
+`packages/orchestrator/carnet.js`, textes dans `delegation-rule.js`.
+
+- **Outils**, prêtés au chef avec ses quatre outils (serveur `relay-missions`) et à chaque sous-mission d'une mère
+  `multiAgent` (serveur `relay-equipe` : le même script de passerelle, lancé avec `RELAY_GATEWAY_TOOLS=carnet`, qui
+  n'enregistre que ces deux outils) :
+  - `carnet_noter { texte (1 à 2 000 car.), categorie: "methode"|"decouverte"|"decision"|"piege"|"question" (défaut
+"decouverte") }` → `{ n, total }` ; au-delà de 200 notes : erreur `carnet_plein` ;
+  - `carnet_lire { depuis? (entier ≥ 0, défaut 0) }` → `{ notes [{ n, auteur, role?, categorie, texte, a }], total,
+nature }` (notes de rang > `depuis`, 50 au plus par appel).
+- **Route interne** : `POST /api/internal/missions/<id>` accepte d'une sous-mission (son propre jeton) **seulement** ces
+  deux outils ; tout outil de mission y reste refusé (403 « Outils de mission non prêtés à cette mission ») : une
+  sous-mission ne lance toujours rien (un seul niveau). Mission sans `multiAgent` ni famille : 403 pour le carnet aussi.
+- `auteur` : « agent principal » pour le chef, le titre de la sous-mission sinon ; `role` : `famille.role.nom` quand la
+  ligne de la sous-mission en porte un (lot E1), absent sinon.
+- **Départ d'une sous-mission** : `famille.carnet { notes (les 30 dernières, 6 000 car. au plus), total }`, absent tant
+  que le carnet est vide ; sa phrase porte le texte « CARNET (sous-mission) » du brief (toujours, mode allumé).
+- **Chef** : `mission_attendre`, `mission_suivre` et le tour de synthèse (`familyResults`) portent `carnet { total,
+nouvelles }` : les notes des membres pas encore remises au chef (20 au plus par appel, chacune une seule fois ; ses
+  propres notes ne lui reviennent pas) ; champ absent tant que le carnet est vide. Phrase du chef : texte « CARNET
+  (chef) » du brief, avant la fin qui dépend de l'accord.
+- **Mémoire** : en mémoire, et un événement `carnet_note` sur l'exécution de la mère pour chaque note (avec le texte) ;
+  la première note marque la ligne de la mère (`carnet: true`) : sans cette marque, rien n'est lu (une famille sans note
+  ne lit aucun événement). Après une reprise de la mère ou un redémarrage, le carnet est relu depuis les événements de
+  la chaîne. Espace privé : l'événement ne porte que `n`, `categorie` et `chef` ; les notes sont dans
+  `relay/runs/<racine>-carnet.json` de l'espace.
+- **Miroir** : `relay/missions/<8 car.>/0-carnet/carnet.md`, réécrit à chaque note par la plateforme (chemin confiné),
+  un bloc par note (rang, auteur, rôle, catégorie, heure, texte) ; dossier non inscriptible : pas de miroir.
+- **Bilan de la mère** : une ligne « Carnet d’équipe : n note(s) de m membre(s) (k méthode, …) » seulement s'il y a des
+  notes. **Vue** `GET /api/runs/:id` d'une mère : `carnet { total, notes (20 dernières) }` (absent si vide ; espace
+  privé : `total` seul).
+- Limites : le carnet en mémoire n'est pas libéré à la fin de la famille (200 notes au plus par famille) ; le relevé
+  des notes remises au chef est en mémoire seulement : après un redémarrage, le chef repris reçoit de nouveau les notes
+  des membres.
+
 ## 8. Pas encore fait
 
 Front : interrupteur « Mode multi-agent » (`multiAgent`), case « Autoriser les sous-agents » avec l'enveloppe

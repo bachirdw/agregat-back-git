@@ -187,6 +187,37 @@ async function daughter(request) {
     });
     await update({ sessionUpdate: 'tool_call_update', toolCallId, status: 'completed' });
   }
+  // equipe-carnet : « NOTER[<categorie>]{<texte>} » writes a note, « LIRE:<depuis> » reads the
+  // notebook, through the `relay-equipe` server lent to a sub-mission ; its tools and answers are
+  // logged in equipe-<pid>.json.
+  const notes = [...consigne.matchAll(/NOTER\[(\w+)\]\{([^}]*)\}/g)];
+  const lire = consigne.match(/LIRE:(\d+)/);
+  if (notes.length || lire) {
+    const mcp = await connectMcp(servers.find((s) => s.name === 'relay-equipe'));
+    const calls = [];
+    const callTool = async (name, args) => {
+      const answer = await mcp.callTool({ name, arguments: args });
+      calls.push({
+        name,
+        args,
+        isError: !!answer.isError,
+        result: JSON.parse(answer.content[0].text),
+      });
+    };
+    try {
+      const tools = (await mcp.listTools()).tools.map((tool) => tool.name);
+      for (const [, categorie, texte] of notes)
+        await callTool('carnet_noter', { texte, categorie });
+      if (lire) await callTool('carnet_lire', { depuis: Number(lire[1]) });
+      if (consigne.includes('LANCER'))
+        await callTool('mission_lancer', { consigne: 'x' }).catch((error) =>
+          calls.push({ name: 'mission_lancer', refus: String(error.message) }),
+        );
+      log(`equipe-${process.pid}.json`, { tools, calls });
+    } finally {
+      await mcp.close();
+    }
+  }
   let summary = `Résumé FICTIF : ${consigne}`;
   if (consigne.includes('QUESTION')) {
     const answer = await connection.client.request(methods.client.elicitation.create, {

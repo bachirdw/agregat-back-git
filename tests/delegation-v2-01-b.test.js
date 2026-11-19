@@ -423,7 +423,8 @@ test('voie 2, demande écrite dans le prompt : pas de carte, une ligne du fil, a
   const daughters = daughterPrompts(p);
   assert.equal(daughters.length, 2);
   for (const entry of daughters) {
-    assert.deepEqual(entry.servers, ['platform']);
+    // equipe-carnet : the notebook server only (no mission tool).
+    assert.deepEqual(entry.servers, ['platform', rule.CARNET_SERVER]);
     // multi-agent-v3-01 (D9) : the sub-mission's sentence names its results folder.
     assert.ok(entry.prompt.famille.dossierResultats);
     assert.ok(

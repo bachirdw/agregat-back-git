@@ -7,8 +7,16 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { MISSION_SERVER, MISSION_TOOLS, waitSeconds } from '../orchestrator/delegation-rule.js';
+// equipe-carnet : the team notebook's tools : with the mission tools for the chief ; alone
+// (RELAY_GATEWAY_TOOLS=carnet, server `relay-equipe`) for a sub-mission.
+import { CARNET_SERVER, CARNET_TOOLS } from '../orchestrator/delegation-rule.js';
+const onlyCarnet = process.env.RELAY_GATEWAY_TOOLS === 'carnet';
+const TOOLS = onlyCarnet ? CARNET_TOOLS : { ...MISSION_TOOLS, ...CARNET_TOOLS };
 
-const server = new McpServer({ name: MISSION_SERVER, version: '0.1.0' });
+const server = new McpServer({
+  name: onlyCarnet ? CARNET_SERVER : MISSION_SERVER,
+  version: '0.1.0',
+});
 const reply = (value, isError = false) => ({
   ...(isError ? { isError: true } : {}),
   content: [{ type: 'text', text: JSON.stringify(value) }],
@@ -16,7 +24,7 @@ const reply = (value, isError = false) => ({
 // Margin over the longest wait the platform may hold the request (mission_attendre).
 const MARGIN_MS = 30000;
 
-for (const [name, tool] of Object.entries(MISSION_TOOLS))
+for (const [name, tool] of Object.entries(TOOLS))
   server.registerTool(
     name,
     { description: tool.description, inputSchema: tool.schema },

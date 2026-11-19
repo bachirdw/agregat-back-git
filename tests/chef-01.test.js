@@ -220,12 +220,15 @@ test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant
   assert.deepEqual(
     p.tools().map((tool) => tool.name),
     // equipe-01 (E2) : mission_continuer added.
+    // equipe-carnet : the team notebook's two tools are lent with the mission tools.
     [
       'mission_lancer',
       'mission_suivre',
       'mission_attendre',
       'mission_annuler',
       'mission_continuer',
+      'carnet_noter',
+      'carnet_lire',
     ],
   );
 });
@@ -334,7 +337,8 @@ test('lancer deux sous-missions et les attendre : réponses, Bilans, lien mère-
   const daughters = daughterPrompts(p);
   assert.equal(daughters.length, 2);
   for (const entry of daughters) {
-    assert.deepEqual(entry.servers, ['platform']);
+    // equipe-carnet : the notebook server only (no mission tool).
+    assert.deepEqual(entry.servers, ['platform', rule.CARNET_SERVER]);
     assert.equal(
       entry.prompt.famille.demandeDuProprietaire,
       'Compare deux rapports FICTIFS avec des sous-missions.',
@@ -931,7 +935,9 @@ test('une mère ne voit ni ne touche les sous-missions d’une autre mère ; le 
   // B's token does not open A's tools.
   assert.equal((await asA('mission_suivre', {}, tokenB)).status, 403);
   // A sub-mission has no mission tool of its own.
-  for (const entry of daughterPrompts(p)) assert.deepEqual(entry.servers, ['platform']);
+  // equipe-carnet : the notebook server only.
+  for (const entry of daughterPrompts(p))
+    assert.deepEqual(entry.servers, ['platform', rule.CARNET_SERVER]);
   p.touch('go-a');
   p.touch('go-b');
   await p.ended(motherA.id, 30000);

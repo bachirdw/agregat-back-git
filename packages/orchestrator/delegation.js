@@ -38,6 +38,9 @@ import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
 import { loadRoles, otherAgent, readVerdict, roleKey, roleList } from './roles.js';
 import { continueChild, precedentOf, suiteTitle } from './continuation.js';
+// equipe-carnet : the team notebook (packages/orchestrator/carnet.js).
+import { Carnet } from './carnet.js';
+import { CARNET_TOOLS } from './delegation-rule.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
@@ -104,6 +107,7 @@ export class Delegation {
     this.agentsCache = null;
     // Read at start, as the other AGENT_PLATFORM_* settings : 0 withdraws tools and sentence.
     this.lent = process.env.AGENT_PLATFORM_DELEGATION !== '0';
+    this.carnet = new Carnet(this); // equipe-carnet
   }
   get store() {
     return this.engine.store;
@@ -171,7 +175,13 @@ export class Delegation {
   // (`multiAgent`, multi-agent-v3-01 D1), never for a sub-mission (one level), through the
   // platform's internal bridge. Called only when an agent's session opens.
   servers(run) {
-    if (!this.lent || run.famille || run.multiAgent !== true) return [];
+    // equipe-carnet : a sub-mission of a multi-agent mother gets the notebook tools only.
+    if (run.famille)
+      return this.carnet.servers(run, {
+        command: process.execPath,
+        args: [resolve(ROOT, 'packages/mission-gateway/server.js')],
+      });
+    if (!this.lent || run.multiAgent !== true) return [];
     const token = this.engine.approvalTokens.get(run.id);
     if (!this.engine.approvalBase || !token) {
       // Said only to an owner who accepted : any other mission stays as it was.
@@ -229,6 +239,7 @@ export class Delegation {
           // multi-agent-v3-01 (D8, D9, D3) : the structured task, the results folder, and the
           // results of its prerequisites (data, read only for a sub-mission that has some).
           ...(brief.tache ? { tache: brief.tache } : {}),
+          ...this.carnet.forStart(run), // equipe-carnet : the notebook, absent while empty
           ...(dossierResultats ? { dossierResultats } : {}),
           ...(apres
             ? {
@@ -263,6 +274,7 @@ export class Delegation {
           familyResults: {
             nature: 'données rapportées par les sous-missions',
             terminees: given.map((child) => this.deliver(family, this.store.get(child.id))),
+            ...this.carnet.forChief(mother), // equipe-carnet
           },
           instructions: SYNTHESIS_TURN,
         };
@@ -355,7 +367,11 @@ export class Delegation {
   }
   // The Bilan's « Sous-missions » section of a mother (empty without sub-mission) : how the owner
   // accepted (or refused), the sub-missions, and the results that never reached the chief.
-  bilanSection(run, { chiefAnswer = '', motherSends = 0 } = {}) {
+  bilanSection(run, options = {}) {
+    // equipe-carnet : the notebook's line, after the section (nothing while it is empty).
+    return this.familyBilan(run, options) + this.carnet.bilanLine(run);
+  }
+  familyBilan(run, { chiefAnswer = '', motherSends = 0 } = {}) {
     if (!this.hasFamily(run)) return '';
     const mother = this.store.get(run.id);
     if (!mother) return '';
@@ -763,6 +779,8 @@ export class Delegation {
     if (!control || !token || this.engine.approvalTokens.get(motherId) !== token)
       return { status: 403, body: { error: 'Jeton invalide ou mission inactive' } };
     const mother = this.store.get(motherId);
+    // equipe-carnet : the notebook tools, for the chief and for a sub-mission (only these two).
+    if (CARNET_TOOLS[body?.tool]) return this.carnet.call(mother, control, body);
     // The tools are never lent to a sub-mission, nor to a mission without the multi-agent mode, nor
     // to any mission once withdrawn.
     if (!this.lent || !mother || mother.famille || mother.multiAgent !== true)
@@ -802,7 +820,11 @@ export class Delegation {
         mission_annuler: () => this.cancelChild(mother, parsed.data),
         mission_continuer: () => continueChild(this, mother, control, parsed.data),
       };
-      return { status: 200, body: { result: await handlers[body.tool]() } };
+      const result = await handlers[body.tool]();
+      // equipe-carnet : the members' notes not given yet reach the chief when it waits or follows.
+      if (['mission_attendre', 'mission_suivre'].includes(body.tool))
+        Object.assign(result, this.carnet.forChief(mother));
+      return { status: 200, body: { result } };
     } catch (error) {
       return {
         status: 200,

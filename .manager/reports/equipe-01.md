@@ -467,3 +467,67 @@ les fichiers touchés (y compris les `.md` de rôles et les fixtures) : conforme
 - Dans une mission privée, un rôle de l'espace qui porte le nom d'un rôle du pack voit ce nom écrit en base. C'est la
   même règle qu'en E1 pour un nom de la plateforme : un nom fixe du dépôt, pas un texte de l'agent.
 - Pas de `npm test` complet ; ce rapport n'est pas reformaté par Prettier (déjà non conforme avant ce lot).
+
+## Corrections après l'essai réel et la relecture du lot E5
+
+Journal (20/11) : lecture 09:00, test rouge du point 1 09:05, commits `044e27a`, `0b29bf4`, `9602977` entre 09:07
+et 09:10, tests rejoués 09:10 à 09:13, `npm run check` et Prettier 09:14.
+
+### 1. Agent du vérificateur mal choisi (essai réel du 20/11, mission ab1210ce, sous-mission 5b3d24a8)
+- Constaté dans le code : `agents()` (`delegation.js`) disait l'agent simulé `disponible` en mode réel (`simulated ||
+  live`), et `otherAgent` (`roles.js`) prenait le premier disponible différent de l'auteur, donc l'agent simulé, en
+  tête de la liste des profils.
+- Fait : `otherAgent(agents, authors, { live, probes })`. Hors mode réel : inchangé (premier de la liste). En mode
+  réel : jamais un agent `simule`, ni un agent dont `probes[id].session === false` ; parmi les autres, le premier dont
+  `session === true`, sinon le premier de la liste ; aucun : `null` (agent par défaut et `SAME_AGENT_NOTE`, chemin
+  existant). Branchement dans `launch()` : un argument de plus à l'appel existant (`live: this.engine.live, probes:
+  loadProbes(this.engine.dataDir)`, lecture synchrone, aucune attente ajoutée, compteurs intouchés). `agents()` :
+  champ `simule: true` sur l'agent simulé seul, `disponible` vaut `!live` pour lui (inchangé hors mode réel, `false`
+  en mode réel). Aucun nom d'agent en dur dans le moteur.
+- Tests ajoutés à `tests/equipe-01-roles.test.js` (17 au lieu de 13) : unité sur une liste aux formes réelles
+  (simulé en tête, `gemini` en échec de session, `opencode` jamais essayé, `codex` et `claude` prouvés) ;
+  `agents()` en mode démonstration et en mode réel ; deux intégrations en mode réel (`engine.live = true`, relevé
+  d'essais FICTIF écrit dans le dossier de données temporaire du test) : vérificateur d'un travail de `claude` →
+  `codex`, sans note ; seuls le simulé et un agent en échec comme autres → agent de la mère et note. Pour que
+  la ligne de l'auteur porte « claude », l'aide `platform()` du test garde le nom de l'agent joué par le faux
+  agent pour `claude` et `gemini` (`plan.input.agent`), le faux agent tourne toujours ; `codex` garde l'ancienne
+  forme (ligne « fixture »).
+- Rouge avant correctif : 4 échecs sur 17 (le simulé « fixture » choisi au lieu de `codex`, comme dans l'essai
+  réel ; pas de champ `simule`). Vert après : 17/17. Contrôles négatifs : sans la garde de `otherAgent`, 3 échecs ;
+  sans l'argument passé dans `launch()`, 2 échecs (les intégrations).
+- Aucun test existant n'affirmait l'ancienne forme de `agents` : aucun adapté (`delegation-v2-01-a` lit les
+  modèles par `find`, `equipe-01-relecture` remplace `agents()`).
+- Doc : `docs/api-delegation.md` 3.1, « Regard indépendant » et « Agent simulé dans `agents` ». Le tableau des
+  outils n'a pas été modifié (y ajouter `simule?` faisait reformater tout le tableau par Prettier).
+- Non vérifié : aucun essai réel rejoué. La fraîcheur d'un essai de session (`fresh()` du routeur) n'est pas
+  prise en compte : un échec ancien écarte l'agent tant qu'un essai réussi ne l'a pas remplacé dans le relevé.
+  En mode réel, le chef peut toujours imposer `agent: "fixture"` (seul le choix automatique change).
+
+### 2. Garde « pack connu » prouvée
+- Test ajouté à `tests/equipe-01-roles-pack.test.js` : les ids `../tests/fixtures/packs-equipe-01/roles-fictif`
+  et `domain-packs/../tests/fixtures/packs-equipe-01/roles-fictif` ne rendent que les 4 rôles de la plateforme,
+  rien d'ignoré. Vert avec la garde.
+- Contrôle négatif (garde remplacée par `if (pack)`, puis remise) : le test échoue, `monteur` est chargé.
+- Constaté : seul le premier id mène à un dossier réel sans la garde ; le second se résout en
+  `domain-packs/tests/fixtures/...`, qui n'existe pas, et ne prouve donc rien seul. Il est gardé comme demandé.
+
+### 3. Rôles `collecteur` et `evaluateur` du pack career-ops retirés (décision du manager)
+- `git rm` de `domain-packs/career-ops/roles/collecteur.md` et `evaluateur.md` ; `contacts.md` et `formulaire.md` se
+  terminent par la phrase demandée (« Si un site demande une vérification « humain »… ne le contourne pas. ») ;
+  `redacteur-candidature.md` inchangé.
+- Test : trois fichiers, 7 rôles chargés en tout, `collecteur` et `evaluateur` absents, la phrase en fin de
+  consigne de `contacts` et `formulaire`. Rouge avant (liste de cinq fichiers), vert après. Contrôle négatif :
+  `formulaire.md` sans la phrase → le test échoue.
+- Doc : `docs/api-delegation.md` (trois rôles) ; `docs/api-career-ops.md` (liste à trois, arrêt devant une
+  vérification « humain » ou une connexion manquante, et la phrase : la collecte et l'évaluation en parallèle
+  restent à concevoir avec la méthode du Skill).
+
+### Résultats réels (constaté, 09:10 à 09:14)
+Un fichier à la fois (`AGENT_PLATFORM_AGENTS_CONFIG=/tmp/absent-agents-equipe.json node --test
+--test-reporter=spec tests/<f>.test.js`) : equipe-01-roles 17/17, equipe-01-roles-pack 7/7,
+equipe-01-relecture 9/9, equipe-01-continuer 6/6, equipe-01-carnet 12/12, chef-01 16/16,
+multi-agent-v3-01-a 7/7, multi-agent-v3-01-b 8/8, multi-agent-v3-02 11/11, delegation-v2-01-a 10/10,
+delegation-v2-01-b 12/12, review-delegation-v2-01 5/5, review-multi-agent-v3-01 13/13, generique-01 15/15,
+career-integration 50/50, platform 11/11, owner-mode 14/14 : 0 échec. `npm run check` : « Syntaxe JavaScript
+valide. » `npx prettier --check` sur les fichiers touchés : conforme. Aucun agent réel, aucun port fixe, aucun
+réseau, aucun relevé réel des essais lu, pas de `npm test` complet. Bibliothèque et Skill career-ops intouchés.

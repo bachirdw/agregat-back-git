@@ -403,3 +403,67 @@ Après correctif, un fichier à la fois
 Ce rapport n'était déjà pas conforme à Prettier dans `c1fb352`. Il n'a pas été reformaté, pour ne pas réécrire les
 sections précédentes.
 Aucun agent réel, aucun port fixe, aucun réseau. Pas de `npm test` complet.
+
+## Lot E5 — rôles de pack
+
+Journal : début 08:50 (lecture), test rouge 08:53, vert 08:54, tests voisins 08:56 à 08:59, commit `7768672` (20/11).
+
+### Fait comment
+- `packages/orchestrator/roles.js`, `loadRoles(cwd, { platform, pack })` : troisième source entre la plateforme et
+  l'espace, le dossier `roles/` du pack de la mission. Le dossier est celui que donne `packFolder(id)` de `packs.js`
+  (`domain-packs/<id>`, ou le dossier d'un pack de test de `AGENT_PLATFORM_TEST_PACKS_DIR`), et seulement pour l'id
+  d'un pack connu (`packs.some`) : un id inconnu ou `../roles-fictif` ne mène à rien. Lecture confinée
+  (`readConfined(base, "roles/<f>")`), dossier lien ou absent : rien ; mêmes bornes (20 fichiers, 8 Ko, description
+  ≤ 300, consigne ≤ 4 000). Ordre : plateforme, puis pack (remplace), puis espace (remplace les deux). Le moteur ne
+  nomme aucun pack. La signature passe de `loadRoles(cwd, platformFolder)` à `loadRoles(cwd, { platform, pack })`
+  (le second argument n'était employé nulle part).
+- `ignored` devient une liste d'objets : `{ fichier }` pour l'espace (événement `role_ignore` inchangé) et
+  `{ fichier, source: "pack" }` pour un fichier mal formé du pack.
+- `packages/orchestrator/delegation.js`, deux branchements courts. Dans `roles(mother)`, `loadRoles(mother.cwd, { pack:
+  mother.pack })` (toujours lu une fois par exécution de la mère, cache `roleSets` existant), et l'événement reçoit
+  l'objet. Dans `launch()`, la règle du lot E1 pour une mission privée accepte aussi le nom d'un rôle du pack de la
+  mission (`loadRoles(null, { pack: mother.pack })`). Un nom libre ou un rôle propre à l'espace n'est toujours pas
+  écrit. Aucune zone fragile touchée.
+- `domain-packs/career-ops/roles/` : `collecteur.md`, `evaluateur.md`, `redacteur-candidature.md`, `contacts.md`,
+  `formulaire.md`, textes du brief repris tels quels. L'en-tête porte `nom`, `description`, `verdict: false` et
+  `autreAgent: false`, comme les rôles de la plateforme. Prettier a ajouté une ligne vide après l'en-tête. Aucune
+  faute manifeste corrigée. Bibliothèque et Skill career-ops : ni lus ni modifiés.
+- Doc : `docs/api-delegation.md` section 3.1 (source « pack », ordre, `role_ignore { fichier, source }`, rôles figés
+  y compris ceux du pack, règle de la mission privée) ; `docs/api-career-ops.md`, section neuve « Rôles d’équipe
+  déclarés par le pack ».
+- Fixtures : `tests/fixtures/packs-equipe-01/roles-fictif` (rôles `monteur`, `chercheur` qui remplace celui de la
+  plateforme avec `verdict: true`, `casse.md` mal formé) et `sans-roles-fictif` (sans dossier `roles/`).
+
+### Tests (`tests/equipe-01-roles-pack.test.js`, 6 tests)
+D'abord rouge : 4 échecs sur 6. Les 2 qui passaient étaient le test « autre pack / sans roles » (un contrôle) et
+« espace remplace pack », que l'espace satisfaisait seul. Ce dernier est renforcé : le chercheur du pack doit rester
+listé à côté du monteur de l'espace. Puis 6/6 verts.
+- unité : ordre plateforme puis pack, `role_ignore` du pack ; `sans-roles-fictif`, `core`, id inconnu,
+  `../roles-fictif` et `null` donnent les 4 rôles de la plateforme, rien d'ignoré ;
+- cinq rôles career-ops : noms, format valide, description ≤ 300, consigne ≤ 4 000, ≤ 8 Ko, 9 rôles chargés en tout,
+  aucun ignoré, sans mission lancée ;
+- intégration : rôle du pack donné à la sous-mission (`famille.role` complet) ; il remplace le `chercheur` de la
+  plateforme ; `mission_suivre roles` ; un seul `role_ignore { fichier: "casse.md", source: "pack" }` pour deux
+  `mission_suivre` et deux lancements ;
+- rôle de l'espace qui remplace celui du pack, avec les autres rôles du pack gardés ;
+- mission `core` et mission `sans-roles-fictif` : 4 rôles, « monteur » simple libellé, aucun `role_ignore`, mission
+  aboutie ;
+- mission privée : nom d'un rôle du pack écrit en base ; nom libre non ; « monteur » dans une mission `core` non.
+
+Contrôle négatif : sans les branchements de `delegation.js`, 2 tests échouent (rôle du pack donné, mission privée).
+Sans celui de `roles()` seul, après renforcement, « espace remplace pack » échoue aussi. Branchements remis : 6/6.
+
+Tests rejoués un par un (`AGENT_PLATFORM_AGENTS_CONFIG=/tmp/absent-agents-equipe.json`), tous verts :
+equipe-01-roles-pack 6/6, equipe-01-roles 13/13, equipe-01-relecture 9/9, equipe-01-continuer 6/6,
+equipe-01-carnet 12/12, generique-01 15/15, review-generique-01 5/5, chef-01 16/16, multi-agent-v3-01-a 7/7,
+multi-agent-v3-01-b 8/8, delegation-v2-01-a 10/10, delegation-v2-01-b 12/12, career-integration 50/50,
+platform 11/11, owner-mode 14/14. `npm run check` : « Syntaxe JavaScript valide. » `npx prettier --check` sur
+les fichiers touchés (y compris les `.md` de rôles et les fixtures) : conforme.
+
+### Non vérifié, à décider
+- Aucun essai avec un agent réel : l'effet des cinq rôles sur une vraie mission career-ops n'a pas été observé.
+- Les rôles sont lus une fois par exécution de la mère (règle E1). Une mission privée relit les fichiers du pack à
+  chaque lancement pour savoir si le nom peut être écrit, comme le lot E1 le fait déjà pour la plateforme.
+- Dans une mission privée, un rôle de l'espace qui porte le nom d'un rôle du pack voit ce nom écrit en base. C'est la
+  même règle qu'en E1 pour un nom de la plateforme : un nom fixe du dépôt, pas un texte de l'agent.
+- Pas de `npm test` complet ; ce rapport n'est pas reformaté par Prettier (déjà non conforme avant ce lot).

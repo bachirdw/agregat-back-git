@@ -1,0 +1,11 @@
+# Pack FICTIF de test (equipe-01, lot E5) : un pack qui déclare ses propres rôles (dossier roles/).
+id: roles-fictif
+name: Rôles FICTIFS
+version: 0.0.1
+description: Pack FICTIF de test, avec ses rôles.
+keywords: []
+skills: []
+workflow:
+  id: rien-roles-fictif
+  title: Aucun parcours FICTIF
+  steps: []

@@ -249,14 +249,21 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
 ### 3.1 Rôles, vérification indépendante et verdict (`equipe-01`, lot E1)
 
 - **Rôles décrits en texte** (`packages/orchestrator/roles.js`) : rôles fournis par la plateforme dans
-  `packages/orchestrator/roles/*.md` (`chercheur`, `redacteur`, `developpeur`, `verificateur`, génériques), puis rôles de
-  l'espace de la mission dans `<dossier de travail>/relay/roles/*.md` (lecture confinée, aucun lien suivi, rien créé ;
-  20 fichiers et 8 Ko par fichier au plus ; un rôle de l'espace remplace celui du même nom ; dossier absent : rien).
+  `packages/orchestrator/roles/*.md` (`chercheur`, `redacteur`, `developpeur`, `verificateur`, génériques), puis rôles du
+  **pack de la mission** dans `<dossier du pack>/roles/*.md` (lot E5 : `domain-packs/<pack>/roles/`, ou le dossier d'un
+  pack de test donné par `AGENT_PLATFORM_TEST_PACKS_DIR`, trouvé comme le fait `packs.js` ; seul l'id d'un pack connu
+  mène à un dossier, le moteur ne nomme aucun pack), puis rôles de l'espace de la mission dans
+  `<dossier de travail>/relay/roles/*.md` (lecture confinée, aucun lien suivi, rien créé ; dossier absent : rien). Mêmes
+  bornes pour les deux dossiers : 20 fichiers et 8 Ko par fichier au plus. Ordre de priorité : plateforme, puis pack (un
+  rôle du pack remplace celui de la plateforme du même nom), puis espace (un rôle de l'espace remplace les deux). Une
+  mission d'un autre pack ne voit pas les rôles d'un pack ; un pack sans dossier `roles/` n'ajoute rien, sans erreur.
+  Le pack `career-ops` déclare cinq rôles : `collecteur`, `evaluateur`, `redacteur-candidature`, `contacts`,
+  `formulaire` (voir `docs/api-career-ops.md`).
   Format : en-tête entre deux lignes `---` fait de lignes `clé: valeur` (`nom`, par défaut le nom du fichier ;
   `description` ≤ 300 car. ; `verdict: true|false` ; `autreAgent: true|false` ; clé inconnue ignorée), puis la consigne
-  (≤ 4 000 car.). Un fichier de l'espace mal formé est ignoré, avec un événement `role_ignore { fichier }` sur la mère,
-  une fois par fichier.
-- **Rôles figés au premier emploi** (décision du manager, relecture) : les rôles (plateforme et espace) sont lus une
+  (≤ 4 000 car.). Un fichier mal formé de l'espace est ignoré, avec un événement `role_ignore { fichier }` sur la mère,
+  une fois par fichier ; un fichier mal formé du pack aussi, avec `role_ignore { fichier, source: "pack" }`.
+- **Rôles figés au premier emploi** (décision du manager, relecture) : les rôles (plateforme, pack et espace) sont lus une
   fois par famille, au premier emploi dans la mission (`mission_lancer` avec `role`, ou `mission_suivre` qui rend
   `roles`), gardés en mémoire de la famille, et servent ensuite à tous les lancements, suites et lectures de cette
   mission. Un fichier écrit ou modifié ensuite sous `relay/roles` n'a plus d'effet pendant cette mission : une
@@ -267,8 +274,9 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   `famille.role { nom, description, consigne }` et la phrase « ton rôle dans l’équipe… » ; nom libre : simple
   libellé, `famille.role { nom }`, sans phrase) et `relit` (1 à 10 ids de sœurs, fusionnés avec `apres` : mêmes règles,
   `famille.prerequis` au départ ; la sous-mission reçoit aussi `famille.relit`). Mission de l'espace privé : seul le
-  nom d'un rôle de la plateforme est écrit en base (`famille.role` sur la ligne) ; un rôle de l'espace ou un nom libre
-  reste en mémoire seulement, comme le titre (« Sous-mission N »).
+  nom d'un rôle de la plateforme ou d'un rôle du pack de la mission (un nom fixe du dépôt) est écrit en base
+  (`famille.role` sur la ligne) ; un rôle propre à l'espace ou un nom libre reste en mémoire seulement, comme le titre
+  (« Sous-mission N »).
 - **Mère finie pendant le choix de l'agent** : pour un rôle `autreAgent: true` sans `agent`, la liste des agents
   installés est lue avant la création ; si pendant cette lecture la mère est annulée, finie ou en fermeture, l'appel
   rend `mission_terminee` et rien n'est créé.

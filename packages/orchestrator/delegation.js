@@ -961,7 +961,9 @@ export class Delegation {
         ...(args.relit ? { relit: [...new Set(args.relit)] } : {}),
         // equipe-01 (relecture) : a private mission writes no role name of its own in the database
         // (as its title) : only a platform role's name ; the role itself stays in memory (briefs).
-        ...(team && (!privateTitle || loadRoles(null).roles.has(roleKey(team.nom)))
+        // equipe-01 (E5) : or the name of a role of its pack (a fixed name of the repository).
+        ...(team &&
+        (!privateTitle || loadRoles(null, { pack: mother.pack }).roles.has(roleKey(team.nom)))
           ? { role: team.nom }
           : {}),
         ...(team?.verdict ? { verdictAttendu: true } : {}),
@@ -1093,8 +1095,8 @@ export class Delegation {
       ]),
     };
   }
-  // equipe-01 (E1) : the roles of a mission (platform's, then its workspace's) ; a workspace file
-  // not read as a role is said once on the mother (`role_ignore`).
+  // equipe-01 (E1) : the roles of a mission (platform's, then its pack's (E5), then its
+  // workspace's) ; a file not read as a role is said once on the mother (`role_ignore`).
   // equipe-01 (relecture, décision du manager) : read once per family (this execution of the
   // mother), at their first use, then kept : a file written later under relay/roles has no effect
   // during this mission. A resumption (a new run) or a restart reads them again.
@@ -1102,9 +1104,9 @@ export class Delegation {
     this.roleSets ??= new Map();
     const kept = this.roleSets.get(mother.id);
     if (kept) return kept;
-    const { roles, ignored } = loadRoles(mother.cwd);
+    const { roles, ignored } = loadRoles(mother.cwd, { pack: mother.pack });
     this.roleSets.set(mother.id, roles);
-    for (const fichier of ignored) this.store.event(mother.id, 'role_ignore', { fichier });
+    for (const file of ignored) this.store.event(mother.id, 'role_ignore', file);
     return roles;
   }
   // A defined role, or a free name (a mere label).

@@ -435,6 +435,30 @@ Sans `--apply`, rien n’est modifié et aucun contenu de fiche n’est affiché
 `reports/<uuid>.md` ordinaire rejoint `relay/offers/<uuid>.md` ; ce qui est synthétique va sous
 `relay/legacy/` (que Relay ne relit pas). Une destination déjà occupée annule tout le déplacement.
 
+## Rôles d’équipe déclarés par le pack (`equipe-01`, lot E5)
+
+En mission à plusieurs agents (`multiAgent`), le chef peut donner un rôle à chaque sous-mission. Le pack
+de la plateforme `domain-packs/career-ops` déclare les siens dans `domain-packs/career-ops/roles/*.md`
+(ce dossier appartient à la plateforme ; la bibliothèque et le Skill career-ops ne sont ni lus ni
+modifiés). Ils s’ajoutent aux rôles génériques de la plateforme et passent avant eux ; un rôle de
+l’espace (`relay/roles/*.md`) passe avant les deux. Une mission d’un autre pack ne les voit pas.
+Contrat complet : `docs/api-delegation.md`, section 3.1.
+
+Chaque rôle dit quelle part du travail d’équipe revient au membre et sous quelle forme il la rend ; la
+méthode reste celle du Skill.
+
+- `collecteur` : collecte des offres sur une source et une zone, sans les évaluer ni postuler ; une offre
+  par ligne JSON dans son dossier de résultats, comptes dans sa réponse ; s’arrête devant une
+  vérification « humain » ou un blocage, sans la contourner.
+- `evaluateur` : évalue et note des offres déjà collectées selon l’échelle du Skill ; une offre par ligne
+  JSON (lien, employeur, note, raison, conditions inconnues), nombre d’offres par note.
+- `redacteur-candidature` : prépare le CV et la lettre adaptés à une offre, avec les seuls faits du
+  profil ; n’envoie rien.
+- `contacts` : trouve les contacts professionnels publics utiles par entreprise, chacun avec sa source ;
+  une adresse déduite est dite « déduite » ; n’écrit à personne.
+- `formulaire` : remplit un formulaire de candidature jusqu’au bouton d’envoi ; l’envoi final attend le
+  clic du propriétaire.
+
 ## Validation frontend
 
 Le frontend séparé (`agregat-front`) couvre dépôt CV, édition YAML, offres/notes/rapport A–H, brouillons Gmail,

@@ -6,10 +6,13 @@
 // then the role's consigne. Also here : the verdict of a verification role read at its end, the
 // choice of another agent for an independent look, and the Bilan lines of the verifications. Pure
 // helpers : delegation.js gives the rows and records the events.
+// equipe-01 (lot E5) : a third source between the two, the roles of the mission's pack
+// (<pack folder>/roles/*.md) : what is proper to a Skill is declared in its pack, never here.
 import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readConfined } from '../policy-engine/files.js';
+import { packFolder, packs } from './packs.js';
 
 export const PLATFORM_ROLES = join(dirname(fileURLToPath(import.meta.url)), 'roles');
 export const WORKSPACE_ROLES = 'relay/roles';
@@ -77,22 +80,38 @@ function roleFiles(folder) {
   }
 }
 
-// The roles available to a mission whose working folder is `cwd` : the platform's, then those of
-// the workspace (a role of the workspace replaces the platform's role of the same name). Returns
-// { roles: Map(key -> role), ignored: [file names of the workspace not read as a role] }.
-export function loadRoles(cwd, platformFolder = PLATFORM_ROLES) {
+// The roles available to a mission whose working folder is `cwd` and whose pack is `pack` (an id) :
+// the platform's, then the pack's (a role of the pack replaces the platform's role of the same
+// name), then those of the workspace (they replace both). Only the id of a known pack leads to a
+// folder (the one packs.js gives it) ; no pack is named here. Returns { roles: Map(key -> role),
+// ignored: [{ fichier, source? }] : the files of the pack (`source: "pack"`) or of the workspace
+// not read as a role }.
+export function loadRoles(cwd, { platform = PLATFORM_ROLES, pack = null } = {}) {
   const roles = new Map();
   const ignored = [];
   const add = (role) => roles.set(roleKey(role.nom), role);
-  for (const name of roleFiles(platformFolder)) {
+  for (const name of roleFiles(platform)) {
     try {
-      const role = parseRole(
-        readConfined(platformFolder, name, MAX_ROLE_BYTES).toString('utf8'),
-        name,
-      );
+      const role = parseRole(readConfined(platform, name, MAX_ROLE_BYTES).toString('utf8'), name);
       if (role) add(role);
     } catch {
       /* A platform file unreadable : not a role. */
+    }
+  }
+  if (pack && packs.some((known) => known.id === pack)) {
+    const base = packFolder(pack);
+    for (const name of roleFiles(join(base, 'roles'))) {
+      let role = null;
+      try {
+        role = parseRole(
+          readConfined(base, `roles/${name}`, MAX_ROLE_BYTES).toString('utf8'),
+          name,
+        );
+      } catch {
+        role = null;
+      }
+      if (role) add(role);
+      else ignored.push({ fichier: name, source: 'pack' });
     }
   }
   if (!cwd) return { roles, ignored };
@@ -117,7 +136,7 @@ export function loadRoles(cwd, platformFolder = PLATFORM_ROLES) {
       role = null;
     }
     if (role) add(role);
-    else ignored.push(name);
+    else ignored.push({ fichier: name });
   }
   return { roles, ignored };
 }

@@ -1,0 +1,11 @@
+# Pack FICTIF de test (equipe-01, lot E5) : un pack sans dossier roles/.
+id: sans-roles-fictif
+name: Sans rôles FICTIFS
+version: 0.0.1
+description: Pack FICTIF de test, sans rôles.
+keywords: []
+skills: []
+workflow:
+  id: rien-sans-roles-fictif
+  title: Aucun parcours FICTIF
+  steps: []

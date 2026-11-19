@@ -440,7 +440,7 @@ Aucun pourcentage d'abonnement ni promesse d'économie ou de précision.
 Un carnet par famille multi-agent (clé : la première exécution de la chaîne de la mère), logique dans
 `packages/orchestrator/carnet.js`, textes dans `delegation-rule.js`.
 
-- **Outils**, prêtés au chef avec ses quatre outils (serveur `relay-missions`) et à chaque sous-mission d'une mère
+- **Outils**, prêtés au chef avec ses cinq outils `mission_*` (serveur `relay-missions`) et à chaque sous-mission d'une mère
   `multiAgent` (serveur `relay-equipe` : le même script de passerelle, lancé avec `RELAY_GATEWAY_TOOLS=carnet`, qui
   n'enregistre que ces deux outils) :
   - `carnet_noter { texte (1 à 2 000 car.), categorie: "methode"|"decouverte"|"decision"|"piege"|"question" (défaut

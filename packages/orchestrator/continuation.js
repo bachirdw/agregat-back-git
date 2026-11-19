@@ -47,7 +47,9 @@ export async function continueChild(delegation, mother, control, args) {
       : args.agent === undefined || args.agent === child.agent
         ? { modele: child.model ?? '' }
         : {}),
-    ...(child.famille?.role ? { role: child.famille.role } : {}),
+    ...((child.famille?.role ?? brief.role?.nom)
+      ? { role: child.famille?.role ?? brief.role.nom }
+      : {}),
     ...(brief.fichiers?.length ? { fichiers: brief.fichiers } : {}),
     ...(brief.tache ?? {}),
   });

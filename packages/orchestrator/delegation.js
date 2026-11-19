@@ -369,7 +369,8 @@ export class Delegation {
   // accepted (or refused), the sub-missions, and the results that never reached the chief.
   bilanSection(run, options = {}) {
     // equipe-carnet : the notebook's line, after the section (nothing while it is empty).
-    return this.familyBilan(run, options) + this.carnet.bilanLine(run);
+    // equipe-01 (relecture) : the mother's Bilan only, not each sub-mission's.
+    return this.familyBilan(run, options) + (run?.famille ? '' : this.carnet.bilanLine(run));
   }
   familyBilan(run, { chiefAnswer = '', motherSends = 0 } = {}) {
     if (!this.hasFamily(run)) return '';
@@ -822,7 +823,8 @@ export class Delegation {
       };
       const result = await handlers[body.tool]();
       // equipe-carnet : the members' notes not given yet reach the chief when it waits or follows.
-      if (['mission_attendre', 'mission_suivre'].includes(body.tool))
+      // equipe-01 (relecture) : an abandoned call marks nothing given (its answer is thrown away).
+      if (['mission_attendre', 'mission_suivre'].includes(body.tool) && !signal?.aborted)
         Object.assign(result, this.carnet.forChief(mother));
       return { status: 200, body: { result } };
     } catch (error) {
@@ -948,7 +950,11 @@ export class Delegation {
           ? { apres: [...new Set([...(args.apres ?? []), ...(args.relit ?? [])])] }
           : {}),
         ...(args.relit ? { relit: [...new Set(args.relit)] } : {}),
-        ...(team ? { role: team.nom } : {}),
+        // equipe-01 (relecture) : a private mission writes no role name of its own in the database
+        // (as its title) : only a platform role's name ; the role itself stays in memory (briefs).
+        ...(team && (!privateTitle || loadRoles(null).roles.has(roleKey(team.nom)))
+          ? { role: team.nom }
+          : {}),
         ...(team?.verdict ? { verdictAttendu: true } : {}),
         ...(previous ? { [args.continue ? 'continue' : 'reprend']: previous.id, reprise } : {}),
         ...(folder ? { dossierResultats: folder } : {}),
@@ -1097,12 +1103,16 @@ export class Delegation {
     return this.roles(mother).get(roleKey(name)) ?? { nom: name.trim() };
   }
   // The verdict of a verification sub-mission once ended (data reported by it), else null.
+  // equipe-01 (relecture) : none for one that never started ; its own verdict.json only.
   verdictOf(child) {
-    if (!child?.famille?.verdictAttendu || !terminal.has(child.state)) return null;
+    if (!child?.famille?.verdictAttendu || !terminal.has(child.state) || !child.startedAt)
+      return null;
     return readVerdict({
       cwd: child.cwd,
       folder: child.famille.dossierResultats,
       answer: this.engine.modelAnswerOf(child),
+      since: child.startedAt,
+      until: child.finishedAt,
     });
   }
   // Role, reviewed sub-missions and verdict of a row, each absent when it has none.

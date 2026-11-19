@@ -6,7 +6,7 @@
 // then the role's consigne. Also here : the verdict of a verification role read at its end, the
 // choice of another agent for an independent look, and the Bilan lines of the verifications. Pure
 // helpers : delegation.js gives the rows and records the events.
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readConfined } from '../policy-engine/files.js';
@@ -161,14 +161,16 @@ const ANSWER_LINE =
   /^\W*verdict\s*:\s*\**\s*(approuve|approuvé|a_corriger|à_corriger|rejete|rejeté)(?![\p{L}\p{N}_])/iu;
 // The verdict of a verification sub-mission : its results folder's verdict.json (read confined,
 // 20 Ko at most), else the last « Verdict : … » line of its answer, else « a_corriger » (absent).
-export function readVerdict({ cwd, folder, answer }) {
+// equipe-01 (relecture) : a suite shares its results folder ; the file is the sub-mission's own only
+// when it was written while it ran (`since` / `until`, ISO dates, when known).
+export function readVerdict({ cwd, folder, answer, since = null, until = null }) {
   if (cwd && folder)
     try {
-      const raw = JSON.parse(
-        readConfined(cwd, `${folder.replace(/\/+$/, '')}/verdict.json`, MAX_VERDICT_BYTES).toString(
-          'utf8',
-        ),
-      );
+      const file = `${folder.replace(/\/+$/, '')}/verdict.json`;
+      const written = statSync(join(cwd, file)).mtimeMs;
+      if ((since && written < Date.parse(since)) || (until && written > Date.parse(until)))
+        throw new Error('Not written by this sub-mission');
+      const raw = JSON.parse(readConfined(cwd, file, MAX_VERDICT_BYTES).toString('utf8'));
       const verdict = normalizeVerdict(raw, 'fichier');
       if (verdict) return verdict;
     } catch {
@@ -201,10 +203,19 @@ export function verificationLines(children) {
       id = byId.get(id).reprend ?? byId.get(id).suiteDe;
     return id;
   };
+  // equipe-01 (relecture) : a verdict counts for its task only when it reviews the task's last
+  // attempt launched before it (a suite not reviewed stays « non revérifié »).
+  const index = new Map(children.map((child, i) => [child.id, i]));
+  const latestBefore = (task, i) =>
+    children
+      .slice(0, i)
+      .filter((child) => taskOf(child.id) === task)
+      .at(-1)?.id;
   const last = new Map();
   for (const child of judged)
     for (const id of child.relit ?? [])
-      if (byId.has(id)) last.set(taskOf(id), child.verdict.valeur);
+      if (byId.has(id) && latestBefore(taskOf(id), index.get(child.id)) === id)
+        last.set(taskOf(id), child.verdict.valeur);
   for (const [id, valeur] of last)
     if (valeur !== 'approuve')
       lines.push(`« ${byId.get(id).titre} » : dernier verdict ${valeur}, non revérifié depuis`);

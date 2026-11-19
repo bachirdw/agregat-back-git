@@ -317,10 +317,18 @@ const MAX_OWNER_MESSAGE_CHARS = 8000;
 const MAX_OWNER_MESSAGE_TURNS = 20;
 const OWNER_MESSAGE_LINES = 10;
 const clockTime = (iso) => new Date(iso).toTimeString().slice(0, 5);
+// equipe-01 (relecture) : a message of the chief (`de: 'chef'`, its text already prefixed) is not
+// labelled as the owner's.
 const ownerMessageText = (messages) =>
-  messages.map((m) => `${OWNER_MESSAGE_LABEL} (${clockTime(m.at)}) : ${m.text}`).join('\n\n');
-const steeringText = (text) =>
-  `${OWNER_MESSAGE_LABEL} : ${text}\n\nTiens-en compte pour la suite de la même mission, dans cette session (ce n’est pas une nouvelle mission).`;
+  messages
+    .map((m) =>
+      m.de
+        ? `(${clockTime(m.at)}) ${m.text}`
+        : `${OWNER_MESSAGE_LABEL} (${clockTime(m.at)}) : ${m.text}`,
+    )
+    .join('\n\n');
+const steeringText = (text, de = null) =>
+  `${de ? text : `${OWNER_MESSAGE_LABEL} : ${text}`}\n\nTiens-en compte pour la suite de la même mission, dans cette session (ce n’est pas une nouvelle mission).`;
 const OWNER_MESSAGE_VIA = {
   steering: 'pendant le tour',
   turn_end: 'en fin de tour',
@@ -328,10 +336,11 @@ const OWNER_MESSAGE_VIA = {
 };
 // Bilan : one platform line per message, bounded.
 export function formatOwnerMessageLines(messages) {
+  const from = (m) => (m.de ? 'Message de l’agent principal (chef)' : 'Message du propriétaire');
   const line = (m) =>
     m.state === 'delivered'
-      ? `Message du propriétaire reçu à ${clockTime(m.at)}, remis à ${clockTime(m.deliveredAt)} (${OWNER_MESSAGE_VIA[m.via] ?? m.via}).`
-      : `Message du propriétaire reçu à ${clockTime(m.at)}, non remis.`;
+      ? `${from(m)} reçu à ${clockTime(m.at)}, remis à ${clockTime(m.deliveredAt)} (${OWNER_MESSAGE_VIA[m.via] ?? m.via}).`
+      : `${from(m)} reçu à ${clockTime(m.at)}, non remis.`;
   const shown = messages.slice(0, OWNER_MESSAGE_LINES).map(line);
   const rest = messages.slice(OWNER_MESSAGE_LINES);
   if (rest.length) {
@@ -2696,7 +2705,7 @@ export class Orchestrator {
       for (;;) {
         const entry = this.pendingOwnerMessages(control)[0];
         if (!entry || entry.noSteer || !this.canSteer(runId, control)) return;
-        const { outcome } = await control.runtime.steer(steeringText(entry.text));
+        const { outcome } = await control.runtime.steer(steeringText(entry.text, entry.de));
         if (outcome === 'injected') {
           if (entry.state === 'pending')
             this.deliverOwnerMessages(runId, control, [entry], 'steering');

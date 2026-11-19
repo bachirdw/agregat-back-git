@@ -447,17 +447,16 @@ Contrat complet : `docs/api-delegation.md`, section 3.1.
 Chaque rôle dit quelle part du travail d’équipe revient au membre et sous quelle forme il la rend ; la
 méthode reste celle du Skill.
 
-- `collecteur` : collecte des offres sur une source et une zone, sans les évaluer ni postuler ; une offre
-  par ligne JSON dans son dossier de résultats, comptes dans sa réponse ; s’arrête devant une
-  vérification « humain » ou un blocage, sans la contourner.
-- `evaluateur` : évalue et note des offres déjà collectées selon l’échelle du Skill ; une offre par ligne
-  JSON (lien, employeur, note, raison, conditions inconnues), nombre d’offres par note.
 - `redacteur-candidature` : prépare le CV et la lettre adaptés à une offre, avec les seuls faits du
   profil ; n’envoie rien.
 - `contacts` : trouve les contacts professionnels publics utiles par entreprise, chacun avec sa source ;
-  une adresse déduite est dite « déduite » ; n’écrit à personne.
+  une adresse déduite est dite « déduite » ; n’écrit à personne ; s’arrête sur un site qui demande une
+  vérification « humain » ou une connexion qu’il n’a pas, sans la contourner.
 - `formulaire` : remplit un formulaire de candidature jusqu’au bouton d’envoi ; l’envoi final attend le
-  clic du propriétaire.
+  clic du propriétaire ; même arrêt devant une vérification « humain » ou une connexion manquante.
+
+La collecte et l’évaluation des offres en parallèle (plusieurs membres) restent à concevoir avec la
+méthode du Skill : aucun rôle du pack ne les découpe aujourd’hui.
 
 ## Validation frontend
 

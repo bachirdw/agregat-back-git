@@ -155,16 +155,13 @@ test('E5 (relecture) : un id de pack qui est un chemin vers un dossier de rôles
   }
 });
 
-test('E5 : les cinq rôles du pack career-ops se chargent (format valide, bornes), sans lancer de mission', () => {
+// Relecture du lot E5 (décision du manager) : « collecteur » et « evaluateur » retirés ; trois rôles.
+const STOP_LINE =
+  'Si un site demande une vérification « humain » ou une connexion que tu n’as pas, arrête-toi sur ce site et dis-le dans ta réponse : ne le contourne pas.';
+test('E5 : les trois rôles du pack career-ops se chargent (format valide, bornes), sans lancer de mission', () => {
   const folder = resolve('domain-packs/career-ops/roles');
   const names = readdirSync(folder).sort();
-  assert.deepEqual(names, [
-    'collecteur.md',
-    'contacts.md',
-    'evaluateur.md',
-    'formulaire.md',
-    'redacteur-candidature.md',
-  ]);
+  assert.deepEqual(names, ['contacts.md', 'formulaire.md', 'redacteur-candidature.md']);
   for (const name of names) {
     const role = roles.parseRole(readFileSync(join(folder, name), 'utf8'), name);
     assert.ok(role, name);
@@ -177,7 +174,10 @@ test('E5 : les cinq rôles du pack career-ops se chargent (format valide, bornes
   }
   const loaded = roles.loadRoles(null, { pack: 'career-ops' });
   assert.deepEqual(loaded.ignored, []);
-  assert.equal(loaded.roles.size, 9);
+  assert.equal(loaded.roles.size, 7);
+  for (const name of ['collecteur', 'evaluateur']) assert.equal(loaded.roles.has(name), false);
+  for (const name of ['contacts', 'formulaire'])
+    assert.ok(loaded.roles.get(name).consigne.endsWith(STOP_LINE), name);
   assert.match(loaded.roles.get('formulaire').consigne, /attend toujours le clic du propriétaire/);
   assert.match(loaded.roles.get('contacts').consigne, /« déduite », jamais « trouvée »/);
 });

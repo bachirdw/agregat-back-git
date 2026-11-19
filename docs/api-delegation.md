@@ -257,8 +257,8 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   bornes pour les deux dossiers : 20 fichiers et 8 Ko par fichier au plus. Ordre de priorité : plateforme, puis pack (un
   rôle du pack remplace celui de la plateforme du même nom), puis espace (un rôle de l'espace remplace les deux). Une
   mission d'un autre pack ne voit pas les rôles d'un pack ; un pack sans dossier `roles/` n'ajoute rien, sans erreur.
-  Le pack `career-ops` déclare cinq rôles : `collecteur`, `evaluateur`, `redacteur-candidature`, `contacts`,
-  `formulaire` (voir `docs/api-career-ops.md`).
+  Le pack `career-ops` déclare trois rôles : `redacteur-candidature`, `contacts`, `formulaire` (voir
+  `docs/api-career-ops.md`).
   Format : en-tête entre deux lignes `---` fait de lignes `clé: valeur` (`nom`, par défaut le nom du fichier ;
   `description` ≤ 300 car. ; `verdict: true|false` ; `autreAgent: true|false` ; clé inconnue ignorée), puis la consigne
   (≤ 4 000 car.). Un fichier mal formé de l'espace est ignoré, avec un événement `role_ignore { fichier }` sur la mère,

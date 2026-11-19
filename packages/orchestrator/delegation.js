@@ -925,6 +925,7 @@ export class Delegation {
         else family.resuming.delete(taskId);
       }
       if (!free) family.pendingCounted--;
+      this.wake(family);
     }
     // review-multi-agent-v3-01 : the mother failed (stopFamily, no abort) while it was created.
     if (control.abort.signal.aborted || family.stopped) {
@@ -935,6 +936,7 @@ export class Delegation {
         error: family.stopped ? MOTHER_FAILED : 'Mission mère terminée avant le départ',
         finishedAt: new Date().toISOString(),
       });
+      this.wake(family);
       throw fail('mission_terminee', 'La mission mère se termine ou est annulée');
     }
     const soeurs = this.childrenOf(mother)
@@ -1250,7 +1252,13 @@ export class Delegation {
     family.stopped = true;
     control.familyStopped = this.cascade(run.id, MOTHER_FAILED);
     const mother = this.store.get(run.id);
-    await this.until(family, () => !this.living(mother).length, AbortSignal.timeout(10000));
+    // multi-agent-v3-02 (G) : the sub-missions being created too (family.pending), so that the
+    // Bilan names them ; launch wakes this wait once a creation has ended.
+    await this.until(
+      family,
+      () => !family.pending && !this.living(mother).length,
+      AbortSignal.timeout(10000),
+    );
   }
   // Cancels the sub-missions still alive of a mother (one level) ; returns how many. Nothing is
   // read for a mission that launched none.

@@ -301,7 +301,8 @@ pendingQuestion, pendingPermission }]` et `activity: { agents, awaitingOwner }` 
     c annulée(s), d interrompue(s), dont k après r reprise(s). » (sans reprise, rien de plus).
   - **Échec de la mère** : ses sous-missions encore vivantes (en cours, en file, en attente d'accord ou de prérequis)
     sont arrêtées avec la cause « Arrêtée : la mission principale a échoué » (`MOTHER_FAILED`), plus aucun lancement
-    n'est accepté, la plateforme attend au plus 10 s leur fin, puis écrit le Bilan de la mère avec la ligne « n
+    n'est accepté, la plateforme attend au plus 10 s leur fin et celle des créations en cours (une sous-mission en
+    création est alors annulée et nommée au Bilan ; multi-agent-v3-02, G), puis écrit le Bilan de la mère avec la ligne « n
     sous-mission(s) arrêtée(s) avec l'échec de la mission principale. » (seulement si n > 0). Jamais pour une mission
     ordinaire ; l'annulation et l'arrêt du serveur gardent leur comportement (section 7). L'arrêt vise les
     sous-missions de l'exécution qui échoue (comme l'annulation).

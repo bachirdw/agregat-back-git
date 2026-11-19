@@ -176,6 +176,27 @@ test('constat 2 : une sous-mission en création pendant l’échec de la mère n
   assert.equal(f.control.familyStopped, 2, 'B comptée parmi les sous-missions arrêtées');
 });
 
+// multi-agent-v3-02 (G) : A déjà terminée, B en création quand la mère échoue : stopFamily attend
+// la fin de la création ; B est annulée avant que la main soit rendue (donc avant le Bilan).
+test('constat 2 bis : A terminée, B en création pendant l’échec de la mère : B annulée avant la fin de stopFamily', async (t) => {
+  const f = fakeEngine(t, { total: 5, parallel: 3 });
+  const first = await f.delegation.launch(f.mother, f.control, { consigne: 'A FICTIVE' });
+  f.store.update(first.id, { state: 'completed' });
+  await tick();
+  const pending = f.delegation.launch(f.rows.get(f.mother.id), f.control, {
+    consigne: 'B FICTIVE',
+  });
+  pending.catch(() => {});
+  await f.delegation.stopFamily(f.rows.get(f.mother.id), f.control);
+  // At this point the mother's Bilan would be written : B must be there, cancelled.
+  const b = [...f.rows.values()].find((r) => r.famille && r.id !== first.id);
+  assert.ok(b, 'B créée avant la fin de stopFamily');
+  assert.equal(b.state, 'cancelled');
+  assert.equal(b.error, MOTHER_FAILED);
+  assert.equal(f.control.familyStopped, 1, 'B comptée parmi les sous-missions arrêtées');
+  assert.equal((await pending.catch((error) => error)).erreur, 'mission_terminee');
+});
+
 test('constat 2 (contre-épreuve) : sans échec de la mère, la sous-mission en création démarre', async (t) => {
   const f = fakeEngine(t, { total: 5, parallel: 3 });
   const run = await f.delegation.launch(f.mother, f.control, { consigne: 'B FICTIVE' });

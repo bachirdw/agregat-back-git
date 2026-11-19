@@ -15,7 +15,7 @@ la branche principale ; aucune fusion, aucun push) :
 | Suite complète | verte le 19/11 08:32 → 08:46 : 1 428 unitaires (1 425 réussis, 0 échec), Chrome 253/253 | verte le 19/11 14:17 → 14:32 : 1 552 unitaires (1 549 réussis, 0 échec, 2 ignorés, 1 « à faire »), Chrome 265/265 |
 | API | 4314 (relancée 08:47, tâche de fond de la discussion du manager) | 4315 (relancée 14:32, lancée à la main avec quatre pages FICTIVES admises : 4321 à 4324) |
 Tout le détail, dans l'ordre : [`reports/nuit-18-11.md`](reports/nuit-18-11.md) (journal de la nuit, de la matinée et de
-l'après-midi du 19/11). Défauts E139 à E151 : `reports/registre-erreurs.md`. Rien n'est poussé depuis `514c5c4`.
+l'après-midi du 19/11). Défauts E139 à E152 : `reports/registre-erreurs.md`. Rien n'est poussé depuis `514c5c4`.
 
 **Ce que contient la branche de test** (rapports dans `.manager/reports/` de son arbre ; contrat : `docs/api-delegation.md`) :
 - `delegation-v2-01` (nuit) : outils `mission_lancer`, `mission_suivre`, `mission_attendre`, `mission_annuler`, accord par
@@ -65,6 +65,10 @@ l'après-midi du 19/11). Défauts E139 à E151 : `reports/registre-erreurs.md`. 
 3. Carte d'accord et carte d'extension : elles mettent la mère en « attend ta réponse » et suspendent ses minuteries alors
    que le chef continue de travailler (E151, non corrigé : touche la file des questions du moteur).
 4. Faux blocage « présence de la messagerie » (E143, cas 3) : non corrigé. Cadence des collectes (E144). E119, E140.
+
+**Essais de 15:20 (Claude, code corrigé, consignes neutres)** : formulaires fictifs, 4 sous-missions lancées par le chef de
+lui-même, les quatre formulaires remplis en 6,0 min, 0 envoi ; dossier comparatif **en échec** (E152 : sous-agents internes
+lancés en arrière-plan, fin de tour prise pour la réponse finale).
 
 **Prochaines étapes proposées** : mesurer avec Claude, puis avec Codex après 16:37, les formulaires fictifs et le dossier
 comparatif avec la nouvelle phrase (consignes `c4.txt` et `c2.txt` du bloc-notes de la discussion, reprises dans le journal) ;

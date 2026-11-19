@@ -190,6 +190,11 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   **Si le dossier ne peut pas être créé** (dossier de travail non inscriptible, un fichier à la place d'un dossier),
   rien n'est créé et le champ est absent partout ; la phrase de la sous-mission est alors celle d'avant. Si la création
   de la sous-mission échoue, son dossier vide est retiré.
+- **Champ `espace`** (multi-agent-v3-02, K) : quand une sous-mission a un dossier de résultats, les résultats de
+  `mission_lancer`, `mission_suivre` et `mission_attendre` portent à leur racine `espace`, le chemin absolu du dossier
+  de travail de la mission (celui du chef, où la plateforme crée le dossier et où une sous-mission travaille et lit ses
+  fichiers, pour un pack ordinaire comme pour career-ops) ; `dossierResultats` et `fichiers[].chemin` lui sont
+  relatifs. Absent sans dossier de résultats ; rien d'autre ne change dans la forme des résultats.
 - **Enveloppe** : au-delà de `total` (sous-missions comptées), l'appel rend `enveloppe_atteinte` et, si l'accord est
   donné, la plateforme pose
   une question **à choix** (`choix` : `oui` « Oui, 5 de plus », ou `non`) : « Le chef veut lancer une Ne sous-mission ;

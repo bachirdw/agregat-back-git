@@ -247,6 +247,15 @@ export class Delegation {
     this.missed(family, given);
     return null;
   }
+  // multi-agent-v3-02 (K) : the absolute path of the mission's workspace, the chief's working folder,
+  // to which `dossierResultats` and `fichiers[].chemin` are relative : the folder where
+  // resultsFolder creates them and folderFiles reads them (a sub-mission works in its mother's
+  // folder). Only when a sub-mission has a results folder.
+  space(mother, children) {
+    return children.some((child) => child.famille?.dossierResultats)
+      ? { espace: resolve(mother.cwd) }
+      : {};
+  }
   // multi-agent-v3-02 (D) : the full result of a sub-mission is given to the chief once (wait, follow
   // with details, synthesis turn) ; `family.delivered` keeps those given.
   deliver(family, child) {
@@ -944,7 +953,7 @@ export class Delegation {
       etat,
       agent,
       modele,
-      ...(folder ? { dossierResultats: folder } : {}),
+      ...(folder ? { dossierResultats: folder, espace: resolve(mother.cwd) } : {}),
       famille: this.counter(mother),
       ...(etat === 'attend_accord' ? { note: CONSENT_PENDING_NOTE } : {}),
     };
@@ -1127,6 +1136,7 @@ export class Delegation {
       agents: await this.agents(),
       activite: this.activity(),
       famille: this.counter(mother),
+      ...this.space(mother, children),
       nature: 'données rapportées par les sous-missions',
     };
   }
@@ -1192,6 +1202,7 @@ export class Delegation {
           return { id, titre, etat, attend };
         }),
       delaiAtteint: reached,
+      ...this.space(mother, children),
       nature: 'données rapportées par les sous-missions',
     };
   }

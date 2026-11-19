@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 
 // No real CLI is ever run by the detection of agents (`--version`) : every path is absent.
 const AGENTS_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'mav3-02-agents-FICTIF-')));
@@ -245,4 +245,53 @@ test('D. chef qui ne lit jamais : une sous-mission finie avant la fin de son tou
     ].sort(),
   );
   assert.doesNotMatch(row.result.summary, /Synthèse finale non faite/);
+});
+
+// multi-agent-v3-02 (K) : `espace`, chemin absolu du dossier de travail auquel dossierResultats et
+// fichiers[].chemin sont relatifs, à la racine des trois résultats ; absent sans dossier de résultats.
+async function spaceRun(t, { noFolder = false } = {}) {
+  const p = await platform(t);
+  if (noFolder) p.app.engine.delegation.resultsFolder = () => null;
+  p.setConfig(() => ({
+    steps: [
+      {
+        call: 'mission_lancer',
+        args: { consigne: 'Tâche FICTIVE DEPOSER:fiche.json', titre: 'A' },
+      },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+      { call: 'mission_suivre', args: {} },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Une tâche FICTIVE avec un fichier.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED(),
+  });
+  await p.ended(mother.id, 30000);
+  assert.equal(p.app.store.get(mother.id).state, 'completed', p.app.store.get(mother.id).error);
+  const [launched, waited, followed] = p.results().map((r) => r.result);
+  return { p, mother, launched, waited, followed };
+}
+
+test('K. espace absolu dans mission_lancer, mission_attendre et mission_suivre ; le fichier rendu existe sous espace', async (t) => {
+  const { p, mother, launched, waited, followed } = await spaceRun(t);
+  const cwd = p.app.store.get(mother.id).cwd;
+  for (const result of [launched, waited, followed]) {
+    assert.ok(isAbsolute(result.espace), JSON.stringify(result));
+    assert.equal(result.espace, resolve(cwd));
+  }
+  assert.ok(existsSync(join(launched.espace, launched.dossierResultats)));
+  const [done] = waited.terminees;
+  assert.ok(done.fichiers.length >= 1, JSON.stringify(done.fichiers));
+  assert.match(done.fichiers[0].chemin, /fiche\.json$/);
+  assert.ok(existsSync(join(waited.espace, done.fichiers[0].chemin)));
+});
+
+test('K. contrôle : sans dossier de résultats, aucun champ espace', async (t) => {
+  const { launched, waited, followed } = await spaceRun(t, { noFolder: true });
+  assert.equal(launched.dossierResultats, undefined);
+  for (const result of [launched, waited, followed])
+    assert.ok(!Object.hasOwn(result, 'espace'), JSON.stringify(result));
 });

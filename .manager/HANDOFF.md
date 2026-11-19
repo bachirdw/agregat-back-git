@@ -5,35 +5,59 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 19/11/2026, 04:24 ; ce bloc se remplace à chaque passation)
-**Nuit du 18 au 19/11** (mandat du propriétaire de 21:30, voir 0-bis) : le **mode sous-agents** (délégation à des
-sous-missions, plan v2) est codé, relu, essayé en réel et **intégré** dans `contacts-13-11`. Tout le détail, dans l'ordre :
-[`reports/nuit-18-11.md`](reports/nuit-18-11.md) (compte rendu du matin à la fin) ; missions : `reports/guet-19-11.md` ;
-défauts E139 (corrigé) et E140 (ouvert) : `reports/registre-erreurs.md`.
-- **Code** : sprint `delegation-v2-01` (arbre `~/Downloads/agregat-back-delegation`, rapports `reports/delegation-v2-01.md`
-  et `reports/review-delegation-v2-01.md` de cet arbre, repris avec le code) ; contrat : `docs/api-delegation.md`. Outils
-  `mission_lancer`, `mission_suivre`, `mission_attendre`, `mission_annuler` (serveur `relay-missions`) prêtés à toute
-  mission menée par un agent, jamais à une sous-mission ; réglage de retrait `AGENT_PLATFORM_DELEGATION=0` (= base `48a2f4e`,
-  prouvé par test). Accord : bouton (champ `delegation`), demande écrite dans le prompt, ou carte au premier lancement.
-  Enveloppe 6 sous-missions, 3 à la fois. Un seul niveau. Un tour de synthèse.
-- **Tests** : suite complète verte le 19/11 02:34 → 02:48 sur la tête de code `f4a1b02` (1 471 unitaires : 1 468 réussis,
-  0 échec, 2 ignorés, 1 « à faire » connu ; Chrome 253/253 ; `check` et `format:check` verts). Ne jamais lancer la suite
-  sans `AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS=900000` (E109).
-- **En service** : API 4314 sur cette version depuis 02:49 (tâche de fond de la discussion du manager de nuit : si elle
-  n'écoute plus, la relancer comme en section 4) ; page fictive 4321, front 5177, relais 19988. API d'essai 4315 arrêtée.
-- **Mission ouverte** : 7b3a1f8d (Claude, épreuve du CV) attend le propriétaire depuis 04:23 : choix entre deux offres à
-  égalité ; le manager n'a pas répondu (choix de candidature).
-- **Vu en réel** : mission simple inchangée (Claude, Codex) ; trois voies d'accord, refus et accord sur la carte ; E139
-  corrigé ; parcours Codex découverte → évaluation → CV → lettre réussi ; Claude découverte et évaluation réussies.
-  **Pas vu** : Gemini (clé retirée exprès par `api-branche.sh`) ; formulaire FICTIF sur la version intégrée (Codex à sa
-  limite jusqu'à 6:21) ; carte d'accord devant Claude.
-- **Constat principal** : avec le Skill career-ops, ni Claude ni Codex n'emploient la délégation de Relay (Codex lance ses
-  sous-agents natifs, invisibles pour Relay) ; elle sert quand le prompt la demande ou sans Skill.
-- **À décider par le propriétaire** : pousser (rien depuis `514c5c4`) ; points de la relecture (`accepted:false`, minuteurs du
-  chef pendant la carte, filles d'une mère en échec, sous-mission reprise à part, `career_write` dans le moteur) ; poids de
-  la phrase du chef dans une mission avec Skill ; 7b3a1f8d.
-- **Prochaines étapes proposées** : formulaire FICTIF avec Codex (après 6:21) puis Claude ; un essai Gemini avec le
-  propriétaire ; E140 ; ranger les arbres de sprint (`-delegation`, `-chef`, `-onglets`).
+## 0. Où reprendre maintenant (état au 19/11/2026, 11:45 ; ce bloc se remplace à chaque passation)
+**Deux versions vivent côte à côte** (décision du propriétaire du 19/11 : le mode multi-agent est un essai, il ne va pas sur
+la branche principale ; aucune fusion, aucun push) :
+| | Version de travail | Branche de test |
+|---|---|---|
+| Dossier, branche | `~/Downloads/agregat-back-essai-13-11`, `contacts-13-11` | `~/Downloads/agregat-back-delegation`, `delegation-v2-01` |
+| Contenu | **sans** le mode multi-agent (retiré le 19/11 par `447829c`, code identique à celui du 18/11 au soir) | mode multi-agent v3 et les correctifs du 19/11 (tête de code `fe76490`) |
+| Suite complète | verte le 19/11 08:32 → 08:46 : 1 428 unitaires (1 425 réussis, 0 échec), Chrome 253/253 | verte le 19/11 11:08 → 11:23 : 1 534 unitaires (1 531 réussis, 0 échec, 2 ignorés, 1 « à faire »), Chrome 265/265 |
+| API | 4314 (relancée 08:47, tâche de fond de la discussion du manager) | 4315 (relancée 11:23, lancée à la main avec quatre pages FICTIVES admises : 4321 à 4324) |
+Tout le détail, dans l'ordre : [`reports/nuit-18-11.md`](reports/nuit-18-11.md) (journal de la nuit et de la matinée, compte
+rendu à la fin). Défauts E139 à E145 : `reports/registre-erreurs.md`. Rien n'est poussé depuis `514c5c4`.
+
+**Ce que contient la branche de test** (rapports dans `.manager/reports/` de son arbre ; contrat : `docs/api-delegation.md`) :
+- `delegation-v2-01` (nuit) : outils `mission_lancer`, `mission_suivre`, `mission_attendre`, `mission_annuler`, accord par
+  bouton, prompt ou carte, enveloppe 6 et 3, un seul niveau, tour de synthèse.
+- `multi-agent-v3-01` (matin) : **interrupteur `multiAgent` éteint par défaut** (champ de `POST /api/runs` ; sans lui la mission
+  est identique à la base, prouvé par test) ; l'échec de la mère arrête ses sous-missions ; prérequis `apres` ; reprises
+  `reprend` (deux par tâche hors enveloppe) ; tâche structurée (`objectif`, `informations`, `perimetre`, `resultatAttendu`) ;
+  **dossier de résultats** par sous-mission (`relay/missions/<mère>/<n>-<titre>/`) et réponse courte ; durée réelle.
+- `demarrage-01` : modèle donné à la session dès sa création (cause prouvée de E141 et E142, Claude). `natifs-01` : sous-agents
+  internes des agents au Bilan. `faux-blocage-01` et `-02` : deux des trois cartes d'envoi ouvertes à tort pendant une
+  recherche. `review-multi-agent-v3-01` : cinq défauts importants trouvés par une relecture contradictoire, corrigés.
+  `dossier-resultats-01` (E145) : l'outil d'écriture du pack admet le dossier de résultats.
+- État des lieux et besoin du propriétaire : `reports/etat-des-lieux-multi-agent-19-11.md`, `briefs/multi-agent-v3-01.md`.
+
+**Ce que les essais réels ont établi** (journal, tableaux) :
+- Le mode gagne sur des **parts longues et indépendantes, avec la méthode donnée par le chef et les résultats par fichiers** :
+  CV et lettre pour 4 offres en 15,0 min (8 PDF), pour 6 offres en 14,4 min (12 PDF, 5 fois plus vite sur la partie
+  parallèle) ; quatre formulaires FICTIFS en parallèle en 5,3 min, arrêt aux quatre cartes d'envoi, 0 envoi.
+- Il perd sur des parts courtes ou qui se gênent : dossier à trois fiches 13,8 min contre 6,0 seul ; grosse recherche d'offres
+  27 et 38 min contre 25 et 20 (avant correctifs : redécouverte par chaque sous-agent, résultats recopiés par les modèles, deux
+  onglets d'un même site deux fois plus lents, faux blocages).
+- Pour 200 à 300 offres, la limite est l'abonnement (quelques dizaines d'offres par fenêtre de 5 h avec sonnet, estimation).
+- Les collectes répétées sur les sites d'emploi ont déclenché une vérification « humain » (E144) : collectes suspendues.
+
+**À décider par le propriétaire**
+1. Garder le mode multi-agent (derrière son interrupteur) et l'intégrer à la version de travail, ou le laisser en essai.
+   Le front doit envoyer `multiAgent: true` quand l'interrupteur est allumé (non câblé).
+2. Reprendre sur la version de travail les correctifs qui valent **aussi pour un agent seul** : démarrage de Claude (E141,
+   E142) et faux blocages de recherche (E143). Ils ne sont aujourd'hui que sur la branche de test.
+3. Faux blocage « présence de la messagerie » (E143, cas 3) : non corrigé, aucune règle sûre ; mesurer en mode ombre ?
+4. Cadence des collectes sur les sites d'emploi (E144). Pousser ou non. E119 (nouvel essai du démarrage). E140 (Bilan).
+5. Points mineurs de la relecture (liste dans `reports/review-multi-agent-v3-01.md` de la branche de test).
+
+**Prochaines étapes proposées** : rejouer une recherche d'offres réduite avec les correctifs (un site par sous-mission,
+méthode donnée, résultats par fichiers) pour mesurer le gain ; essai Gemini avec le propriétaire (clé retirée par
+`api-branche.sh`) ; modèle léger pour les spécialistes ; le mode workflow à étapes passe encore par l'ancien choix de modèle.
+
+**Pour relancer l'API d'essai 4315** (depuis `agregat-back-delegation`) : la commande de `api-branche.sh` avec `PORT=4315` et
+`AGENT_PLATFORM_BROWSER_LOCAL_ORIGINS=http://127.0.0.1:4321,http://127.0.0.1:4322,http://127.0.0.1:4323,http://127.0.0.1:4324` ;
+pages FICTIVES : `node tests/support/apply-page.js <port>`. Une mission multi-agent : `POST /api/runs` avec
+`"multiAgent": true` et, pour l'accord donné d'avance, `"delegation": {"accepted": true, "via": "bouton", "total": 6, "parallel": 3}`.
+Arbres de travail du 19/11 (à ranger après décision) : `-delegation` (branche de test), `-indeed`, `-demarrage`, `-natifs`, `-revue`.
 
 ## 0-bis. Bloc précédent (18/11, 21:03) : mandat de nuit, marche d'une intégration, épreuves et prompts
 **MANDAT DE NUIT du propriétaire (18/11, 21:30, il dort ; le manager code en autonomie jusqu'à 5 h le 19/11)**. Ses mots,

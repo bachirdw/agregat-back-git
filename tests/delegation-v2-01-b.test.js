@@ -286,17 +286,25 @@ test('outils prêtés mais rien lancé : aucune lecture, aucun événement, aucu
   assert.deepEqual(spy.children, []);
 });
 
-test('phrase du chef : une seule pour tous, informe sans prescrire, sans nom d’agent ; enveloppe 6 et 3 par défaut', () => {
+test('phrase du chef : une seule pour tous, dit ce qu’attend le propriétaire, sans nom d’agent ; refus : phrase courte ; enveloppe 6 et 3 par défaut', () => {
   assert.deepEqual({ ...rule.DEFAULT_ENVELOPE }, { total: 6, parallel: 3 });
   const asked = rule.chiefRule(undefined);
   const given = rule.chiefRule({ accepted: true, via: 'bouton' });
   const refused = rule.chiefRule({ accepted: false, via: 'carte' });
-  for (const text of [asked, given, refused]) {
-    assert.match(text, /quand c’est vraiment utile/);
+  // multi-agent-v3-02 (I2) : what the owner expects once the mode is on ; refused : a short sentence.
+  for (const text of [asked, given]) {
+    assert.match(text, /^Le propriétaire a allumé le mode multi-agent pour cette mission/);
     assert.match(text, /plusieurs sources indépendantes/);
-    assert.match(text, /pour une demande simple, ou une suite d’étapes qui dépendent/);
-    assert.match(text, /rien ne t’oblige à déléguer/);
+    assert.match(text, /il attend que tu les lances en sous-missions en même temps/);
+    assert.match(
+      text,
+      /pour une demande simple, une petite étape ou une suite d’étapes qui dépendent/,
+    );
+    assert.match(text, /évite deux sous-missions en même temps sur le même site web/);
     assert.match(text, /choisis l’agent et le modèle selon la difficulté/);
+    assert.doesNotMatch(text, /rien ne t’oblige|quand c’est vraiment utile/);
+  }
+  for (const text of [asked, given, refused]) {
     assert.doesNotMatch(text, AGENT_NAMES);
     assert.doesNotMatch(text, /Mode workflow|career/i);
   }
@@ -305,7 +313,8 @@ test('phrase du chef : une seule pour tous, informe sans prescrire, sans nom d�
     asked,
     /demandeDuProprietaire.*la plateforme consultera le propriétaire avant la première sous-mission \(ne lui pose pas la question toi-même\)/,
   );
-  assert.match(refused, /refusé les sous-agents pour cette mission : continue seul\.$/);
+  assert.equal(refused, rule.CHIEF_REFUSED);
+  assert.doesNotMatch(refused, /il attend que tu les lances/);
   for (const text of [
     rule.DAUGHTER_RULE,
     rule.SYNTHESIS_TURN,

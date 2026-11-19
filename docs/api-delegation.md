@@ -252,17 +252,22 @@ s'arrête.
 
 ## 5. Ce que la plateforme écrit
 
-- **Phrase du chef** (fin des consignes, une seule pour tous les agents) : elle dit quand déléguer est utile (parties
-  indépendantes, par exemple plusieurs sources ; gros volume ; long travail annexe) et quand travailler seul est souvent
-  le mieux, que rien n'oblige à déléguer, que le chef choisit agent et modèle selon la difficulté, et que chaque
-  sous-mission consomme l'abonnement ; sa fin suit l'accord : « le propriétaire l'a autorisé : jusqu'à N sous-missions,
-  M à la fois », « … indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire
-  avant la première sous-mission (ne lui pose pas la question toi-même) ; s'il refuse, continue seul », ou « le
-  propriétaire a refusé les sous-agents pour cette mission : continue seul ». Elle propose aussi (`multi-agent-v3-01`,
-  D9) : chaque sous-mission a son dossier de résultats ; pour de gros résultats, lui demander un fichier dans un format
-  précis et rassembler les fichiers par un script ou un outil plutôt qu'en les recopiant ; pour un travail répétitif,
-  trouver d'abord la méthode sur un exemple et la donner dans `informations`. Aucune recette, aucun nom de site, de
-  Skill ou d'agent.
+- **Phrase du chef** (fin des consignes, une seule pour tous les agents ; donnée seulement quand le mode multi-agent est
+  allumé, `run.multiAgent`, car les outils de mission ne sont prêtés qu'alors) : depuis `multi-agent-v3-02` (I2), elle
+  dit que le propriétaire a allumé le mode et ce qu'il attend : quand la mission contient plusieurs parties
+  indépendantes de plusieurs minutes chacune (plusieurs sites ou formulaires dans le navigateur, le même long
+  traitement pour plusieurs éléments, plusieurs sources), les lancer en sous-missions en même temps plutôt que les
+  enchaîner seul (chaque sous-mission a son onglet, ses cartes d'envoi, son suivi et sa reprise ; les sous-agents
+  internes d'un agent partagent sa session de navigateur et ne sont ni suivis ni repris) ; travailler seul pour une
+  demande simple, une petite étape ou des étapes dépendantes ; éviter deux sous-missions en même temps sur le même site ;
+  le chef décide, choisit agent et modèle selon la difficulté ; dossier de résultats (chemin relatif au dossier de
+  travail), fichiers rassemblés par un script ; pour un travail répétitif, la méthode écrite une fois dans un fichier de
+  l'espace donné à chaque sous-mission (`fichiers`), avec dans `informations` ce qui est propre à sa part ; chaque
+  sous-mission consomme l'abonnement. Sa fin suit l'accord : « le propriétaire l'a autorisé : jusqu'à N sous-missions,
+  M à la fois », ou « … indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire
+  avant la première sous-mission (ne lui pose pas la question toi-même) ; s'il refuse, continue seul ». Sous-agents
+  refusés : la phrase entière est seulement « Le propriétaire a refusé les sous-agents pour cette mission : travaille
+  seul, sans lui reposer la question. » (`CHIEF_REFUSED`). Aucune recette, aucun nom de site, de Skill ou d'agent.
 - **Phrase de la sous-mission** (`daughterRule`) : la demande du propriétaire, jointe, prime ; avec un dossier de
   résultats, elle le nomme : y écrire les résultats détaillés (listes, tableaux, données, documents), dans des fichiers
   au format que demande la consigne, et garder une **réponse finale courte** (ce qui est fait, chiffres clés, chemins

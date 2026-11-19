@@ -1,7 +1,8 @@
 // chef-01 (mode workflow, décision du propriétaire du 18/11) : every text the platform sends to the
 // agents of a family (the chief's sentence, the sub-mission's sentence, the synthesis turn and the
 // descriptions of the mission tools) is written here only, the same for every agent : no agent
-// name, no tool of an agent, no branch on the agent's identity. They inform ; they oblige to nothing.
+// name, no tool of an agent, no branch on the agent's identity. They inform ; since multi-agent-v3-02
+// (I2) the chief's sentence also says what the owner expects once the multi-agent mode is on.
 // delegation-v2-01 (plan v2 du 18/11, sections 2, 3.4 et 6) : the texts shown to the owner (card,
 // line of the thread, Bilan lines) are written here too.
 import { z } from 'zod';
@@ -30,9 +31,14 @@ const envelopeOf = (delegation) => ({
 });
 
 // The chief's sentence (plan v2, section 2) : one text for every agent ; only its end follows the
-// owner's acceptance (given, refused, or still to ask). It informs and prescribes nothing.
+// owner's acceptance (given, or still to ask). multi-agent-v3-02 (I2) : given only when the owner
+// switched the multi-agent mode on (run.multiAgent, delegation.js mcpServers), it says what the
+// owner expects then ; once the owner refused sub-agents, a short sentence of refusal only.
 const CHIEF_RULE =
-  'Tu peux confier une partie délimitée de cette mission à une sous-mission (outils mission_lancer, mission_suivre, mission_attendre, mission_annuler) quand c’est vraiment utile : des parties indépendantes qui peuvent avancer en même temps (par exemple plusieurs sources indépendantes à consulter), un gros volume à répartir, ou un long travail annexe qui encombrerait ta mémoire de travail ; pour une demande simple, ou une suite d’étapes qui dépendent l’une de l’autre, travailler seul est souvent le mieux ; rien ne t’oblige à déléguer, tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; chaque sous-mission a son dossier de résultats (dossierResultats, chemins relatifs à ton dossier de travail) : pour de gros résultats, demande-lui un fichier dans un format précis et rassemble les fichiers par un script ou un outil plutôt qu’en les recopiant ; pour un travail répétitif, trouve d’abord la méthode sur un exemple et donne-la dans informations ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
+  'Le propriétaire a allumé le mode multi-agent pour cette mission : tu peux confier une partie délimitée à une sous-mission de la plateforme (outils mission_lancer, mission_suivre, mission_attendre, mission_annuler) ; quand la mission contient plusieurs parties indépendantes qui demandent chacune plusieurs minutes (par exemple plusieurs sites ou plusieurs formulaires à traiter dans le navigateur, le même long traitement à refaire pour plusieurs éléments, plusieurs sources indépendantes à consulter), il attend que tu les lances en sous-missions en même temps plutôt que de les enchaîner seul : chaque sous-mission a son propre onglet de navigateur, ses propres cartes d’envoi, son suivi et sa reprise, alors que tes sous-agents internes, si ton agent en a, partagent ta session de navigateur et ne sont ni suivis ni repris par la plateforme ; une sous-mission démarre en quelques dizaines de secondes et repart sans ta mémoire de travail : pour une demande simple, une petite étape ou une suite d’étapes qui dépendent l’une de l’autre, travaille seul ; évite deux sous-missions en même temps sur le même site web (elles se ralentissent) ; tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; chaque sous-mission a son dossier de résultats (dossierResultats, chemin relatif à ton dossier de travail) : pour de gros résultats, demande-lui un fichier dans un format précis et rassemble les fichiers par un script ou un outil plutôt qu’en les recopiant ; pour un travail répétitif, trouve d’abord la méthode sur un exemple, écris-la une fois dans un fichier de l’espace et donne ce fichier à chaque sous-mission (fichiers), avec dans informations ce qui est propre à sa part ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
+// multi-agent-v3-02 (I2) : the whole sentence when the owner refused sub-agents.
+export const CHIEF_REFUSED =
+  'Le propriétaire a refusé les sous-agents pour cette mission : travaille seul, sans lui reposer la question.';
 const REFUSED = 'le propriétaire a refusé les sous-agents pour cette mission : continue seul.';
 // What mission_lancer gives back once the owner refused (refus_proprietaire).
 export const REFUSED_MESSAGE = 'L' + REFUSED.slice(1, -1) + ', sans lui reposer la question.';
@@ -45,7 +51,7 @@ export function chiefRule(delegation) {
     const { total, parallel } = envelopeOf(delegation);
     return `${CHIEF_RULE}le propriétaire l’a autorisé : jusqu’à ${total} sous-missions, ${parallel} à la fois.`;
   }
-  if (delegation?.accepted === false) return CHIEF_RULE + REFUSED;
+  if (delegation?.accepted === false) return CHIEF_REFUSED;
   return `${CHIEF_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
 }
 

@@ -201,7 +201,10 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
 - **Attente relisible** : `mission_attendre` ne consomme rien ; chaque appel rend l'état complet des sous-missions
   demandées (`terminees` = toutes celles finies) ; une réponse perdue se relit à l'appel suivant ou par
   `mission_suivre { id, details: true }`, y compris après la fin de la mère et après un redémarrage. Sans `toutes`,
-  l'appel rend la main dès qu'une des sous-missions en cours au début de l'appel a fini. Pendant l'attente, les
+  l'appel rend la main dès qu'une des sous-missions en cours au début de l'appel a fini. Avec `toutes`, il rend la
+  main quand toutes ont fini, ou dès qu'une de celles en cours au début de l'appel finit sans succès (état final
+  autre que `completed`), pour la reprendre sans attendre ; un échec déjà rendu ne fait pas revenir l'appel
+  suivant. Pendant l'attente, les
   minuteurs du chef (silence, outil figé, délai de mission, délai du tour ACP) sont en pause.
 - `reponse` : la réponse finale de la sous-mission (50 000 caractères au plus, données) ; `bilan` : son Bilan tel que la
   plateforme l'a écrit ; `fichiers` : les fichiers nommés par **ses** appels d'outils terminés (chemins, chaînes), puis

@@ -1118,9 +1118,20 @@ export class Delegation {
     const over = (id) => terminal.has(this.store.get(id)?.state) && !this.held(id);
     // Nothing is consumed (plan v2, Codex 2) : every call gives the whole state of the sub-missions
     // asked for, so an answer lost on the way is read again by the next call. Without `toutes`,
-    // the call returns as soon as one of those still running when it started has ended.
+    // the call returns as soon as one of those still running when it started has ended. With
+    // `toutes` (multi-agent-v3-02), also as soon as one of those ends without success, so the chief
+    // can take it up again at once ; one already ended at the start of the call does not count,
+    // and a sub-mission held behind a prerequisite that has just failed is cancelled first (pump).
     const running = targets.filter((id) => !over(id));
-    const done = () => (toutes ? running.every(over) : running.some(over));
+    const unsuccessful = (id) => over(id) && this.store.get(id)?.state !== 'completed';
+    const doomed = (id) => {
+      const missing = this.held(id) && this.prerequisite(this.store.get(id) ?? {});
+      return !!missing && terminal.has(missing.state);
+    };
+    const done = () =>
+      toutes
+        ? running.every(over) || (running.some(unsuccessful) && !running.some(doomed))
+        : running.some(over);
     let reached = false;
     if (running.length && !done()) {
       const family = this.family(mother.id);

@@ -763,6 +763,10 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
       },
       { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE ECHEC', titre: 'Échec B' } },
       { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE LIMITE', titre: 'Limite C' } },
+      // multi-agent-v3-02 (A) : toutes=true also comes back as soon as one fails ; the chief
+      // calls it again until all have ended (an extra call returns at once).
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
       { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
     ],
     summary: 'Tableau FICTIF. J’ai envoyé 3 e-mails.',
@@ -783,7 +787,8 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
     children.map((child) => child.state),
     ['completed', 'failed', 'failed'],
   );
-  const given = p.results()[3].result.terminees;
+  const given = p.results().at(-1).result.terminees;
+  assert.equal(given.length, 3);
   const failed = given.find((x) => x.titre === 'Échec B');
   assert.equal(failed.cause.type, 'erreur');
   // A provider's limit is said as such, with the time to retry, from the platform's own cause.

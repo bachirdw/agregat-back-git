@@ -162,7 +162,7 @@ export const MISSION_TOOLS = {
       .strict(),
   },
   mission_attendre: {
-    description: `Attend la fin de sous-missions (ids ; sans ids : toutes) et rend à chaque appel l’état de toutes celles demandées : celles finies (terminees, avec réponse, Bilan, fichiers et envois) et celles en cours (enCours). toutes=false rend la main dès qu’une de celles en cours finit, toutes=true quand toutes ont fini. Un appel attend au plus ${MAX_WAIT_SECONDS} secondes (delaiSecondes peut être plus court) puis rend ce qui est fini et ce qui tourne encore (delaiAtteint) : rappelle-le pour attendre plus longtemps. Rien n’est consommé : les résultats se relisent autant de fois que nécessaire, ici ou par mission_suivre avec details.`,
+    description: `Attend la fin de sous-missions (ids ; sans ids : toutes) et rend à chaque appel l’état de toutes celles demandées : celles finies (terminees, avec réponse, Bilan, fichiers et envois) et celles en cours (enCours). toutes=false rend la main dès qu’une de celles en cours finit, toutes=true quand toutes ont fini, ou dès qu’une finit sans succès (pour la reprendre sans attendre). Un appel attend au plus ${MAX_WAIT_SECONDS} secondes (delaiSecondes peut être plus court) puis rend ce qui est fini et ce qui tourne encore (delaiAtteint) : rappelle-le pour attendre plus longtemps. Rien n’est consommé : les résultats se relisent autant de fois que nécessaire, ici ou par mission_suivre avec details.`,
     schema: z
       .object({
         ids: z.array(id).min(1).max(50).optional(),

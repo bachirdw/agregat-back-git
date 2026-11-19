@@ -413,7 +413,7 @@ test('parallel = 2 avec trois sous-missions : la troisième attend sa place, pui
   assert.notEqual(afterFirst.etat, 'en_file', 'la troisième a démarré quand la première a fini');
   const last = p.results()[6].result;
   assert.equal(last.delaiAtteint, false);
-  // delegation-v2-01 : nothing is consumed : the first one is given back again.
+  // The first one is still listed (as a short line since multi-agent-v3-02, D).
   assert.equal(last.terminees.length, 3);
   assert.ok(most <= 2, `au plus deux en même temps (vu : ${most})`);
   assert.ok(p.app.store.children(mother.id).every((child) => child.state === 'completed'));
@@ -429,6 +429,7 @@ test('délai atteint : rien de perdu, résultat rendu ensuite et relu par missio
       { call: 'mission_attendre', args: { delaiSecondes: 30 } },
       { call: 'mission_suivre', args: { id: '$A', details: true } },
       { call: 'mission_attendre', args: {} },
+      { call: 'mission_suivre', args: { id: '$A', details: true } },
     ],
   }));
   const mother = await p.app.engine.create({
@@ -439,7 +440,7 @@ test('délai atteint : rien de perdu, résultat rendu ensuite et relu par missio
     delegation: ACCEPTED(),
   });
   await p.ended(mother.id, 30000);
-  const [launch, timedOut, waited, followed, again] = p.results();
+  const [launch, timedOut, waited, followed, again, followedAgain] = p.results();
   assert.equal(timedOut.result.delaiAtteint, true);
   assert.deepEqual(timedOut.result.terminees, []);
   assert.deepEqual(
@@ -453,9 +454,15 @@ test('délai atteint : rien de perdu, résultat rendu ensuite et relu par missio
   const read = followed.result.missions[0];
   for (const key of ['reponse', 'bilan', 'etat', 'fichiers', 'envois', 'cause'])
     assert.deepEqual(read[key], done[key], key);
-  // delegation-v2-01 : a wait without ids gives it back again, the same (nothing is consumed).
-  assert.deepEqual(again.result.terminees, [done]);
+  // multi-agent-v3-02 (D) : once given, a wait gives a short line ; mission_suivre with details
+  // still reads the full result, as many times as wanted.
+  assert.deepEqual(again.result.terminees, [
+    { id: done.id, titre: done.titre, etat: 'completed', dejaRemise: true },
+  ]);
   assert.equal(again.result.delaiAtteint, false);
+  const reread = followedAgain.result.missions[0];
+  for (const key of ['reponse', 'bilan', 'etat', 'fichiers', 'envois', 'cause'])
+    assert.deepEqual(reread[key], done[key], key);
 });
 
 // Simulated clock of the engine's guards : a delay elapses only when the test moves it.
@@ -787,7 +794,12 @@ test('Bilan de la mère : Bilans des sous-missions cités à l’identique, tota
     children.map((child) => child.state),
     ['completed', 'failed', 'failed'],
   );
-  const given = p.results().at(-1).result.terminees;
+  // multi-agent-v3-02 (D) : each full result is given once, by one of the waits.
+  const given = p
+    .results()
+    .filter((r) => r.call === 'mission_attendre')
+    .flatMap((r) => r.result.terminees)
+    .filter((x) => !x.dejaRemise);
   assert.equal(given.length, 3);
   const failed = given.find((x) => x.titre === 'Échec B');
   assert.equal(failed.cause.type, 'erreur');

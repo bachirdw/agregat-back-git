@@ -201,3 +201,48 @@ test('A. contrôle : toutes=true, les deux réussissent : la main n’est rendue
   assert.deepEqual(first.result.enCours, []);
   await p.ended(mother.id, 30000);
 });
+
+// multi-agent-v3-02 (D) : (1) et (2) — complet puis ligne courte, mission_suivre details toujours
+// complet — sont dans tests/chef-01.test.js (« délai atteint… ») et tests/delegation-v2-01-a.test.js.
+test('D. chef qui ne lit jamais : une sous-mission finie avant la fin de son tour est jointe au tour de synthèse avec celle encore en cours', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE A', titre: 'A' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE B ATTENDRE:b', titre: 'B' } },
+      { touch: join(p.hold, 'launched') },
+      { waitFile: join(p.hold, 'a-finie') },
+    ],
+    reminderSteps: [],
+    summary: 'Réponse FICTIVE sans lecture des résultats.',
+    reminderSummary: 'Synthèse FICTIVE avec A et B.',
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES jamais lues.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED(),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'launched')), 15000, 'lancement');
+  const [a, b] = p.results().map((r) => r.result.id);
+  await p.ended(a);
+  assert.equal(p.app.store.get(a).state, 'completed');
+  p.touch('a-finie');
+  await p.waitFor(() => p.types(mother.id).includes('family_waiting'), 15000, 'attente de B');
+  p.touch('b');
+  await p.ended(mother.id, 30000);
+  const row = p.app.store.get(mother.id);
+  assert.equal(row.state, 'completed', row.error);
+  assert.equal(row.result.answer, 'Synthèse FICTIVE avec A et B.');
+  const synthesis = p.prompts().find((e) => e.prompt?.platform?.turnKind === 'family_results');
+  assert.ok(synthesis, 'tour de synthèse');
+  assert.deepEqual(
+    synthesis.prompt.familyResults.terminees.map((r) => [r.id, r.etat]).sort(),
+    [
+      [a, 'completed'],
+      [b, 'completed'],
+    ].sort(),
+  );
+  assert.doesNotMatch(row.result.summary, /Synthèse finale non faite/);
+});

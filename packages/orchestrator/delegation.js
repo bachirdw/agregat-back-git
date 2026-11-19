@@ -15,7 +15,8 @@
 // delegation-v2-01 : the family is read (store.children) only for a mission that launched a
 // sub-mission (`estMere` on its row, `mere` on its control) : a mission that delegates nothing
 // reads nothing more. What a sub-mission gives back is read from the database and can be read
-// again as often as needed (nothing is consumed).
+// again as often as needed by mission_suivre with details ; mission_attendre gives it once in full
+// (multi-agent-v3-02, D).
 // delegation-v2-01, partie B (plan v2, section 3) : the tools and the chief's sentence are lent to
 // a mission led by an agent (never to a sub-mission ; AGENT_PLATFORM_DELEGATION=0 withdraws
 // them from every mission) ; multi-agent-v3-01 (D1) : only when its request carries
@@ -228,21 +229,38 @@ export class Delegation {
     if (!control?.mere) return null;
     const mother = this.store.get(motherId);
     const living = this.living(mother);
-    if (!living.length) return null;
+    // multi-agent-v3-02 (D) : those already ended whose result never reached the chief are joined too.
     const family = this.family(motherId);
+    const given = [...living, ...this.undelivered(mother, family)];
+    if (!given.length) return null;
     if (runtime.continueSession()) {
-      await this.waitLiving(motherId, mother, control, family);
+      if (living.length) await this.waitLiving(motherId, mother, control, family);
       if (!control.abort.signal.aborted && runtime.continueSession())
         return {
           familyResults: {
             nature: 'données rapportées par les sous-missions',
-            terminees: living.map((child) => this.outcome(this.store.get(child.id))),
+            terminees: given.map((child) => this.deliver(family, this.store.get(child.id))),
           },
           instructions: SYNTHESIS_TURN,
         };
     }
-    this.missed(family, living);
+    this.missed(family, given);
     return null;
+  }
+  // multi-agent-v3-02 (D) : the full result of a sub-mission is given to the chief once (wait, follow
+  // with details, synthesis turn) ; `family.delivered` keeps those given.
+  deliver(family, child) {
+    if (family) (family.delivered ??= new Set()).add(child.id);
+    return this.outcome(child);
+  }
+  undelivered(mother, family) {
+    return this.childrenOf(mother).filter(
+      // One cancelled by the owner's refusal never ran (the Bilan's refusal line says it).
+      (child) =>
+        terminal.has(child.state) &&
+        child.error !== REFUSED_CHILD &&
+        !family.delivered?.has(child.id),
+    );
   }
   // Sub-missions whose results never reached the chief before its last answer.
   missed(family, children) {
@@ -268,6 +286,9 @@ export class Delegation {
     const family = this.family(motherId);
     family.closing = true;
     const living = this.living(mother);
+    // multi-agent-v3-02 (D) : one already ended whose result the chief never received is counted too.
+    const unread = this.undelivered(mother, family);
+    if (unread.length) this.missed(family, unread);
     if (!living.length) return;
     // Their results reach no turn of the chief any more : the Bilan says it.
     this.missed(family, living);
@@ -1100,7 +1121,7 @@ export class Delegation {
     return {
       missions: list.map((child) =>
         details && terminal.has(child.state)
-          ? { ...this.line(child), ...this.outcome(child) }
+          ? { ...this.line(child), ...this.deliver(this.families.get(mother.id), child) }
           : this.line(child),
       ),
       agents: await this.agents(),
@@ -1116,8 +1137,8 @@ export class Delegation {
       if (!known.has(id)) throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
     const targets = ids ?? [...known];
     const over = (id) => terminal.has(this.store.get(id)?.state) && !this.held(id);
-    // Nothing is consumed (plan v2, Codex 2) : every call gives the whole state of the sub-missions
-    // asked for, so an answer lost on the way is read again by the next call. Without `toutes`,
+    // Every call gives the state of all the sub-missions asked for (plan v2, Codex 2), the full
+    // result of one only once (multi-agent-v3-02, D, below). Without `toutes`,
     // the call returns as soon as one of those still running when it started has ended. With
     // `toutes` (multi-agent-v3-02), also as soon as one of those ends without success, so the chief
     // can take it up again at once ; one already ended at the start of the call does not count,
@@ -1154,7 +1175,16 @@ export class Delegation {
     }
     if (control.abort.signal.aborted) throw fail('mission_terminee', 'La mission mère est arrêtée');
     return {
-      terminees: targets.filter(over).map((id) => this.outcome(this.store.get(id))),
+      // multi-agent-v3-02 (D) : the full result once ; afterwards a short line (mission_suivre with
+      // details reads it again). A call given up on the way (its answer never reached the chief)
+      // marks nothing : the next call gives the full result.
+      terminees: targets.filter(over).map((id) => {
+        const child = this.store.get(id);
+        const family = this.family(mother.id);
+        if (!family.delivered?.has(id)) return this.deliver(signal?.aborted ? null : family, child);
+        const { titre, etat } = this.line(child);
+        return { id, titre, etat, dejaRemise: true };
+      }),
       enCours: targets
         .filter((id) => !over(id))
         .map((id) => {

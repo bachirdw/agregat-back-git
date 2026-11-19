@@ -190,7 +190,7 @@ test('une mission qui ne délègue pas : aucune lecture de la délégation, aucu
   assert.doesNotMatch(p.app.store.get(lent.id).result.summary, /Sous-missions/);
 });
 
-test('mission_attendre ne consomme rien : une réponse perdue se relit à l’appel suivant', async (t) => {
+test('mission_attendre : une réponse perdue se relit à l’appel suivant, puis une ligne courte', async (t) => {
   const p = await platform(t);
   p.setConfig(() => ({
     steps: [
@@ -233,11 +233,16 @@ test('mission_attendre ne consomme rien : une réponse perdue se relit à l’ap
     assert.equal(call.isError, false, JSON.stringify(call.result));
     assert.equal(call.result.delaiAtteint, false);
     assert.deepEqual(call.result.enCours, []);
-    assert.deepEqual(
-      call.result.terminees.map((x) => [x.id, x.etat, x.reponse]),
-      [[launch.result.id, 'completed', 'Résumé FICTIF : Tâche FICTIVE rapide']],
-    );
   }
+  // The lost call marked nothing : the next one gives the full result.
+  assert.deepEqual(
+    again.result.terminees.map((x) => [x.id, x.etat, x.reponse]),
+    [[launch.result.id, 'completed', 'Résumé FICTIF : Tâche FICTIVE rapide']],
+  );
+  // multi-agent-v3-02 (D) : once given, a short line (mission_suivre with details reads it again).
+  assert.deepEqual(byId.result.terminees, [
+    { id: launch.result.id, titre: launch.result.titre, etat: 'completed', dejaRemise: true },
+  ]);
 });
 
 test('attente bornée à 50 s par appel, quel que soit delaiSecondes ; description sans « rendue une fois »', async (t) => {

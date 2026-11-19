@@ -177,6 +177,9 @@ export async function executeWorkflow(orch, run, plan, control) {
         ownerMode: orch.ownerMode,
         cwd,
         agentHome: agentHomeFor(orch.dataDir, run.id, definition.id),
+        // multi-agent-v3-02 (C) : as demarrage-01 in index.js, the plan's model at the session's
+        // creation when the profile declares how ; selectModel below stays the safety net.
+        ...(definition.id === plan.agent.id ? { model: run.model } : {}),
         onEvent: (update) => {
           if (!scope.promptStarted || stepSignal.aborted) return;
           guard.observe(update);

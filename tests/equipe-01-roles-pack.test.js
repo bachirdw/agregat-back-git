@@ -142,6 +142,19 @@ test('E5 : loadRoles : plateforme, puis pack (remplace), fichier mal formé du p
   assert.match(roles.loadRoles(null).roles.get('chercheur').consigne, /source précise/);
 });
 
+// Relecture du lot E5 : the guard « known pack » of roles.js proven : an id that is a path to a real
+// folder of roles (the FICTIF pack of the tests, reached from domain-packs/) leads to nothing.
+test('E5 (relecture) : un id de pack qui est un chemin vers un dossier de rôles réel ne mène à rien', () => {
+  for (const pack of [
+    '../tests/fixtures/packs-equipe-01/roles-fictif',
+    'domain-packs/../tests/fixtures/packs-equipe-01/roles-fictif',
+  ]) {
+    const { roles: found, ignored } = roles.loadRoles(null, { pack });
+    assert.deepEqual([...found.keys()].sort(), PLATFORM_NAMES, pack);
+    assert.deepEqual(ignored, [], pack);
+  }
+});
+
 test('E5 : les cinq rôles du pack career-ops se chargent (format valide, bornes), sans lancer de mission', () => {
   const folder = resolve('domain-packs/career-ops/roles');
   const names = readdirSync(folder).sort();

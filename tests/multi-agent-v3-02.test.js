@@ -38,6 +38,7 @@ test.after(() => rmSync(AGENTS_CONFIG_DIR, { recursive: true, force: true }));
 const { createApp } = await import('../apps/api/server.js');
 const { CareerWorkspace } = await import('../packages/career-ops/workspace.js');
 const { terminal } = await import('../packages/storage/index.js');
+const rule = await import('../packages/orchestrator/delegation-rule.js');
 
 const CHEF = resolve('tests/fixtures/chef-agent.js');
 const ACCEPTED = (envelope = {}) => ({ accepted: true, via: 'api', ...envelope });
@@ -294,4 +295,92 @@ test('K. contrôle : sans dossier de résultats, aucun champ espace', async (t) 
   assert.equal(launched.dossierResultats, undefined);
   for (const result of [launched, waited, followed])
     assert.ok(!Object.hasOwn(result, 'espace'), JSON.stringify(result));
+});
+
+// multi-agent-v3-02 (E) : un « Non » à la carte d'extension est retenu pour ce total.
+test('E. refus d’élargir l’enveloppe : la relance donne enveloppe_refusee, une seule question posée', async (t) => {
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 1' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2' } },
+      { touch: join(p.hold, 'refused') },
+      { waitFile: join(p.hold, 'answered') },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2' } },
+      { call: 'mission_lancer', args: { consigne: 'Tâche FICTIVE 2' } },
+      { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 30 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Deux tâches FICTIVES, enveloppe d’une seule.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED({ total: 1, parallel: 1 }),
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'refused')), 15000, 'premier refus');
+  assert.equal(p.results()[1].result.erreur, 'enveloppe_atteinte');
+  await p.waitFor(() => p.app.store.get(mother.id).pendingQuestion, 15000, 'carte d’extension');
+  p.app.engine.answer(mother.id, { action: 'accept', content: { choix: 'non' } });
+  await p.waitFor(
+    () => p.types(mother.id).includes('delegation_extension_declined'),
+    15000,
+    'refus retenu',
+  );
+  p.touch('answered');
+  await p.ended(mother.id, 30000);
+  const row = p.app.store.get(mother.id);
+  assert.equal(row.state, 'completed', row.error);
+  for (const call of p.results().slice(2, 4)) {
+    assert.equal(call.isError, true);
+    assert.equal(call.result.erreur, 'enveloppe_refusee');
+    assert.equal(call.result.message, rule.ENVELOPE_DECLINED);
+  }
+  const types = p.types(mother.id);
+  assert.equal(types.filter((type) => type === 'delegation_envelope_reached').length, 1);
+  assert.equal(
+    p.app.store
+      .events(mother.id)
+      .filter((e) => e.type === 'delegation_extension_declined')
+      .map((e) => e.data.total)
+      .join(),
+    '1',
+  );
+  assert.equal(row.delegation.total, 1);
+  assert.equal(p.app.store.children(mother.id).length, 1);
+});
+
+test('E. accord des sous-agents pas encore donné : enveloppe atteinte sans prétendre consulter le propriétaire, aucune carte d’extension', async (t) => {
+  const p = await platform(t);
+  const total = rule.DEFAULT_ENVELOPE.total;
+  p.setConfig(() => ({
+    steps: [
+      ...Array.from({ length: total + 1 }, (_, n) => ({
+        call: 'mission_lancer',
+        args: { consigne: `Tâche FICTIVE ${n + 1}` },
+      })),
+      { touch: join(p.hold, 'done') },
+    ],
+  }));
+  // No acceptance given : the sub-missions wait for the owner's card.
+  const mother = await p.app.engine.create({
+    prompt: 'Sept tâches FICTIVES sans accord.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+  });
+  await p.waitFor(() => existsSync(join(p.hold, 'done')), 15000, 'appels');
+  const last = p.results().at(-1);
+  assert.equal(last.result.erreur, 'enveloppe_atteinte');
+  assert.equal(last.result.message, rule.envelopeReachedNoConsent(total));
+  assert.doesNotMatch(last.result.message, /consulte le propriétaire/);
+  assert.ok(!p.types(mother.id).includes('delegation_envelope_reached'));
+  assert.ok(
+    p
+      .results()
+      .slice(0, total)
+      .every((r) => r.result.etat === 'attend_accord'),
+  );
+  await p.app.engine.cancel(mother.id, 'Fin du test FICTIF');
+  await p.ended(mother.id, 15000);
 });

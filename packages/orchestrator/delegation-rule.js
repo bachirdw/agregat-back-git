@@ -122,6 +122,12 @@ export const prerequisiteFailed = (titre, state) =>
 // multi-agent-v3-01 (D10) : the error `enveloppe_atteinte` given to the chief.
 export const envelopeReached = (total) =>
   `Enveloppe acceptée par le propriétaire atteinte (${total} sous-missions comptées) : la plateforme consulte le propriétaire (ne lui pose pas la question toi-même) ; relance le même appel après sa réponse (mission_suivre donne l’enveloppe : famille.total et famille.dansEnveloppe).`;
+// multi-agent-v3-02 (E) : the owner said no to the extension at this total : no new card.
+export const ENVELOPE_DECLINED =
+  'Le propriétaire a refusé d’élargir l’enveloppe : continue avec les sous-missions déjà lancées (les reprises d’une tâche en échec restent possibles).';
+// multi-agent-v3-02 (E) : without the owner's acceptance of sub-agents, no extension card is asked.
+export const envelopeReachedNoConsent = (total) =>
+  `Enveloppe atteinte (${total} sous-missions comptées) alors que l’accord du propriétaire pour les sous-agents n’est pas encore donné : aucune question d’élargissement ne lui est posée avant cet accord ; continue avec les sous-missions déjà lancées (mission_suivre donne l’enveloppe : famille.total et famille.dansEnveloppe).`;
 export function synthesisMissed(titles) {
   const named = titles.map((title) => `« ${title} »`).join(', ');
   return `Synthèse finale non faite : la réponse du chef a été écrite avant la fin de ${named} ; leurs résultats ne lui ont pas été remis.`;

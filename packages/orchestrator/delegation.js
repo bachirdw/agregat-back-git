@@ -53,6 +53,8 @@ import {
   consentMessage,
   daughterRule,
   envelopeReached,
+  envelopeReachedNoConsent,
+  ENVELOPE_DECLINED,
   extensionMessage,
   motherFailedLine,
   prerequisiteFailed,
@@ -817,8 +819,11 @@ export class Delegation {
     const free = reprise >= 1 && reprise <= 2;
     const counted = children.filter(counts).length + family.pendingCounted;
     if (!free && counted >= total) {
-      if (this.consent(root) === true)
-        this.askExtension(mother, control, counted + 1, total, launched);
+      // multi-agent-v3-02 (E) : a refusal at this total is kept : no new card.
+      if (family.extensionDeclined === total) throw fail('enveloppe_refusee', ENVELOPE_DECLINED);
+      if (this.consent(root) !== true)
+        throw fail('enveloppe_atteinte', envelopeReachedNoConsent(total));
+      this.askExtension(mother, control, counted + 1, total, launched);
       throw fail('enveloppe_atteinte', envelopeReached(total));
     }
     const fichiers = (args.fichiers ?? []).map((path) => path.replaceAll('\\', '/'));
@@ -1025,6 +1030,16 @@ export class Delegation {
     const question = choiceQuestion(extensionMessage(nth, total, lancees), EXTENSION_CHOICES);
     Promise.resolve(this.engine.enqueueQuestion(mother.id, question, control)).then((reply) => {
       family.asking = false;
+      // multi-agent-v3-02 (E) : « Non » (or the card declined) is kept for this total ; a mission
+      // that ends meanwhile, or a question expired, decides nothing.
+      if (
+        reply?.action === 'decline' ||
+        (reply?.action === 'accept' && reply.content?.choix === 'non')
+      ) {
+        family.extensionDeclined = total;
+        this.store.event(mother.id, 'delegation_extension_declined', { total });
+        return;
+      }
       if (reply?.action !== 'accept' || reply.content?.choix !== 'oui') return;
       const current = this.store.get(mother.id)?.delegation;
       if (!current) return;

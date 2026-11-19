@@ -132,7 +132,7 @@ mission qui appelle (et de ses exécutions reprises).
 | `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)                                                                                                                                   | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause } ou, déjà remise, { id, titre, etat, dejaRemise }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                                                                                                                                                                   |
 | `mission_annuler`  | `id`, `raison` (≤ 500)                                                                                                                                                                                                                                             | `{ id, etat: "cancelled" }` ; une sous-mission déjà finie rend son état                                                                                                                                                                                                                                                                                                                                          |
 
-Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
+Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `enveloppe_refusee`, `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
 `introuvable` (aussi pour un id de `apres` ou de `reprend` qui n'est pas une sous-mission de cette mission),
 `mission_terminee`, `parametres_invalides` (champ inconnu, borne dépassée, `reprend` d'une sous-mission en cours ou
 réussie). Le refus `boucle` de `chef-01` est supprimé (un seul niveau). Un paramètre hors schéma est d'abord refusé par
@@ -142,6 +142,13 @@ le contrôle et rend `parametres_invalides` à un appel direct de la route inter
 Message de `enveloppe_atteinte` (D10, `envelopeReached`) : « Enveloppe acceptée par le propriétaire atteinte (T
 sous-missions comptées) : la plateforme consulte le propriétaire (ne lui pose pas la question toi-même) ; relance le même
 appel après sa réponse (mission_suivre donne l'enveloppe : famille.total et famille.dansEnveloppe). »
+Sans accord des sous-agents encore donné, aucune carte d'extension n'est posée et le message est celui de
+`envelopeReachedNoConsent` (multi-agent-v3-02, E) : il le dit, sans prétendre consulter le propriétaire.
+Après un « Non » (ou la carte refusée) à la carte d'extension, le refus est retenu pour ce total (événement
+`delegation_extension_declined { total }`) : les lancements suivants au même total rendent `enveloppe_refusee`
+(`ENVELOPE_DECLINED` : « Le propriétaire a refusé d'élargir l'enveloppe : continue avec les sous-missions déjà lancées
+(les reprises d'une tâche en échec restent possibles). »), sans nouvelle carte. Une carte restée sans réponse (fin de
+mission, question expirée) ne décide rien.
 
 Résultat `attend_accord` de `mission_lancer` (voie 3, chaque lancement en attente, le premier comme les suivants) : il
 porte en plus `note`, le même texte pour tous les agents (`CONSENT_PENDING_NOTE`, correctif E139 du 19/11) : « La

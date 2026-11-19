@@ -191,3 +191,93 @@ d'enveloppe) ; code remis, 6 / 6.
   de l'espace, événement sans texte).
 - Le tableau des outils de la section 3 de `docs/api-delegation.md` n'a pas de ligne `mission_continuer` (décrit en
   3.2) pour ne pas reformater ce tableau très large.
+
+## Intégration (lots E1, E2 et E3 sur `equipe-20-11`, 20/11, terminée à 08:09)
+
+Constaté. Les deux arbres étaient propres au départ (`git status --short` vide dans `agregat-back-equipe` et dans
+`agregat-back-equipe-carnet`). Le lot E3 a été repris par `git cherry-pick`, un commit à la fois :
+`ad7d57e` devient `a64e9f4` (code), puis `207fd0e` devient `0ff64e8` (rapport `equipe-carnet.md`, sans conflit).
+
+### Conflits rencontrés (cherry-pick de `ad7d57e`) et résolution
+
+Les deux apports ont été gardés dans chaque cas. Aucun lot n'a été réécrit.
+
+- `packages/orchestrator/delegation-rule.js` : E1 et E2 (`TEAM_RULE`, `CHIEF_MESSAGE_PREFIX`, `SUITE_RULE`) et E3
+  (`CARNET_SERVER`, `CARNET_CATEGORIES`, `CHIEF_CARNET`, `DAUGHTER_CARNET`, `CARNET_TOOLS`) avaient touché le même bloc
+  avant `chiefRule`. Toutes les constantes sont gardées. `chiefRule` est écrite une seule fois, avec l'ordre
+  `CHIEF_RULE + ÉQUIPE + SUITE + CARNET (chef)` puis la fin qui dépend de l'accord. Cette fin a deux branches
+  (accord donné, accord attendu) et l'ordre est le même dans les deux. Le cas du refus (`CHIEF_REFUSED`) n'a pas changé.
+  La phrase de la sous-mission n'a pas eu de conflit : `DAUGHTER_HEAD` contient `DAUGHTER_CARNET`, et `daughterRule`
+  (E1/E2) ajoute rôle, verdict et suite juste après cette tête.
+- `packages/orchestrator/delegation.js` : seules les importations étaient en conflit (`roles.js` et `continuation.js`
+  d'un côté, `carnet.js` et `CARNET_TOOLS` de l'autre). Les quatre lignes sont gardées. Git a fusionné seul les sept
+  branchements du carnet.
+- `tests/chef-01.test.js` : la liste des outils du chef. Elle contient maintenant les cinq outils `mission_*`, avec
+  `mission_continuer`, puis `carnet_noter` et `carnet_lire`. Les deux commentaires de lot sont gardés.
+- Fusionnés par git sans conflit : `docs/api-delegation.md` (sections 3.1, 3.2 et 7 bis), `tests/fixtures/chef-agent.js`
+  (consigne `VERDICT_JSON` et extensions `NOTER` / `LIRE` / `LANCER`), `apps/api/server.js`,
+  `packages/mission-gateway/server.js` et `tests/delegation-v2-01-b.test.js`.
+
+### Ce que l'intégration a cassé, et les corrections (un commit chacune)
+
+1. `e80ad4c` : le premier test de `equipe-01-carnet` attendait les quatre outils de la base plus les deux du carnet.
+   Après E2, le chef en a sept. Échec réel avant correction : `equipe-01-carnet` 10/11, `+ 'mission_continuer'`.
+   `mission_continuer` est maintenant attendu, à la même place que dans `chef-01`.
+2. `e057b95` : un vrai défaut d'intégration. Le carnet lisait `run.famille.role.nom`, mais E1 range sur la ligne de la
+   sous-mission `famille.role` comme un **nom** (une chaîne). La forme `{ nom, description, consigne }` n'existe que
+   dans la consigne. Conséquence : une note n'avait jamais de `role`. Correction dans `packages/orchestrator/carnet.js`
+   (`note`) : `run.famille?.role?.nom ?? run.famille?.role`, toujours filtré par `typeof role === 'string'`.
+   Contrôle négatif : le test neuf, lancé avant la correction, échoue
+   (`[1, 'R', undefined]` au lieu de `[1, 'R', 'chercheur']`) ; il passe après la correction.
+   Test neuf dans `tests/equipe-01-carnet.test.js` (« Intégration : … ») :
+   - fonctions pures : dans la phrase du chef, ÉQUIPE, SUITE et CARNET sont présentes, dans cet ordre, avec et sans
+     accord ; dans la phrase d'une sous-mission vérificatrice en suite, CARNET, rôle, verdict et suite sont présents,
+     avec et sans dossier de résultats ; sans rôle, CARNET est présent et le rôle absent ;
+   - parcours avec le faux agent : un `chercheur` note, puis le chef le fait continuer, et la suite note à son tour.
+     La première tentative reçoit CARNET et rôle, mais pas la phrase de suite. La suite reçoit le serveur `relay-equipe`,
+     CARNET, rôle et suite, et `famille.role.nom = chercheur`. Elle reçoit aussi la note de la première tentative avec
+     `auteur: 'R'` et `role: 'chercheur'`. Le chef reçoit la note de la suite par `mission_attendre`, avec
+     `auteur: 'R (suite 1)'` et `role: 'chercheur'`.
+3. `30776d9` : `docs/api-delegation.md`, section 7 bis. « ses quatre outils » devient « ses cinq outils `mission_*` ».
+
+### Tests rejoués un par un après la dernière correction (constaté, 08:09)
+
+Chaque fichier a été lancé seul par
+`AGENT_PLATFORM_AGENTS_CONFIG=/tmp/absent-agents-equipe.json node --test tests/<fichier>.test.js` (fichier de
+configuration absent) :
+
+| Fichier                  | Tests | Réussis | Échecs |
+| ------------------------ | ----- | ------- | ------ |
+| equipe-01-roles          | 13    | 13      | 0      |
+| equipe-01-continuer      | 6     | 6       | 0      |
+| equipe-01-carnet         | 12    | 12      | 0      |
+| multi-agent-v3-01-a      | 7     | 7       | 0      |
+| multi-agent-v3-01-b      | 8     | 8       | 0      |
+| multi-agent-v3-02        | 11    | 11      | 0      |
+| multi-agent-v3-02-c      | 2     | 2       | 0      |
+| delegation-v2-01-a       | 10    | 10      | 0      |
+| delegation-v2-01-b       | 12    | 12      | 0      |
+| review-delegation-v2-01  | 5     | 5       | 0      |
+| review-multi-agent-v3-01 | 13    | 13      | 0      |
+| chef-01                  | 16    | 16      | 0      |
+| dossier-resultats-01     | 13    | 13      | 0      |
+| natifs-01                | 9     | 9       | 0      |
+| generique-01             | 15    | 15      | 0      |
+| fix-resume               | 28    | 28      | 0      |
+| reprise-memoire          | 8     | 8       | 0      |
+| message-proprietaire     | 25    | 25      | 0      |
+| platform                 | 11    | 11      | 0      |
+| owner-mode               | 14    | 14      | 0      |
+
+Avant les corrections, le premier passage de cette liste n'avait qu'un échec : `equipe-01-carnet` 10/11 (liste des
+outils). Les 19 autres fichiers étaient déjà verts. `npm run check` : « Syntaxe JavaScript valide. »
+`npx prettier --check` sur tous les fichiers modifiés depuis `334d3a6` : vert.
+
+### Non vérifié / à décider
+
+- Aucun essai avec de vrais agents. Pas de `npm test` complet, conformément au brief.
+- Hypothèse non testée : un rôle de l'espace privé ou un rôle libre suit le même chemin, puisque c'est le même champ
+  `famille.role` (une chaîne). Seul `chercheur` a été exercé.
+- Ordre ÉQUIPE / SUITE / CARNET dans la phrase du chef : choisi par l'intégration, le brief ne le fixait pas.
+- Les doutes des trois lots restent ouverts pour le manager, en particulier `de: "chef"` au lieu de `via: "chef"` (E2)
+  et la marque `carnet: true` écrite sur la ligne de la mère (E3).

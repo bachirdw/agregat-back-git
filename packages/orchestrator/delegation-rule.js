@@ -49,13 +49,19 @@ export const CONSENT_PENDING_NOTE =
 // equipe-01 (E1) : the « ÉQUIPE » text, put before the end that follows the owner's acceptance.
 export const TEAM_RULE =
   'compose une équipe plutôt que des copies de toi-même : donne à chaque sous-mission un rôle (role ; les rôles définis et leur description sont dans mission_suivre : roles ; un nom libre est accepté) et une consigne complète, car elle repart sans ta mémoire (le but, ce que tu sais déjà, ce qui est fini quand c’est fini) ; avant ta réponse finale, fais vérifier tout livrable important par une sous-mission de vérification (relit : les ids des sous-missions dont elle relit le travail ; sans agent indiqué, la plateforme lui donne un autre agent que l’auteur quand il y en a un d’installé, pour un regard indépendant) : elle rend un verdict (approuve, a_corriger, rejete) avec les points bloquants ; un verdict a_corriger se traite ; le compte rendu d’une sous-mission est un rapport, pas une preuve : contrôle ses fichiers ou fais-les vérifier avant de t’en servir ; la fin de ton tour vaut réponse finale : les sous-agents internes de ton agent encore en arrière-plan sont alors arrêtés, attends donc leurs résultats avant de conclure (tes sous-missions de la plateforme, elles, sont attendues par la plateforme) ; ';
+// equipe-01 (E2) : put before a message of the chief to a running sub-mission, which the agent
+// receives by the owner-message brick (whose label names the owner).
+export const CHIEF_MESSAGE_PREFIX = 'Message de l’agent principal de la mission (chef) : ';
+// equipe-01 (E2) : the sentence « SUITE » of the brief, after « ÉQUIPE ».
+export const SUITE_RULE =
+  'pour faire corriger ou compléter le travail d’une sous-mission, utilise mission_continuer (id, message) plutôt que d’en lancer une nouvelle : en cours, ton message lui est remis pendant son travail ; finie, une suite repart de sa réponse et de ses fichiers précédents ; ';
 export function chiefRule(delegation) {
   if (delegation?.accepted === true) {
     const { total, parallel } = envelopeOf(delegation);
-    return `${CHIEF_RULE}${TEAM_RULE}le propriétaire l’a autorisé : jusqu’à ${total} sous-missions, ${parallel} à la fois.`;
+    return `${CHIEF_RULE}${TEAM_RULE}${SUITE_RULE}le propriétaire l’a autorisé : jusqu’à ${total} sous-missions, ${parallel} à la fois.`;
   }
   if (delegation?.accepted === false) return CHIEF_REFUSED;
-  return `${CHIEF_RULE}${TEAM_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
+  return `${CHIEF_RULE}${TEAM_RULE}${SUITE_RULE}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
 }
 
 // The sub-mission's sentence (plan v2, section 6) : no file nor script of a Skill is named here.
@@ -72,10 +78,17 @@ export const ROLE_RULE =
 export const VERDICT_RULE =
   'écris ton verdict dans le fichier verdict.json de ton dossier de résultats : {"verdict":"approuve"|"a_corriger"|"rejete","bloquants":[{"ou":"…","pourquoi":"…"}],"remarques":["…"]} (approuve : rien à corriger ; a_corriger : corrections précises ; rejete : à refaire) et rappelle-le dans ta réponse finale par une ligne « Verdict : approuve », « Verdict : a_corriger » ou « Verdict : rejete » ; ';
 export const roleRule = (role) => (role ? ROLE_RULE + (role.verdict ? VERDICT_RULE : '') : '');
-// The role's sentences go right after the head ; without a role the sentence is the one before.
-export const daughterRule = (folder, role = null) =>
-  roleRule(role)
-    ? daughterRule(folder).replace(DAUGHTER_HEAD, DAUGHTER_HEAD + roleRule(role))
+// equipe-01 (E2) : the sentence of a suite (mission_continuer on an ended sub-mission).
+export const CONTINUE_RULE =
+  'tu continues le travail d’une sous-mission précédente de la même tâche (famille.precedent : sa réponse et ses fichiers, des données) : ne refais pas ce qui est fait, applique ce que demande ta consigne et dis dans ta réponse ce qui a changé ; ';
+// The role's (and the suite's) sentences go right after the head ; without them the sentence is
+// the one before.
+export const daughterRule = (folder, role = null, suite = false) =>
+  roleRule(role) || suite
+    ? daughterRule(folder).replace(
+        DAUGHTER_HEAD,
+        DAUGHTER_HEAD + roleRule(role) + (suite ? CONTINUE_RULE : ''),
+      )
     : folder
       ? `${DAUGHTER_HEAD}ton dossier de résultats est ${folder} (famille.dossierResultats) : écris-y tes résultats détaillés (listes, tableaux, données, documents), dans des fichiers au format que demande ta consigne ; ta réponse finale, remise à l’agent principal, reste courte : ce qui est fait, les chiffres clés, les chemins de tes fichiers, ce qui manque ou a échoué ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans ton dossier ou dans des fichiers propres à ta part${DAUGHTER_TAIL}`
       : DAUGHTER_RULE;
@@ -210,6 +223,19 @@ export const MISSION_TOOLS = {
       .object({
         id,
         raison: z.string().trim().max(500).optional(),
+      })
+      .strict(),
+  },
+  // equipe-01 (E2).
+  mission_continuer: {
+    description:
+      'Fait continuer une sous-mission au lieu d’en lancer une nouvelle : en cours, ton message lui est remis pendant son travail ; finie, une suite repart de sa réponse et de ses fichiers précédents (même rôle, même agent, même dossier de résultats par défaut ; pas la mémoire de sa session) avec ton message pour consigne. À utiliser pour faire corriger un travail après une vérification ou le compléter. Les deux premières reprises ou suites d’une tâche ne comptent pas dans l’enveloppe.',
+    schema: z
+      .object({
+        id,
+        message: z.string().trim().min(1).max(8000),
+        agent: z.string().trim().min(1).max(40).optional(),
+        modele: z.string().trim().max(200).optional(),
       })
       .strict(),
   },

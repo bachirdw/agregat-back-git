@@ -277,6 +277,40 @@ plus), source: "fichier"|"reponse"|"absent" }`, dans `terminees[]`, `mission_sui
 - Limites : une sous-mission de vérification annulée ou en échec rend aussi un verdict (`absent` le plus souvent) ; un
   verdict est relu sur le disque à chaque lecture (un `verdict.json` modifié après la fin change ce qui est rendu).
 
+### 3.2 `mission_continuer` : message ou suite (`equipe-01`, lot E2)
+
+Outil du chef `mission_continuer { id, message (1 à 8 000 car.), agent?, modele? }` (logique dans
+`packages/orchestrator/continuation.js`) :
+
+- **Sous-mission en cours** (partie, non finie) : le message lui est remis par la brique des messages à une mission en
+  cours (`engine.message` : injecté dans le tour ou porté par un tour de plus), précédé de « Message de l’agent
+  principal de la mission (chef) : » (`CHIEF_MESSAGE_PREFIX`). L'événement `owner_message` de la sous-mission porte
+  `de: "chef"` (absent pour un message du propriétaire ; le champ `via` existant reste le mode de remise). Résultat
+  `{ id, etat: "message_remis" }`. `agent` ou `modele` donnés : `parametres_invalides`.
+- **Pas encore partie** (en file, en attente d'accord ou de prérequis) : `pas_demarree`. Id qui n'est pas une
+  sous-mission de cette mission : `introuvable`.
+- **Finie** (aboutie ou non) : une **suite**, sous-mission neuve liée par `famille.continue` (id de la tentative
+  continuée), lancée par le chemin de `reprend` : même tâche (chaîne `reprend` / `continue`), titre de la première
+  tentative suivi de « (suite n) », même rôle, même tâche structurée (`objectif`…), mêmes `fichiers`, même agent et
+  même modèle par défaut, **même dossier de résultats**. Sa consigne est `message` ; elle reçoit
+  `famille.precedent { id, titre, etat, reponse, fichiers, verdict? }` et la phrase `CONTINUE_RULE`. Résultat : la
+  forme de `mission_lancer` plus `suiteDe`.
+- **Enveloppe** : une suite compte comme une reprise (`famille.reprise`) : les deux premières reprises ou suites d'une
+  tâche sont hors `total` ; `parallel` toujours appliqué ; une seule tentative vivante par tâche (`reprise_en_cours`).
+  Le compteur `famille` compte les suites dans `reprises` (et non dans `taches`).
+- **Bilan de la mère** : l'entrée dit « (suite de « X ») » ; la ligne par tâche compte la dernière tentative de la
+  chaîne : « dont 1 après 1 suite(s) » (« après 1 reprise(s) et 1 suite(s) » pour une chaîne mixte ; sans suite, ligne
+  inchangée). Vérifications : un verdict porte sur la tâche (première tentative de la chaîne) ; un travail dont le
+  dernier verdict est `a_corriger` reste « non revérifié » tant qu'aucune vérification ne relit une tentative de la
+  tâche, même si une suite a fini depuis.
+- **Phrase du chef** : texte « SUITE » (`SUITE_RULE`) après « ÉQUIPE ».
+- **Limites** : la suite ne retrouve pas la mémoire de session de l'agent (les adaptateurs refusent aujourd'hui le
+  rechargement de session) ; la continuité tient à la réponse et aux fichiers précédents. Les `fichiers` et la tâche
+  structurée de la tentative précédente sont gardés en mémoire seulement : après un redémarrage de la plateforme, une
+  suite ne les reçoit plus (le rôle et le dossier, écrits sur la ligne, restent). Une suite d'un vérificateur ne reprend
+  pas `relit`. Le Bilan de la sous-mission continuée dit toujours « Message du propriétaire reçu… » pour un message du
+  chef (texte de la brique existante, non modifié).
+
 ## 4. Route interne (passerelle → plateforme)
 
 `POST /api/internal/missions/<mère>`, en-têtes `x-platform-request: 1` et `x-relay-token: <jeton de la mère>` (le même

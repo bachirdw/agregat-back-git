@@ -2592,7 +2592,9 @@ export class Orchestrator {
   // the mission's control (as questions are) and handed over in the same session : injected into the
   // running turn (ACP steering), or carried by one more turn at the end of the turn, or joined to
   // the turn that carries the answer to a question. It never answers a question nor decides a card.
-  async message(runId, rawText) {
+  // equipe-01 (E2) : `origin` { de, prefix } for a message of the chief to its sub-mission (the
+  // length is checked on the text it typed) ; an ordinary message has none.
+  async message(runId, rawText, origin = null) {
     const fail = (status, message) => Object.assign(new Error(message), { status });
     const run = this.store.get(runId);
     if (!run) throw fail(404, 'Run introuvable');
@@ -2611,10 +2613,11 @@ export class Orchestrator {
     const entry = {
       id: randomUUID(),
       at: new Date().toISOString(),
-      text,
+      text: origin?.prefix ? origin.prefix + text : text,
       state: 'pending',
       via: null,
       deliveredAt: null,
+      ...(origin?.de ? { de: origin.de } : {}),
     };
     box.list.push(entry);
     // Private missions : the text stays in the mission's workspace, as the prompt does.
@@ -2641,6 +2644,7 @@ export class Orchestrator {
       state: entry.state,
       via: entry.via,
       deliveredAt: entry.deliveredAt,
+      ...(entry.de ? { de: entry.de } : {}),
       ...(box.private ? {} : { text: entry.text }),
     });
   }

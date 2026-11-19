@@ -91,3 +91,103 @@ retirant le choix d'un autre agent (`args.agent ?? base.agent`), 2 tests sur 13 
   l'espace privé.
 - Rôle d'une suite (lot E2) : à brancher par E2 (`briefs` porte le rôle complet ; la ligne porte `role` et
   `verdictAttendu`).
+
+## Lot E2 — `mission_continuer` (20/11/2026, 07:43 → 07:55)
+
+Tête avant le lot E2 : `1b62a46` (lot E1 lu : diff et section ci-dessus ; rien de E1 réécrit).
+
+### Fait comment
+
+- **Outil** `mission_continuer { id, message (1 à 8 000), agent?, modele? }` (`delegation-rule.js`, `MISSION_TOOLS`,
+  placé en dernier ; description du brief telle quelle). Enregistré automatiquement par la passerelle
+  (`mission-gateway/server.js` parcourt `MISSION_TOOLS` : aucun changement de ce fichier). Aiguillage dans
+  `Delegation.call` : une ligne.
+- **Logique** `packages/orchestrator/continuation.js` (neuf) : `continueChild` —
+  - id hors de la famille → `introuvable` ;
+  - non finie et retenue (`heldState`) ou pas encore dans `engine.active` → `pas_demarree` ;
+  - en cours : `agent` / `modele` → `parametres_invalides` ; sinon `engine.message(id, message, { de: 'chef', prefix })`
+    → `{ id, etat: "message_remis" }` (une erreur de la brique → `mission_terminee`) ;
+  - finie (aboutie ou non) : `delegation.launch(mother, control, { consigne: message, continue: id, agent, modele,
+role, fichiers, objectif… })` avec l'agent, le modèle, le rôle de la tentative précédente, et ses `fichiers` /
+    tâche structurée lus dans `briefs` (mémoire) ; résultat de `launch` + `suiteDe`.
+  - `precedentOf` (`famille.precedent { id, titre, etat, reponse, fichiers, verdict? }`, lu par `outcome`) et
+    `suiteTitle`.
+- **Branchements dans `launch`** (chemin de `reprend` étendu, compteurs `pending` / `pendingCounted` / `resuming`
+  intouchés) : `continue` vérifié comme sœur ; `previous = reprend ?? continue` (la règle « finie sans succès » reste
+  pour `reprend` seul) ; `taskOf` et le rang `reprise` suivent `reprend ?? continue` ; titre « <titre de la première
+  tentative> (suite n) » (n = suites de la tâche + 1) ; dossier de résultats = celui de la tentative précédente (et il
+  n'est jamais supprimé si la création échoue) ; la ligne porte `famille.continue` (au lieu de `reprend`) et `reprise`.
+  `continue` n'est pas dans le schéma strict de `mission_lancer` : le chef ne peut le passer que par
+  `mission_continuer` (testé).
+- **Prompt** (`promptParts`) : `famille.precedent` lu à l'envoi dans la base (comme `prerequis`) ;
+  `daughterRule(dossier, rôle, suite)` : `CONTINUE_RULE` (texte du brief) après la tête et après les phrases de rôle ;
+  sans suite, phrase inchangée.
+- **Engine** (`index.js`, `message`) : troisième paramètre facultatif `origin { de, prefix }` : longueur vérifiée sur le
+  texte tapé, texte remis précédé de `CHIEF_MESSAGE_PREFIX`, `de: 'chef'` sur l'entrée et sur l'événement
+  `owner_message`. Sans `origin` (message du propriétaire) : entrée et événement identiques à avant.
+- **Compteur** `famille` : `reprises` compte aussi les suites (et `taches` ne les compte pas).
+- **Bilan** (`family-bilan.js`) : l'entrée dit « (suite de « X ») » ; `taskLine` suit `reprend ?? suiteDe` et écrit
+  « dont 1 après 1 suite(s) » (« après r reprise(s) et s suite(s) » pour une chaîne mixte ; sans suite, texte
+  identique). `verificationLines` (`roles.js`) : un verdict porte sur la tâche (première tentative de la chaîne) : un
+  « a_corriger » suivi d'une suite reste « non revérifié » jusqu'à une vérification qui relit une tentative de la tâche.
+- **Phrase du chef** : `SUITE_RULE` (texte du brief) après `TEAM_RULE`, dans les deux fins qui dépendent de l'accord ;
+  absent de `CHIEF_REFUSED`.
+- `docs/api-delegation.md` : section 3.2 neuve (outil, erreurs, enveloppe, Bilan, limites dont la mémoire de session).
+
+### Écarts au brief et décisions (à valider par le manager)
+
+1. **`via: "chef"` → `de: "chef"`** : sur l'événement `owner_message`, `via` existe déjà et porte le mode de remise
+   (`steering`, `turn_end`, `with_answer`), réécrit à la remise. Le brief demandait `via: "chef"` : cela aurait écrasé
+   (ou été écrasé par) le mode de remise. J'ai mis le marquage dans un champ neuf `de: "chef"`. Faute manifeste
+   supposée ; à trancher.
+2. **Préfixe du message du chef** (texte neuf, pas dans le brief) : `CHIEF_MESSAGE_PREFIX` = « Message de l’agent
+   principal de la mission (chef) : ». Sans lui, l'agent de la sous-mission lisait « Message du propriétaire pendant la
+   mission : … » pour un message du chef. L'étiquette « Message du propriétaire » de la brique reste devant (texte
+   existant non modifié).
+3. Titre d'une suite : titre de la **première** tentative + « (suite n) », n compté parmi les suites seules (pas les
+   reprises) de la tâche.
+4. Une suite d'un vérificateur reprend son rôle (donc `verdictAttendu`) mais pas `relit` ; son verdict compte dans
+   « Vérifications » sans être rattaché à un travail.
+5. Agent d'une suite par défaut = celui de la tentative précédente, passé explicitement : un rôle `autreAgent` n'en
+   choisit pas un autre pour une suite.
+6. `verificationLines` rattache désormais aussi le verdict d'une **reprise** relue à sa tâche (E1 le rattachait à la
+   tentative) : même titre en pratique ; changement de comportement minime pour E1.
+
+### Ordre de travail
+
+Test écrit d'abord : `tests/equipe-01-continuer.test.js` lancé avant tout code → **0 / 6** (6 échecs). Puis textes,
+engine, `continuation.js`, branchements, Bilan → **6 / 6** au premier passage.
+**Contrôle négatif** : `taskOf` ramené à `reprend` seul (les suites ne sont plus chaînées) → **5 / 6** (échec du test
+d'enveloppe) ; code remis, 6 / 6.
+
+### Tests (résultats réels, un fichier à la fois, `AGENT_PLATFORM_AGENTS_CONFIG=/tmp/absent-agents-equipe.json`, fichier absent)
+
+- `tests/equipe-01-continuer.test.js` (neuf) : **6 / 6** — textes et schéma (`continue` refusé par `mission_lancer`) ;
+  Bilan pur (« suite de », « 1 après 1 suite(s) », « non revérifié » après une suite, effacé par une vérification de la
+  suite, ligne des reprises seules inchangée) ; intégration : message à une sous-mission en cours (`message_remis`,
+  événements `de: chef`, texte reçu par l'agent dans sa session, aucune suite lancée), `agent` → `parametres_invalides`,
+  sous-mission en attente de prérequis → `pas_demarree`, id étranger → `introuvable` ; suite d'une aboutie (`suiteDe`,
+  titre « (suite 1) », même dossier, même agent, `famille.continue`, rôle, `precedent`, tâche, fichiers, phrase,
+  compteur `taches 1 / reprises 1`, Bilan) ; suite d'une en échec (`precedent.etat failed`) ; enveloppe `total 1` :
+  deux suites hors total, la 3e → `enveloppe_atteinte`, doublon pendant qu'une suite vit → `reprise_en_cours`.
+- Voisins (après le lot) : `equipe-01-roles` 13/13, `multi-agent-v3-01-a` 7/7, `-b` 8/8, `multi-agent-v3-02` 11/11,
+  `multi-agent-v3-02-c` 2/2, `delegation-v2-01-a` 10/10, `delegation-v2-01-b` 12/12, `review-delegation-v2-01` 5/5,
+  `review-multi-agent-v3-01` 13/13, `chef-01` **15/16 puis 16/16** (voir ci-dessous), `dossier-resultats-01` 13/13,
+  `natifs-01` 9/9, `generique-01` 15/15, `fix-resume` 28/28, `reprise-memoire` 8/8, `message-proprietaire` 25/25,
+  `platform` 11/11, `owner-mode` 14/14.
+- **Test existant adapté** : `tests/chef-01.test.js` affirmait la liste exacte des outils prêtés au chef (quatre) ; le
+  lot en ajoute un cinquième voulu : `mission_continuer` ajouté en fin de liste attendue (une ligne).
+- `npm run check` : « Syntaxe JavaScript valide. » ; `npx prettier --check` sur les fichiers touchés : vert.
+
+### Non vérifié / reste
+
+- Aucun essai avec de vrais agents : remise « pendant le tour » (steering) non exercée ; le faux agent reçoit le
+  message par un tour de plus.
+- Le Bilan de la sous-mission qui reçoit un message du chef dit « Message du propriétaire reçu à … » (texte de la
+  brique `formatOwnerMessageLines`, non modifié pour rester étroit).
+- `fichiers` et tâche structurée d'une tentative sont en mémoire (`briefs`) : après un redémarrage, une suite ne les
+  reçoit plus (rôle et dossier, sur la ligne, restent). Non testé.
+- Espace privé (career-ops) non testé avec `mission_continuer` (le texte du message y suit la règle existante : fichier
+  de l'espace, événement sans texte).
+- Le tableau des outils de la section 3 de `docs/api-delegation.md` n'a pas de ligne `mission_continuer` (décrit en
+  3.2) pour ne pas reformater ce tableau très large.

@@ -84,8 +84,10 @@ export function familySection({
   const byId = new Map(children.map((child) => [child.id, child]));
   children.forEach((child, index) => {
     const resumed = byId.get(child.reprend);
+    // equipe-01 (E2) : a suite (mission_continuer) says the attempt it continues.
+    const continued = byId.get(child.suiteDe);
     lines.push(
-      `${index + 1}. « ${child.titre} »${resumed ? ` (reprise de « ${resumed.titre} »)` : ''}${teamLabel(child, byId)} — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
+      `${index + 1}. « ${child.titre} »${resumed ? ` (reprise de « ${resumed.titre} »)` : ''}${continued ? ` (suite de « ${continued.titre} »)` : ''}${teamLabel(child, byId)} — agent ${child.agent}${child.modele ? `, modèle ${child.modele}` : ''}, ${stateLabel(child.state)}, ${child.durationMs == null ? 'jamais démarrée' : formatDuration(child.durationMs)} (sous-mission ${child.id})`,
       // equipe-01 (E1) : the verdict read by the platform (data reported by the sub-mission).
       ...(child.verdict
         ? [
@@ -106,7 +108,8 @@ export function familySection({
     `Totaux de la famille vus par la plateforme : ${count('completed')} terminée(s), ${count('failed')} en échec, ${count('cancelled')} annulée(s), ${count('interrupted')} interrompue(s)${living ? `, ${living} encore en cours` : ''} ; envois des sous-missions : ${approved} approuvé(s) (dont ${sum('parAccord')} par accord de mission), ${sum('refuses')} refusé(s).`,
   );
   // multi-agent-v3-01 (D4) : with resumed attempts, the tasks counted by their last attempt.
-  if (children.some((child) => byId.has(child.reprend))) lines.push(taskLine(children, byId));
+  if (children.some((child) => byId.has(child.reprend) || byId.has(child.suiteDe)))
+    lines.push(taskLine(children, byId));
   lines.push(...verificationLines(children));
   const announced = announcedSends(chiefAnswer);
   const seen = approved + (Number(motherSends) || 0);
@@ -144,21 +147,32 @@ function taskLine(children, byId) {
   const tasks = new Map();
   for (const child of children) {
     let first = child;
-    for (let n = 0; byId.has(first.reprend) && n < children.length; n++)
-      first = byId.get(first.reprend);
-    const task = tasks.get(first.id) ?? { attempts: 0 };
-    tasks.set(first.id, { attempts: task.attempts + 1, last: child });
+    for (let n = 0; byId.has(first.reprend ?? first.suiteDe) && n < children.length; n++)
+      first = byId.get(first.reprend ?? first.suiteDe);
+    const task = tasks.get(first.id) ?? { attempts: 0, suites: 0 };
+    tasks.set(first.id, {
+      attempts: task.attempts + 1,
+      suites: task.suites + (byId.has(child.suiteDe) ? 1 : 0),
+      last: child,
+    });
   }
   const list = [...tasks.values()];
   const count = (state) => list.filter((task) => task.last.state === state).length;
   const living = list.filter((task) => !LIVING_EXCLUDED.includes(task.last.state)).length;
+  // equipe-01 (E2) : « après k reprise(s) », « après k suite(s) », or both.
   const after = new Map();
   for (const task of list)
-    if (task.last.state === 'completed' && task.attempts > 1)
-      after.set(task.attempts - 1, (after.get(task.attempts - 1) ?? 0) + 1);
+    if (task.last.state === 'completed' && task.attempts > 1) {
+      const reprises = task.attempts - 1 - task.suites;
+      const key = [
+        ...(reprises ? [`${reprises} reprise(s)`] : []),
+        ...(task.suites ? [`${task.suites} suite(s)`] : []),
+      ].join(' et ');
+      after.set(key, { n: (after.get(key)?.n ?? 0) + 1, order: task.attempts - 1 });
+    }
   const resumed = [...after]
-    .sort(([a], [b]) => a - b)
-    .map(([reprises, n]) => `${n} après ${reprises} reprise(s)`)
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([key, { n }]) => `${n} après ${key}`)
     .join(', ');
   return `Par tâche (dernière tentative) : ${list.length} tâche(s) : ${count('completed')} aboutie(s), ${count('failed')} en échec, ${count('cancelled')} annulée(s), ${count('interrupted')} interrompue(s)${living ? `, ${living} encore en cours` : ''}${resumed ? `, dont ${resumed}` : ''}.`;
 }

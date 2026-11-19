@@ -219,7 +219,14 @@ test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant
   }
   assert.deepEqual(
     p.tools().map((tool) => tool.name),
-    ['mission_lancer', 'mission_suivre', 'mission_attendre', 'mission_annuler'],
+    // equipe-01 (E2) : mission_continuer added.
+    [
+      'mission_lancer',
+      'mission_suivre',
+      'mission_attendre',
+      'mission_annuler',
+      'mission_continuer',
+    ],
   );
 });
 

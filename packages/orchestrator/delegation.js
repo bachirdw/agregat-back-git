@@ -37,6 +37,7 @@ import { publicQuestion } from './questions.js';
 import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
 import { loadRoles, otherAgent, readVerdict, roleKey, roleList } from './roles.js';
+import { continueChild, precedentOf, suiteTitle } from './continuation.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
@@ -202,6 +203,8 @@ export class Delegation {
     const mother = this.store.get(run.famille.mere);
     const brief = this.briefs.get(run.id) ?? {};
     const { apres, dossierResultats, relit } = run.famille;
+    // equipe-01 (E2) : a suite gets the attempt it continues (data).
+    const previous = run.famille.continue ? this.store.get(run.famille.continue) : null;
     return {
       fields: {
         famille: {
@@ -218,6 +221,7 @@ export class Delegation {
               }
             : {}),
           ...(relit ? { relit } : {}),
+          ...(previous ? { precedent: precedentOf(this, previous) } : {}),
           demandeDuProprietaire: mother ? this.engine.turnObjective(mother) : null,
           mere: run.famille.mere,
           soeurs: brief.soeurs ?? [],
@@ -236,7 +240,8 @@ export class Delegation {
             : {}),
         },
       },
-      rule: '\n' + daughterRule(dossierResultats, brief.role?.consigne ? brief.role : null),
+      rule:
+        '\n' + daughterRule(dossierResultats, brief.role?.consigne ? brief.role : null, !!previous),
     };
   }
   // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
@@ -378,6 +383,7 @@ export class Delegation {
         bilan: this.bilanOf(child),
         envois: this.sendsOf(child),
         reprend: child.famille?.reprend,
+        suiteDe: child.famille?.continue,
         // equipe-01 (E1) : absent without role nor verdict.
         role: child.famille?.role,
         relit: child.famille?.relit,
@@ -682,7 +688,9 @@ export class Delegation {
     const children = this.childrenOf(mother);
     const family = this.families.get(mother.id);
     const { total, parallel } = this.envelope(this.store.get(mother.id));
-    const reprises = children.filter((child) => child.famille?.reprend).length;
+    const reprises = children.filter(
+      (child) => child.famille?.reprend || child.famille?.continue,
+    ).length;
     return {
       lancees: children.length,
       taches: children.length - reprises,
@@ -792,6 +800,7 @@ export class Delegation {
         mission_suivre: () => this.follow(mother, parsed.data),
         mission_attendre: () => this.wait(mother, control, parsed.data, signal),
         mission_annuler: () => this.cancelChild(mother, parsed.data),
+        mission_continuer: () => continueChild(this, mother, control, parsed.data),
       };
       return { status: 200, body: { result: await handlers[body.tool]() } };
     } catch (error) {
@@ -825,15 +834,22 @@ export class Delegation {
       ...(args.apres ?? []),
       ...(args.relit ?? []),
       ...(args.reprend ? [args.reprend] : []),
+      ...(args.continue ? [args.continue] : []),
     ])
       if (!sisters.has(id))
         throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
-    const previous = sisters.get(args.reprend) ?? null;
-    if (previous && (!terminal.has(previous.state) || previous.state === 'completed'))
+    // equipe-01 (E2) : a suite (mission_continuer, `continue`) takes the path of `reprend`.
+    const previous = sisters.get(args.reprend ?? args.continue) ?? null;
+    if (
+      args.reprend &&
+      previous &&
+      (!terminal.has(previous.state) || previous.state === 'completed')
+    )
       throw fail('parametres_invalides', 'reprend — une sous-mission finie sans succès');
     const taskOf = (child) => {
-      for (let n = 0; sisters.has(child.famille?.reprend) && n < 200; n++)
-        child = sisters.get(child.famille.reprend);
+      const before = (c) => c.famille?.reprend ?? c.famille?.continue;
+      for (let n = 0; sisters.has(before(child)) && n < 200; n++)
+        child = sisters.get(before(child));
       return child.id;
     };
     // review-multi-agent-v3-01 : resumptions of the task still being created (simultaneous calls)
@@ -853,7 +869,8 @@ export class Delegation {
     }
     const reprise = previous
       ? 1 +
-        children.filter((c) => c.famille?.reprend && taskOf(c) === taskId).length +
+        children.filter((c) => (c.famille?.reprend || c.famille?.continue) && taskOf(c) === taskId)
+          .length +
         (family.resuming.get(taskId) ?? 0)
       : 0;
     const free = reprise >= 1 && reprise <= 2;
@@ -881,7 +898,12 @@ export class Delegation {
       : null;
     const agent = args.agent ?? reviewer ?? base.agent;
     const modele = args.modele ?? (agent === base.agent ? (base.model ?? '') : '');
-    const named = args.titre ?? previous?.famille?.titre;
+    const named = args.continue
+      ? suiteTitle(
+          sisters.get(taskId).famille?.titre ?? taskId,
+          1 + children.filter((c) => c.famille?.continue && taskOf(c) === taskId).length,
+        )
+      : (args.titre ?? previous?.famille?.titre);
     const asked = (named ?? consigne).replace(/\s+/g, ' ').trim();
     const privateTitle = !!mother.workspace && !this.engine.ownerMode;
     const titre = privateTitle
@@ -889,7 +911,9 @@ export class Delegation {
       : named
         ? asked.slice(0, 80)
         : asked.slice(0, 60);
-    const folder = this.resultsFolder(mother, launched + 1, titre);
+    const folder = args.continue
+      ? (previous.famille?.dossierResultats ?? null)
+      : this.resultsFolder(mother, launched + 1, titre);
     const tache = Object.fromEntries(
       TASK_FIELDS.filter((key) => args[key]).map((key) => [key, args[key]]),
     );
@@ -904,7 +928,7 @@ export class Delegation {
         ...(args.relit ? { relit: [...new Set(args.relit)] } : {}),
         ...(team ? { role: team.nom } : {}),
         ...(team?.verdict ? { verdictAttendu: true } : {}),
-        ...(previous ? { reprend: previous.id, reprise } : {}),
+        ...(previous ? { [args.continue ? 'continue' : 'reprend']: previous.id, reprise } : {}),
         ...(folder ? { dossierResultats: folder } : {}),
       },
       title: titre,
@@ -947,7 +971,7 @@ export class Delegation {
     } catch (error) {
       // The empty results folder of a sub-mission never created is removed.
       try {
-        if (folder) rmdirSync(join(mother.cwd, folder));
+        if (folder && !args.continue) rmdirSync(join(mother.cwd, folder));
       } catch {
         /* Not empty, or already gone. */
       }

@@ -195,9 +195,16 @@ export function verificationLines(children) {
     `Vérifications : ${judged.length} (${count('approuve')} ${VERDICT_LABEL.approuve}, ${count('a_corriger')} ${VERDICT_LABEL.a_corriger}, ${count('rejete')} ${VERDICT_LABEL.rejete})`,
   ];
   const byId = new Map(children.map((child) => [child.id, child]));
+  // equipe-01 (E2) : a verdict on a resumed attempt or a suite counts for its task (first attempt).
+  const taskOf = (id) => {
+    for (let n = 0; byId.has(byId.get(id)?.reprend ?? byId.get(id)?.suiteDe) && n < 200; n++)
+      id = byId.get(id).reprend ?? byId.get(id).suiteDe;
+    return id;
+  };
   const last = new Map();
   for (const child of judged)
-    for (const id of child.relit ?? []) if (byId.has(id)) last.set(id, child.verdict.valeur);
+    for (const id of child.relit ?? [])
+      if (byId.has(id)) last.set(taskOf(id), child.verdict.valeur);
   for (const [id, valeur] of last)
     if (valeur !== 'approuve')
       lines.push(`« ${byId.get(id).titre} » : dernier verdict ${valeur}, non revérifié depuis`);

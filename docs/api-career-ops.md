@@ -104,7 +104,7 @@ l’alimente (DATA_CONTRACT.md). Les PDF ne s’écrivent pas par `career_write`
 `generate-pdf` et `generate-cover-letter`) ; `drafts/` reste le dossier des brouillons d’e-mail de Relay.
 `data/pipeline.md` (boîte d’entrée du Skill) est contrôlé à l’écriture : voir le parcours « pipeline »
 ci-dessous.
-En mode multi-agent, un fichier texte ordinaire (`md|txt|yml|json|tsv|html`) sous le dossier de résultats
+En mode multi-agent, un fichier texte ordinaire (`md|txt|yml|json|tsv|csv|html`) sous le dossier de résultats
 d’une sous-mission, `relay/missions/<mission>/<n>-<titre>/` (sous-dossiers compris), s’écrit et se lit
 aussi (E145) ; le reste de `relay/` reste hors écriture, sans lien symbolique ni nom à point.
 

@@ -646,7 +646,7 @@ const secretPath = (path) =>
 // fichier texte ordinaire placé sous ce dossier (sous-dossiers compris) s'écrit et se lit, dans les
 // deux modes. Rien d'autre de relay/ ; pathSchema refuse déjà « .. », les noms à point et l'absolu.
 const missionResultPath =
-  /^relay\/missions\/[\p{L}\p{N}_-]+\/[\p{L}\p{N}_-]+\/(?:[\p{L}\p{N}_ .-]+\/)*[\p{L}\p{N}_ .-]+\.(?:md|txt|yml|json|tsv|html)$/u;
+  /^relay\/missions\/[\p{L}\p{N}_-]+\/[\p{L}\p{N}_-]+\/(?:[\p{L}\p{N}_ .-]+\/)*[\p{L}\p{N}_ .-]+\.(?:md|txt|yml|json|tsv|csv|html)$/u;
 const validatePath = (path, write = false, ownerMode = false) => {
   pathSchema.parse(path);
   if (missionResultPath.test(path)) return path;

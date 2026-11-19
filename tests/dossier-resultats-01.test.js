@@ -139,3 +139,26 @@ test('E145 : par la passerelle MCP, career_write puis career_read dans le dossie
   assert.equal(answer.isError, true);
   assert.match(text(answer), /hors du périmètre/);
 });
+
+// multi-agent-v3-02 (B) : a table in CSV is written and read in the results folder of a
+// sub-mission (its consigne speaks of « tableaux, données ») ; elsewhere it keeps its refusals.
+for (const ownerMode of [false, true]) {
+  const mode = ownerMode ? 'mode propriétaire' : 'mode ordinaire';
+  test(`multi-agent-v3-02 B (${mode}) : un .csv s'écrit et se relit dans le dossier de résultats, refusé ailleurs`, (t) => {
+    const { root, tools } = workspace(t, ownerMode);
+    const csv = 'offre,score\nFICTIVE A,4.2\nFICTIVE B,3.9\n';
+    for (const path of [`${FOLDER}/offres.csv`, `${FOLDER}/tableaux/offres FICTIVES.csv`]) {
+      assert.deepEqual(tools.write(path, csv), { path, saved: true });
+      assert.equal(readFileSync(join(root, path), 'utf8'), csv);
+      assert.equal(tools.read(path).text, csv);
+    }
+    for (const path of [
+      'relay/missions/abc12345/offres.csv',
+      'relay/runs/abc12345/1-titre/offres.csv',
+      'data/offres.csv',
+      'offres.csv',
+      `${FOLDER}/.offres.csv`,
+    ])
+      assert.throws(() => tools.write(path, csv), /hors du périmètre|Chemin relatif/, path);
+  });
+}

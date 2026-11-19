@@ -191,7 +191,9 @@ export class Carnet {
         `Le carnet de l’équipe est plein (${CARNET_MAX_NOTES} notes) : aucune note de plus.`,
       );
     const chief = !run.famille;
-    const role = chief ? null : run.famille?.role?.nom;
+    // equipe-01 (intégration) : lot E1 stores the role's name on the row (famille.role, a string) ;
+    // famille.role.nom is the shape given in the prompt.
+    const role = chief ? null : (run.famille?.role?.nom ?? run.famille?.role);
     const note = {
       n: book.notes.length + 1,
       auteur: chief ? CHIEF_AUTHOR : (run.famille.titre ?? run.title ?? run.id),

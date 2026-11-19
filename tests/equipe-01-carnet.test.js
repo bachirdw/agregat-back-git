@@ -291,6 +291,86 @@ test('E3. une sous-mission note : le chef la reçoit une seule fois, une sœur l
   );
 });
 
+// equipe-01 (intégration E1, E2, E3) : the three lots' sentences live together, and a note's
+// author carries the role of lot E1.
+test('Intégration : phrases ÉQUIPE, SUITE et CARNET du chef ; rôle, suite et CARNET de la sous-mission ; rôle de l’auteur d’une note', async (t) => {
+  for (const accepted of [true, undefined]) {
+    const chief = rule.chiefRule(accepted ? ACCEPTED() : {});
+    const at = [rule.TEAM_RULE, rule.SUITE_RULE, rule.CHIEF_CARNET].map((x) => chief.indexOf(x));
+    assert.ok(
+      at.every((i) => i > 0),
+      JSON.stringify(at),
+    );
+    assert.deepEqual(
+      [...at].sort((a, b) => a - b),
+      at,
+      'ÉQUIPE, puis SUITE, puis CARNET',
+    );
+  }
+  const role = { nom: 'verificateur', verdict: true };
+  for (const folder of [null, 'relay/missions/x/1-a']) {
+    const full = rule.daughterRule(folder, role, true);
+    const at = [rule.DAUGHTER_CARNET, rule.ROLE_RULE, rule.VERDICT_RULE, rule.CONTINUE_RULE].map(
+      (x) => full.indexOf(x),
+    );
+    assert.ok(
+      at.every((i) => i > 0),
+      JSON.stringify(at),
+    );
+    assert.ok(rule.daughterRule(folder).includes(rule.DAUGHTER_CARNET));
+    assert.ok(!rule.daughterRule(folder).includes(rule.ROLE_RULE));
+  }
+  const p = await platform(t);
+  p.setConfig(() => ({
+    steps: [
+      {
+        call: 'mission_lancer',
+        args: {
+          consigne: 'Tâche FICTIVE R NOTER[methode]{Méthode FICTIVE du chercheur.}',
+          titre: 'R',
+          role: 'chercheur',
+        },
+        save: 'r',
+      },
+      { call: 'mission_attendre', args: { ids: ['$r'], toutes: true, delaiSecondes: 30 } },
+      {
+        call: 'mission_continuer',
+        args: { id: '$r', message: 'Suite FICTIVE NOTER[decision]{Décision FICTIVE de la suite.}' },
+        save: 's',
+      },
+      { call: 'mission_attendre', args: { ids: ['$s'], toutes: true, delaiSecondes: 30 } },
+    ],
+  }));
+  const mother = await p.app.engine.create({
+    prompt: 'Tâche FICTIVE en équipe.',
+    agent: 'fixture',
+    pack: 'core',
+    multiAgent: true,
+    delegation: ACCEPTED(),
+  });
+  await p.ended(mother.id, 30000);
+  assert.equal(p.app.store.get(mother.id).state, 'completed', p.app.store.get(mother.id).error);
+  const first = byConsigne(p, 'Tâche FICTIVE R');
+  assert.ok(first.prompt.instructions.includes(rule.DAUGHTER_CARNET));
+  assert.ok(first.prompt.instructions.includes(rule.ROLE_RULE));
+  assert.ok(!first.prompt.instructions.includes(rule.CONTINUE_RULE));
+  const suite = byConsigne(p, 'Suite FICTIVE');
+  assert.deepEqual(suite.servers, ['platform', rule.CARNET_SERVER]);
+  for (const x of [rule.DAUGHTER_CARNET, rule.ROLE_RULE, rule.CONTINUE_RULE])
+    assert.ok(suite.prompt.instructions.includes(x));
+  assert.equal(suite.prompt.famille.role.nom, 'chercheur');
+  // The suite gets the first attempt's note at its start, with its author's role.
+  assert.deepEqual(
+    suite.prompt.famille.carnet.notes.map((note) => [note.n, note.auteur, note.role]),
+    [[1, 'R', 'chercheur']],
+  );
+  const waits = p.results().filter((r) => r.call === 'mission_attendre');
+  assert.deepEqual(
+    waits[1].result.carnet.nouvelles.map((note) => [note.n, note.auteur, note.role]),
+    [[2, 'R (suite 1)', 'chercheur']],
+  );
+});
+
 test('E3. tour de synthèse : les notes des membres non remises y sont jointes', async (t) => {
   const p = await platform(t);
   p.setConfig(() => ({

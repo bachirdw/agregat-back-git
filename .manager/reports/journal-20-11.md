@@ -305,3 +305,18 @@ précédentes) : le lanceur de tests l'affiche sans le compter comme un échec. 
   Opus. Conséquence : **la vague 1 ne peut pas partir avant la remise à zéro de 23:20** ; la nouvelle conversation n'est
   pas ouverte ce soir par moi (elle buterait sur la limite en quelques minutes), le prompt est remis au propriétaire.
 - En écoute à 20:30 : API 4316, interfaces 5178 et 5177, pages fictives 4321 à 4328, relais 19988. Aucun agent en cours.
+
+## Soir : nouvelle conversation du manager (chantier swarm, début du code)
+- 20:34 : reprise par une nouvelle conversation, avec le prompt de la passation. Lus : `passation-swarm-20-11.md`, le plan
+  (parties 0, 4.0, 5 et sections swarm-01 à swarm-04), `HANDOFF.md` sections 0 et 2.
+- 20:35 : `get_usage` : fenêtre de 5 h à **93 %**, remise à zéro à 23:20 ; hebdomadaire 69 % (Fable 68 %). Règle des
+  85 % : **la vague 1 attend 23:20**. Rien de coûteux lancé avant.
+- 20:36 : quatre arbres créés par le manager depuis `3631948` : `~/Downloads/agregat-back-swarm-01` … `-04` (branches
+  `swarm-01` … `swarm-04`, `node_modules` en lien vers `agregat-back-delegation`).
+- 20:37 : outil `~/Downloads/agregat-back-swarm/.manager/outils/phase-unitaire.mjs` : lance la phase unitaire seule d'un
+  arbre (203 fichiers, sans les 26 fichiers Chrome). Raison : quatre lots en parallèle ne doivent pas lancer plusieurs
+  Chrome en même temps (8 cœurs ; commentaire de `scripts/run-tests.js`). La suite complète reste au manager, un arbre à la
+  fois. Commit `[swarm-00]` sur `swarm-20-11`.
+- Référence de suite (journal, `e93f6c2`, 14:44 → 14:57) : 1 611 unitaires, 1 608 réussis, 0 échec, 2 ignorés, 1 « à
+  faire » ; Chrome 265/265. `swarm-20-11` n'y ajoute que des documents.
+- Reprise programmée vers 23:22 : vague 1 par un workflow (4 lots en parallèle, chacun copieur → codeur → relecteur, Opus).

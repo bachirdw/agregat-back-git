@@ -22,6 +22,8 @@ import {
 import { installGlobalGuards } from '../../packages/agent-runtime/guards.js';
 import { summarize, meters } from '../../packages/billing/index.js';
 import { missionTitle } from '../../packages/orchestrator/title.js';
+import { agentState } from '../../packages/agent-runtime/agent-state.js';
+import { listRuns, privateRun, withTeam } from '../../packages/orchestrator/team-view.js';
 // Local skill imports are limited to configured roots (never an arbitrary path from the browser).
 export function allowedSkillPath(
   p,
@@ -68,11 +70,14 @@ export function publicError(e) {
   return String(e?.message ?? e).slice(0, 1000);
 }
 // Browser-facing agent view: detection + last probe summary; no command line, paths or environment.
-export function publicAgents(agents, probes) {
+// swarm-07 : plus l'état réel de l'agent (`etat`, `raison`, `jusqua`, `modelesLimites`, chacun absent
+// quand agentState ne le rend pas).
+export function publicAgents(agents, probes, live = false) {
   return agents.map(({ command, args, cliPath, env, ...a }) => {
     const p = probes[a.id];
     return {
       ...a,
+      ...agentState(a, p, { live }),
       probe: p
         ? {
             at: p.at,
@@ -195,7 +200,7 @@ export function createApp({
         return json(res, 200, {
           live: engine.live,
           ownerMode,
-          agents: publicAgents(await detectAgents(), loadProbes(dataDir)),
+          agents: publicAgents(await detectAgents(), loadProbes(dataDir), engine.live),
           packs,
           skills: skills.list(),
           meters,
@@ -205,7 +210,10 @@ export function createApp({
         return json(
           res,
           200,
-          store.list().map((run) => ({ ...run, title: run.title ?? missionTitle(run.prompt) })),
+          // swarm-07 : `equipe` sur chaque mère ; `?racines=1` sans les sous-missions.
+          listRuns(store, engine.delegation, {
+            racines: url.searchParams.get('racines') === '1',
+          }).map((run) => ({ ...run, title: run.title ?? missionTitle(run.prompt) })),
         );
       const match = path.match(
         /^\/api\/runs\/([a-f0-9-]{36})(?:\/(events|cancel|resume|answer|message))?$/,
@@ -268,7 +276,12 @@ export function createApp({
               .filter((p) => p.runId === id)
               .map(({ finish, ...p }) => p),
             // chef-01 : the sub-missions of a mother, only when it has some.
-            ...engine.delegation.view(run),
+            // swarm-07 : `?equipe=1` ajoute la vue de chaque membre (modèle, durée, résultat court…).
+            ...(url.searchParams.get('equipe') === '1'
+              ? withTeam(engine.delegation.view(run), engine.delegation, run, {
+                  prive: privateRun(run, engine),
+                })
+              : engine.delegation.view(run)),
             // equipe-carnet : the team notebook of a multi-agent mother, only when it has notes.
             ...engine.delegation.carnet.view(run),
           });

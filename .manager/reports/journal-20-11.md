@@ -216,3 +216,23 @@ précédentes) : le lanceur de tests l'affiche sans le compter comme un échec. 
   relais 19988, front 5177. Aucune mission active. Aucun agent en cours.
 - En attente de l'accord du propriétaire (limite d'usage) : corriger `equipe-b` puis la reprendre ; un court essai réel de
   confirmation ; voir l'interface à l'écran.
+
+## 14:36 → 14:58 Accord du propriétaire (« oui, fais-le ») : correction des accolades reprise, interface vue à l'écran
+- **Correction des accolades** : défauts 1 et 2 de la relecture confirmés par des tests rouges puis corrigés sur
+  `equipe-b` (`28383a3` : une accolade suivie d'un guillemet typographique, d'un guillemet échappé ou d'un commentaire
+  « ressemble à un objet » et reste « JSON invalide ») ; défaut 3 gardé comme limite connue (une prose qui cite
+  `{ ok: true }` échoue toujours). Diff de `result.js` relu par le manager (un seul bloc gardé). Les quatre commits
+  repris par `git cherry-pick` sur `equipe-20-11` : **nouvelle tête `e93f6c2`** ; `tests/equipe-accolades.test.js` 8/8.
+- **Suite complète n° 3 sur `e93f6c2`** — relevé brut : début 14:44:08 tête e93f6c2 code de sortie npm test : 0 ℹ tests 1611 ℹ pass 1608 ℹ fail 0 ℹ cancelled 0 ℹ skipped 2 ℹ todo 1 ℹ tests 265 ℹ pass 265 ℹ fail 0 ℹ cancelled 0 ℹ skipped 0 ℹ todo 0  tests cités sous « failing tests » : 1 check : 0 Syntaxe JavaScript valide. format : 0 All matched files use Prettier code style! fin 14:57:44 
+  (la ligne « failing tests » ne cite que le test marqué « à faire », comme aux suites précédentes).
+- **Interface vue à l'écran** (front de `equipe-front-20-11` lancé sur le port **5178**, API 4316, navigateur intégré) :
+  réglage « Équipe » du composeur (case « Équipe d'agents » et texte d'accord) ; sur la mission réelle `ab1210ce` : bloc
+  « Équipe » (5 membres, rôles, agent, état, « relit », verdict « à corriger », 1 point bloquant dépliable) et bloc
+  « Carnet d'équipe » (auteur, rôle, catégorie, heure, texte). Deux retouches notées, non faites : le texte d'accord
+  dépasse sa fenêtre (fin coupée) ; les sous-missions sont mêlées aux missions dans la liste de gauche. Deux captures
+  envoyées au propriétaire.
+- Non fait, en attente : l'essai réel de confirmation (vérificateur d'un travail de Claude donné à Codex), à jouer quand
+  Codex aura fini de coder ; l'API 4316 tourne toujours sur `c1fb352` (avant les corrections du vérificateur et des
+  accolades).
+- En écoute à 14:58 : API 4316, front 5178 (branche interface), front 5177, pages fictives 4321 à 4328, relais 19988.
+  Aucune mission, aucun agent.

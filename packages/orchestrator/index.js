@@ -13,6 +13,7 @@ import { mkdirSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { agentHomeFor, removeRunHomes, workspacesRoot } from './isolation.js';
 import { MISSION_FILES_RULE, WORK_FILES_RULE, copyMissionFiles } from './mission-files.js';
+import { ANSWER_FORMAT_RULE } from './answer-format.js';
 import { z } from 'zod';
 import {
   AcpRuntime,
@@ -1738,6 +1739,8 @@ export class Orchestrator {
             : '') +
           '\n' +
           WORK_FILES_RULE +
+          '\n' +
+          ANSWER_FORMAT_RULE +
           (toolRoles ? '\n' + toolRoles : '') +
           (plan.skillSelection?.length ? '\n' + formatSkillOrder(plan.skillSelection) : '') +
           familyPrompt.rule,

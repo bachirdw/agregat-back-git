@@ -8,6 +8,7 @@
 // relais, aucun CLI réel (la détection des agents pointe vers des chemins inexistants). FICTIF.
 // multi-agent-v3-01 (D1) : outils et phrase prêtés seulement avec `multiAgent: true` ; sans lui, la
 // mission de la base 48a2f4e (test 1).
+import { ANSWER_FORMAT_RULE } from '../packages/orchestrator/answer-format.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -216,6 +217,29 @@ test('sans multiAgent et sans variable d’environnement : consigne, serveurs et
     { multiAgent: true },
   );
   const lent = await ordinaryMissions(await platform(t), { multiAgent: true });
+  // reponse-04 (front, 21/11) : la règle de forme de la réponse (answer-format.js) part exprès dans la
+  // consigne de toute mission menée par un agent. Elle est retirée avant de comparer à la base, pour
+  // prouver que rien d'autre n'a changé ; l'assertion qui suit vérifie qu'elle était bien là.
+  for (const mission of [...off, ...withdrawn, ...lent])
+    assert.ok(mission.sent[0].prompt.instructions.includes('\n' + ANSWER_FORMAT_RULE));
+  const withoutFormat = (missions) =>
+    missions.map((mission) => ({
+      ...mission,
+      sent: mission.sent.map((entry) =>
+        typeof entry?.prompt?.instructions === 'string'
+          ? {
+              ...entry,
+              prompt: {
+                ...entry.prompt,
+                instructions: entry.prompt.instructions.replace('\n' + ANSWER_FORMAT_RULE, ''),
+              },
+            }
+          : entry,
+      ),
+    }));
+  off.splice(0, off.length, ...withoutFormat(off));
+  withdrawn.splice(0, withdrawn.length, ...withoutFormat(withdrawn));
+  lent.splice(0, lent.length, ...withoutFormat(lent));
   // The switch itself is kept on the mission's row (and only then).
   const withoutSwitch = (mission) => {
     assert.ok(mission.keys.includes('multiAgent'));

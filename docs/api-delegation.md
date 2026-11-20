@@ -606,7 +606,8 @@ l'en-tête de licence du code repris), `delegation-rule.js`, `delegation.js`.
 - **Proche** : ressemblance > 0,8, ou > 0,6 avec le même agent (`agent`, sinon celui de la mère) et le même rôle : la
   sous-mission est lancée ; le résultat porte `doublonProbable { id, titre, similarite }` (arrondie au centième) et une
   phrase dans `note` ; la mère reçoit l'événement `doublon_signale { childId, proche, similarite, niveau:
-"identique"|"proche" }` (`proche` : l'id de la sœur). Les parts voulues d'un éventail (même consigne, `informations`
+"identique"|"proche" }` (`proche` : l'id de la sœur ; `null`, comme `doublonProbable.id`, quand la part identique
+  lancée quand même ressemble à une part encore en création). Les parts voulues d'un éventail (même consigne, `informations`
   différentes) ne sont jamais refusées.
 - **Deux appels identiques en même temps** : un seul passe. Le contrôle est synchrone, avant tout compteur ; la part en
   création est retenue (`family.creating`, en mémoire) du lancement jusqu'au retour de la création.
@@ -629,4 +630,4 @@ depuis, dernierSigne }]`, 20 au plus (les vivantes d'abord, puis les plus récen
 - Limites : la part d'une sœur n'est gardée qu'en mémoire ; la même part confiée exprès à deux agents différents est
   refusée (l'agent n'est pas dans l'empreinte ; levier `doublon: true`) ; la règle de swarm « un échec plus récent rend
   la relance légitime » est portée (`relanceLegitime`) mais branchée nulle part.
-- Tests : `tests/swarm-05-doublons-soeurs.test.js`.
+- Tests : `tests/swarm-05-doublons-soeurs.test.js` et `tests/swarm-05-relecture.test.js`.

@@ -61,6 +61,7 @@ import {
   dependantesAnnulees,
   dettes,
   messagesDuChef,
+  MAX_EN_ATTENTE,
 } from './taches.js';
 import {
   CONSENT_CHOICES,
@@ -381,11 +382,17 @@ export class Delegation {
     });
   }
   // swarm-13 : the turn given is said once, durably : `verdict_turn` carries short task ids only.
+  // Relecture : MAX_EN_ATTENTE tasks at most go to the chief (the Bilan counts them all) ; the flag
+  // is set first, and an event that cannot be written never fails the mission (the turn is given).
   verdictGiven(mother, family, negatifs) {
     family.verdictTurn = true;
-    this.store.event(mother.id, 'verdict_turn', {
-      taches: negatifs.map((dette) => String(dette.tache).slice(0, 8)),
-    });
+    const joints = negatifs.slice(0, MAX_EN_ATTENTE);
+    sur(() =>
+      this.store.event(mother.id, 'verdict_turn', {
+        taches: joints.map((dette) => String(dette.tache).slice(0, 8)),
+      }),
+    );
+    return joints;
   }
   // swarm-13 : the chief ends its turn with nothing else to give but a debt of verdicts : ONE more
   // turn of the same session (the engine gives one family turn per execution at most). Null when the
@@ -397,11 +404,11 @@ export class Delegation {
     const negatifs = this.detteOf(mother, family)?.verdictsNegatifs;
     if (!negatifs?.length) return null;
     if (!runtime.continueSession()) return null;
-    this.verdictGiven(mother, family, negatifs);
+    const joints = this.verdictGiven(mother, family, negatifs);
     return {
       familyResults: {
         nature: 'données rapportées par les vérificateurs',
-        verdictsEnAttente: negatifs,
+        verdictsEnAttente: joints,
         ...this.carnet.forChief(mother), // equipe-carnet
       },
       instructions: VERDICT_TURN,
@@ -413,8 +420,7 @@ export class Delegation {
     if (!this.rattrapage || family.verdictTurn) return null;
     const negatifs = this.detteOf(mother)?.verdictsNegatifs;
     if (!negatifs?.length) return null;
-    this.verdictGiven(mother, family, negatifs);
-    return negatifs;
+    return this.verdictGiven(mother, family, negatifs);
   }
   // multi-agent-v3-02 (K) : the absolute path of the mission's workspace, the chief's working folder,
   // to which `dossierResultats` and `fichiers[].chemin` are relative : the folder where

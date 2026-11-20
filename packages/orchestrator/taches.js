@@ -143,6 +143,9 @@ export function dernierVerdictParTache(children) {
 // Au plus 10 points bloquants par verdict en attente (le verdict lu en garde 20 : MAX_ITEMS de
 // roles.js) : le tour reste court, le détail est dans le dossier du vérificateur.
 export const MAX_BLOQUANTS = 10;
+// swarm-13 (relecture) : au plus 20 tâches en attente données au chef dans un tour (au pire
+// 20 × 10 points × 1 000 caractères) ; le Bilan, lui, compte et nomme toutes les dettes.
+export const MAX_EN_ATTENTE = 20;
 
 // validation.ts:99-116 : une validation obligatoire ratée ne passe jamais en silence ; elle est
 // rejouée (avec la sortie précédente et le verdict) ou elle arrête. FINDINGS.md:255-268 (cause 5,

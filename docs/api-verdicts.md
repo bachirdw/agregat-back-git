@@ -118,6 +118,9 @@ Forme d'une entrée de `verdictsEnAttente` :
 `{ tache, titre, valeur: "a_corriger"|"rejete", complet, illisible?, bloquants (10 au plus), par }` — `tache` : id de la
 première tentative ; `titre` : son titre (le même que celui déjà donné au chef dans `terminees[]`) ; `par` : id du
 vérificateur. Rien de neuf n'est écrit en base hormis l'événement `verdict_turn { taches }` (identifiants courts).
+Taille : au plus 20 tâches par tour (`MAX_EN_ATTENTE`, `taches.js` ; les premières dans l'ordre de lancement), soit au
+pire 20 × 10 points × 1 000 caractères ; le Bilan compte et nomme toutes les dettes. Un événement `verdict_turn` qui ne
+peut pas s'écrire ne fait pas échouer la mission : le tour est donné (le Bilan dira alors « non »).
 
 ### 7.2 Tour de rattrapage
 

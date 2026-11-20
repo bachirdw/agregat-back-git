@@ -69,3 +69,62 @@ Arbre `/Users/diaw/Downloads/agregat-back-swarm-13`, branche `swarm-13`, base `a
   vivante après le tour de rattrapage n'a plus de synthèse (Bilan « Synthèse finale non faite »), et le verdict lu à la
   fin peut alors être `approuve` sans que le chef l'ait vu.
 - Le verdict d'un vérificateur `interrupted` au redémarrage n'est pas essayé.
+
+## Relecture indépendante (21/11/2026 05:54-06:08)
+
+Relu : plan (4.0, section swarm-13), diff `a8660a4..HEAD` fichier par fichier, rapport du codeur, portage et NOTES,
+`synthesis()` comparée à `git show a8660a4:packages/orchestrator/delegation.js`, l'appel du moteur (`index.js`,
+`familyTurn` : `synthesis()` une fois par exécution), `continueSession()` (`agent-runtime` : effet seulement quand il
+rend vrai), passages de swarm (`validation.ts:99-116`, `engine.ts:1243-1249`, `FINDINGS.md:255-268`) : fidèles.
+
+Périmètre : seuls les fichiers autorisés ; `index.js` non touché ; rien dans `launch()`, `pump()`, `wake()`,
+`prerequisite()`, `settle()`, `stopFamily()`, `waitLiving()` ; aucun test existant modifié.
+
+### Point 1 (`synthesis()` sans dette = base) : prouvé par différence
+
+`tests/swarm-13-relecture.test.js` recopie MOT POUR MOT la `synthesis()` de `a8660a4` et la joue sur la même classe
+que celle d'aujourd'hui, sur deux familles fictives identiques, pour 10 chemins (rien à remettre ; résultats à
+remettre ; sous-mission vivante ; pas une mère ; mode multi-agent éteint ; abandon ; abandon pendant l'attente ;
+session fermée ; session fermée après l'attente ; session fermée sans rien à remettre) × 3 familles sans dette (sans
+vérification ; `approuve` ; `a_corriger` puis suite revérifiée `approuve`) : tour rendu (dont `instructions` à l'octet),
+événements, nombre d'appels à `continueSession()`, `delivered`, `unsynthesized` et Bilan identiques : 30/30. Plus les
+10 chemins avec une vraie dette et le réglage `0` : tour, événements, appels identiques à la base : 10/10.
+Avec une dette, sur chaque chemin où la base ne donne pas de tour, toujours `null` et mêmes événements ; seul écart :
+« session fermée, rien à remettre » demande `continueSession()` une fois (rend faux, sans effet) : voulu par le plan.
+
+### Constats
+
+- Majeur, corrigé : `verdictsEnAttente` n'était borné qu'en points (10) ; rien ne bornait le nombre de tâches (jusqu'à
+  la centaine par exécution avec l'enveloppe à 200, davantage sur une chaîne reprise). Ajout `MAX_EN_ATTENTE = 20`
+  (`taches.js`), appliqué dans `verdictGiven` (tour et verdicts joints, et la liste de l'événement) ; le Bilan compte
+  et nomme toujours toutes les dettes. Pire cas : 20 × 10 × 1 000 caractères. Test rouge d'abord (25 dettes : 25 rendues).
+- Mineur, corrigé : l'écriture de `verdict_turn` n'était pas gardée : un magasin qui lève à ce moment, après
+  `continueSession()`, faisait lever `synthesis()` et échouer la mission. Gardée par `sur` (drapeau posé avant) : le
+  tour est donné. Test rouge d'abord (`Error: écriture FICTIVE en échec`).
+- Vérifié sans défaut : `continueSession()` en dernier ; drapeau avant l'événement ; pas de tour si abandon, session
+  fermée, réglage 0, déjà donné ; erreur dans le calcul (lecture du verdict qui lève) → `null` ; événement à
+  identifiants de 8 caractères ; titres = ceux déjà en base (génériques pour une mission privée) ; « oui » relu sur
+  l'événement après redémarrage simulé (nouvelle instance) ; textes `VERDICT_TURN` / `VERDICT_NOTE` mot pour mot du
+  plan ; ligne de Bilan mot pour mot ; `taches.js` reste pur ; en-têtes de licence présents ; docs fidèles.
+
+### Contrôles négatifs (chacun retiré un instant, fichier remis puis vérifié par `cmp`)
+
+`return null` remis à la place de `verdictTurn` → 10 rouges ; verdicts joints retirés → 1 ; garde « déjà donné »
+retirée → 3 ; `continueSession()` avant la dette → 8 ; garde d'abandon retirée → 1 ; ligne de Bilan retirée → 6 ;
+garde de l'événement retirée → 1 ; borne `MAX_EN_ATTENTE` retirée → 1 ; consigne sans dette changée → 10 ;
+`approuve` compté comme dette → 23 ; réglage ignoré → 5 ; garde `sur` de `detteOf` retirée → 1.
+
+### Tests
+
+- Ajoutés : `tests/swarm-13-relecture.test.js`, 44 tests (30 + 10 différentiels, chemins sans tour avec dette, borne,
+  événement qui lève, Bilan après redémarrage).
+- Lot + existants nommés (16 fichiers) : 188/188.
+- Phase unitaire : `ℹ tests 1873` · `ℹ pass 1870` · `ℹ fail 0` · `ℹ cancelled 0` · `ℹ skipped 2` · `ℹ todo 1` ·
+  `FIN phase unitaire : code 0 (durée 195 s)` (1 817 + 12 + 44). `npm run check` et `npm run format:check` verts.
+
+### Points à trancher par le manager
+
+- `MAX_EN_ATTENTE = 20` sans champ disant combien de dettes n'ont pas été jointes au tour (forme du plan gardée) ;
+  ajouter un compte serait un champ neuf.
+- Écarts 1 et 2 du codeur (ligne de Bilan seulement avec réponse finale ; réglage 0 retire aussi les verdicts joints) :
+  conformes aux décisions déjà données ; limites de 7.4 inchangées.

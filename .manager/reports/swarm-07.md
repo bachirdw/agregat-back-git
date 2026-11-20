@@ -83,3 +83,74 @@ Codeur, 21/11/2026 (début 00:56, rapport 01:08, heures lues par `date`). Arbre
   champs sans condition comme le plan.
 - `teDemande` booléen ou nombre (écart 3).
 - Limite connue écrite dans le document : `store.list()` coupe à 200 avant le filtre `?racines=1`.
+
+## Relecture indépendante
+
+Relecteur, 21/11/2026 (01:10-01:22, heures lues par `date`). Repris du plan, du diff `e18ef06..HEAD` et du code.
+
+### Constats
+
+- **Majeur, corrigé** — Robustesse : une lecture qui lève (`line()`, `outcome()`, `modelAnswerOf`, `store.events`,
+  `childrenOf`, `hasFamily`, `heldState`) faisait échouer `GET /api/runs` et `GET /api/runs/:id?equipe=1` (réponse 400
+  du gestionnaire d'erreurs, constatée rouge). Désormais le champ manque, l'entrée garde ses champs d'avant, la mère
+  est rendue sans `equipe`.
+- **Majeur, corrigé** — Mémoire : un membre fini, repris sur place (`resume` remet `queued`, puis il finit de nouveau)
+  sans appel entre-temps gardait l'ancien `resultat` et l'ancienne durée (clé = état seul). La clé de validité porte
+  maintenant l'état, `startedAt` et `finishedAt`.
+- **Mineur, corrigé** — `resultat`/`cause.message` coupaient un emoji en deux (`\ud83d` seul en fin, constaté rouge).
+- **Décision du manager, appliquée** — `teDemande` est un nombre (0 quand personne n'attend) ; tests du codeur adaptés,
+  document mis à jour.
+- **Mineur, corrigé** — `docs/api-equipe-vue.md` : bloc `equipe` déformé par Prettier (`(membres, …);`), remplacé par
+  un exemple JSON ; ajoutés : `teDemande` nombre, robustesse, coupe sûre, recalcul d'un membre repris, retard ≤ 2 s
+  de `inactiveDepuis` pour un membre en cours.
+- **Mineur, laissé** — Pour un membre privé, `doneOf()` est appelé (pour `usage`) et lit le fichier privé `fichiers`
+  sans rien en rendre. Rien ne sort ; à revoir avec swarm-14 (`usage`), qui écrira peut-être `child_done` après le
+  passage en `completed` : la mémoire d'un membre fini ne verrait alors pas `usage` arrivé plus tard.
+- **Info** — `agentState` sans mode réel : agent simulé `pret`, installé `mode_reel_eteint` (raison « Mode réel
+  désactivé »), absent `non_installe` ; une limite n'apparaît qu'en mode réel (ordre voulu par swarm-02). En mode réel,
+  une limite à venir donne `etat: 'limite'`, `raison`, `jusqua` (test du codeur).
+- **Info** — `dernierOutil` d'un membre privé : le titre d'outil stocké pour un espace career-ops est déjà réduit au nom
+  de l'outil (`storedToolTitle`) ; `motif` n'est pas rendu par `memberView` ; `pourquoi` est une valeur fermée.
+
+### Vérifications
+
+- Périmètre : seuls `team-view.js`, `server.js`, `docs/api-equipe-vue.md`, les deux fichiers de tests du lot, le
+  portage et ce rapport sont touchés ; `delegation.js`, `index.js` et les tests existants ne le sont pas.
+- « Rien d'existant ne change », comparé à la base : le `server.js` de `e18ef06` chargé à part (copie temporaire,
+  supprimée) et le serveur du lot sur la même base fictive (seule, mère publique à 4 membres, mère privée) : liste dans
+  le même ordre et égale clé par clé et valeur par valeur hors `equipe` (2 mères) ; `GET /api/runs/:id` sans paramètre
+  identique pour la mission seule, les mères et chaque sous-mission ; catalogue égal hors `etat`, `raison` ; autres
+  clés du catalogue identiques.
+- Interface (`agregat-front-equipe/src`) : lit `/runs`, `/runs/:id`, `/catalog` ; type `Run` (`family`, `activity`,
+  champs de l'exécution) et `Agent` (`id`, `installed`, `compatible`, `reason`, `probe`…) : aucune de ces clés ne change ;
+  `equipe`, `etat`, `raison`, `jusqua` n'y sont pas lus.
+- Charge (200 exécutions : 80 seules, 20 mères de 5 membres, 30 événements par membre) : par appel de `GET /api/runs`,
+  1 `store.list()` + 20 `store.children()`, aucune lecture d'événements ; médiane 6,5 ms (max 29 ms) par HTTP, `?racines=1`
+  6,6 ms (100 `store.get` en plus) ; `GET /api/runs/:id?equipe=1` 3,6 ms. Pas de mémoire courte nécessaire.
+
+### Contrôles négatifs (code remis ensuite, arbre vérifié)
+
+`privateRun` du membre retiré → 2 rouges ; `prive` de la mère forcé à faux dans le serveur → 1 rouge ; `agentState`
+retiré du catalogue → 1 rouge ; `equipe` retiré de la liste → 3 rouges ; `teDemande` jamais incrémenté → 3 rouges ;
+protections de `teamSummary` retirées → 1 rouge ; `?equipe=1` toujours vrai → `tests/equipe-01-roles.test.js` rouge
+(justifie le paramètre). Coupe des emoji, clé de mémoire et protection de `withTeam` : vus rouges avant correction.
+
+### Tests
+
+- Ajouté `tests/swarm-07-relecture.test.js` (6 tests) : `teDemande` nombre (3 cas d'attente, 0 sinon, par HTTP) ;
+  lecture qui lève → 200, champs d'avant, mère sans `equipe` ; réponse illisible → pas de `resultat` ; emoji en bord de
+  coupe ; membre repris sur place recalculé ; membre privé sous mère publique et l'inverse, par les deux routes, avec
+  un témoin public qui voit le texte.
+- Lot + existants nommés (`api-agents`, `chef-01`, `equipe-01-carnet`, `equipe-01-roles`, `delegation-v2-01-b`,
+  `swarm-02-limites`) : 97/97.
+- Phase unitaire : `ℹ tests 1690` · `ℹ pass 1687` · `ℹ fail 0` · `ℹ cancelled 0` · `ℹ skipped 2` · `ℹ todo 1` ·
+  `FIN phase unitaire : code 0 (durée 205 s)` (base 1 674 / 1 671 + 16 tests du lot). `npm run check` : « Syntaxe
+  JavaScript valide. » ; `npm run format:check` : « All matched files use Prettier code style! ».
+
+### Points à trancher par le manager
+
+- `?equipe=1` sur `GET /api/runs/:id` : à garder (décision prise) ; l'interface neuve (swarm-09) doit l'appeler.
+- Limite connue : `store.list()` coupe à 200 avant le filtre `?racines=1` (écrit dans le document).
+- swarm-14 : vérifier que `usage` d'un membre fini arrive avant ou avec `finishedAt`, sinon invalider la mémoire.
+
+Verdict : `bon_a_integrer`.

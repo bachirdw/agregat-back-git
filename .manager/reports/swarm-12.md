@@ -77,3 +77,73 @@ Branchement écrit d'abord avec `sur = (fn) => fn()` (sans garde), test (14) lan
 2. Forme de la phrase de `messagesDuChef` (champ `note` par entrée), voir écart 1.
 3. `outcome()` lit maintenant les événements de la sous-mission et les sœurs à chaque appel (aussi depuis
    `promptParts` pour les prérequis, qui n'en garde que quatre clés) : coût en lecture seulement.
+
+## Relecture indépendante (21/11/2026, 05:20)
+
+Relu : plan (4.0, section swarm-12), `git log ac4e34b..HEAD`, diff complet (`delegation.js`, `delegation-rule.js`,
+`taches.js`, doc, tests), rapport du codeur, portage. Périmètre respecté : `index.js`, `roles.js`, `family-bilan.js`,
+`continuation.js` non touchés ; dans `delegation.js` rien dans `launch()`, `pump()`, `wake()`, `prerequisite()`,
+`settle()`, `stopFamily()`, `waitLiving()` ; `synthesis()` gagne seulement `...this.retoursSynthese(mother)` dans
+`familyResults` (décision de rendre un tour et reste de l'objet inchangés, aucun `await`). Aucun test existant modifié
+(`git diff ac4e34b..HEAD --stat -- tests/` : seuls les deux fichiers du lot).
+
+### Constats
+
+1. **Bloquant, corrigé** (demande du manager) : `demandeOf()` écrivait `mother.pack === 'career-ops'` (règle 4.0).
+   Recherche d'une décision réemployable : `privateTitle` de `launch()` (`!!mother.workspace && !ownerMode`) ne couvre
+   pas le cas « pack privé sans espace » que couvre `box.private` d'`index.js` ; `box.private` n'existe que sur une
+   mission vivante qui a déjà reçu un message (dans `engine.active`), donc pas lisible ici. Rien de réemployable :
+   **règle prudente retenue** : `demande` (dans `rappel` et dans `familyResults`) seulement pour une mission SANS
+   `workspace` et dont `pack` est le pack général par défaut, `packs[0].id` de `packs.js` (le repli de `getPack`, trié
+   en tête) ; pack absent ou inconnu : rien. Aucun nom de pack dans le code neuf. **Ce que ça change** : perdent le
+   rappel toutes les missions à espace de travail (comme avant) et toutes celles d'un autre pack que le pack général
+   (aujourd'hui career-ops et najah), **y compris en mode propriétaire** (la règle du codeur rendait la demande en mode
+   propriétaire). `rappel { enCours }` reste donné. Test rouge d'abord : `swarm-12-relecture` (1) et (2) rouges
+   (`ℹ pass 4`, `ℹ fail 2`), verts après. Lot : test (8) adapté (pack fictif, plus de rendu en mode propriétaire) et
+   faux moteur du lot au pack général.
+2. **Majeur, corrigé** : coût quadratique. `outcome()` relisait toutes les sœurs (`childrenOf`) pour chaque
+   sous-mission en échec : mesuré sur une attente de N échecs : N + 4 lectures, N² lignes (40 lues pour 10, 1 760 pour
+   40). Correction sans changer les sorties : `soeursDe(mereId)` lit les sœurs une fois par passe synchrone et les
+   oublie à la microtâche suivante (un appel ultérieur relit). Test (7) rouge d'abord (25 lectures pour 21 résultats),
+   vert ensuite (au plus 6). La lecture des événements de chaque sous-mission (`messagesDuChef`) reste une par résultat,
+   comme `line()` et `sendEvents()` déjà (linéaire).
+3. Vérifié sans défaut : `agregat` = nombres de la ligne « Par tâche (dernière tentative) » du Bilan (reprise
+   réussie, suite en cours, annulée, interrompue, refusée, tenue en file, chaîne de 200, chaîne en boucle ; plus
+   400 000 familles aléatoires de 2 à 9 lignes avec boucles comparées à la logique du Bilan hors dépôt : 0 écart) ;
+   absent tant qu'une tourne ou sans `toutes`. Confidentialité : les titres sortis sont ceux du store (génériques pour
+   une mission privée), les mêmes que `outcome()`/`line()`. `boucle` ne porte que l'état du garde (jamais
+   d'arguments). Texte de `mission_attendre` conforme au plan ; fin inchangée. Doc fidèle (mise à jour pour la règle).
+4. **Mineur, laissé** : taille de `agregat` non bornée au-delà de `MAX_TOTAL` (200 tâches au plus, titres ≤ 80
+   caractères, ~30 Ko au pire) ; le plan ne fixe pas de borne. Donné une fois quand tout est fini.
+5. **Mineur, laissé** : le garde `child.state === 'completed' ? null` de `retoursFin` est redondant (la fonction pure
+   rend déjà `[]`) ; contrôle négatif sans effet, attendu.
+
+### Contrôles négatifs (copie, mutation, tests, remise vérifiée par `cmp`)
+
+Règle du codeur remise → 2 rouges ; sans `retoursSynthese` → 2 ; sans `retoursAttente` → 6 ; sans `retoursFin` → 3 ;
+sans `boucle` → 1 ; `calme` ignorant les vivantes → 3 ; refusées non retirées → 2 ; tenue non mise en file → 1 ;
+`dependantesAnnulees` sans « Prérequis » → 1 ; `messagesDuChef` sans `de: 'chef'` → 1 ; `sur` sans `catch` → 2 ;
+`demandeCourte` sans coupe → 2 ; garde `completed` retiré → 0 (redondant, constat 5). Rien ne reste dans l'arbre.
+
+### Tests ajoutés
+
+`tests/swarm-12-relecture.test.js` (7) : aucun nom de pack dans le code neuf ; règle prudente de la demande (pack
+général, autre pack, pack absent, espace, mode propriétaire) ; agrégat = Bilan (familles variées, tenue en file,
+200 pas, boucle) ; titres d'une mission privée ; événements mal typés et magasin en échec ; nombre de lectures des
+sœurs par attente.
+
+### Totaux
+
+Lot + tests existants nommés : 149 / 149. Phase unitaire (`phase-unitaire.mjs`) : `ℹ tests 1817`, `ℹ pass 1814`,
+`ℹ fail 0`, `ℹ cancelled 0`, `ℹ skipped 2`, `ℹ todo 1`, « FIN phase unitaire : code 0 (durée 192 s) » (1 795 + 15 + 7).
+`npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : « All matched files use Prettier code
+style! ».
+
+### Points à trancher par le manager
+
+1. Mode propriétaire : la règle prudente retire le rappel de la demande aux missions career-ops et najah même en mode
+   propriétaire (l'usage réel du propriétaire). Un pack pourrait déclarer sa confidentialité dans son manifeste (lot
+   futur) pour rendre la demande aux packs non privés.
+2. Borne éventuelle de `agregat.parTache` (constat 4).
+
+Verdict : `bon_a_integrer`.

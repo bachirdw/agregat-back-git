@@ -9,7 +9,7 @@
 // `relay/missions/<8 car.>/0-carnet/carnet.md` is written in the mission folder when it can be.
 // Inert outside the multi-agent mode : nothing is lent, read nor written for any other mission.
 import { readConfined, writeConfined } from '../policy-engine/files.js';
-import { CARNET_SERVER, CARNET_TOOLS } from './delegation-rule.js';
+import { CARNET_SERVER, CARNET_TOOLS, CARNET_TOOLS_SANS_LECONS } from './delegation-rule.js';
 import { normaliserEcho } from './lecons.js'; // swarm-15
 
 export const CARNET_MAX_NOTES = 200;
@@ -161,7 +161,10 @@ export class Carnet {
     const mother = this.delegation.lent ? this.motherOf(run) : null;
     if (!mother)
       return { status: 403, body: { error: 'Carnet d’équipe non prêté à cette mission' } };
-    const tool = CARNET_TOOLS[body.tool];
+    // swarm-15 : AGENT_PLATFORM_LECONS=0 : the schema of before (no `durable`).
+    const tool = (this.delegation.leconsOn === false ? CARNET_TOOLS_SANS_LECONS : CARNET_TOOLS)[
+      body.tool
+    ];
     const parsed = tool.schema.safeParse(body.args ?? {});
     if (!parsed.success)
       return {
@@ -194,10 +197,13 @@ export class Carnet {
     // swarm-15 : the same text (lowercase, spaces collapsed) already noted by the same author is not
     // copied again : its rank is given back, nothing is written.
     const auteur = chief ? CHIEF_AUTHOR : (run.famille.titre ?? run.title ?? run.id);
-    const same = book.notes.find(
-      (kept) =>
-        kept.auteur === auteur && normaliserEcho(kept.texte ?? '') === normaliserEcho(texte),
-    );
+    // AGENT_PLATFORM_LECONS=0 : the notebook of before (the same note is copied again).
+    const same =
+      this.delegation.leconsOn !== false &&
+      book.notes.find(
+        (kept) =>
+          kept.auteur === auteur && normaliserEcho(kept.texte ?? '') === normaliserEcho(texte),
+      );
     if (same) return { n: same.n, total: book.notes.length, deja: true };
     if (book.notes.length >= CARNET_MAX_NOTES)
       throw fail(

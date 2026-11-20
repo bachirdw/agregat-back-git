@@ -460,7 +460,7 @@ export class Delegation {
   }
   // lecon_lire and lecon_utile (their own token checked by call()).
   leconCall(run, control, body) {
-    if (!this.leconsOn || !sur(() => this.carnet.motherOf(run)))
+    if (!this.leconsOn || !this.lent || !sur(() => this.carnet.motherOf(run)))
       return { status: 403, body: { error: LECON_MESSAGES.non_pretes } };
     const parsed = LECON_TOOLS[body.tool].schema.safeParse(body.args ?? {});
     if (!parsed.success)

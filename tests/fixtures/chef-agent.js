@@ -17,7 +17,8 @@
 //   holdDir        a consigne « ATTENDRE:<name> » waits for <holdDir>/<name> (« BATTEMENT » : a thought
 //                  every 30 ms meanwhile) ; « ECHEC » fails the turn ; « ECRIRE:<path> » writes that file
 //                  (native edit call) ; « QUESTION » asks a form ; « LIMITE » announces a usage limit ;
-//                  « DEPOSER:<nom> » writes <nom> in famille.dossierResultats (no tool call).
+//                  « DEPOSER:<nom> » writes <nom> in famille.dossierResultats (no tool call) ;
+//                  each line « RESULTAT:<json> » calls resultat_rendre (swarm-10).
 import {
   agent,
   methods,
@@ -214,6 +215,46 @@ async function daughter(request) {
           calls.push({ name: 'mission_lancer', refus: String(error.message) }),
         );
       log(`equipe-${process.pid}.json`, { tools, calls });
+    } finally {
+      await mcp.close();
+    }
+  }
+  // swarm-10 : each line « RESULTAT:<json> » (from the start of its line, so never inside
+  // « VERDICT_JSON: ») calls resultat_rendre { resultat: <json> } through the `relay-equipe` server ;
+  // its tools and answers are logged in resultat-<pid>.json.
+  const rendus = [...consigne.matchAll(/^RESULTAT:(.*)$/gm)].map(([, json]) => json);
+  if (rendus.length) {
+    const mcp = await connectMcp(servers.find((s) => s.name === 'relay-equipe'));
+    const calls = [];
+    try {
+      const tools = (await mcp.listTools()).tools.map((tool) => tool.name);
+      for (const json of rendus) {
+        let resultat;
+        try {
+          resultat = JSON.parse(json);
+        } catch {
+          resultat = json;
+        }
+        const answer = await mcp
+          .callTool({ name: 'resultat_rendre', arguments: { resultat } })
+          .catch((error) => ({
+            isError: true,
+            content: [{ type: 'text', text: JSON.stringify({ refus: String(error.message) }) }],
+          }));
+        let result;
+        try {
+          result = JSON.parse(answer.content?.[0]?.text ?? 'null');
+        } catch {
+          result = answer.content?.[0]?.text ?? null;
+        }
+        calls.push({
+          name: 'resultat_rendre',
+          args: { resultat },
+          isError: !!answer.isError,
+          result,
+        });
+      }
+      log(`resultat-${process.pid}.json`, { tools, calls });
     } finally {
       await mcp.close();
     }

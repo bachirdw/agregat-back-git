@@ -46,6 +46,9 @@ import { continueChild, precedentOf, suiteTitle } from './continuation.js';
 // equipe-carnet : the team notebook (packages/orchestrator/carnet.js).
 import { Carnet } from './carnet.js';
 import { CARNET_TOOLS } from './delegation-rule.js';
+// swarm-10 : the result in the shape asked by the chief (tool resultat_rendre).
+import { ResultatValide } from './resultat-valide.js';
+import { RESULT_TOOLS } from './delegation-rule.js';
 // swarm-05 : doublons at launch and the living list of the other members.
 import { partDe, trouverDoublon } from './doublon.js';
 import { membres } from './soeurs.js';
@@ -146,6 +149,7 @@ export class Delegation {
     // identical part is refused and the near one is said.
     this.doublon = { 0: 'off', signale: 'signale' }[process.env.AGENT_PLATFORM_DOUBLON] ?? 'refuse';
     this.carnet = new Carnet(this); // equipe-carnet
+    this.resultats = new ResultatValide(this); // swarm-10
   }
   get store() {
     return this.engine.store;
@@ -254,6 +258,8 @@ export class Delegation {
     // equipe-01 (E2) : a suite gets the attempt it continues (data).
     const previous = run.famille.continue ? this.store.get(run.famille.continue) : null;
     const members = mother ? this.membersOf(run, mother) : [];
+    // swarm-10 : the shape of its result (not for a verification role : its verdict has its own).
+    const schemaResultat = this.resultats.verifier(run) ? null : brief.schemaResultat;
     return {
       fields: {
         famille: {
@@ -282,6 +288,7 @@ export class Delegation {
           ...(brief.tache ? { tache: brief.tache } : {}),
           ...this.carnet.forStart(run), // equipe-carnet : the notebook, absent while empty
           ...(dossierResultats ? { dossierResultats } : {}),
+          ...(schemaResultat ? { schemaResultat } : {}),
           ...(apres
             ? {
                 prerequis: apres.map((id) => {
@@ -297,7 +304,12 @@ export class Delegation {
         // swarm-05 : the sentence of the other members, only with famille.membres, on its own line
         // before the sub-mission's sentence (which stays the same, and last).
         (members.length ? DAUGHTER_MEMBRES.trimEnd() + '\n' : '') +
-        daughterRule(dossierResultats, brief.role?.consigne ? brief.role : null, !!previous),
+        daughterRule(
+          dossierResultats,
+          brief.role?.consigne ? brief.role : null,
+          !!previous,
+          !!schemaResultat,
+        ),
     };
   }
   // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
@@ -862,6 +874,7 @@ export class Delegation {
     const mother = this.store.get(motherId);
     // equipe-carnet : the notebook tools, for the chief and for a sub-mission (only these two).
     if (CARNET_TOOLS[body?.tool]) return this.carnet.call(mother, control, body);
+    if (RESULT_TOOLS[body?.tool]) return this.resultats.call(mother, control, body); // swarm-10
     // The tools are never lent to a sub-mission, nor to a mission without the multi-agent mode, nor
     // to any mission once withdrawn.
     if (!this.lent || !mother || mother.famille || mother.multiAgent !== true)
@@ -959,6 +972,9 @@ export class Delegation {
       (!terminal.has(previous.state) || previous.state === 'completed')
     )
       throw fail('parametres_invalides', 'reprend — une sous-mission finie sans succès');
+    // swarm-10 : the shape of the result, checked now (synchronous, before any folder or counter) ;
+    // without one, a resumption or a suite inherits the schema of its task.
+    const schemaResultat = this.resultats.schemaForLaunch(args, previous);
     // swarm-05 : the same part is not launched twice (never a resumption nor a suite) : synchronous,
     // before the envelope (no extension card for a doublon) and before any counter below.
     const part = partDe(args, args.agent ?? mother.agent);
@@ -1180,6 +1196,7 @@ export class Delegation {
       // swarm-05 : the part as compared (memory only : gone after a restart).
       part,
       ...(Object.keys(tache).length ? { tache } : {}),
+      ...(schemaResultat ? { schemaResultat } : {}), // swarm-10
       ...(team
         ? {
             role: team.consigne
@@ -1193,6 +1210,8 @@ export class Delegation {
           }
         : {}),
     });
+    // swarm-10 : the schema in the results folder too (read again after a restart).
+    if (schemaResultat) this.resultats.writeSchema(mother.cwd, folder, schemaResultat);
     this.observe(link.held.control, run.cwd);
     family.held.set(run.id, link.held);
     const child = this.store.get(run.id);
@@ -1515,6 +1534,8 @@ export class Delegation {
             // swarm-08 : the class of a classed failure, its hour of return, the agents ready now.
             ...this.failureOf(child),
           };
+    // swarm-10 : the result given by resultat_rendre, already parsed (absent when nothing to say).
+    const resultat = this.resultats.of(child);
     return {
       id: child.id,
       titre: child.famille?.titre ?? child.title,
@@ -1525,6 +1546,7 @@ export class Delegation {
       envois: this.sendsGiven(child),
       cause,
       ...(this.verdictOf(child) ? { verdict: this.verdictOf(child) } : {}),
+      ...(resultat ? { resultat } : {}),
     };
   }
   // The agents installed, with the models each announced at its last session on this machine :

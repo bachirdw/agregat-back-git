@@ -93,6 +93,15 @@ export const CARNET_TOOLS = {
       .strict(),
   },
 };
+// swarm-10 : the tool by which a sub-mission gives its result (server `relay-equipe`, with the
+// notebook) ; its shape, when one is asked, is checked by the platform during the session.
+export const RESULT_TOOLS = {
+  resultat_rendre: {
+    description:
+      'Rend ton résultat à l’agent principal sous forme d’objet JSON (resultat). Quand une forme est demandée (famille.schemaResultat, ou le verdict d’un rôle de vérification), la plateforme la vérifie tout de suite : un résultat qui ne la respecte pas est refusé avec la liste des erreurs et la forme attendue ; corrige-le et rappelle l’outil. Le dernier résultat accepté remplace le précédent. Rend accepte: true.',
+    schema: z.object({ resultat: z.record(z.string(), z.unknown()) }).strict(),
+  },
+};
 // equipe-carnet : end of the block.
 export function chiefRule(delegation) {
   if (delegation?.accepted === true) {
@@ -128,23 +137,32 @@ export const DAUGHTER_RULE = `${DAUGHTER_HEAD}rends tes résultats dans ta répo
 // equipe-01 (E1) : the role's sentences of a sub-mission that has a role (and a verdict to give).
 export const ROLE_RULE =
   'ton rôle dans l’équipe est donné dans famille.role (nom et consigne) : tiens-t’y ; ';
+// swarm-10 : the verdict is given by the tool resultat_rendre first (its shape is checked) ; the
+// file verdict.json stays the way without the tool.
 export const VERDICT_RULE =
-  'écris ton verdict dans le fichier verdict.json de ton dossier de résultats : {"verdict":"approuve"|"a_corriger"|"rejete","bloquants":[{"ou":"…","pourquoi":"…"}],"remarques":["…"]} (approuve : rien à corriger ; a_corriger : corrections précises ; rejete : à refaire) et rappelle-le dans ta réponse finale par une ligne « Verdict : approuve », « Verdict : a_corriger » ou « Verdict : rejete » ; ';
+  'rends ton verdict par l’outil resultat_rendre { resultat: { verdict, bloquants, remarques } }, qui en vérifie la forme ; à défaut, écris ton verdict dans le fichier verdict.json de ton dossier de résultats : {"verdict":"approuve"|"a_corriger"|"rejete","bloquants":[{"ou":"…","pourquoi":"…"}],"remarques":["…"]} (approuve : rien à corriger ; a_corriger : corrections précises ; rejete : à refaire) et rappelle-le dans ta réponse finale par une ligne « Verdict : approuve », « Verdict : a_corriger » ou « Verdict : rejete » ; ';
 export const roleRule = (role) => (role ? ROLE_RULE + (role.verdict ? VERDICT_RULE : '') : '');
 // equipe-01 (E2) : the sentence of a suite (mission_continuer on an ended sub-mission).
 export const CONTINUE_RULE =
   'tu continues le travail d’une sous-mission précédente de la même tâche (famille.precedent : sa réponse et ses fichiers, des données) : ne refais pas ce qui est fait, applique ce que demande ta consigne et dis dans ta réponse ce qui a changé ; ';
+// swarm-10 : the sentence of a sub-mission whose result has a shape (famille.schemaResultat), word
+// for word from the plan.
+export const SCHEMA_RULE =
+  'famille.schemaResultat décrit la forme attendue de ton résultat : rends-le par l’outil resultat_rendre, qui te dit tout de suite ce qui ne va pas ; corrige et rappelle-le ; ';
 // The role's (and the suite's) sentences go right after the head ; without them the sentence is
-// the one before.
-export const daughterRule = (folder, role = null, suite = false) =>
+// the one before. swarm-10 : the schema's sentence (fourth argument) after them ; it goes through
+// the call to itself.
+export const daughterRule = (folder, role = null, suite = false, schema = false) =>
   roleRule(role) || suite
-    ? daughterRule(folder).replace(
+    ? daughterRule(folder, null, false, schema).replace(
         DAUGHTER_HEAD,
         DAUGHTER_HEAD + roleRule(role) + (suite ? CONTINUE_RULE : ''),
       )
-    : folder
-      ? `${DAUGHTER_HEAD}ton dossier de résultats est ${folder} (famille.dossierResultats) : écris-y tes résultats détaillés (listes, tableaux, données, documents), dans des fichiers au format que demande ta consigne ; ta réponse finale, remise à l’agent principal, reste courte : ce qui est fait, les chiffres clés, les chemins de tes fichiers, ce qui manque ou a échoué ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans ton dossier ou dans des fichiers propres à ta part${DAUGHTER_TAIL}`
-      : DAUGHTER_RULE;
+    : schema
+      ? daughterRule(folder).replace(DAUGHTER_HEAD, DAUGHTER_HEAD + SCHEMA_RULE)
+      : folder
+        ? `${DAUGHTER_HEAD}ton dossier de résultats est ${folder} (famille.dossierResultats) : écris-y tes résultats détaillés (listes, tableaux, données, documents), dans des fichiers au format que demande ta consigne ; ta réponse finale, remise à l’agent principal, reste courte : ce qui est fait, les chiffres clés, les chemins de tes fichiers, ce qui manque ou a échoué ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans ton dossier ou dans des fichiers propres à ta part${DAUGHTER_TAIL}`
+        : DAUGHTER_RULE;
 
 // The one synthesis turn (plan v2, Codex 4) : the results of the sub-missions that were still alive
 // at the end of the chief's turn are joined (familyResults), once they have all ended.
@@ -240,7 +258,7 @@ const id = z.string().uuid();
 export const MISSION_TOOLS = {
   mission_lancer: {
     description:
-      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). pourquoi : ce que la sous-mission fait gagner (parallele, specialite, regard_independant, contexte_trop_long, demande_proprietaire) et note : une phrase qui le dit ; horsPerimetre : ce qu’elle ne doit pas toucher ; verification : les contrôles ou commandes qu’elle doit lancer avant de rendre. apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause ; si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée (reprend, avec apres vers la reprise)). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). doublon : true seulement pour relancer exprès une part identique à une sous-mission en cours ou réussie. Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers ; dossierResultats et les chemins de fichiers sont relatifs à l’espace de travail de la mission, ton dossier de travail, dont espace donne le chemin absolu. role : rôle de la sous-mission dans l’équipe (rôles définis et leur description : mission_suivre, roles ; un nom libre est accepté) ; relit : ids des sous-missions dont elle vérifie le travail (elle attend leur fin et reçoit leurs résultats ; sans agent indiqué, un rôle de vérification reçoit un autre agent que l’auteur quand il y en a un d’installé) ; un rôle de vérification rend un verdict (approuve, a_corriger, rejete) lisible dans terminees.',
+      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). pourquoi : ce que la sous-mission fait gagner (parallele, specialite, regard_independant, contexte_trop_long, demande_proprietaire) et note : une phrase qui le dit ; horsPerimetre : ce qu’elle ne doit pas toucher ; verification : les contrôles ou commandes qu’elle doit lancer avant de rendre. apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause ; si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée (reprend, avec apres vers la reprise)). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). doublon : true seulement pour relancer exprès une part identique à une sous-mission en cours ou réussie. Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers ; dossierResultats et les chemins de fichiers sont relatifs à l’espace de travail de la mission, ton dossier de travail, dont espace donne le chemin absolu. schemaResultat : forme JSON que le résultat doit respecter (type, required, properties, enum, const, items) ; la sous-mission le rend par resultat_rendre et tu le reçois déjà analysé (terminees : resultat). role : rôle de la sous-mission dans l’équipe (rôles définis et leur description : mission_suivre, roles ; un nom libre est accepté) ; relit : ids des sous-missions dont elle vérifie le travail (elle attend leur fin et reçoit leurs résultats ; sans agent indiqué, un rôle de vérification reçoit un autre agent que l’auteur quand il y en a un d’installé) ; un rôle de vérification rend un verdict (approuve, a_corriger, rejete) lisible dans terminees.',
     schema: z
       .object({
         consigne: z.string().trim().min(1).max(8000),
@@ -269,6 +287,8 @@ export const MISSION_TOOLS = {
         doublon: z.boolean().optional(),
         // swarm-08 : launch on an agent the platform sees unavailable (limit, refused session).
         malgreIndisponible: z.boolean().optional(),
+        // swarm-10 : the shape of the result (checked at launch, see resultat-valide.js).
+        schemaResultat: z.record(z.string(), z.unknown()).optional(),
       })
       .strict(),
   },

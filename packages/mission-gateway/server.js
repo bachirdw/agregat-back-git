@@ -9,9 +9,12 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { MISSION_SERVER, MISSION_TOOLS, waitSeconds } from '../orchestrator/delegation-rule.js';
 // equipe-carnet : the team notebook's tools : with the mission tools for the chief ; alone
 // (RELAY_GATEWAY_TOOLS=carnet, server `relay-equipe`) for a sub-mission.
-import { CARNET_SERVER, CARNET_TOOLS } from '../orchestrator/delegation-rule.js';
+// swarm-10 : resultat_rendre, lent to a sub-mission only (with the notebook), never to the chief.
+import { CARNET_SERVER, CARNET_TOOLS, RESULT_TOOLS } from '../orchestrator/delegation-rule.js';
 const onlyCarnet = process.env.RELAY_GATEWAY_TOOLS === 'carnet';
-const TOOLS = onlyCarnet ? CARNET_TOOLS : { ...MISSION_TOOLS, ...CARNET_TOOLS };
+const TOOLS = onlyCarnet
+  ? { ...CARNET_TOOLS, ...RESULT_TOOLS }
+  : { ...MISSION_TOOLS, ...CARNET_TOOLS };
 
 const server = new McpServer({
   name: onlyCarnet ? CARNET_SERVER : MISSION_SERVER,

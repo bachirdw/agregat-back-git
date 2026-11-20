@@ -36,6 +36,8 @@ import { ROOT } from './packs.js';
 import { publicQuestion } from './questions.js';
 import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
+// swarm-01 : the chief's decision and the motives of its delegations (Bilan lines).
+import { decisionLine, motifLine, readDecision } from './decision.js';
 import { loadRoles, otherAgent, readVerdict, roleKey, roleList } from './roles.js';
 import { continueChild, precedentOf, suiteTitle } from './continuation.js';
 // equipe-carnet : the team notebook (packages/orchestrator/carnet.js).
@@ -94,7 +96,15 @@ const choiceQuestion = (message, choices) =>
 // multi-agent-v3-01 (D4) : a sub-mission counted in the envelope : any but the first two
 // resumptions of a task.
 const counts = (child) => !(child.famille?.reprise <= 2);
-const TASK_FIELDS = ['objectif', 'informations', 'perimetre', 'resultatAttendu'];
+// swarm-01 : horsPerimetre and verification (famille.tache of the sub-mission).
+const TASK_FIELDS = [
+  'objectif',
+  'informations',
+  'perimetre',
+  'resultatAttendu',
+  'horsPerimetre',
+  'verification',
+];
 const note = (texts) => (texts.some(Boolean) ? { note: texts.filter(Boolean).join(' ') } : {});
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
@@ -368,9 +378,24 @@ export class Delegation {
   // The Bilan's « Sous-missions » section of a mother (empty without sub-mission) : how the owner
   // accepted (or refused), the sub-missions, and the results that never reached the chief.
   bilanSection(run, options = {}) {
+    // swarm-01 : a multi-agent mission (not a sub-mission) whose final answer carries the line
+    // « Décision : seul|équipe » : one line, before the section ; without it, nothing more is read.
+    const decision =
+      run?.multiAgent === true && !run.famille ? readDecision(options.chiefAnswer) : null;
+    const said = decision
+      ? '\n' +
+        decisionLine(
+          decision,
+          this.hasFamily(run)
+            ? this.childrenOf(this.store.get(run.id) ?? run).filter(
+                (child) => child.error !== REFUSED_CHILD,
+              ).length
+            : 0,
+        )
+      : '';
     // equipe-carnet : the notebook's line, after the section (nothing while it is empty).
     // equipe-01 (relecture) : the mother's Bilan only, not each sub-mission's.
-    return this.familyBilan(run, options) + (run?.famille ? '' : this.carnet.bilanLine(run));
+    return said + this.familyBilan(run, options) + (run?.famille ? '' : this.carnet.bilanLine(run));
   }
   familyBilan(run, { chiefAnswer = '', motherSends = 0 } = {}) {
     if (!this.hasFamily(run)) return '';
@@ -381,7 +406,15 @@ export class Delegation {
     const accord = consentLine(mother.delegation);
     if (!children.length) return mother.delegation?.accepted === false ? '\n' + accord : '';
     const missed = [...(this.families.get(run.id)?.unsynthesized ?? [])];
-    return familySection({
+    // swarm-01 : the motives of the delegations, on one line when at least one sub-mission has one.
+    const motifs = motifLine(
+      children.map((child) => ({
+        titre: child.famille?.titre ?? child.title ?? child.id,
+        pourquoi: child.famille?.pourquoi,
+        motif: child.famille?.motif,
+      })),
+    );
+    const section = familySection({
       accord,
       synthese: missed.length ? synthesisMissed(missed) : '',
       chiefAnswer,
@@ -407,6 +440,7 @@ export class Delegation {
         verdict: this.verdictOf(child),
       })),
     });
+    return motifs ? `${section}\n${motifs}` : section;
   }
   // A failed or cancelled mother keeps the section in its result too.
   failureSection(run, control) {
@@ -970,6 +1004,9 @@ export class Delegation {
         ...(team?.verdict ? { verdictAttendu: true } : {}),
         ...(previous ? { [args.continue ? 'continue' : 'reprend']: previous.id, reprise } : {}),
         ...(folder ? { dossierResultats: folder } : {}),
+        // swarm-01 : the motive ; its note is not written for a private mission (as its title).
+        ...(args.pourquoi ? { pourquoi: args.pourquoi } : {}),
+        ...(args.note && !privateTitle ? { motif: args.note } : {}),
       },
       title: titre,
       cwd: mother.cwd,
@@ -1069,7 +1106,13 @@ export class Delegation {
     family.held.set(run.id, link.held);
     const child = this.store.get(run.id);
     this.watch(child, family);
-    this.store.event(mother.id, 'child_launched', { childId: run.id, titre, agent, modele });
+    this.store.event(mother.id, 'child_launched', {
+      childId: run.id,
+      titre,
+      agent,
+      modele,
+      ...(args.pourquoi ? { pourquoi: args.pourquoi } : {}),
+    });
     const consent = this.consent(this.store.get(mother.id));
     // Refused while this one was being created : it never starts.
     if (consent === false) {
@@ -1263,6 +1306,9 @@ export class Delegation {
       dernierOutil: lastTool ? readToolCall(lastTool.data).tool.slice(0, 80) || null : null,
       ...(child.famille?.role ? { role: child.famille.role } : {}),
       ...(child.famille?.relit ? { relit: child.famille.relit } : {}),
+      // swarm-01 : the motive, when the chief gave one.
+      ...(child.famille?.pourquoi ? { pourquoi: child.famille.pourquoi } : {}),
+      ...(child.famille?.motif ? { motif: child.famille.motif } : {}),
     };
   }
   // What a finished sub-mission gives back : its answer (data), its Bilan, its files, its sends.

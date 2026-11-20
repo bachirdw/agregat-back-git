@@ -597,3 +597,17 @@ et Codex) attend l'accord du propriétaire : non joué.
   1 870 réussis, 0 échec, 2 ignorés, 1 « à faire » ; Chrome 265/265 ; check 0 ; format 0** (796 s). Interface
   (`agregat-front-swarm-11`, `8ef80e2`) : **335 / 335**. Mêmes chiffres qu'à 06:17.
 - Arbre du lot 14 créé : `~/Downloads/agregat-back-swarm-14`, branche `swarm-14`, parti de `e7f4964` (lien `node_modules`).
+
+## 21/11, 08:15 → 09:25 Vision « Skills comme des plugins », veille automatique, vague 7 lancée
+- 08:15 → 08:40, le propriétaire (ses idées) : l'architecture est là, la méthode vient des **Skills** ; l'utilisateur choisit
+  un Skill puis donne son prompt ; le Skill définit les rôles des agents ; équipe montée seule si le Skill en prévoit une,
+  décision automatique sans Skill, tâche facile à un seul agent ; import d'un Skill « aussi fluide qu'un plugin », en une
+  commande. Premier cas : un Skill populaire sur GitHub de community manager (LinkedIn, Instagram, X). Mémoire :
+  `skills-as-plugins-vision`. Son « oui » de 08:15 n'est **pas** pris pour un accord sur les missions réelles (dit).
+- 08:32, à sa demande (« un script automatique qui fait que tu vas continuer de coder les lots restants ») : tâche
+  programmée toutes les heures à la minute 32 (`trig_014pCJU73T7Afu4SB2yTLEhj`), qui relance le manager sur les lots 14,
+  15, 16 ; à supprimer quand ils sont intégrés. Interdits rappelés : lot 17, mission réelle, push, merge, installation.
+- 09:22, reprise (limite de 5 h à 0 %, hebdomadaire 91 %, remise à zéro à 11:00). Trois sous-agents Opus lancés en
+  parallèle : **copieur swarm-14** (arbre `agregat-back-swarm-14`, base `e7f4964`) ; **recherche web** des Skills
+  marketing (rendu attendu : `reports/skills-marketing-21-11.md`, lecture seule, rien d'installé) ; **lecteur** du code
+  d'import des Skills de Relay (lecture seule, `agregat-back-swarm`).

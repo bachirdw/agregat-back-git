@@ -561,3 +561,26 @@ et Codex) attend l'accord du propriétaire : non joué.
   il n'y aurait pas le temps de le relire, de le contrôler et de l'éprouver en réel. État du plan : **vagues 1 à 6
   intégrées (lots 01 à 13)** ; restent 14, 15, 16 (vagues 7 à 9) et 17 (décision du propriétaire).
 - 06:20 : deux missions Codex programmées pour 07:18 (retour de sa limite) sur la tête finale : dossier comparatif et code.
+
+## 21/11, 07:05 → 07:50 Réponses du propriétaire, troisième série d'essais (Codex, tête finale), arrêt
+- 07:05 (transmis par l'ancienne discussion du 18/11, ses mots) : il veut « un plan fidèle » au projet Agent Swarm, « la
+  même chose » ; plafond global de sous-agents : « si eux ils ont un plafond, prends ce plafond, sinon non » ; agent en
+  attente d'une réponse ou d'un clic compté dans la limite : « la même chose que le projet, mais de préférence, j'autorise
+  les envois, les clics, etc. des agents » (**ambigu, non tranché : la règle du clic avant l'envoi final reste entière**) ;
+  texte d'information des sous-agents : « Oui, ce texte me va. ». À étudier dans swarm : plafond global, compte des agents
+  en attente (non fait cette nuit).
+- 07:18, deux missions en équipe avec **Codex chef** sur la tête finale `e7f4964` (0 carte, 0 question, 0 envoi) :
+  | Épreuve | Durée | Résultat constaté |
+  |---|---|---|
+  | Code (`8af20a0b`) | 17,1 min | `completed` ; **18 / 18** aux tests cachés ; vérificateur donné à **Claude** (`sonnet`) : deux tours sans verdict lisible, puis `approuve` (fichier) ; le chef dit avoir corrigé six écarts relevés par la revue ; `resultat_rendu` (lot 10) vu en réel |
+  | Dossier comparatif (`877fd267`) | 26,4 min | `completed` ; chercheurs Codex et Claude en parallèle ; vérificateur Claude (`opus[1m]`) : **`a_corriger`**, puis une suite de recherche et une seconde vérification **`approuve`** ; 3 `resultat_rendu` ; 4 fiches, tableau, écarts, synthèse 529 mots |
+  Constaté : avec le lot 08, Codex confie la vérification à un autre agent (E153 non revu sur ces deux missions) ; l'outil
+  `resultat_rendre` est employé par de vrais agents ; la vérification croisée a fait corriger le dossier avant la réponse
+  finale ; le tour de rattrapage (lot 13) n'a pas eu à jouer (le chef a corrigé de lui-même) : **non vu en réel**.
+  `tool_loop` : encore 3 signalements `repetition` sur Codex (E155). E154 confirmé (Codex monte une équipe pour le code).
+- 07:26 : compte rendu fait au propriétaire revenu ; il demande l'arrêt à la fin de la tâche (il compacte la discussion).
+- État laissé à 07:50 : `swarm-20-11` tête **`e7f4964`** (lots 01 à 13, suite complète verte : 1 873 / 1 870, Chrome
+  265/265) ; interface : branche `swarm-11` du dépôt de l'interface (`8ef80e2`, 335 / 335) ; **API 4317** (arbre figé
+  `~/Downloads/agregat-back-swarm-essai`, `e7f4964`) et **interface 5179** (arbre `~/Downloads/agregat-front-swarm-11`) en
+  écoute, lancées par `nohup` depuis la session du manager ; aucune mission en cours ; services du propriétaire non
+  touchés. Rien de fusionné ni de poussé. Passation : `passation-swarm-21-11-matin.md`.

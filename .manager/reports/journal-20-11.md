@@ -584,3 +584,16 @@ et Codex) attend l'accord du propriétaire : non joué.
   `~/Downloads/agregat-back-swarm-essai`, `e7f4964`) et **interface 5179** (arbre `~/Downloads/agregat-front-swarm-11`) en
   écoute, lancées par `nohup` depuis la session du manager ; aucune mission en cours ; services du propriétaire non
   touchés. Rien de fusionné ni de poussé. Passation : `passation-swarm-21-11-matin.md`.
+
+## 21/11, 07:57 → 08:13 Nouvelle session du manager : reprise, suite complète de contrôle
+- Demande du propriétaire (07:57, ses mots) : « reprend le chantier. Fais des test ect … ». Lecture du manager : continuer
+  le plan (lot 14) et tester ; les missions réelles ne sont pas relancées sans sa réponse (accord de la nuit fini à 08:00,
+  question posée à 08:00).
+- 07:58, `get_usage` : fenêtre de 5 h à **96 %** (remise à zéro à 09:20), hebdomadaire 91 % (remise à zéro à 11:00).
+  Aucun sous-agent lancé ; reprise programmée à 09:22 (message différé) pour le lot swarm-14.
+- État vérifié par commande : `swarm-20-11` propre, tête `e7f4964` ; 4317 et 5179 en écoute ; aucune mission en cours sur
+  4317 ni 4316 (lecture seule de `GET /api/runs`).
+- Suite complète relancée sur la tête intégrée (`~/Downloads/agregat-back-swarm`), 07:59 → 08:12 : **1 873 unitaires,
+  1 870 réussis, 0 échec, 2 ignorés, 1 « à faire » ; Chrome 265/265 ; check 0 ; format 0** (796 s). Interface
+  (`agregat-front-swarm-11`, `8ef80e2`) : **335 / 335**. Mêmes chiffres qu'à 06:17.
+- Arbre du lot 14 créé : `~/Downloads/agregat-back-swarm-14`, branche `swarm-14`, parti de `e7f4964` (lien `node_modules`).

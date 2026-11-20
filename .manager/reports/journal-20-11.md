@@ -451,3 +451,30 @@ et Codex) attend l'accord du propriétaire : non joué.
   `agregat-front-swarm-09` (vue d'équipe du lot swarm-09) pointée sur 4317. Services du propriétaire non touchés.
 - 02:16 : deux missions en mode équipe (enveloppe 6 / 3, pack core, consignes neutres du 20/11, outil `epreuve.py` : toute
   carte refusée) avec **Codex chef** : code (`54d2d4dd`) et étude de marché (`d353149b`). Limite à 02:04 : 72 %.
+
+## 21/11, 02:17 → 03:10 Première série d'essais réels (API 4317) ; lot swarm-08 contrôlé et intégré
+| Épreuve (mode équipe, enveloppe 6 / 3, pack core) | Chef | Durée | Résultat constaté |
+|---|---|---|---|
+| Code (`54d2d4dd`, code `391f027`) | Codex (défaut) | 18,6 min | `completed` ; **18 / 18** aux tests cachés ; « Décision : équipe… » ; 1 vérificateur Codex sans verdict lisible puis sa suite (`approuve`, fichier) |
+| Étude de marché (`d353149b`, `391f027`) | Codex (défaut) | 23,1 min | `completed` ; 4 fichiers (8 produits, synthèse 806 mots) ; « Décision : équipe… » ; 3 `chercheur` en parallèle (motif `parallele`) puis 1 `verificateur` (`regard_independant`, verdict `approuve`, 2 remarques) ; carnet 27 notes ; exactitude des sources non jugée |
+| Code (`9a7dea29`, `391f027`) | Claude `sonnet` | 5,9 min | `completed` ; **18 / 18** ; « Décision : seul, parce que… » ; aucune sous-mission |
+- 0 carte, 0 question, 0 envoi. Défauts et écarts notés au registre : **E153** (Codex nomme son propre agent comme
+  vérificateur), **E154** (écart Codex / Claude sur la tâche simple), **E155** (`tool_loop` : faux positifs probables sur
+  les outils natifs, sans effet en mode `observer`), **E156** (premier vérificateur sans verdict lisible).
+- Constaté conforme en réel : ligne de décision du chef (les deux agents), motifs `pourquoi` et note, verdict incomplet dit
+  au Bilan, vue d'équipe de l'API (`?equipe=1` : durée, outils, dernier outil).
+- **swarm-08** : codeur `afc0fd5`, `47d8e7a` ; relecteur `133163e`, `3b86ae7`, verdict **bon à intégrer** (un défaut majeur
+  corrigé : un contrôle du lancement pouvait lever sur des sondes ou un cache mal formés). Diff de `launch()` lu par le
+  manager (deux contrôles synchrones avant les compteurs, rien d'autre). Suite complète dans l'arbre du lot, 02:40 →
+  02:53 : **1 778 unitaires, 1 775 réussis, 0 échec, 2 ignorés, 1 « à faire » ; Chrome 265/265 ; check 0 ; format 0**.
+  Intégré à 02:53 dans `swarm-20-11`, tête **`d3574af`** ; arbre identique à celui du lot (`38a9678`, même condensé) : la
+  suite complète n'a pas été rejouée une seconde fois. Point laissé : un agent `a_reessayer` est cité « prêt » dans le refus
+  mais écarté du repli en mode réel (`otherAgent`, hors lot). `agentPrevu` / `agentImpose` pas encore montrés au Bilan.
+- 02:53 : API 4317 relancée sur `d3574af` (aucune mission en cours). **Vague 3 finie côté code** (swarm-08 intégré ;
+  swarm-09 sur la branche `swarm-09` du dépôt de l'interface, servie sur 5179).
+- Épreuve « candidature fictive » (pack career-ops) **non jouée** : la base neuve de 4317 n'a pas le Skill ; importé
+  (même empreinte `4380dfe0` que sur 4316), il est en quarantaine, et l'approbation par le manager a été refusée par le
+  contrôle des permissions de l'application (non contournée). Il faut le clic du propriétaire (interface 5179, Skills).
+- 03:05 : écran 5179 vu (mode sombre) sur `d353149b` : bloc Équipe lisible (chef, 4 membres, rôle, agent et modèle,
+  durée, plis Résultat, verdict approuvé et remarques, carnet). Les sous-missions sont encore mêlées à la liste de
+  gauche (prévu au lot swarm-11).

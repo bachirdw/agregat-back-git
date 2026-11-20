@@ -5,7 +5,39 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 19/11/2026, 22:25 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 20/11/2026, 12:50 ; ce bloc se remplace à chaque passation)
+**Objectif du propriétaire (20/11 matin)** : une vraie **équipe d'agents IA** menée par un chef sur un modèle fort, qui se
+coordonne sur une mission complexe (plusieurs sources en parallèle, fusion, contrôle de ce qui est incohérent, résultats
+qui passent d'un agent aux autres), et que la plateforme **reconnaît seule** comme utile ou non. Les formulaires en
+parallèle ne sont pas ce cas. Méthode voulue : celle de Claude Code. Échanges : carnet partagé et chef.
+Détail, dans l'ordre : [`reports/journal-20-11.md`](reports/journal-20-11.md). Note laissée à Codex :
+[`reports/coordination-codex-20-11.md`](reports/coordination-codex-20-11.md).
+
+**Trois chantiers côte à côte, rien de fusionné ni poussé** :
+| | Claude (ce manager) | Codex | Interface |
+|---|---|---|---|
+| Dossier, branche | `~/Downloads/agregat-back-equipe`, `equipe-20-11`, tête `a26399a` (partie de `c6c2e9f`) | `/private/tmp/agregat-equipes-plateforme-20261120`, `codex/equipes-plateforme-20-11` : **ne pas y toucher** | `~/Downloads/agregat-front-equipe`, `equipe-front-20-11`, tête `0937088` (dépôt du front, partie de `e104-13-11`) |
+| Contenu | rôles en texte (`roles.js`, `roles/*.md`, rôles de l'espace et du pack), vérificateur d'un autre agent avec verdict, `mission_continuer`, carnet d'équipe (`carnet_noter`, `carnet_lire`), 3 rôles du pack career-ops | plan `docs/plan-equipes-agents.md` : tableau de mission durable, déclenchement progressif, choix automatique agent / lot / équipe | interrupteur « Équipe d'agents », blocs « Équipe » et « Carnet d'équipe » ; **jamais vu à l'écran** |
+| Preuves | tests ciblés verts un par un ; suite complète n° 1 : Chrome 265 / 265, total unitaire non relevé ; suite n° 2 lancée à 12:50 (voir le journal) | voir son rapport | 270 tests verts, `tsc`, build, prettier |
+Autre branche : `equipe-e152` (`~/Downloads/agregat-back-equipe-e152`, tête `76abe40`) : **reprendre seulement `6f2ce3b`**
+(accolades en prose reprises en texte libre : vraie cause de E152 et d'un échec réel du 20/11) ; le « tour de plus »
+(`0df4736`, `76abe40`) est à laisser. Arbre figé des essais : `~/Downloads/agregat-back-equipe-essai` (`c1fb352`), API
+**4316** en marche dessus, pages fictives 4321 à 4328. API 4314 et 4315 arrêtées.
+
+**Essais réels du 20/11** (consignes neutres, 0 envoi, 0 carte) : 8 formulaires fictifs, Claude seul 6,6 min, ancien mode
+7,7 min ; code : seul 5,5 min, chef Opus en mode équipe 4,2 min **sans faire d'équipe**, Codex chef 16,3 min avec un
+vérificateur Claude (« approuvé ») ; candidature 2 offres : 7,5 min seul, 14,9 min en équipe ; étude de marché : 12,2 min
+seul, 26,6 min en équipe, **pas de gain net de qualité** (juge indépendant). Lecture : le chef sait rester seul sur une
+tâche simple ; sur des tâches de 5 à 15 min l'équipe est plus lente ; le cas complexe du propriétaire (collecte massive,
+contacts, documents en parallèle) **n'a pas été joué** (collectes suspendues depuis E144, socle de Codex en cours).
+
+**À faire ensuite** : reprendre `6f2ce3b` sur `equipe-20-11` ; un court essai réel de confirmation (vérificateur d'un
+travail de Claude donné à Codex, réponse avec accolades non mise en échec) ; voir l'interface à l'écran (front sur un
+autre port que 5177, API 4316) ; faire rendre par l'API le modèle d'un membre et le lien « suite de » ; décider avec le
+propriétaire comment réunir ce lot et celui de Codex. **Limite d'usage** : la fenêtre de 5 h de Claude a été épuisée à
+09:25 le 20/11 (workflows Opus et missions réelles en parallèle) ; tout s'est arrêté jusqu'à midi.
+
+## 0-ante. Bloc du 19/11/2026, 22:25 (gardé tel quel)
 **Question ouverte du propriétaire (19/11, fin de journée) : à quoi sert le mode multi-agent, puisque Codex et Claude lancent
 déjà seuls leurs sous-agents internes ?** Il veut une vraie plus-value, pas seulement « afficher et arrêter ». Réponse donnée
 par le manager, à partir des mesures : aucun gain de vitesse pour un travail sur des fichiers (CV, lettres, dossiers) ; trois

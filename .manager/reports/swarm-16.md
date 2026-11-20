@@ -165,3 +165,101 @@ pas touché : il lit toujours `args.modele ?? règle d'aujourd'hui` (voir Points
 5. `mission_continuer` n'a pas de `niveau` (le plan n'en prévoit pas) : une suite garde toujours le modèle de la
    tentative précédente, sauf `modele` donné.
 6. Aucun test existant hors des deux fichiers autorisés n'a dû changer.
+
+## Relecture indépendante
+
+Relecteur, 21/11/2026 (heure lue : 10:08 AEDT). Sans sous-agent, sans modèle, sans réseau. Base `e7f4964`, commits relus
+`f395c75`, `6f1d1d1`, `b54398d`.
+
+### Constats
+
+- **Périmètre** : conforme. Seuls les fichiers du lot sont touchés (`git diff e7f4964..HEAD --stat`) ; aucun test
+  existant modifié (`--stat -- tests/` : le seul fichier du lot). `index.js` non touché. Dans `delegation.js`, région
+  par région : imports ; dans `launch()`, le calcul de `plannedModel` (remplacé par `choisirModele`) et de `modele`
+  après le choix de l'agent de remplacement ; `niveau` sur `link.link` et dans le résultat ; `niveauNote` dans
+  `note([...])` ; `avecNiveaux` dans `agentsNow()`. Rien dans les compteurs, `pump`, `wake`, `prerequisite`, `settle`,
+  `stopFamily`, `waitLiving`, `ended`, `doneOf`, `wait`, `familyBilan`, le constructeur, `promptParts`, `call`,
+  `carnet_noter`.
+- **Conformité au plan** : priorité `modele` > `niveau` > précédent (suite, reprise, `''` compris) > niveau du rôle >
+  règle d'avant, vérifiée cas par cas (tests du codeur 2, 6-13 et contrôles négatifs N1-N4, N17). Phrase de
+  `mission_lancer` et note mot pour mot. Motifs seulement dans `profiles.js` ; aucun nom de modèle ni d'agent dans
+  `niveaux.js` (hors commentaires d'origine), `delegation-rule.js`, `roles.js`, les fiches. Documentation dans 3.1
+  (rôles et `mission_lancer`), changement visible dit clairement.
+- **Fidélité à swarm** (fichiers ouverts en lecture seule) : `types.ts:91` (4 niveaux → 3, `ultra` fondu dans `fort`),
+  `:121-141` (table codex/claude : mêmes familles de motifs), `:210-216` (`parseModelTier` : trim, minuscules ; les
+  alias hérités `haiku→smol`… écartés, ce sont des noms de modèles), `model-tier-resolution.ts:8-23` et `:494-508`
+  (un niveau ne refuse jamais). En-têtes de licence en première ligne.
+- **Passerelle** (`packages/mission-gateway/server.js`, hors lot, lue) : `inputSchema: tool.schema` puis
+  `JSON.stringify({ tool, args })` : `niveau` passe par le schéma de `MISSION_TOOLS` ; transmis sans changement.
+- **Mineur, laissé** : `choisirModele` ignore un `defaut` ou un `precedent` non textuel (ligne corrompue avec un modèle
+  nombre) → `''` ou couche suivante, là où la base passait la valeur telle quelle. Impossible par les chemins réels
+  (schémas zod, lignes écrites par la plateforme). Laissé.
+- **Mineur, laissé** : un agent à `niveaux` dont la sonde n'annonce que des entrées mal formées (objets sans `id`)
+  « annonce des modèles » au sens de `optionsOf` : le niveau d'un rôle non résolu y donne la note. Même définition
+  que `mission_suivre.agents[].modeles` (qui liste ces entrées depuis swarm-08). Laissé.
+- **Limite décrite (décision du manager)** : le contrôle d'indisponibilité d'un agent NOMMÉ par le chef lit toujours
+  `args.modele ?? règle d'avant` ; un modèle de niveau sous limite chez cet agent n'est pas vu par ce contrôle. Le
+  contrôle d'un agent choisi par la plateforme, lui, lit maintenant le modèle du niveau (`plannedModel`).
+- Aucun bloquant, aucun majeur.
+
+### Point 12 du manager (sondes, agent inconnu, `team` nul, `previous` sans modèle)
+
+Constaté : `this.probes()` attrape tout (rend `{}`), `getProfile` est un `find` (jamais d'exception, `undefined` pour
+`__proto__`, `constructor`…), `optionsOf` rend `[]` pour toute forme inattendue, `choisirModele` ne lève sur aucune
+entrée. Le code neuf ne lève pas et n'ajoute aucun refus ; il est placé après tous les refus existants qui le
+précèdent dans la base et avant le contrôle de swarm-08, qui existait déjà au même endroit. Aucune correction
+nécessaire. Preuve par différence : un script (supprimé ensuite) a rejoué 68 scénarios sans `niveau` contre une copie
+de la base (`git archive e7f4964`) et contre HEAD — lancement simple, `modele`, agent nommé, agent nommé + rôle de la
+plateforme sur un profil sans `niveaux`, nom libre, rôle de la plateforme sans sondes, vérification, remplacement
+(avec et sans `modele`), suite (même agent, autre agent), reprise d'un `previous` sans modèle, mission privée,
+`fixture`/`gemini`/`opencode` × trois rôles, agents `inconnu`, `__proto__`, `constructor`, `toString`,
+`hasOwnProperty`, dix formes de sondes (absentes, JSON illisible, tableau, `null`, chaîne, sonde nulle, `models`
+absent ou texte, `options` objet ou hostile, `__proto__` dans le JSON), `agents()` sur chacune, refus
+`agent_indisponible` (agent nommé sous limite, aussi avec rôle) et `introuvable` : résultat, ligne (agent, modèle,
+`famille`), événements, refus et messages identiques octet pour octet (après remplacement des UUID, dates et du
+dossier `relay/missions/<8 car.>/` dérivé de l'id aléatoire de la mère). L'essentiel est fixé dans
+`tests/swarm-16-relecture.test.js` (R2, R3).
+
+### Contrôles négatifs (chacun retiré un instant, puis le fichier remis depuis une copie)
+
+N1 `niveau` non passé à `choisirModele` → 4 rouges ; N2 niveau du rôle → 3 ; N3 précédent → 1 ; N4 niveau chez le
+remplaçant → 1 ; N5 note jamais → 3 ; N6 note toujours → 1 ; N7 `niveau` sur la ligne → 2 ; N8 dans le résultat →
+3 ; N9 `avecNiveaux` dans `agents()` → 1 ; N10 `parseRole` → 4 ; N11 `roleList` → 1 ; N12 schéma → 1 ; N13 `niveau`
+écrit quelle que soit la source → 3 ; N16 ordre annoncé inversé → 6 ; N17 niveau après le précédent → 2 ; N18 niveau
+non résolu qui tombe à la couche suivante → 4. **Trous trouvés** : N14 (motif le plus long → premier motif) et N15
+(casse non ignorée) ne rougissaient aucun test du codeur → test R1 ajouté : 1 rouge chacun. Ajoutés aussi : N19
+(`previous.model` absent non ramené à `''`) → 1 rouge (R2) ; N20 (note du rôle sans condition « annonce des
+modèles ») → 3 rouges.
+
+### Tests ajoutés
+
+`tests/swarm-16-relecture.test.js`, 4 tests : R1 motif le plus long, casse, égalité, tables hostiles ; R2 preuve par
+différence (valeurs de la base) sur les chemins listés ; R3 point 12 (agents piégés, dix formes de sondes, entrées
+mal formées, refus inchangés avec rôle ou niveau) ; R4 `niveau` par `call()` : `ultra` et `3` refusés en
+`parametres_invalides` (« niveau — … »), `fort` transmis jusqu'au résultat.
+
+### Totaux
+
+- `node --test tests/swarm-16-niveaux.test.js tests/swarm-16-relecture.test.js` : 17 / 17.
+- Tests existants nommés (`equipe-01-*`, `delegation-v2-01-b`, `swarm-08-*`) avec le fichier du lot : 96 / 96.
+- `npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : « All matched files use Prettier code
+  style! ».
+- Phase unitaire (`phase-unitaire.mjs`, arbre avec la relecture) : `ℹ tests 1890` · `ℹ pass 1886` · `ℹ fail 1` ·
+  `ℹ cancelled 0` · `ℹ skipped 2` · `ℹ todo 1` · « FIN phase unitaire : code 1 (durée 390 s) ». 1 890 = 1 873 + 13
+  (codeur) + 4 (relecture). Le seul échec : « question en JSON : délais suspendus pendant l’attente »
+  (`tests/elicitation.test.js`, hors lot, aucune référence à la délégation, aux rôles ni aux niveaux). Relancé seul
+  trois fois : 26/26, 25/26 (le même test), 26/26 : **échec intermittent du fichier lui-même, sous charge, non lié au
+  lot**. Journal supprimé ensuite.
+
+### Points à trancher par le manager
+
+1. `tests/elicitation.test.js` « délais suspendus pendant l’attente » échoue par intermittence même seul (1 fois sur 3) :
+   test temporel hors lot, à suivre à part.
+2. Les deux mineurs laissés ci-dessus (valeur non textuelle de `defaut`/`precedent` ; entrées de sonde mal formées
+   comptées comme modèles annoncés pour la note du rôle).
+3. Le tableau des motifs (point 1 du codeur) et le changement visible (point 2) restent à valider par le propriétaire.
+
+### Verdict
+
+`bon_a_integrer` : conforme au plan, aucune régression constatée par différence avec la base, tests du lot et tests
+nommés verts ; le seul échec de la phase unitaire est intermittent et hors lot.

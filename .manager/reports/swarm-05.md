@@ -157,3 +157,94 @@ FIN phase unitaire : code 0 (durée 201 s)
 
 (Sortie exacte : « ℹ tests 1693 ».) Référence 1 674 / 1 671 + 19 tests du lot = 1 693 / 1 690. `npm run check` : code 0 ;
 `npm run format:check` : code 0. Journaux supprimés.
+
+## Relecture indépendante (21/11/2026, à partir de 01:15, heure lue par `date`)
+
+Relecteur sans la mémoire du copieur ni du codeur. Lu : brief commun (1-5, 8, 9), plan (abréviations, 4.0, section
+swarm-05), `git log` et diff `e18ef06..HEAD` fichier par fichier, ce rapport, le portage et `NOTES.md`, les fichiers
+d'origine de swarm (lecture seule : `task-dedup.ts`, `sibling-block.ts`). Aucun sous-agent, aucun `npm test`.
+
+### Contrôles
+
+- **Périmètre** : seuls les fichiers du lot (plus portage et rapport) ; `index.js` non touché ; aucun test existant
+  modifié (`git diff e18ef06..HEAD --stat -- tests/` : seulement les fichiers du lot).
+- **launch(), ligne par ligne** : le calcul de la part et le contrôle sont synchrones, après le calcul de `previous`,
+  avant `taskOf`, `family.resuming` et le contrôle d'enveloppe ; aucun `await` entre `childrenOf` (lu avant) et
+  `family.pending++`. Seules deux lignes s'ajoutent près des compteurs (après `family.pending++`, après
+  `family.pending--` dans le `finally`), gardées par `checked` ; aucun compteur existant changé ; rien dans `pump()`,
+  `wake()`, `prerequisite()`, `settle()`, `stopFamily()`, `waitLiving()`. Les deux lignes ne peuvent pas lever (`Map`
+  et nombres ; `part.empreinte` est toujours une chaîne). Entre le `finally` et `briefs.set(… part …)`, aucun `await` :
+  une sœur créée a sa part en mémoire avant tout autre appel. `creating` ne fuit sur aucun chemin : création en échec,
+  refus du propriétaire pendant la création, mère annulée pendant la création (le `finally` passe toujours) ; erreur
+  d'enveloppe : avant le `+1` (testés).
+- **Courses** : 2 et 5 appels identiques simultanés → une sous-mission, les autres `doublon`, aucune carte d'extension
+  (enveloppe 1) ; deux parts différentes simultanées passent ; une identique après l'échec de création passe.
+  `tests/review-multi-agent-v3-01.test.js` relancé trois fois : 13/13 à chaque fois.
+- **Faux refus** : éventail de 4 (lot), vérifications au même texte avec `relit` ou `apres` différents, sœur annulée
+  ou interrompue : passent. Confondus par l'empreinte, conformément au plan : casse, espaces, ordre et doublons des
+  fichiers, rôle absent ou vide, et l'agent (même part à un autre agent → `doublon`, levier `doublon: true` ; déjà dit
+  par la doc, voir points à trancher).
+- **Rien d'existant ne change** : sans doublon ni autre membre, mêmes clés et même règle de prompt (test du lot) ;
+  sœurs seulement en échec → ni `membres` ni phrase ; mission hors équipe : `promptParts` rend `{ fields: {}, rule: '' }` ;
+  réglage `0` : `partsOf` et `creating` jamais appelés.
+- **famille.membres** : 26 sœurs → 20 membres, jamais elle-même ; émoji jamais coupé en deux (points de code) ; retours
+  à la ligne et tabulations repliés ; le prompt est un `JSON.stringify` : un guillemet de la part reste une donnée.
+- **Vie privée** : `doublon_signale` (ids, nombre, niveau), `doublonProbable` (id, titre public, nombre), message (titre
+  public « Sous-mission N » en privé) : rien de la part ; `briefs.part` en mémoire seulement (effacé par `forget`).
+- **Fidélité à swarm** : Jaccard identique (deux vides 1, un vide 0), seuils 0,8 et 0,6 en `>` strict, même agent
+  exigé non vide, `truncateForBlock` (repli `\s+`, `trimEnd`, « … »), deux horloges séparées ; découpe
+  `/[^\p{L}\p{N}\s]/gu` après NFC ; en-têtes de licence en première ligne des deux modules.
+- **Doc** : erreurs, sections 3 et 5, 9.5 et `complet?: false` conformes au code ; une imprécision corrigée (ci-dessous).
+
+### Constats
+
+- Mineur, corrigé : la doc disait `proche` = « l'id de la sœur » ; il vaut `null` (comme `doublonProbable.id`) quand une
+  identique lancée quand même (`doublon: true` ou réglage `signale`) ressemble à une part encore en création. Doc
+  précisée, test ajouté.
+- Mineur, laissé : `membersOf` lit tous les événements de chaque sœur (`store.events`) à chaque départ, avant la borne
+  de 20 ; coût déjà accepté par le manager.
+- Mineur, laissé : un refus `doublon` « (en cours de création) » renvoie vers une part dont la création peut encore
+  échouer ; le chef relancera alors, ce qui passera (testé).
+- Aucun bloquant, aucun majeur.
+
+### Contrôles négatifs (chaque fois, fichier remis depuis une copie, `git diff` vide ensuite)
+
+Retrait du `throw` doublon : 5 rouges ; retrait du `creating +1` : 2 ; retrait du `creating -1` : 10 ; `checked`
+sans `!previous` : 1 ; `membersOf` sans le filtre « pas elle-même » : 7 ; `soeurs.js` sans états ignorés : 3 ;
+`doublon.js` avec `failed` seul ignoré : 4 ; empreinte sans `relit`/`apres` : 2 ; `membres` sans borne : 2 ; `partsOf`
+sans le saut des sœurs privées sans part : 1 ; refus malgré `doublon: true` : 4.
+
+### Tests ajoutés
+
+`tests/swarm-05-relecture.test.js` : 16 tests (chemins de `creating`, cinq appels simultanés, parts différentes
+simultanées, vérifications, sœurs annulées ou interrompues, empreinte, agent, réglage `0`, hors équipe, sœurs en échec,
+20 membres, extrait et injection, réglage `signale` en course). Lot : 35 / 35.
+
+### Totaux (après relecture)
+
+Phase unitaire entière (`phase-unitaire.mjs`, ligne FIN lue) :
+
+```text
+ℹ tests 1709
+ℹ pass 1706
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 1
+FIN phase unitaire : code 0 (durée 225 s)
+```
+
+Référence 1 674 / 1 671 + 19 (codeur) + 16 (relecture) = 1 709 / 1 706 : aucun autre chiffre n'a bougé.
+`npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : « All matched files use Prettier code
+style! ». Journal supprimé.
+
+### Points à trancher par le manager
+
+- L'agent n'est pas dans l'empreinte (conforme au plan) : la même part confiée exprès à deux agents différents
+  (`regard_independant`) est refusée tant que le chef ne passe pas `doublon: true`. À garder ou à mettre l'agent
+  nommé (`args.agent`) dans l'empreinte.
+- `relanceLegitime` porté, non branché (décision connue).
+
+### Verdict
+
+`bon_a_integrer`.

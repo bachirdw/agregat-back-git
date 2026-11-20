@@ -86,18 +86,19 @@ const DECISION_LINE =
 // the first DECISION_SCAN characters, or null. Never throws.
 export function readDecision(answer) {
   if (typeof answer !== 'string' || !answer) return null;
-  for (const line of answer.slice(0, DECISION_SCAN).split('\n')) {
+  // swarm-01 (relecture) : every line end (CRLF, CR, LF, U+2028, U+2029), since `.` stops on each.
+  for (const line of answer.slice(0, DECISION_SCAN).split(/\r\n|[\n\r\u2028\u2029]/)) {
     const found = DECISION_LINE.exec(line);
     if (!found) continue;
     const choix = /^s/i.test(found[1]) ? 'seul' : 'equipe';
-    const raison = found[2]
+    const clean = found[2]
       .replace(/[*_]+/g, '')
       .replace(/^[\s,;:.—–-]+/, '')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/[\s.,;:]+$/, '')
-      .slice(0, DECISION_REASON_MAX)
-      .trim();
+      .replace(/[\s.,;:]+$/, '');
+    // Bounded by characters, not UTF-16 units : a character is never cut in two.
+    const raison = [...clean].slice(0, DECISION_REASON_MAX).join('').trim();
     return { choix, raison };
   }
   return null;

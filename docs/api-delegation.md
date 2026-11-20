@@ -573,8 +573,9 @@ Fichiers : `packages/orchestrator/decision.js` (neuf : liste des motifs et borne
   - « Décision du chef : équipe, parce que … (3 sous-missions lancées) » (ou « seul … (aucune sous-mission lancée) »), avant
     la section « Sous-missions », pour une mission `multiAgent` qui n'est pas une sous-mission et dont la réponse finale
     porte, dans ses 1 500 premiers caractères, une ligne « Décision : seul|équipe » (gras, accents et casse tolérés ;
-    raison bornée à 200 caractères) ; le chef annonce « seul » et a lancé des sous-missions : « Décision annoncée : seul ;
-    2 sous-missions lancées ». Sans cette ligne dans la réponse : rien.
+    raison bornée à 200 caractères, sur une seule ligne ; toute fin de ligne est reconnue, CRLF compris) ; le chef annonce
+    « seul » et a lancé des sous-missions : « Décision annoncée : seul ; 2 sous-missions lancées ». Le nombre ne compte pas
+    les sous-missions annulées par le refus du propriétaire (comme la section). Sans cette ligne dans la réponse : rien.
   - « Motifs des délégations : « A » (parallèle : note) ; « B » (non dit) », après la section, quand au moins une
     sous-mission a un motif ; une sous-mission privée n'a que le libellé (« spécialité »).
-- Tests : `tests/swarm-01-decision.test.js`.
+- Tests : `tests/swarm-01-decision.test.js`, `tests/swarm-01-relecture.test.js` (relecture indépendante).

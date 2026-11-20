@@ -104,3 +104,114 @@ branche `swarm-06`, base `e18ef06`, portage du copieur au commit `8177f5b`.
 - Tests existants modifiés : aucun.
 - Non vérifié : comportement sur des missions réelles (aucune lancée) ; formes d'arguments d'autres agents que les deux
   des fixtures.
+
+## Relecture indépendante
+
+Relecteur indépendant, 21/11/2026 01:15 → fin (horloge `date`). Repartie du plan (4.0, section swarm-06), du diff
+`e18ef06..HEAD`, du code et du portage ; swarm relu en lecture seule (`src/hooks/tool-loop-detection.ts`).
+
+### Périmètre et moteur
+
+- Diff conforme au périmètre : `loop-guard.js`, test, faux agent, doc, portage, rapport ; `index.js` +29 −1 (seule ligne
+  retirée : l'ancien libellé de `formatOwnerMessageLines`), `failure.js` +1 (l'expression d'erreur nue intacte). Rien
+  d'autre dans `IX` : import, création près de `new ToolGuard(`, deux lignes après `control.familyObserve?.(update);`,
+  méthode `toolLoop`, libellé. Aucun test existant modifié (`git diff --stat -- tests/` : deux fichiers neufs).
+- `observe` : tout est dans un `try` ; mémoire bornée (historique 40, `parId` 40, `vus` et `attente` 1 024 chacun ;
+  aucun argument gardé). `toolLoop` : tout dans un `try` ; `message()` est `async` (ne lève pas de façon synchrone ; s'il
+  levait, le `try` le couvre) ; `control.abort` absent → l'arrêt n'a pas lieu, rien ne lève ; run retiré de la base →
+  `store.event`/`message` lèvent ou rejettent, pris. Getter qui lève, `Proxy`, `BigInt`, cycles, 100 000 niveaux : couverts
+  par le test du codeur, revus.
+- Coût mesuré (script jetable, `LoopGuard.observe` seul) : 20 000 événements d'outil ordinaires 40 à 100 ms au total
+  (2 à 5 µs l'un) ; 20 000 messages non-outils 1 ms ; tas stable (≈ 20 Mo, aucune croissance). Arguments de 2 Mo :
+  l'ancien hachage de swarm (boucle JS caractère par caractère) coûtait 9 à 14 ms par mise à jour, soit ≈ 14 fois la
+  sérialisation que `store.event` fait déjà → **corrigé** (condensé natif sha1 : 1,9 ms, ≈ 2 fois une sérialisation).
+  Cas pathologique laissé : 50 000 clés dans les arguments ≈ 54 ms par mise à jour (tri des clés ; `readToolCall` seul
+  ≈ 16 ms sur le même objet).
+
+### Mode par défaut identique à la base
+
+- Constaté sur la base elle-même : `git archive e18ef06` extrait dans le dossier de preuves (supprimé depuis), même
+  mission FICTIVE (`boucle-agent.js`, formes plat n=9, morceaux n=20, enveloppe n=20) jouée sur la base et sur le lot ;
+  sortie normalisée (heures, durées, chemins retirés) : lot réglage `0` = base **à l'octet** ; lot par défaut = base
+  une fois retirés les événements `tool_loop` (1 ou 2 selon le cas) : même état, même erreur, même `result` (Bilan,
+  réponse), mêmes 33 / 86 / 66 événements dans le même ordre. Test durable ajouté (défaut contre `0`, trois formes).
+- Lecteurs de la liste d'événements : tous filtrent par type (`carnet.js`, `resume-history.js`, `delegation.js`,
+  `index.js` 216/1086/2062/2138/2148, `apps/api/server.js` 708/715, `.manager/outils/bilan-vs-events.mjs`) ; le
+  plafond `too_many_events` compte les mises à jour de l'agent (`++events`), pas les événements stockés. Interface
+  (`agregat-front-equipe/src`) : `ConnectionsPanel.tsx` ignore un type inconnu (chaîne de `else if` sans branche par
+  défaut) ; `Mission.tsx` l'affiche dans le journal brut (`#seq · tool_loop` et ses données). Aucun effet.
+
+### Constats
+
+1. Majeur, **corrigé** (décision du manager) : va-et-vient d'un même outil entre deux jeux d'arguments → « les outils X
+   et X ». Note, cause d'arrêt et raison interne ont maintenant leur forme à un outil (« l’outil X vient d’être appelé N
+   fois en alternant deux jeux d’arguments… », « Boucle d’outils : X appelé N fois en alternant deux jeux d’arguments ;
+   relancer autrement. »). Test vu rouge d'abord. Doc mise à jour.
+2. Majeur, **corrigé** : coût du hachage sur de gros arguments (ci-dessus). Test relatif (empreinte < 5 × sérialisation)
+   vu rouge d'abord (13,6 ms contre 1,2 ms).
+3. Mineur, laissé (ligne hors du libellé nommé par le plan) : au Bilan « Note de la plateforme **reçu** à … » (accord ;
+   le gabarit `reçu à` est commun aux trois libellés).
+4. Mineur, laissé : `nomSur` accepte un titre d'un seul mot comme nom d'outil ; un titre réduit à un nom de fichier
+   (`rapport.pdf`) serait montré. Une commande avec espace, chemin ou argument ne l'est jamais (testé, y compris titre
+   qui cite une commande avec `_meta` → `Bash`).
+5. Mineur, laissé : la règle « appel pauvre » de Relay est plus large que celle de swarm (accepte `{ path }`,
+   `{ file_path }` à plat et toute valeur de `kind`) : voulu par le plan. Un appel sans argument n'est jamais « pauvre ».
+6. `message-proprietaire.test.js` seul, cinq fois de suite : 25/25 à chaque fois. R6 envoie des messages toutes les
+   10 ms pendant des tours de 60 ms et attend un dernier message « non remis » : test de course à l'horloge, sans appel
+   d'outil répété, que le lot ne touche pas (libellé `de` absent inchangé) → échec sous charge.
+
+### Faux positifs (à trancher, rien n'est changé)
+
+Comportement actuel fixé par un test (`usages répétés légitimes`) ; en `observer`, seulement des événements :
+- Pagination (clic « suivant » mêmes arguments / capture de page) : va-et-vient avertissement au 6e appel, **critique au
+  12e** (6 pages), répétition avertie au 8e clic. En `avertir` : une note dès la 3e page ; en `arreter` : mission arrêtée
+  à la 6e page. Faux positif net.
+- Capture de page ou sondage d'un état (même commande) : 8 → avertissement, 15 → critique (`arreter` coupe un sondage
+  de 15 coups).
+- Relire le même fichier (`{ file_path }` seul) après chaque modification : avertissement à la 8e lecture, jamais de
+  critique (appel pauvre, 24 hors d'atteinte dans 40 appels).
+- `mission_attendre` et le carnet : exclus, rien.
+- Outils du navigateur de la plateforme (`browser_snapshot`, `browser_click`, `browser_navigate`, `browser_extract`) :
+  ce sont eux qui font les faux positifs ci-dessus. Pistes pour le manager : les exclure, ou relever leurs seuils comme
+  les appels pauvres, ou n'arrêter que sur la répétition (pas sur le va-et-vient) ; à mesurer en `observer` d'abord.
+
+### Contrôles négatifs (chaque fois remis, `git status` vérifié)
+
+- Ligne d'observation de `IX` neutralisée → 7 échecs (dont le test « défaut contre 0 » ajouté).
+- Arrêt quel que soit le mode (`guard.mode === 'arreter'` retiré) → 3 échecs.
+- Note à chaque signalement (`guard.noter` retiré) → 1 échec.
+- Ancien hachage → test de coût rouge ; textes à un outil retirés → test du même outil rouge.
+- Ceux du codeur (`FA`, libellé, exclus, tri récursif) relus dans le test : ils portent bien sur ces lignes.
+
+### Tests ajoutés (`tests/swarm-06-relecture.test.js`, 6 tests)
+
+Même outil en va-et-vient (textes) ; coût de l'empreinte et sens du hachage ; nom montré quand le titre cite une
+commande ; usages répétés légitimes ; défaut contre réglage `0` à `tool_loop` près (trois formes, état, Bilan,
+réponse, événements) ; `arreter` : cause au Bilan, `active` vidé, `activeSlots() === 0`, aucune permission en attente.
+Fichiers du lot : 29/29. Avec `orchestrator-max-events`, `tool-guard`, `message-proprietaire`, `runtime-onevent` :
+75/75.
+
+### Totaux (relecture)
+
+Phase unitaire (`phase-unitaire.mjs`, 01:26 → 01:30) :
+```
+ℹ tests 1703
+ℹ pass 1700
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 1
+FIN phase unitaire : code 0 (durée 203 s)
+```
+Base 1 674 / 1 671 + 23 (codeur) + 6 (relecture) ; aucun autre chiffre ne bouge. `npm run check` : code 0 ;
+`npm run format:check` : code 0.
+
+### Points à trancher par le manager
+
+- Faux positifs du navigateur de la plateforme (pagination : critique au 12e appel) avant tout passage à `avertir` ou
+  `arreter` : exclure ces outils, relever leurs seuils, ou ne pas arrêter sur le va-et-vient.
+- Accord « Note de la plateforme reçu » au Bilan (gabarit commun dans `IX`, hors de la ligne nommée par le plan).
+- Textes de la note et de la cause dans `loop-guard.js`, à déplacer dans `DR` par le lot qui le possède.
+- Hachage : condensé sha1 au lieu du hachage 32 bits de swarm (écart de portage, dit dans le code et la doc).
+
+Verdict : `bon_a_integrer`.

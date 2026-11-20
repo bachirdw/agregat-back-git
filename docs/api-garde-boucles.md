@@ -33,9 +33,10 @@ juste titre) avant de passer à `avertir`.
   `CARNET_SERVER`) : la phrase du chef recommande des `mission_attendre` courts et répétés. Un appel exclu n'entre pas
   dans l'historique et ne coupe pas une suite d'appels identiques.
 - Deux appels sont « les mêmes » s'ils ont le même serveur, le même outil et la même empreinte d'arguments : JSON à clés
-  triées **récursivement**, puis hachage. (L'ancien code de swarm ne triait que le premier niveau et effaçait les clés
-  imbriquées : tous les appels MCP au même outil se confondaient.) Les arguments ne sont jamais gardés, seulement
-  l'empreinte.
+  triées **récursivement**, puis condensé natif (sha1). (L'ancien code de swarm ne triait que le premier niveau et
+  effaçait les clés imbriquées : tous les appels MCP au même outil se confondaient. Son hachage 32 bits en JavaScript
+  coûtait environ dix fois une sérialisation sur des arguments de 2 Mo.) Les arguments ne sont jamais gardés,
+  seulement l'empreinte.
 
 ## 3. Motifs et seuils
 
@@ -69,6 +70,8 @@ Fenêtre : les 40 derniers appels comptés.
     d’approche, ou dis ce qui te bloque. »
   - va-et-vient : « Note de la plateforme : les outils X et Y viennent d’être appelés en alternance N fois avec les
     mêmes arguments. Change d’approche, ou dis ce qui te bloque. »
+  - va-et-vient d'un même outil entre deux jeux d'arguments : « Note de la plateforme : l’outil X vient d’être appelé
+    N fois en alternant deux jeux d’arguments. Change d’approche, ou dis ce qui te bloque. »
 - Au Bilan, la ligne de ce message s'écrit « Note de la plateforme reçu à …, remis à … » (pas « Message de l’agent
   principal »).
 
@@ -78,6 +81,8 @@ Au premier signalement critique, la mission est arrêtée avec la cause (code `t
 
 - répétition : « Boucle d’outils : X appelé N fois avec les mêmes arguments ; relancer autrement. »
 - va-et-vient : « Boucle d’outils : X et Y appelés en alternance N fois avec les mêmes arguments ; relancer autrement. »
+- va-et-vient d'un même outil : « Boucle d’outils : X appelé N fois en alternant deux jeux d’arguments ; relancer
+  autrement. »
 
 Une mission privée (career-ops) montre cette cause telle quelle (`careerFailureMessage`).
 

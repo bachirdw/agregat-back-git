@@ -6,6 +6,7 @@
 // synchrone. observe(update) ne lève jamais : le moteur l'appelle depuis onEvent.
 // Installé en packages/orchestrator/loop-guard.js : les deux imports ci-dessous sont relatifs à ce
 // dossier-là.
+import { createHash } from 'node:crypto';
 import { readToolCall } from './tool-call.js';
 import { CARNET_SERVER, MISSION_SERVER } from './delegation-rule.js';
 
@@ -75,16 +76,13 @@ export function deepSortKeys(val, enCours = new WeakSet(), profondeur = 0) {
  * (tool-loop-detection.ts:46-66, commentaire d'origine gardé tel quel : c'est le piège.)
  * Portage : la longueur de la chaîne s'ajoute à l'empreinte (deux arguments longs qui ne diffèrent
  * que par leur taille ne se confondent pas) ; aucun argument n'est gardé, seulement l'empreinte.
+ * Relecture : le hachage 32 bits de swarm, une boucle JavaScript caractère par caractère, coûtait
+ * environ 14 fois une sérialisation pour des arguments de 2 Mo, et observe() tourne à chaque mise à
+ * jour de l'agent ; un condensé natif (sha1) coûte autant qu'une sérialisation et se confond moins.
  */
 export function hashArgs(args) {
   const str = JSON.stringify(deepSortKeys(args)) ?? '';
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0; // Convert to 32bit integer
-  }
-  return `${hash.toString(36)}.${str.length.toString(36)}`;
+  return `${createHash('sha1').update(str).digest('base64')}.${str.length.toString(36)}`;
 }
 
 // Adaptation de isCodexFileChangeArgs (tool-loop-detection.ts:68-98). Chez swarm la règle nomme
@@ -164,7 +162,9 @@ export const RAISONS = Object.freeze({
   repetitionAvertissement: (outil, n) =>
     `L’outil « ${outil} » a été appelé ${n} fois avec les mêmes arguments. Envisage une autre approche.`,
   vaEtVientCritique: (outil, autre, n) =>
-    `Va-et-vient détecté : alternance entre « ${outil} » et « ${autre} » sur ${n} appels. Sors de ce schéma.`,
+    outil === autre
+      ? `Va-et-vient détecté : l’outil « ${outil} » alterne deux jeux d’arguments sur ${n} appels. Sors de ce schéma.`
+      : `Va-et-vient détecté : alternance entre « ${outil} » et « ${autre} » sur ${n} appels. Sors de ce schéma.`,
   vaEtVientAvertissement: () =>
     'Va-et-vient possible entre deux appels d’outil. Envisage une autre approche.',
 });
@@ -180,12 +180,19 @@ export const HOOK = Object.freeze({
 // Textes donnés à l'agent (mode avertir) et cause d'arrêt (mode arreter). Répétition : texte du
 // plan (section swarm-06), mot pour mot. Va-et-vient : texte fixé par le manager (le plan n'en
 // donne pas). Constantes de ce fichier, pas de delegation-rule.js (qui n'est pas à ce lot).
+// Relecture : un va-et-vient d'un même outil entre deux jeux d'arguments se dit pour un seul outil
+// (texte fixé par le manager), pas « les outils X et X ».
+const memeOutil = (boucle) => boucle?.motif === 'ping_pong' && boucle.outil === boucle.autre;
 export function texteAvertissement(boucle) {
+  if (memeOutil(boucle))
+    return `Note de la plateforme : l’outil ${boucle.outil} vient d’être appelé ${boucle.n} fois en alternant deux jeux d’arguments. Change d’approche, ou dis ce qui te bloque.`;
   if (boucle?.motif === 'ping_pong')
     return `Note de la plateforme : les outils ${boucle.outil} et ${boucle.autre} viennent d’être appelés en alternance ${boucle.n} fois avec les mêmes arguments. Change d’approche, ou dis ce qui te bloque.`;
   return `Note de la plateforme : l’outil ${boucle?.outil} vient d’être appelé ${boucle?.n} fois avec les mêmes arguments. Change d’approche, ou dis ce qui te bloque.`;
 }
 export function messageArret(boucle) {
+  if (memeOutil(boucle))
+    return `Boucle d’outils : ${boucle.outil} appelé ${boucle.n} fois en alternant deux jeux d’arguments ; relancer autrement.`;
   if (boucle?.motif === 'ping_pong')
     return `Boucle d’outils : ${boucle.outil} et ${boucle.autre} appelés en alternance ${boucle.n} fois avec les mêmes arguments ; relancer autrement.`;
   return `Boucle d’outils : ${boucle?.outil} appelé ${boucle?.n} fois avec les mêmes arguments ; relancer autrement.`;

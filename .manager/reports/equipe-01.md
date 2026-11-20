@@ -531,3 +531,37 @@ delegation-v2-01-b 12/12, review-delegation-v2-01 5/5, review-multi-agent-v3-01 
 career-integration 50/50, platform 11/11, owner-mode 14/14 : 0 échec. `npm run check` : « Syntaxe JavaScript
 valide. » `npx prettier --check` sur les fichiers touchés : conforme. Aucun agent réel, aucun port fixe, aucun
 réseau, aucun relevé réel des essais lu, pas de `npm test` complet. Bibliothèque et Skill career-ops intouchés.
+
+## Accolades en prose (cause réelle de E152) (20/11, 12:52 à 12:58)
+
+- **Repris** (commit 6fb4d80) : la correction B de `equipe-e152` (6f2ce3b), `packages/orchestrator/result.js`
+  appliqué tel quel par `git show 6f2ce3b -- packages/orchestrator/result.js | git apply` (« Applied patch …
+  cleanly », lignes ajoutées identiques à la source vérifiées par `diff`). Une réponse finale en prose dont les
+  accolades n'ouvrent rien qui ressemble à un objet (ni guillemet, ni clé suivie de `:`, ni fin du texte), dans un
+  texte qui ne commence pas par une accolade, passe par la reprise en texte libre (« non structurée ») au lieu de
+  « JSON invalide ». Doc : un paragraphe à la fin de la section 5.1 de `docs/api-delegation.md` (où b6850bd l'avait
+  mis), sans rien sur le tour de plus.
+- **Laissé** : la correction A (« tour de plus » quand le tour finit avec un sous-agent interne en arrière-plan,
+  0df4736 puis 76abe40), décision du manager : cas jamais observé en réel, défauts trouvés à la relecture. Aucune
+  fixture touchée (le faux agent a déjà `finalText`) ; aucune aide de A apportée.
+- **Tests** : fichier neuf `tests/equipe-accolades.test.js` (3 tests) : les deux formes réelles
+  (`fiches/{vitest,jest,node-test}.json`, « toutes les periode dans {mois, an, unique, semaine, jour} »), gabarit,
+  LaTeX, code sans objet → texte libre ; `{}` reste « hors contrat » ; contre-épreuves « JSON invalide » (texte
+  entier entre accolades dont `{mois, an, unique}`, réponse au contrat tronquée avec et sans bloc json, virgule
+  finale, clés sans guillemets, guillemets simples, accolade ouvrante en fin de texte, motif de chemin ou liste puis
+  réponse tronquée, bloc json illisible) ; réponse au contrat après un motif de chemin toujours prise. Bout en bout
+  (faux agent ACP, mission ordinaire du pack core, agent non simulé) : réponse en prose avec « dans {mois, an,
+  unique} » → `completed`, ce texte pour réponse, aucun `agent_output_rejected` ; la même prose suivie d'une réponse
+  tronquée → `failed`, « JSON invalide ».
+- **Contrôles négatifs** : le fichier lancé AVANT le changement de result.js : 3 tests, 1 vert, 2 rouges (unitaire :
+  « JSON invalide dans la réponse de l’agent » au lieu de « non structurée » ; bout en bout : `failed` au lieu de
+  `completed`, erreur « JSON invalide dans la réponse de l’agent : « Analyse FICTIVE … {mois, an, unique} … » »).
+  Les contre-épreuves étaient déjà vertes avant (comportement inchangé). Après : 3/3.
+- **Rejoués un par un** : equipe-accolades 3/3, agent-result 13/13, reponse-prose 6/6, question-mal-formee 14/14,
+  review-questions-18-11 14/14, workflow-run 18/18, elicitation 26/26, message-proprietaire 25/25,
+  career-integration 50/50, career-failure 11/11, generique-01 15/15, chef-01 16/16, multi-agent-v3-01-a 7/7,
+  delegation-v2-01-a 10/10, equipe-01-roles 17/17, equipe-01-continuer 6/6, equipe-01-carnet 12/12,
+  equipe-01-relecture 9/9, platform 11/11, owner-mode 14/14 : 0 échec. `npm run check` : « Syntaxe JavaScript
+  valide. » `npx prettier --check` sur les trois fichiers touchés : conforme (le fichier de test a d'abord été
+  signalé, reformaté par `prettier --write`, puis relancé : 3/3). Aucun agent réel, aucun port fixe, aucun réseau,
+  pas de `npm test` complet. Bibliothèque et Skill career-ops intouchés.

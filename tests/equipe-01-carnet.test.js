@@ -154,6 +154,9 @@ test('E3. le chef note, une sous-mission lancée ensuite reçoit la note ; outil
       'mission_continuer',
       'carnet_noter',
       'carnet_lire',
+      // swarm-15 : the lesson tools, lent with the notebook (D1).
+      'lecon_lire',
+      'lecon_utile',
     ],
   );
   const [first, second] = p.results();

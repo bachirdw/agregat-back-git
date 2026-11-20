@@ -14,9 +14,13 @@ leurs textes définitifs viennent au lot `swarm-15`. Aucun vecteur, aucune base,
 - `portee` : `^[a-z0-9][a-z0-9_-]{0,63}$` (aucun point, donc aucun `..`, aucune barre). `id` : `l-` suivi de 16
   chiffres hexadécimaux (longueur fixe, voir la citation). Une portée ou un identifiant hors de ces formes lève
   `Portée de leçon invalide` ou `Identifiant de leçon invalide` **avant toute lecture ou écriture**. Un dossier de
-  portée qui est un lien symbolique est refusé ; un fichier de leçon remplacé par un lien est ignoré.
-- Une lecture ne crée rien. Lecture bornée : 1 000 fichiers au plus par portée. Un fichier abîmé ou mal formé est
-  ignoré, jamais une exception.
+  portée qui est un lien symbolique ou un fichier se lit comme une portée vide (rien n'est suivi) et une écriture
+  y est refusée par une exception ; un fichier de leçon remplacé par un lien ou par un dossier est ignoré.
+- Une lecture ne crée rien, ni le dossier `dir` ni un dossier de portée (y compris `noterUtilite`, `promouvoir`,
+  `remplacer`, `supprimer` sur une leçon inconnue). Lecture bornée : 1 000 noms de fichiers au plus par portée (dans
+  l'ordre alphabétique). Un fichier abîmé ou mal formé (JSON cassé, vide, plus de 64 Kio, champ de la table
+  ci-dessous manquant ou mal typé, `expire` qui n'est ni `null` ni une date) est ignoré : jamais une exception,
+  jamais servi, jamais réécrit ni supprimé.
 - Les messages d'erreur sont fixes : aucun texte de leçon n'y est recopié.
 
 ## 2. Forme d'une leçon
@@ -46,7 +50,8 @@ Ordre (celui de swarm, `task-learning.ts:88-144`) :
    moins 80 caractères : ligne 1 le titre, ligne 2 la règle (Quand X, faire Y) ») ; `repete_resultat` (le texte, en
    minuscules et espaces resserrés, est contenu dans un champ texte de `memeAppel`, objet `{ progres, resultat }` ou
    simple chaîne) ;
-4. rejeu : même texte nettoyé et même `mission` qu'une leçon vivante → `{ statut: 'rejouee', id }`, rien n'est écrit ;
+4. rejeu : même texte nettoyé et même `mission` qu'une leçon vivante → `{ statut: 'rejouee', id }`, rien n'est écrit
+   (sans `mission`, pas de rejeu : le même texte devient une confirmation à l'étape 5) ;
 5. quasi-doublon : Jaccard sur les mots significatifs ≥ `SEUIL_QUASI_DOUBLON` avec une leçon vivante de la même
    portée → `{ statut: 'confirmee', id, similarite }` (arrondie à 3 décimales) : la leçon existante gagne 1 en
    `alpha`, `confirmee` augmente, sa fin de vie repart pour 30 jours (sauf leçon promue). Rien n'est supprimé, le

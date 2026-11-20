@@ -447,14 +447,33 @@ function champ(value) {
   return propre || undefined;
 }
 
+const nombre = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+const facultatif = (v, test) => v === undefined || test(v);
+const texteCourt = (v) => typeof v === 'string';
+
+// The shape `noter` writes. Anything else is a damaged file : ignored, never served, never
+// rewritten nor deleted (a damaged `expire` must not make a lesson immortal nor erase it).
 function valide(objet, portee, id) {
   return (
     objet !== null &&
     typeof objet === 'object' &&
+    !Array.isArray(objet) &&
     objet.id === id &&
     objet.portee === portee &&
     typeof objet.texte === 'string' &&
-    typeof objet.titre === 'string'
+    typeof objet.titre === 'string' &&
+    Array.isArray(objet.etiquettes) &&
+    objet.etiquettes.every(texteCourt) &&
+    nombre(objet.alpha) &&
+    nombre(objet.beta) &&
+    (objet.expire === null ||
+      (typeof objet.expire === 'string' && Number.isFinite(Date.parse(objet.expire)))) &&
+    ['confirmee', 'citee', 'utile', 'inutile'].every((k) => facultatif(objet[k], nombre)) &&
+    ['mission', 'auteur', 'origine', 'empreinte', 'date', 'resume'].every((k) =>
+      facultatif(objet[k], texteCourt),
+    ) &&
+    facultatif(objet.notes, Array.isArray) &&
+    facultatif(objet.remplacee, (v) => v === true || typeof v === 'string')
   );
 }
 
@@ -472,14 +491,21 @@ export class Lecons {
     return t;
   }
 
-  // Existing scope folder (symlinks refused by safeDirectory), or null when absent : a read never
-  // creates anything.
+  // Existing scope folder, or null when absent, a symlink or not a directory (safeDirectory checks
+  // every part of the path) : a read never creates anything and never follows a link. A write
+  // into such a scope is still refused by writeConfined.
   #dossier(portee) {
     if (!existsSync(join(this.dir, portee))) return null;
-    return safeDirectory(this.dir, portee);
+    try {
+      return safeDirectory(this.dir, portee);
+    } catch {
+      return null;
+    }
   }
 
   #lireFichier(portee, id) {
+    // readConfined would create a missing scope folder (safeDirectory) : check it first.
+    if (!this.#dossier(portee)) return null;
     try {
       const objet = JSON.parse(
         readConfined(this.dir, `${portee}/${id}.json`, OCTETS_MAX_FICHIER).toString('utf8'),

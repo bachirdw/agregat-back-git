@@ -396,3 +396,15 @@ Heures des agents : relevées à la minute par le manager à chaque rendu (appro
 **Vague 2 lancée à 00:50** : arbres `~/Downloads/agregat-back-swarm-05`, `-06`, `-07` créés depuis `e18ef06` ; trois copieurs
 Opus en parallèle. Le point d'arrêt conseillé par le plan après la vague 1 (essai réel « seul contre équipe » avec Claude
 et Codex) attend l'accord du propriétaire : non joué.
+- **01:03 : suite complète verte sur la tête intégrée `e18ef06`** (00:50 → 01:03) : 1 674 unitaires, 1 671 réussis, 0 échec,
+  2 ignorés, 1 « à faire » (le cas connu de `review2-lecture-18-11`) ; Chrome 265/265 ; `check` 0 ; `format:check` 0.
+  **Vague 1 terminée.** Rien de fusionné ailleurs, rien de poussé.
+- Vague 2, décisions du manager au lancement des codeurs (00:55 → 01:00) :
+  - swarm-07, **écart au plan** : `GET /api/runs` garde son comportement d'aujourd'hui (toutes les exécutions) ; la liste
+    sans sous-missions devient une option (`?racines=1`) au lieu du défaut. Raison (copieur) : l'interface d'aujourd'hui
+    lit les sous-missions dans cette liste (badge « À vous de répondre », consommation, alerte de limite). Le plan
+    l'aurait cassée jusqu'au lot swarm-11.
+  - swarm-06, **écart à swarm** : un va-et-vient exige une vraie alternance (A, B, A, B) ; chez swarm, 11 appels identiques
+    puis 1 différent comptaient pour un va-et-vient critique. Un signalement par motif et par niveau.
+  - swarm-05 : l'empreinte d'une part comprend aussi `verification`, `relit` et `apres` ; après un redémarrage, jamais de
+    refus (pas d'empreinte en mémoire) ; le renvoi de `docs/api-delegation.md` vers `docs/api-verdicts.md` lui est confié.

@@ -16,7 +16,15 @@ de départ).
   (`~/Downloads/agregat-back-swarm/.manager/plans/plan-swarm-20-11.md` et `lots-swarm-20-11.json`).
 - Dépôt du chantier : `~/Downloads/agregat-back-swarm`, branche **`swarm-20-11`** (partie de `e93f6c2`, tête de
   `equipe-20-11`). **Aucun code écrit**, rien de fusionné ni poussé.
-- À faire : **implémenter**, en partant de la vague 1 (swarm-01 à swarm-04 en parallèle, un arbre git par lot).
+- **État au 21/11, 01:05** : **vague 1 intégrée** (swarm-01 à swarm-04) dans `swarm-20-11`, tête `e18ef06` ; suite
+  complète verte dessus (1 674 unitaires, 1 671 réussis, 0 échec ; Chrome 265/265 ; `check` et `format:check` verts).
+  **Vague 2 en cours** (swarm-05, 06, 07) dans `~/Downloads/agregat-back-swarm-05`, `-06`, `-07` (partis de `e18ef06`).
+  Détail : `reports/journal-20-11.md` (bloc « Nuit du 20 au 21/11 »). Consigne des sous-agents :
+  `~/Downloads/agregat-back-swarm/.manager/briefs/swarm-agents.md`. Tests des lots :
+  `~/Downloads/agregat-back-swarm/.manager/outils/phase-unitaire.mjs <arbre>` (phase unitaire seule, deux à la fois au
+  plus ; `--suite` pour la suite complète, réservée au manager). Le lancement par workflow est refusé par l'application :
+  les sous-agents sont lancés un par un (outil Agent, Opus).
+- À faire : continuer vague par vague (vague 2, puis 3 : swarm-08 et l'interface swarm-09).
 - En attente du propriétaire : le lot swarm-17 (repli automatique sur un autre agent), les essais réels aux points
   d'arrêt, la réunion avec la branche de Codex.
 - Limite d'usage : la surveiller (`get_usage` avant chaque vague) ; aucune mission réelle sans accord.

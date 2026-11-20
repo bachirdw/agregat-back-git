@@ -122,6 +122,13 @@ const note = (texts) => (texts.some(Boolean) ? { note: texts.filter(Boolean).joi
 // again) ; ready ones first, then those to try again, then the others (stable order).
 const USABLE = { pret: 0, a_reessayer: 1 };
 const rank = (agent) => USABLE[agent.etat] ?? 2;
+// swarm-08 (relecture) : the models a probe announces, its well-formed entries only.
+const optionsOf = (probe) => {
+  const options = probe?.models?.options;
+  return Array.isArray(options)
+    ? options.filter((model) => model && typeof model === 'object')
+    : [];
+};
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
 export class Delegation {
@@ -1544,7 +1551,7 @@ export class Delegation {
   agentsNow() {
     const probes = this.probes();
     const now = this.now();
-    const list = (this.agentsCache?.list ?? []).map((agent) => {
+    const list = this.detected().map((agent) => {
       const { etat, raison, jusqua, modelesLimites } = agentState(agent, probes[agent.id], {
         now,
         live: !!this.engine.live,
@@ -1556,7 +1563,7 @@ export class Delegation {
         ...(raison ? { raison } : {}),
         ...(jusqua ? { jusqua } : {}),
         ...(agent.simulated ? { simule: true } : {}),
-        modeles: (probes[agent.id]?.models?.options ?? []).map((model) => ({
+        modeles: optionsOf(probes[agent.id]).map((model) => ({
           id: model.id,
           nom: model.name ?? model.id,
           ...(modelesLimites?.[model.id] ? { limiteJusqua: modelesLimites[model.id] } : {}),
@@ -1568,6 +1575,13 @@ export class Delegation {
       .map((agent, index) => ({ agent, index }))
       .sort((x, y) => rank(x.agent) - rank(y.agent) || x.index - y.index)
       .map(({ agent }) => agent);
+  }
+  // swarm-08 (relecture) : the detected agents of the cache, its well-formed entries only.
+  detected() {
+    const list = this.agentsCache?.list;
+    return Array.isArray(list)
+      ? list.filter((agent) => agent && typeof agent === 'object' && typeof agent.id === 'string')
+      : [];
   }
   // swarm-08 : the probes file, never an error (a missing data folder reads as no probe).
   probes() {
@@ -1584,18 +1598,23 @@ export class Delegation {
   // swarm-08 : why an agent (and the model asked) cannot work now, or null : its limit, its session
   // refused less than 10 minutes ago, or the limit of that model. Seen in the cache when the agent was
   // detected ; otherwise (nothing detected yet, or an agent the cache does not know) on its probes
-  // only : an agent without a probe is ready. Synchronous.
+  // only : an agent without a probe is ready. Synchronous. swarm-08 (relecture) : an unexpected
+  // error lets the launch through (null).
   unavailable(agentId, modele) {
-    const known = this.agentsCache?.list?.find((agent) => agent.id === agentId);
-    const state = agentState(
-      known ?? { id: agentId, installed: true, compatible: true },
-      this.probes()[agentId],
-      { now: this.now(), live: known ? !!this.engine.live : true },
-    );
-    if (state.etat === 'limite' || state.etat === 'connexion_refusee')
-      return { raison: state.raison };
-    const limit = modele ? state.modelesLimites?.[modele] : null;
-    return limit ? { raison: modelLimitReason(limitReason(limit), modele) } : null;
+    try {
+      const known = this.detected().find((agent) => agent.id === agentId);
+      const state = agentState(
+        known ?? { id: agentId, installed: true, compatible: true },
+        this.probes()[agentId],
+        { now: this.now(), live: known ? !!this.engine.live : true },
+      );
+      if (state.etat === 'limite' || state.etat === 'connexion_refusee')
+        return { raison: state.raison };
+      const limit = modele ? state.modelesLimites?.[modele] : null;
+      return limit ? { raison: modelLimitReason(limitReason(limit), modele) } : null;
+    } catch {
+      return null;
+    }
   }
   // swarm-08 : the ready agents of the cache (ids), the order of mission_suivre.
   readyAgents() {

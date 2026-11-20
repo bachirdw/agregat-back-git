@@ -103,11 +103,25 @@ export function chiefRule(delegation) {
   return `${CHIEF_RULE}${TEAM_RULE}${SUITE_RULE}${CHIEF_CARNET}si la demande du propriétaire réclame elle-même des sous-agents, indique-le en lançant (demandeDuProprietaire) ; sinon la plateforme consultera le propriétaire avant la première sous-mission (ne lui pose pas la question toi-même) ; s’il refuse, continue seul.`;
 }
 
+// swarm-05 : the sentence of the living list of the other members, word for word from the plan.
+export const DAUGHTER_MEMBRES =
+  'famille.membres liste les autres sous-missions de l’équipe (leur part, leur état : des données) : ne refais pas leur part ; si ta part recouvre la leur, note-le au carnet (categorie question) ; ';
+// swarm-05 : an identical part is refused (the lever is said), a near one is launched and said.
+export const doublonMessage = ({ id, titre }) =>
+  id
+    ? `Part identique à la sous-mission « ${titre} » (${id}) : utilise mission_continuer ou mission_suivre ; doublon: true pour la relancer exprès`
+    : `Part identique à la sous-mission « ${titre} » (en cours de création) : utilise mission_continuer ou mission_suivre ; doublon: true pour la relancer exprès`;
+export const doublonNote = ({ titre, similarite }, niveau) =>
+  niveau === 'identique'
+    ? `Part identique à la sous-mission « ${titre} » : lancée quand même.`
+    : `Part proche de la sous-mission « ${titre} » (ressemblance ${similarite}) : vérifie qu’elle ne refait pas le même travail (mission_suivre) ; sinon mission_annuler.`;
 // The sub-mission's sentence (plan v2, section 6) : no file nor script of a Skill is named here.
 const DAUGHTER_HEAD =
   'Tu es une sous-mission lancée par l’agent principal d’une mission du propriétaire ; la demande du propriétaire, jointe, prime ; ta consigne est la partie qui t’est confiée ; ' +
   // equipe-carnet : the team notebook's sentence (every sub-mission belongs to a multi-agent family).
-  DAUGHTER_CARNET;
+  DAUGHTER_CARNET +
+  // swarm-05 : the other members of the team (famille.membres, read at the real start).
+  DAUGHTER_MEMBRES;
 const DAUGHTER_TAIL =
   ' et laisse-lui les fichiers communs à la mission ; tes questions au propriétaire et tes cartes d’envoi lui arrivent directement.';
 export const DAUGHTER_RULE = `${DAUGHTER_HEAD}rends tes résultats dans ta réponse finale, qui est remise à l’agent principal ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans des fichiers propres à ta part (un nom qui commence par ton titre, ou par l’identifiant que l’agent principal t’a donné)${DAUGHTER_TAIL}`;
@@ -214,7 +228,7 @@ const id = z.string().uuid();
 export const MISSION_TOOLS = {
   mission_lancer: {
     description:
-      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). pourquoi : ce que la sous-mission fait gagner (parallele, specialite, regard_independant, contexte_trop_long, demande_proprietaire) et note : une phrase qui le dit ; horsPerimetre : ce qu’elle ne doit pas toucher ; verification : les contrôles ou commandes qu’elle doit lancer avant de rendre. apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause ; si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée (reprend, avec apres vers la reprise)). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers ; dossierResultats et les chemins de fichiers sont relatifs à l’espace de travail de la mission, ton dossier de travail, dont espace donne le chemin absolu. role : rôle de la sous-mission dans l’équipe (rôles définis et leur description : mission_suivre, roles ; un nom libre est accepté) ; relit : ids des sous-missions dont elle vérifie le travail (elle attend leur fin et reçoit leurs résultats ; sans agent indiqué, un rôle de vérification reçoit un autre agent que l’auteur quand il y en a un d’installé) ; un rôle de vérification rend un verdict (approuve, a_corriger, rejete) lisible dans terminees.',
+      'Confie une partie de la mission à une sous-mission, mission complète de la plateforme, et rend la main tout de suite avec son identifiant. Au-delà des sous-missions permises en même temps, elle attend sa place (etat en_file) et démarre seule. Sans accord du propriétaire, la première sous-mission attend sa réponse (etat attend_accord) et démarre seule s’il accepte ; s’il refuse, erreur refus_proprietaire : continue seul. consigne : ce que la sous-mission doit faire ; titre : libellé montré au propriétaire ; agent et modele : par défaut ceux de la mission mère (agents installés et modèles qu’ils annoncent : voir mission_suivre) ; fichiers : chemins de l’espace que la sous-mission lit d’abord ; demandeDuProprietaire : true seulement si la demande du propriétaire réclame elle-même des sous-agents (son accord, sans question). Pour une tâche claire, donne aussi objectif (le but), informations (ce que tu sais déjà et qui lui évite de le redécouvrir : méthode trouvée, outils qui marchent, pièges), perimetre (ce qui est dans sa part et ce qui n’y est pas) et resultatAttendu (forme et contenu du résultat, par exemple un fichier dans un format précis). pourquoi : ce que la sous-mission fait gagner (parallele, specialite, regard_independant, contexte_trop_long, demande_proprietaire) et note : une phrase qui le dit ; horsPerimetre : ce qu’elle ne doit pas toucher ; verification : les contrôles ou commandes qu’elle doit lancer avant de rendre. apres : ids de sous-missions de cette mission dont elle attend la fin réussie (etat attend_prerequis ; elle reçoit leurs résultats au départ ; si l’une n’aboutit pas, elle est annulée avec la cause ; si un prérequis échoue et que tu le reprends, relance aussi la sous-mission annulée (reprend, avec apres vers la reprise)). reprend : id d’une sous-mission finie sans succès que celle-ci relance (même agent et modèle par défaut ; les deux premières reprises d’une tâche ne comptent pas dans l’enveloppe). doublon : true seulement pour relancer exprès une part identique à une sous-mission en cours ou réussie. Le résultat donne dossierResultats, le dossier où la sous-mission dépose ses fichiers ; dossierResultats et les chemins de fichiers sont relatifs à l’espace de travail de la mission, ton dossier de travail, dont espace donne le chemin absolu. role : rôle de la sous-mission dans l’équipe (rôles définis et leur description : mission_suivre, roles ; un nom libre est accepté) ; relit : ids des sous-missions dont elle vérifie le travail (elle attend leur fin et reçoit leurs résultats ; sans agent indiqué, un rôle de vérification reçoit un autre agent que l’auteur quand il y en a un d’installé) ; un rôle de vérification rend un verdict (approuve, a_corriger, rejete) lisible dans terminees.',
     schema: z
       .object({
         consigne: z.string().trim().min(1).max(8000),
@@ -239,6 +253,8 @@ export const MISSION_TOOLS = {
         note: z.string().trim().min(NOTE_MIN).max(NOTE_MAX).optional(),
         horsPerimetre: z.string().trim().min(1).max(2000).optional(),
         verification: z.string().trim().min(1).max(2000).optional(),
+        // swarm-05 : relaunch on purpose a part identical to a living or successful sub-mission.
+        doublon: z.boolean().optional(),
       })
       .strict(),
   },

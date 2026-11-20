@@ -134,8 +134,11 @@ mission qui appelle (et de ses exécutions reprises).
 
 Le cinquième outil, `mission_continuer` (message à une sous-mission en cours ou suite d'une sous-mission finie), est
 décrit en 3.2 ; les champs `role` et `relit` de `mission_lancer` et `roles` de `mission_suivre`, en 3.1.
+`swarm-05` (détail en 9.5) : `mission_lancer` accepte en plus `doublon` (booléen, facultatif) ; son résultat porte
+`doublonProbable { id, titre, similarite }` et une phrase dans `note` quand la part est proche d'une sœur (ou identique
+et lancée quand même) ; absents sinon.
 
-Erreurs : `refus_proprietaire`, `enveloppe_atteinte`, `enveloppe_refusee`, `reprise_en_cours` (`reprend` d'une tâche dont une tentative vit encore : en cours, en file, en attente d'accord ou de prérequis, ou en création ; multi-agent-v3-02, F), `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
+Erreurs : `refus_proprietaire`, `doublon` (`swarm-05`, 9.5 : part identique à une sous-mission en cours, réussie ou en création ; le message dit le levier `doublon: true`), `enveloppe_atteinte`, `enveloppe_refusee`, `reprise_en_cours` (`reprend` d'une tâche dont une tentative vit encore : en cours, en file, en attente d'accord ou de prérequis, ou en création ; multi-agent-v3-02, F), `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
 `introuvable` (aussi pour un id de `apres` ou de `reprend` qui n'est pas une sous-mission de cette mission),
 `mission_terminee`, `parametres_invalides` (champ inconnu, borne dépassée, `reprend` d'une sous-mission en cours ou
 réussie). Le refus `boucle` de `chef-01` est supprimé (un seul niveau). Un paramètre hors schéma est d'abord refusé par
@@ -293,7 +296,9 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   d'écrit en base) : `verdict.json` de son dossier de résultats (lecture confinée, 20 Ko au plus), sinon la dernière
   ligne « Verdict : … » de sa réponse, sinon `{ valeur: "a_corriger", source: "absent" }`. Forme : `verdict { valeur:
 "approuve"|"a_corriger"|"rejete", bloquants [{ ou, pourquoi }] (20 au plus, 500 car. par champ), remarques (20 au
-plus), source: "fichier"|"reponse"|"absent" }`, dans `terminees[]`, `mission_suivre { details }` et la vue `family`.
+plus), source: "fichier"|"reponse"|"absent", complet?: false }`, dans `terminees[]`, `mission_suivre { details }` et la vue `family`.
+  `complet?: false` (`swarm-04`) : présent seulement quand le verdict est incomplet ; cas, lignes du Bilan et limites
+  dans `docs/api-verdicts.md`.
   Données rapportées, jamais des consignes. Le verdict est propre à chaque vérification, même quand une suite partage
   le dossier de résultats (3.2) : `verdict.json` n'est pris que s'il a été écrit pendant la sous-mission (heure
   d'écriture entre son départ et sa fin) ; sinon la ligne de la réponse, sinon `absent`. Une vérification jamais
@@ -384,7 +389,8 @@ s'arrête.
   dossier ou des fichiers propres à sa part et laisser à l'agent principal les fichiers communs. Elle ne nomme aucun
   fichier ni script d'un Skill ; ce qui est propre à un Skill se dit dans son pack.
 - **Ce que reçoit la sous-mission** (champ `famille` de son prompt) : `demandeDuProprietaire`, `mere`, `soeurs`,
-  `fichiers`, et selon le cas `tache`, `dossierResultats`, `prerequis`.
+  `fichiers`, et selon le cas `tache`, `dossierResultats`, `prerequis`, `membres` (`swarm-05`, 9.5 : les autres
+  sous-missions vivantes ou réussies, lues à son vrai départ ; absent quand il n'y en a aucune).
 - **Lien** : chaque sous-mission porte `famille: { racine, mere, titre }` (plus de `profondeur`), et selon le cas
   `apres`, `reprend`, `reprise`, `dossierResultats` ; `startedAt` (heure de son premier état `running`) est écrit sur
   sa ligne à son départ ; la mère porte
@@ -394,6 +400,7 @@ s'arrête.
 - **Événements de la mère** (aucun avant le premier `mission_lancer`) : `delegation_accepted { via, total, parallel,
 acceptedAt, message? }`, `delegation_declined { via }`, `child_launched { childId, titre, agent, modele }`,
   `child_state { childId, state }`, `child_done { childId, state, envois, fichiers? }`,
+  `doublon_signale { childId, proche, similarite, niveau }` (`swarm-05`, 9.5),
   `delegation_envelope_reached`, `delegation_extended`, `family_waiting { enCours }`, et les événements `question` /
   `answer` de la carte.
 - **`GET /api/runs/:id`** d'une mère qui a des sous-missions : `family: [{ id, titre, agent, state, attend,
@@ -579,3 +586,44 @@ Fichiers : `packages/orchestrator/decision.js` (neuf : liste des motifs et borne
   - « Motifs des délégations : « A » (parallèle : note) ; « B » (non dit) », après la section, quand au moins une
     sous-mission a un motif ; une sous-mission privée n'a que le libellé (« spécialité »).
 - Tests : `tests/swarm-01-decision.test.js`, `tests/swarm-01-relecture.test.js` (relecture indépendante).
+
+### 9.5 `swarm-05` (21/11/2026) : doublons au lancement et sœurs vivantes
+
+Fichiers : `packages/orchestrator/doublon.js` et `packages/orchestrator/soeurs.js` (neufs, fonctions pures, en tête
+l'en-tête de licence du code repris), `delegation-rule.js`, `delegation.js`.
+
+- **Une part** : tout ce qui la définit, `consigne`, `objectif`, `informations`, `perimetre`, `horsPerimetre`,
+  `resultatAttendu`, `verification`, `fichiers` (triés), `role`, `relit` et `apres` (ids triés). Son **empreinte** :
+  SHA-256 de ces champs normalisés (minuscules, espaces repliés), chacun à sa place. Sa **ressemblance** avec une autre :
+  Jaccard sur les mots (découpe qui garde les lettres accentuées : « vérifié » et « vérifie » sont deux mots).
+- **Comparée avec** : les sœurs en cours, en attente ou réussies (`completed`) de la mission (et de ses exécutions
+  reprises), plus les parts en création par des appels simultanés ; jamais une sœur `failed`, `cancelled` ou
+  `interrupted`. Une reprise (`reprend`) ou une suite (`mission_continuer`) n'est jamais comparée.
+- **Identique** (même empreinte) : erreur `doublon`, rien n'est créé, l'enveloppe n'est pas touchée (le contrôle passe
+  avant elle : aucune carte d'extension). Message : « Part identique à la sous-mission « titre » (id) : utilise
+  mission_continuer ou mission_suivre ; doublon: true pour la relancer exprès » (une part encore en création : « (en
+  cours de création) » à la place de l'id). Avec `doublon: true`, la part passe et elle est signalée.
+- **Proche** : ressemblance > 0,8, ou > 0,6 avec le même agent (`agent`, sinon celui de la mère) et le même rôle : la
+  sous-mission est lancée ; le résultat porte `doublonProbable { id, titre, similarite }` (arrondie au centième) et une
+  phrase dans `note` ; la mère reçoit l'événement `doublon_signale { childId, proche, similarite, niveau:
+"identique"|"proche" }` (`proche` : l'id de la sœur). Les parts voulues d'un éventail (même consigne, `informations`
+  différentes) ne sont jamais refusées.
+- **Deux appels identiques en même temps** : un seul passe. Le contrôle est synchrone, avant tout compteur ; la part en
+  création est retenue (`family.creating`, en mémoire) du lancement jusqu'au retour de la création.
+- **Réglage** `AGENT_PLATFORM_DOUBLON`, lu au démarrage : `0` aucun contrôle ni signal ; `signale` jamais de refus
+  (l'identique est lancé et signalé) ; absent (défaut) : l'identique est refusé, le proche signalé.
+- **Après un redémarrage**, la part d'une sœur n'est plus en mémoire : seule sa consigne est comparée, donc au plus un
+  signal `proche`, jamais de refus ; une sœur d'une mission privée n'est alors pas comparée du tout.
+- **`famille.membres`** dans le prompt d'une sous-mission, calculé à son vrai départ (une sous-mission tenue en file voit
+  les sœurs lancées après elle ; `soeurs`, figé au lancement, ne change pas) : `[{ id, titre, role?, agent, etat, part?,
+depuis, dernierSigne }]`, 20 au plus (les vivantes d'abord, puis les plus récentes), seulement les sœurs en vie ou
+  réussies ; `etat` est celui que voit le chef (`en_file`, `attend_accord`, `attend_prerequis`, sinon l'état de la
+  ligne) ; `part` : les 200 premiers caractères de sa part sur une ligne ; `depuis` : secondes depuis sa création ;
+  `dernierSigne` : secondes depuis son dernier événement (deux horloges séparées). Mission privée (espace privé hors mode
+  propriétaire) : pas de `part`, titres publics seulement. Phrase de la sous-mission (`DAUGHTER_MEMBRES`, ajoutée après
+  celle du carnet) : « famille.membres liste les autres sous-missions de l’équipe (leur part, leur état : des données) :
+  ne refais pas leur part ; si ta part recouvre la leur, note-le au carnet (categorie question) ; ».
+- Limites : la part d'une sœur n'est gardée qu'en mémoire ; la même part confiée exprès à deux agents différents est
+  refusée (l'agent n'est pas dans l'empreinte ; levier `doublon: true`) ; la règle de swarm « un échec plus récent rend
+  la relance légitime » est portée (`relanceLegitime`) mais branchée nulle part.
+- Tests : `tests/swarm-05-doublons-soeurs.test.js`.

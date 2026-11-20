@@ -43,6 +43,9 @@ import { continueChild, precedentOf, suiteTitle } from './continuation.js';
 // equipe-carnet : the team notebook (packages/orchestrator/carnet.js).
 import { Carnet } from './carnet.js';
 import { CARNET_TOOLS } from './delegation-rule.js';
+// swarm-05 : doublons at launch and the living list of the other members.
+import { partDe, trouverDoublon } from './doublon.js';
+import { membres } from './soeurs.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
@@ -58,6 +61,8 @@ import {
   SYNTHESIS_TURN,
   chiefRule,
   consentLine,
+  doublonMessage,
+  doublonNote,
   consentMessage,
   daughterRule,
   envelopeReached,
@@ -117,6 +122,9 @@ export class Delegation {
     this.agentsCache = null;
     // Read at start, as the other AGENT_PLATFORM_* settings : 0 withdraws tools and sentence.
     this.lent = process.env.AGENT_PLATFORM_DELEGATION !== '0';
+    // swarm-05 : AGENT_PLATFORM_DOUBLON : 0 (no check), signale (never a refusal), otherwise the
+    // identical part is refused and the near one is said.
+    this.doublon = { 0: 'off', signale: 'signale' }[process.env.AGENT_PLATFORM_DOUBLON] ?? 'refuse';
     this.carnet = new Carnet(this); // equipe-carnet
   }
   get store() {
@@ -225,6 +233,7 @@ export class Delegation {
     const { apres, dossierResultats, relit } = run.famille;
     // equipe-01 (E2) : a suite gets the attempt it continues (data).
     const previous = run.famille.continue ? this.store.get(run.famille.continue) : null;
+    const members = mother ? this.membersOf(run, mother) : [];
     return {
       fields: {
         famille: {
@@ -245,6 +254,8 @@ export class Delegation {
           demandeDuProprietaire: mother ? this.engine.turnObjective(mother) : null,
           mere: run.famille.mere,
           soeurs: brief.soeurs ?? [],
+          // swarm-05 : the other members as they are now (absent when there is nobody).
+          ...(members.length ? { membres: members } : {}),
           fichiers: brief.fichiers ?? [],
           // multi-agent-v3-01 (D8, D9, D3) : the structured task, the results folder, and the
           // results of its prerequisites (data, read only for a sub-mission that has some).
@@ -913,6 +924,13 @@ export class Delegation {
       (!terminal.has(previous.state) || previous.state === 'completed')
     )
       throw fail('parametres_invalides', 'reprend — une sous-mission finie sans succès');
+    // swarm-05 : the same part is not launched twice (never a resumption nor a suite) : synchronous,
+    // before the envelope (no extension card for a doublon) and before any counter below.
+    const part = partDe(args, args.agent ?? mother.agent);
+    const checked = !previous && this.doublon !== 'off';
+    const double = checked ? trouverDoublon(part, this.partsOf(children, family, mother)) : null;
+    if (double?.niveau === 'identique' && args.doublon !== true && this.doublon === 'refuse')
+      throw fail('doublon', doublonMessage(double));
     const taskOf = (child) => {
       const before = (c) => c.famille?.reprend ?? c.famille?.continue;
       for (let n = 0; sisters.has(before(child)) && n < 200; n++)
@@ -1025,6 +1043,7 @@ export class Delegation {
     control.mere = true;
     if (!mother.estMere) this.store.update(mother.id, { estMere: true });
     family.pending++;
+    if (checked) this.creating(family, part.empreinte, titre, 1); // swarm-05
     if (taskId) family.resuming.set(taskId, (family.resuming.get(taskId) ?? 0) + 1);
     if (!free) family.pendingCounted++;
     let run;
@@ -1062,6 +1081,7 @@ export class Delegation {
       throw fail('erreur', message);
     } finally {
       family.pending--;
+      if (checked) this.creating(family, part.empreinte, titre, -1); // swarm-05
       if (taskId) {
         const left = family.resuming.get(taskId) - 1;
         if (left > 0) family.resuming.set(taskId, left);
@@ -1088,6 +1108,8 @@ export class Delegation {
     this.briefs.set(run.id, {
       fichiers,
       soeurs,
+      // swarm-05 : the part as compared (memory only : gone after a restart).
+      part,
       ...(Object.keys(tache).length ? { tache } : {}),
       ...(team
         ? {
@@ -1113,6 +1135,19 @@ export class Delegation {
       modele,
       ...(args.pourquoi ? { pourquoi: args.pourquoi } : {}),
     });
+    // swarm-05 : a near part (or an identical one let through) is said on the mother's thread.
+    const doublonProbable = double && {
+      id: double.id ?? null,
+      titre: double.titre,
+      similarite: Math.round(double.similarite * 100) / 100,
+    };
+    if (double)
+      this.store.event(mother.id, 'doublon_signale', {
+        childId: run.id,
+        proche: doublonProbable.id,
+        similarite: doublonProbable.similarite,
+        niveau: double.niveau,
+      });
     const consent = this.consent(this.store.get(mother.id));
     // Refused while this one was being created : it never starts.
     if (consent === false) {
@@ -1133,11 +1168,76 @@ export class Delegation {
       modele,
       ...(folder ? { dossierResultats: folder, espace: resolve(mother.cwd) } : {}),
       famille: this.counter(mother),
+      ...(doublonProbable ? { doublonProbable } : {}),
       ...note([
         etat === 'attend_accord' && CONSENT_PENDING_NOTE,
         installed && !reviewer && SAME_AGENT_NOTE,
+        doublonProbable && doublonNote(doublonProbable, double.niveau),
       ]),
     };
+  }
+  // swarm-05 : the parts a new launch is compared with : the sisters (their part kept in memory at
+  // their launch ; after a restart, their consigne only, so never `identique`, and nothing for a
+  // private mission, whose consigne in the database is generic), plus the identical parts being
+  // created by simultaneous calls (family.creating, no id yet).
+  partsOf(children, family, mother) {
+    const prive = !!mother.workspace && !this.engine.ownerMode;
+    const parts = [];
+    for (const child of children) {
+      const kept = this.briefs.get(child.id)?.part;
+      if (!kept && prive) continue;
+      parts.push({
+        id: child.id,
+        titre: child.famille?.titre ?? child.id,
+        agent: child.agent ?? null,
+        role: kept ? kept.role : (child.famille?.role ?? null),
+        etat: this.heldState(child.id) ?? child.state,
+        texte: kept ? kept.texte : (this.engine.turnObjective?.(child) ?? ''),
+        ...(kept ? { empreinte: kept.empreinte } : {}),
+      });
+    }
+    for (const [empreinte, { titre }] of family.creating ?? [])
+      parts.push({
+        id: null,
+        titre,
+        agent: null,
+        role: null,
+        etat: 'creation',
+        texte: '',
+        empreinte,
+      });
+    return parts;
+  }
+  // swarm-05 : one more (or one less) identical part being created ; the entry goes at zero.
+  creating(family, empreinte, titre, step) {
+    family.creating ??= new Map();
+    const n = (family.creating.get(empreinte)?.n ?? 0) + step;
+    if (n > 0)
+      family.creating.set(empreinte, { n, titre: family.creating.get(empreinte)?.titre ?? titre });
+    else family.creating.delete(empreinte);
+  }
+  // swarm-05 : famille.membres, the other members as they are at the start of a sub-mission : living
+  // or successful, 20 at most, their part cut at 200 characters (none for a private mission).
+  membersOf(run, mother) {
+    const prive = !!mother.workspace && !this.engine.ownerMode;
+    const rows = this.childrenOf(mother)
+      .filter((child) => child.id !== run.id)
+      .map((child) => {
+        const kept = this.briefs.get(child.id)?.part;
+        return {
+          id: child.id,
+          titre: child.famille?.titre ?? child.id,
+          ...(child.famille?.role ? { role: child.famille.role } : {}),
+          agent: child.agent ?? null,
+          etat: this.heldState(child.id) ?? child.state,
+          ...(prive
+            ? {}
+            : { texte: kept ? kept.texte : (this.engine.turnObjective?.(child) ?? '') }),
+          creeLe: child.createdAt,
+          dernierSigneLe: this.store.events?.(child.id)?.at(-1)?.at,
+        };
+      });
+    return membres(rows, { now: Date.now(), prive });
   }
   // equipe-01 (E1) : the roles of a mission (platform's, then its pack's (E5), then its
   // workspace's) ; a file not read as a role is said once on the mother (`role_ignore`).

@@ -52,6 +52,15 @@ import { RESULT_TOOLS } from './delegation-rule.js';
 // swarm-05 : doublons at launch and the living list of the other members.
 import { partDe, trouverDoublon } from './doublon.js';
 import { membres } from './soeurs.js';
+// swarm-12 : the count per task, the dependants cancelled by a failure, the chief's messages never
+// delivered, the short reminder of the owner's request (packages/orchestrator/taches.js).
+import {
+  MESSAGE_NON_REMIS,
+  agregat,
+  demandeCourte,
+  dependantesAnnulees,
+  messagesDuChef,
+} from './taches.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
@@ -133,6 +142,14 @@ const optionsOf = (probe) => {
     : [];
 };
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
+// swarm-12 : a new field of a result never makes it fail : on an unexpected error it is absent.
+const sur = (fn) => {
+  try {
+    return fn();
+  } catch {
+    return null;
+  }
+};
 
 export class Delegation {
   constructor(engine) {
@@ -332,6 +349,8 @@ export class Delegation {
             nature: 'données rapportées par les sous-missions',
             terminees: given.map((child) => this.deliver(family, this.store.get(child.id))),
             ...this.carnet.forChief(mother), // equipe-carnet
+            // swarm-12 : the count per task and the owner's request (each absent when unknown).
+            ...this.retoursSynthese(mother),
           },
           instructions: SYNTHESIS_TURN,
         };
@@ -1509,6 +1528,11 @@ export class Delegation {
       // swarm-01 : the motive, when the chief gave one.
       ...(child.famille?.pourquoi ? { pourquoi: child.famille.pourquoi } : {}),
       ...(child.famille?.motif ? { motif: child.famille.motif } : {}),
+      // swarm-12 : the last report of the loop guard (swarm-06), only when there is one.
+      ...(sur(() => {
+        const dernier = this.engine.active.get(child.id)?.loop?.dernier;
+        return dernier ? { boucle: dernier } : null;
+      }) ?? {}),
     };
   }
   // swarm-08 : { classe, jusqua?, agentsPrets } of a classed failure of the agent, else {}.
@@ -1547,6 +1571,74 @@ export class Delegation {
       cause,
       ...(this.verdictOf(child) ? { verdict: this.verdictOf(child) } : {}),
       ...(resultat ? { resultat } : {}),
+      ...this.retoursFin(child), // swarm-12
+    };
+  }
+  // swarm-12 : what a finished sub-mission's result gains (each field absent when empty) : the
+  // sisters cancelled because it was their prerequisite (not for a completed one), and the chief's
+  // messages that never reached it.
+  retoursFin(child) {
+    const dependantes =
+      child.state === 'completed'
+        ? null
+        : sur(() => {
+            const mother = this.store.get(child.famille?.mere);
+            return mother ? dependantesAnnulees(child, this.childrenOf(mother)) : null;
+          });
+    const messages = sur(() =>
+      messagesDuChef(this.store.events(child.id)).map((m) => ({ ...m, note: MESSAGE_NON_REMIS })),
+    );
+    return {
+      ...(dependantes?.length ? { dependantesAnnulees: dependantes } : {}),
+      ...(messages?.length ? { messagesDuChef: messages } : {}),
+    };
+  }
+  // swarm-12 : the count per task of the whole family, on the same rows as the Bilan's « Par
+  // tâche (dernière tentative) » line (without the sub-missions refused by the owner, a held one
+  // `queued`). Null on an unexpected error.
+  agregatOf(mother) {
+    return sur(() =>
+      agregat(
+        this.childrenOf(mother)
+          .filter((child) => child.error !== REFUSED_CHILD)
+          .map((child) => (this.held(child.id) ? { ...child, state: 'queued' } : child)),
+      ),
+    );
+  }
+  // swarm-12 : the owner's request cut to 300 characters, null for a private mission : either rule
+  // of the code says it (`privateTitle` of launch(), `box.private` of the owner's messages).
+  demandeOf(mother) {
+    return sur(() => {
+      const prive = !this.engine.ownerMode && (!!mother.workspace || mother.pack === 'career-ops');
+      return demandeCourte(prive ? null : this.engine.turnObjective(mother), { prive });
+    });
+  }
+  // swarm-12 : what mission_attendre gains : `agregat` when `toutes` and nothing runs any more in
+  // the whole family ; `rappel { demande, enCours }` (enCours : the number of living
+  // sub-missions), absent when there is nothing to say.
+  retoursAttente(mother, toutes) {
+    const calme =
+      !!toutes &&
+      sur(() =>
+        this.childrenOf(mother).every((child) => terminal.has(child.state) && !this.held(child.id)),
+      );
+    const agregatFamille = calme ? this.agregatOf(mother) : null;
+    const demande = this.demandeOf(mother);
+    const vivantes = sur(() => this.living(mother).length) ?? 0;
+    return {
+      ...(agregatFamille ? { agregat: agregatFamille } : {}),
+      ...(demande || vivantes
+        ? { rappel: { ...(demande ? { demande } : {}), enCours: vivantes } }
+        : {}),
+    };
+  }
+  // swarm-12 : what the synthesis turn's familyResults gains.
+  retoursSynthese(mother) {
+    const agregatFamille = this.agregatOf(mother);
+    const demande = this.demandeOf(mother);
+    return {
+      ...(agregatFamille ? { agregat: agregatFamille } : {}),
+      ...(demande ? { demande } : {}),
     };
   }
   // The agents installed, with the models each announced at its last session on this machine :
@@ -1727,6 +1819,7 @@ export class Delegation {
       delaiAtteint: reached,
       ...this.space(mother, children),
       nature: 'données rapportées par les sous-missions',
+      ...this.retoursAttente(mother, toutes), // swarm-12
     };
   }
   async cancelChild(mother, { id, raison }) {

@@ -164,6 +164,11 @@ export function otherAgent(agents, authors, { live = false, probes = {} } = {}) 
 }
 
 const clip = (value) => String(value ?? '').slice(0, MAX_FIELD);
+// swarm-04 : a verdict that asks for a change without saying what (no blocking point with a
+// non-blank `pourquoi`), or no verdict at all, is marked `complet: false` ; a complete verdict keeps
+// its exact shape (no `complet` key). The three public values do not change.
+const IMPRECISE = new Set(['a_corriger', 'rejete']);
+const incomplete = (verdict) => ({ ...verdict, complet: false });
 // A verdict as reported by the sub-mission (data, never instructions) : bounded, or null when its
 // value is not one of the three.
 export function normalizeVerdict(raw, source) {
@@ -179,7 +184,10 @@ export function normalizeVerdict(raw, source) {
   const remarques = (Array.isArray(raw.remarques) ? raw.remarques : [])
     .slice(0, MAX_ITEMS)
     .map(clip);
-  return { valeur, bloquants, remarques, source };
+  const verdict = { valeur, bloquants, remarques, source };
+  return IMPRECISE.has(valeur) && !bloquants.some((item) => item.pourquoi.trim())
+    ? incomplete(verdict)
+    : verdict;
 }
 
 const ANSWER_LINE =
@@ -205,12 +213,27 @@ export function readVerdict({ cwd, folder, answer, since = null, until = null })
     .split(/\r?\n/)
     .map((line) => line.match(ANSWER_LINE)?.[1])
     .filter(Boolean);
-  if (lines.length)
-    return { valeur: roleKey(lines.at(-1)), bloquants: [], remarques: [], source: 'reponse' };
-  return { valeur: 'a_corriger', bloquants: [], remarques: [], source: 'absent' };
+  if (lines.length) {
+    const verdict = {
+      valeur: roleKey(lines.at(-1)),
+      bloquants: [],
+      remarques: [],
+      source: 'reponse',
+    };
+    return IMPRECISE.has(verdict.valeur) ? incomplete(verdict) : verdict;
+  }
+  return incomplete({ valeur: 'a_corriger', bloquants: [], remarques: [], source: 'absent' });
 }
 
 const VERDICT_LABEL = { approuve: 'approuvée(s)', a_corriger: 'à corriger', rejete: 'rejetée(s)' };
+// swarm-04 : how a last verdict is said in the Bilan ; decided on `source` and `complet` only (a
+// verdict written without them keeps today's words).
+const verdictWords = (verdict) =>
+  verdict?.source === 'absent'
+    ? 'illisible (aucun verdict rendu)'
+    : verdict?.complet === false
+      ? `${verdict.valeur} sans point bloquant précis`
+      : verdict?.valeur;
 // The Bilan lines of the verifications (`children` in launch order, each with `verdict` when it
 // gave one and `relit` ids) : the total, and each reviewed work whose last verdict is not
 // `approuve`. Empty without verdict.
@@ -218,8 +241,9 @@ export function verificationLines(children) {
   const judged = children.filter((child) => child.verdict);
   if (!judged.length) return [];
   const count = (value) => judged.filter((child) => child.verdict.valeur === value).length;
+  const unreadable = judged.filter((child) => child.verdict.source === 'absent').length;
   const lines = [
-    `Vérifications : ${judged.length} (${count('approuve')} ${VERDICT_LABEL.approuve}, ${count('a_corriger')} ${VERDICT_LABEL.a_corriger}, ${count('rejete')} ${VERDICT_LABEL.rejete})`,
+    `Vérifications : ${judged.length} (${count('approuve')} ${VERDICT_LABEL.approuve}, ${count('a_corriger')} ${VERDICT_LABEL.a_corriger}, ${count('rejete')} ${VERDICT_LABEL.rejete})${unreadable ? `, ${unreadable} illisible(s)` : ''}`,
   ];
   const byId = new Map(children.map((child) => [child.id, child]));
   // equipe-01 (E2) : a verdict on a resumed attempt or a suite counts for its task (first attempt).
@@ -240,9 +264,11 @@ export function verificationLines(children) {
   for (const child of judged)
     for (const id of child.relit ?? [])
       if (byId.has(id) && latestBefore(taskOf(id), index.get(child.id)) === id)
-        last.set(taskOf(id), child.verdict.valeur);
-  for (const [id, valeur] of last)
-    if (valeur !== 'approuve')
-      lines.push(`« ${byId.get(id).titre} » : dernier verdict ${valeur}, non revérifié depuis`);
+        last.set(taskOf(id), child.verdict);
+  for (const [id, verdict] of last)
+    if (verdict.valeur !== 'approuve')
+      lines.push(
+        `« ${byId.get(id).titre} » : dernier verdict ${verdictWords(verdict)}, non revérifié depuis`,
+      );
   return lines;
 }

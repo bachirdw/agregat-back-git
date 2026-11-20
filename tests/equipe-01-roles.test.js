@@ -260,12 +260,14 @@ test('E1 : verdict lu : fichier, sinon dernière ligne de la réponse, sinon abs
     bloquants: [],
     remarques: [],
     source: 'reponse',
+    complet: false,
   });
   assert.deepEqual(roles.readVerdict({ cwd, folder, answer: 'rien FICTIF' }), {
     valeur: 'a_corriger',
     bloquants: [],
     remarques: [],
     source: 'absent',
+    complet: false,
   });
   writeFileSync(
     join(cwd, folder, 'verdict.json'),
@@ -458,6 +460,7 @@ test('E1 : rôle de l’espace qui remplace celui de la plateforme ; fichier mal
     bloquants: [],
     remarques: [],
     source: 'absent',
+    complet: false,
   });
 });
 

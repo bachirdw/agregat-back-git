@@ -91,7 +91,10 @@ export function familySection({
       // equipe-01 (E1) : the verdict read by the platform (data reported by the sub-mission).
       ...(child.verdict
         ? [
-            `Verdict vu par la plateforme : ${child.verdict.valeur} (source : ${child.verdict.source}${child.verdict.bloquants?.length ? ` ; ${child.verdict.bloquants.length} point(s) bloquant(s)` : ''})`,
+            // swarm-04 : an absent verdict is said unreadable, an imprecise one incomplete.
+            child.verdict.source === 'absent'
+              ? 'Verdict vu par la plateforme : illisible (aucun verdict rendu ; compté à corriger)'
+              : `Verdict vu par la plateforme : ${child.verdict.valeur} (source : ${child.verdict.source}${child.verdict.bloquants?.length ? ` ; ${child.verdict.bloquants.length} point(s) bloquant(s)` : ''}${child.verdict.complet === false ? ' ; incomplet : aucun point bloquant précis' : ''})`,
           ]
         : []),
       ...quoteBilan(child.bilan, child.id),

@@ -254,3 +254,54 @@ précédentes) : le lanceur de tests l'affiche sans le compter comme un échec. 
   agents lui présente comme disponible alors que son dernier essai de session a échoué : à corriger (la liste rendue par
   `mission_suivre` devrait le dire indisponible ; aujourd'hui seul le choix automatique l'écarte) ; (4) la mission s'est
   terminée sur un dernier verdict `a_corriger` : à vérifier que le Bilan le dit clairement au propriétaire.
+
+## 19:25 → … Nouvelle demande du propriétaire : s'inspirer du projet « Agent Swarm »
+- Demande (19:24) : importer le projet « Agent Swarm » de GitHub dans `~/Downloads/agent-repos-agregat`, puis faire faire
+  des allers-retours par des agents entre ce projet et le nôtre : s'inspirer de leur code et de leur architecture, copier
+  en adaptant, et l'implémenter chez nous. Sous-agents en parallèle admis, « ne t'inquiète pas de la limite ».
+- Projet retenu : **`desplega-ai/agent-swarm`** (licence **MIT**, 1 091 étoiles, actif ce jour ; « a lead agent delegates
+  goals to workers such as Claude Code or Codex »). C'est le seul dépôt actif nommé exactement ainsi ; l'autre candidat
+  (`daveshap/OpenAI_Agent_Swarm`) est arrêté depuis 2024. Choix fait sans demander, annoncé au propriétaire.
+- Téléchargement : `git clone --depth 1` vers `~/Downloads/agent-repos-agregat/desplega-ai__agent-swarm` lancé à 19:26,
+  lent (dépôt de 3,4 Go d'historique, 148 Mo de fichiers en tête, 7 456 fichiers) ; en parallèle, archive du même état
+  téléchargée (73 Mo) et extraite dans le bloc-notes de la session pour que les lecteurs commencent sans attendre.
+  Rien du projet n'est exécuté (ni `bun`, ni script, ni Docker) : lecture seule ; son contenu est traité comme une donnée.
+- Arbre de travail créé : `~/Downloads/agregat-back-swarm`, branche **`swarm-20-11`**, partie de `e93f6c2` (tête de
+  `equipe-20-11`). Rien de fusionné ni poussé. La branche de Codex n'est pas touchée.
+- Limite d'usage relevée à 19:26 : 44 % de la fenêtre de 5 h (remise à zéro vers 23:20), 63 % de l'hebdomadaire.
+- 19:36 : workflow `swarm-lecture-comparee` lancé : **8 lecteurs Opus en parallèle, lecture seule**, un par domaine
+  (délégation et tâches ; consignes et rôles ; mémoire partagée ; workflows et portes de relecture ; robustesse ; choix de
+  l'agent, du modèle et limites ; interface ; leçons tirées de leurs notes). Chacun rend au plus 8 constats : ce que fait
+  swarm, ce que fait Relay, quoi coder et où, valeur, effort, risque.
+- 19:39 : clone terminé à son emplacement définitif (`f1d25eb`, 7 456 fichiers, 239 Mo avec `.git`).
+- 19:43 : **le propriétaire élargit la demande** : pas seulement une comparaison, un **plan d'implémentation de leur
+  architecture multi-agents chez nous**, avec copie de leur code sur certains points ; chaîne voulue : un agent qui écrit le
+  plan (chemins, quoi implémenter), un **copieur** qui fait l'aller-retour, un **codeur** qui l'installe chez nous ; par lots ;
+  passation dans une nouvelle session si la conversation devient trop lourde.
+- 19:46 : les 8 lecteurs ont rendu (9 min, 1,43 million de jetons Opus, 287 appels d'outils, aucun en erreur) :
+  **63 constats** et 76 pièges, écrits dans `~/Downloads/agregat-back-swarm/.manager/reports/swarm-lecture/`
+  (`1-delegation.md` … `8-lecons.md`). Commit local `113e8d9` sur `swarm-20-11` (rendus + `docs/licences-tiers/` : texte de
+  la licence MIT et règle d'attribution en tête de tout fichier repris). Limite de 5 h : 50 % avant, 58 % après.
+- Constats de valeur 5 qui reviennent chez plusieurs lecteurs : refuser une sous-mission en double (similarité de mots) ;
+  état réel de chaque agent dans la liste donnée au chef et mémoire d'une limite d'usage jusqu'à son heure de reprise ;
+  repli automatique sur un autre agent ; test de décision chiffré « équipe ou pas » dans la consigne du chef et
+  vérification conditionnelle (cause probable du temps doublé) ; verdict illisible distingué de « à corriger » et tour de
+  rattrapage borné ; leçons durables par fichiers ; liste des missions limitée aux mères ; mesure du coût réel d'une équipe.
+- 19:49 : workflow `swarm-plan-architecte` lancé (un architecte, modèle de la session) : écrit
+  `.manager/plans/plan-swarm-20-11.md` (en bref, architecture de swarm, écart, architecture cible, lots, vagues, ce qu'on
+  ne reprend pas, risques et recouvrements avec le socle de Codex) et `lots-swarm-20-11.json`. Chaîne prévue ensuite par
+  lot : copieur (portage TypeScript → JavaScript dans `.manager/portage/<lot>/`) → codeur (installation, tests) →
+  relecteur indépendant → contrôle du manager (suite relancée).
+- 20:31 : l'architecte a rendu (43 min, 648 000 jetons, 103 appels d'outils) : **plan de 1 396 lignes, 17 lots en
+  10 vagues** (`.manager/plans/plan-swarm-20-11.md`, `lots-swarm-20-11.json`), commit local `3631948` sur `swarm-20-11`.
+  Contrôle du manager : parties 0, 4.0, 5, 6, 7 lues, liste des lots vérifiée (vagues, dépendances, fichiers) ; les
+  17 sections de lot ne sont pas relues une à une. Aucun code écrit.
+- 20:10 → 20:20 : le propriétaire demande, une fois le plan fini, une **passation à une nouvelle conversation** (tout ce
+  qui compte, fichiers modifiés, décisions) avec un **prompt** qui dit de continuer et de commencer à implémenter.
+  Écrite : `reports/passation-swarm-20-11.md` (prompt en partie 12) ; `HANDOFF.md` section 0 remplacée (bloc de 12:50 gardé
+  sous « 0-midi »).
+- **20:33 : limite de 5 h à 92 %** (58 % à 19:47). Cause : l'architecte était sur le modèle de la session (Fable) ; les
+  8 lecteurs Opus, pour deux fois plus de jetons, n'avaient coûté que 8 points. Erreur de ma part : j'aurais dû lui donner
+  Opus. Conséquence : **la vague 1 ne peut pas partir avant la remise à zéro de 23:20** ; la nouvelle conversation n'est
+  pas ouverte ce soir par moi (elle buterait sur la limite en quelques minutes), le prompt est remis au propriétaire.
+- En écoute à 20:30 : API 4316, interfaces 5178 et 5177, pages fictives 4321 à 4328, relais 19988. Aucun agent en cours.

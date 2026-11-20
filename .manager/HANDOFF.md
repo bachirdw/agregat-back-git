@@ -5,7 +5,23 @@ pour reprendre. Le détail de chaque défaut est dans [`reports/registre-erreurs
 (numéros « E »). Convention : sans mention, un fait est **constaté** (vu dans Git, la base, les événements ou par
 commande) ; sinon il porte « d'après <source> » ou « hypothèse ». « Non retrouvé » = cherché sans succès.
 
-## 0. Où reprendre maintenant (état au 20/11/2026, 12:50 ; ce bloc se remplace à chaque passation)
+## 0. Où reprendre maintenant (état au 20/11/2026, 20:40 ; ce bloc se remplace à chaque passation)
+**Chantier en cours : « swarm ».** Le 20/11 au soir le propriétaire a demandé de reprendre dans Relay l'architecture
+multi-agents du projet libre **Agent Swarm** (`desplega-ai/agent-swarm`, licence MIT, cloné dans
+`~/Downloads/agent-repos-agregat/desplega-ai__agent-swarm`), en copiant son code quand c'est utile, par lots, avec une chaîne
+d'agents par lot : **copieur → codeur → relecteur**. **Lire en premier :
+[`reports/passation-swarm-20-11.md`](reports/passation-swarm-20-11.md)** (état, fichiers, décisions, marche à suivre, prompt
+de départ).
+- Fait : lecture comparée par 8 lecteurs (63 constats, `swarm-lecture/`), **plan écrit** : 17 lots en 10 vagues
+  (`~/Downloads/agregat-back-swarm/.manager/plans/plan-swarm-20-11.md` et `lots-swarm-20-11.json`).
+- Dépôt du chantier : `~/Downloads/agregat-back-swarm`, branche **`swarm-20-11`** (partie de `e93f6c2`, tête de
+  `equipe-20-11`). **Aucun code écrit**, rien de fusionné ni poussé.
+- À faire : **implémenter**, en partant de la vague 1 (swarm-01 à swarm-04 en parallèle, un arbre git par lot).
+- En attente du propriétaire : le lot swarm-17 (repli automatique sur un autre agent), les essais réels aux points
+  d'arrêt, la réunion avec la branche de Codex.
+- Limite d'usage : la surveiller (`get_usage` avant chaque vague) ; aucune mission réelle sans accord.
+
+## 0-midi. Bloc du 20/11/2026, 12:50 (gardé tel quel : état du lot du matin, base du chantier swarm)
 **Objectif du propriétaire (20/11 matin)** : une vraie **équipe d'agents IA** menée par un chef sur un modèle fort, qui se
 coordonne sur une mission complexe (plusieurs sources en parallèle, fusion, contrôle de ce qui est incohérent, résultats
 qui passent d'un agent aux autres), et que la plateforme **reconnaît seule** comme utile ou non. Les formulaires en

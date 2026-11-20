@@ -183,3 +183,24 @@ workflow passées sur un modèle plus léger dès que les trois codeurs ont rend
   prose (« dans {mois, an, unique, semaine, jour} »). La correction B le couvre. Registre corrigé (ligne E152).
 - Décision du manager : reprendre **seulement la correction B** sur `equipe-20-11` ; ne pas reprendre le tour de plus (A).
 - 12:50 : suite complète n° 2 lancée sur `a26399a`, relevé complet et codes de sortie gardés.
+
+## 13:01 Reprise de la correction des accolades, relue ; consigne du propriétaire sur la limite
+- 12:55 Message du propriétaire : attention à sa limite d'usage. Relevé : 11 % de la fenêtre de 5 h, 53 % de la semaine
+  (tous modèles), 48 % (Fable). Décision : plus aucune mission réelle sans son accord, un seul agent à la fois, pas
+  d'essai de confirmation aujourd'hui.
+- Branche **`equipe-b`** (arbre `~/Downloads/agregat-back-equipe-b`, partie de `a26399a`, tête `a063e15`, code `6fb4d80`) :
+  la seule correction B du lot E152, reprise à l'identique dans `result.js`, tests neufs `tests/equipe-accolades.test.js`
+  (rouge 1/3 avant, 3/3 après ; les deux exemples réels ; cas de bout en bout : une réponse en prose avec « dans {mois, an,
+  unique} » aboutit), 19 fichiers voisins verts un par un, `check` et prettier verts. Rien du « tour de plus ».
+- Relecture indépendante de cette reprise : **2 défauts importants, non corrigés** : (1) une réponse au contrat abîmée
+  écrite avec des guillemets typographiques, des guillemets échappés ou un commentaire en tête passe désormais pour du
+  texte libre et son bloc disparaît du résumé (avant : échec visible « JSON invalide ») ; (2) une question de l'agent
+  écrite ainsi n'est plus posée. Et la correction reste incomplète : une prose qui cite un objet de code non JSON
+  (`{ ok: true }`) échoue toujours. **Décision du manager : ne pas reprendre `equipe-b` sur `equipe-20-11` en l'état** (le
+  changement touche toutes les missions) ; à corriger d'abord (élargir « ressemble à un objet » aux guillemets
+  typographiques et échappés et au commentaire en tête, avec les tests proposés par le relecteur).
+- Suite complète n° 2 sur `a26399a` (début 12:49:25) : phase unitaire **1 603 tests, 1 600 réussis, 0 échec, 2 ignorés,
+  1 « à faire »** ; phase Chrome en cours à 13:01.
+
+## Suite complète n° 2 terminée (tête `a26399a` de `equipe-20-11`)
+Relevé brut : code de sortie npm test : 0 ℹ tests 1603 ℹ pass 1600 ℹ fail 0 ℹ cancelled 0 ℹ skipped 2 ℹ todo 1 ℹ tests 265 ℹ pass 265 ℹ fail 0 ℹ cancelled 0 ℹ skipped 0 ℹ todo 0  check : 0 Syntaxe JavaScript valide. format : 0 All matched files use Prettier code style! fin 13:02:47 

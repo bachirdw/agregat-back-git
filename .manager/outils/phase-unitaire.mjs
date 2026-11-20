@@ -30,6 +30,11 @@ console.log(
   `▶ phase unitaire seule : ${files.length} fichier(s), ${browser.size} fichier(s) Chrome écartés, arbre ${tree}`,
 );
 if (process.argv.includes('--liste')) process.exit(0);
+// --suite : la suite complète du dépôt (scripts/run-tests.js : unitaires puis Chrome réel), sous le même créneau.
+// Réservé au manager, un arbre à la fois.
+const SUITE = process.argv.includes('--suite');
+const NOM = SUITE ? 'suite complète' : 'phase unitaire';
+if (SUITE) console.log('▶ mode --suite : unitaires puis Chrome réel (scripts/run-tests.js)');
 
 const alive = (pid) => {
   try {
@@ -107,13 +112,23 @@ process.on('exit', release);
 const t0 = Date.now();
 const child = spawn(
   process.execPath,
-  ['--test', '--test-concurrency=4', '--test-timeout=120000', ...files.map((f) => 'tests/' + f)],
-  { cwd: tree, stdio: 'inherit' },
+  SUITE
+    ? ['scripts/run-tests.js']
+    : ['--test', '--test-concurrency=4', '--test-timeout=120000', ...files.map((f) => 'tests/' + f)],
+  {
+    cwd: tree,
+    stdio: 'inherit',
+    env: SUITE
+      ? { ...process.env, AGENT_PLATFORM_TEST_PHASE_TIMEOUT_MS: String(PHASE_TIMEOUT_MS) }
+      : process.env,
+  },
 );
+// La suite complète borne déjà chacune de ses deux phases : on borne ici leur somme.
+const LIMIT_MS = SUITE ? 2 * PHASE_TIMEOUT_MS + 60_000 : PHASE_TIMEOUT_MS;
 const timer = setTimeout(() => {
-  console.error(`Phase expirée après ${PHASE_TIMEOUT_MS} ms`);
+  console.error(`${NOM} expirée après ${LIMIT_MS} ms`);
   child.kill('SIGKILL');
-}, PHASE_TIMEOUT_MS);
+}, LIMIT_MS);
 for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(s, () => {
     child.kill('SIGTERM');
@@ -124,12 +139,12 @@ for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 child.on('error', (e) => {
   clearTimeout(timer);
   console.error(`Runner de tests : ${e.message}`);
-  console.log('FIN phase unitaire : code 1');
+  console.log(`FIN ${NOM} : code 1`);
   process.exit(1);
 });
 child.on('exit', (code) => {
   clearTimeout(timer);
   const c = code === 0 ? 0 : 1;
-  console.log(`FIN phase unitaire : code ${c} (durée ${Math.round((Date.now() - t0) / 1000)} s)`);
+  console.log(`FIN ${NOM} : code ${c} (durée ${Math.round((Date.now() - t0) / 1000)} s)`);
   process.exit(c);
 });

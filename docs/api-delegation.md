@@ -439,9 +439,12 @@ l'agent les montre, le Bilan de la mission a **une** ligne de plus (aucune sinon
   Non observé à ce jour : sous-agent en arrière-plan, Gemini, OpenCode.
 - Cause réelle de l'échec de 334492d0 (E152, `parseAgentResult`, repris de `equipe-e152` dans `equipe-01`) : la
   réponse finale, en prose, citait un motif de chemin `fiches/{a,b,c}.json`. Des accolades qui n'ouvrent rien qui
-  ressemble à un objet (ni guillemet, ni clé suivie de `:`, ni fin du texte), dans un texte qui ne commence pas par une
-  accolade, sont désormais du texte libre, repris comme toute réponse en prose ; une réponse JSON tronquée ou presque
-  valide reste « JSON invalide ».
+  ressemble à un objet (ni guillemet, droit, typographique ou échappé, ni commentaire `//` ou `/*`, ni clé suivie de
+  `:`, ni fin du texte), dans un texte qui ne commence pas par une accolade, sont désormais du texte libre, repris comme
+  toute réponse en prose ; une réponse JSON tronquée ou presque valide, ou une réponse au contrat ou une question
+  écrite avec des guillemets typographiques, reste « JSON invalide ». Limite connue : une prose qui cite un objet de
+  code non JSON (`{ ok: true }`, `{'total': 3}`) échoue toujours en « JSON invalide », car rien ne la distingue d'une
+  réponse au contrat abîmée. Un agent simulé qui répond en prose échoue toujours (« non structurée »).
 
 ## 6. Textes montrés au propriétaire
 

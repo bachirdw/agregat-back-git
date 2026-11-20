@@ -167,11 +167,15 @@ export function parseAgentResult(text) {
   // Not when the text itself opens with a brace (fenced or not), nor when any brace opens something
   // shaped like an object : a quoted or bare key followed by `:`, a quote, or the end of the text
   // (a truncated or almost valid answer stays « JSON invalide »).
+  // Relecture equipe-01 (défauts 1 et 2) : so does a brace followed by a typographic quote, an
+  // escaped quote or a comment (`//`, `/*`) : a contract answer or a question written that way.
   if (
     found.length < MAX_STARTS &&
     !/^(?:```\w*\s*)?\{/.test(raw) &&
     found.every(
-      (c) => c.json === undefined && !/^\{\s*(?:["']|[\w$-]+\s*:|$)/.test(raw.slice(c.start)),
+      (c) =>
+        c.json === undefined &&
+        !/^\{\s*(?:["'“”‘’„«»]|\\["']|\/[/*]|[\w$-]+\s*:|$)/.test(raw.slice(c.start)),
     )
   )
     return {

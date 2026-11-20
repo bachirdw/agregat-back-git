@@ -93,13 +93,14 @@ test('Accolades FICTIF (contre-épreuves) : une réponse au contrat tronquée ou
 
 // ---------- Par la plateforme (faux agent ACP, mission ordinaire du pack core) ----------
 
-async function playMission(t, fake, { simulated = false } = {}) {
+async function playMission(t, fake, { simulated = false, questionTimeoutMs = 0 } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'equipe-accolades-')));
   const app = createApp({
     dataDir: join(root, 'platform'),
     career: new CareerWorkspace({ root, roots: [root] }),
   });
   await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+  if (questionTimeoutMs) app.engine.questionTimeoutMs = questionTimeoutMs;
   t.after(async () => {
     await app.close();
     rmSync(root, { recursive: true, force: true });
@@ -137,7 +138,8 @@ async function playMission(t, fake, { simulated = false } = {}) {
       null,
     )
     .catch(() => {});
-  return { row: app.store.get(run.id), types: app.store.events(run.id).map((e) => e.type) };
+  const events = app.store.events(run.id);
+  return { row: app.store.get(run.id), types: events.map((e) => e.type), events };
 }
 
 test('Accolades FICTIF : par la plateforme, une réponse en prose avec « dans {mois, an, unique} » aboutit', async (t) => {
@@ -154,4 +156,77 @@ test('Accolades FICTIF : par la plateforme, une réponse en prose avec « dans {
   });
   assert.equal(cut.row.state, 'failed');
   assert.match(cut.row.error, /JSON invalide/);
+});
+
+// ---------- Relecture (20/11) ----------
+
+// Défaut 1 : une réponse au contrat abîmée par des guillemets typographiques, des guillemets échappés ou
+// un commentaire en tête d'objet ressemble à un objet : « JSON invalide », comme avant 6fb4d80.
+const TYPOGRAPHIC_ANSWER =
+  'Voici ma réponse FICTIVE :\n```json\n{“simulated”: false, “summary”: “Analyse FICTIVE faite”, “evidence”: [{“url”: “https://exemple.invalid/FICTIF”}]}\n```';
+const TYPOGRAPHIC_QUESTION =
+  'Deux offres FICTIVES conviennent.\n```json\n{“question”: {“message”: “Laquelle FICTIVE envoyer ?”, “options”: [“A”, “B”]}}\n```';
+const damaged = [
+  TYPOGRAPHIC_ANSWER,
+  'Réponse FICTIVE : {“simulated”: false, “summary”: “x”, “evidence”: []}',
+  'Réponse FICTIVE : {‘simulated’: false, ‘summary’: ‘x’}',
+  'Réponse FICTIVE : {« simulated » : false, « summary » : « x »}',
+  'Réponse FICTIVE : {\\"simulated\\": false, \\"summary\\": \\"x\\", \\"evidence\\": []}',
+  'Réponse FICTIVE :\n{\n  // résultat FICTIF\n  "simulated": false, "summary": "x", "evidence": []\n}',
+  'Réponse FICTIVE :\n{ /* résultat FICTIF */ "simulated": false, "summary": "x", "evidence": [] }',
+  // Défaut 2 : la question, même forme.
+  TYPOGRAPHIC_QUESTION,
+  'Deux offres FICTIVES.\n{“question”: “Laquelle FICTIVE ?”}',
+];
+
+test('Relecture FICTIF (défauts 1 et 2) : guillemets typographiques, échappés ou commentaire en tête : « JSON invalide »', () => {
+  for (const text of damaged) assert.match(parseAgentResult(text).reason, /JSON invalide/, text);
+  // Les deux formes réelles restent du texte libre.
+  for (const text of [
+    'Les fiches FICTIVES sont dans fiches/{vitest,jest,node-test}.json.',
+    'J’ai vérifié FICTIF toutes les periode dans {mois, an, unique, semaine, jour}.',
+    // Un guillemet typographique plus loin qu'en tête d'accolade ne change rien.
+    'Le choix FICTIF { alpha “en tête” } est noté.',
+  ])
+    assert.match(parseAgentResult(text).reason, /non structurée/, text);
+});
+
+// Défaut 3 : limite gardée (décision du manager) : un objet de code non JSON cité en prose ne se
+// distingue pas d'une réponse au contrat abîmée ; il reste « JSON invalide ».
+test('Relecture FICTIF (limite connue) : une prose qui cite un objet de code non JSON reste « JSON invalide »', () => {
+  for (const text of [
+    'La fonction FICTIVE renvoie maintenant `{ ok: true }`.',
+    "Le script FICTIF affiche {'total': 3}.",
+  ])
+    assert.match(parseAgentResult(text).reason, /JSON invalide/, text);
+});
+
+test('Relecture FICTIF : par la plateforme, une réponse au contrat ou une question en guillemets typographiques échoue', async (t) => {
+  for (const finalText of [TYPOGRAPHIC_ANSWER, TYPOGRAPHIC_QUESTION]) {
+    const { row, types } = await playMission(t, { finalText });
+    assert.equal(row.state, 'failed', finalText);
+    assert.match(row.error, /JSON invalide/);
+    assert.ok(types.includes('agent_output_rejected'));
+    assert.ok(!types.includes('question'));
+  }
+});
+
+test('Relecture FICTIF : une demande de décision en prose avec accolades est posée comme question', async (t) => {
+  const finalText =
+    'Analyse FICTIVE des périodes {mois, an, unique} terminée, deux options restent ouvertes.\n\nLaquelle préfères-tu retenir ?';
+  const { row, events } = await playMission(t, { finalText }, { questionTimeoutMs: 200 });
+  const question = events.find((e) => e.type === 'question');
+  assert.ok(question, JSON.stringify(events.map((e) => e.type)));
+  assert.match(question.data.message, /Laquelle préfères-tu retenir/);
+  // Sans réponse du propriétaire (plafond court du test) : fermée comme toute question.
+  assert.equal(row.state, 'completed', row.error);
+  assert.match(row.result.summary, /Question restée sans réponse/);
+});
+
+test('Relecture FICTIF : un agent simulé qui répond en prose avec accolades échoue toujours', async (t) => {
+  const finalText = 'Les fiches FICTIVES sont dans fiches/{alpha,beta}.json, rien de bloquant.';
+  const { row, types } = await playMission(t, { finalText }, { simulated: true });
+  assert.equal(row.state, 'failed');
+  assert.match(row.error, /non structurée/);
+  assert.ok(types.includes('agent_output_rejected'));
 });

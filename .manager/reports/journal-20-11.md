@@ -541,3 +541,23 @@ et Codex) attend l'accord du propriétaire : non joué.
 - **swarm-13** (vague 6, lot sensible : porte du tour de synthèse) : arbre `~/Downloads/agregat-back-swarm-13`, base
   `a8660a4`, copieur lancé à 05:38. Il ne sera intégré que s'il est vert et relu avant 06:50 (essai réel avec Codex prévu
   à 07:16 sur la tête intégrée).
+
+## 21/11, 05:38 → 06:20 Vague 6 finie (swarm-13 intégré) ; arrêt du code neuf
+- **swarm-13** (tour de rattrapage sur un verdict négatif ; lot sensible) : copieur `6ca3e84`, codeur `5e03807`,
+  `a60cc83`, relecteur `c148e26`, verdict **bon à intégrer** « sans doute restant ». Preuve du relecteur : la `synthesis()`
+  de la base, recopiée dans un test, est jouée à côté de la nouvelle sur 10 chemins et 3 familles sans dette : tours,
+  consigne (à l'octet), événements, appels à `continueSession()` et Bilan identiques (30 / 30) ; identiques aussi avec le
+  réglage `AGENT_PLATFORM_VERDICT_TURN=0`. Deux corrections du relecteur : `verdictsEnAttente` borné à 20 tâches ;
+  écriture de l'événement `verdict_turn` gardée. Diff de `synthesis()` lu par le manager (une ligne remplacée, un bloc,
+  la consigne avec `VERDICT_NOTE` seulement en cas de dette). Décisions du manager : pas de tour à une mission
+  abandonnée ; le tour de synthèse qui joint les verdicts pose le drapeau et écrit l'événement ; `illisible` gardé.
+  Limites écrites dans `docs/api-verdicts.md` (mère reprise sans sous-mission : pas de tour ; correction encore vivante
+  après le tour : plus de synthèse ; le tour ne dit pas combien de dettes dépassent la borne de 20).
+  Suite complète du manager dans l'arbre du lot, 06:04 → 06:17 : **1 873 unitaires, 1 870 réussis, 0 échec ; Chrome
+  265/265 ; check 0 ; format 0**. Intégré à 06:19, tête **`e7f4964`** (arbre identique, `62803614`).
+- 06:19 : API 4317 relancée sur `e7f4964`. État réel des agents lu sur `GET /api/catalog` : codex `limite` (« Limite
+  d'usage jusqu'à 07:16 »), claude `pret`, gemini et opencode `non_installe`, fixture `simule` (lot 08 confirmé en réel).
+- **Décision du manager : pas de lot neuf d'ici 08:00.** Le lot suivant (swarm-14, vague 7) touche le moteur `index.js` ;
+  il n'y aurait pas le temps de le relire, de le contrôler et de l'éprouver en réel. État du plan : **vagues 1 à 6
+  intégrées (lots 01 à 13)** ; restent 14, 15, 16 (vagues 7 à 9) et 17 (décision du propriétaire).
+- 06:20 : deux missions Codex programmées pour 07:18 (retour de sa limite) sur la tête finale : dossier comparatif et code.

@@ -2,8 +2,11 @@
 
 Écrit par le manager le 20/11/2026. Ce fichier est en lecture seule pour les sous-agents.
 Chaque sous-agent reçoit dans son message : son RÔLE, son LOT (`swarm-NN`), son ARBRE git, les lignes de sa section
-dans le plan, les fichiers du lot et les précisions du manager. Dans ce brief, `<ARBRE>` est ton arbre git et `<LOT>`
-ton lot. Lis les sections 1 à 5, la section de ton rôle (6, 7 ou 8) et la section 9, puis applique-les telles quelles.
+dans le plan, les fichiers du lot et les précisions du manager. Dans ce brief, `<ARBRE>` est ton arbre git, `<LOT>`
+ton lot et `<BASE>` le commit de départ du lot (donné dans ton message). Lis les sections 1 à 5, la section de ton
+rôle (6, 7 ou 8) et la section 9, puis applique-les telles quelles.
+Les numéros de ligne que le plan donne pour les fichiers de Relay datent d'avant le chantier (commit `113e8d9`) : les
+lots déjà intégrés ont déplacé des lignes. Repère chaque endroit par son nom et son texte, pas par son numéro.
 
 ## 1. Le chantier
 
@@ -109,7 +112,7 @@ chacun sans la mémoire des autres : un copieur, un codeur, un relecteur indépe
 
 1. Lis : la section de ton lot en entier et 4.0 ; `NOTES.md` et les fichiers du portage
    (`<ARBRE>/.manager/portage/<LOT>/`) ; puis les fichiers de Relay à modifier, autour de chaque endroit nommé (les
-   numéros de ligne du plan sont ceux du commit `113e8d9` ; le code n'a pas changé depuis, mais vérifie le texte).
+   numéros de ligne du plan sont ceux du commit `113e8d9` ; des lignes ont bougé depuis : repère par le nom et le texte).
 2. Ouvre ton rapport `<ARBRE>/.manager/reports/<LOT>.md` et tiens-le au fil de l'eau : actions, commandes, erreurs,
    décisions, écarts au plan, sorties de tests (totaux et codes de sortie), état réel.
 3. Installe le portage aux chemins du lot et fais les branchements aux endroits nommés par le plan. Tu ne crées et ne
@@ -135,10 +138,10 @@ chacun sans la mémoire des autres : un copieur, un codeur, un relecteur indépe
 ## 8. Rôle : relecteur indépendant
 
 Le copieur puis le codeur ont travaillé dans ton arbre. Tu n'as pas leur mémoire et tu ne les crois pas sur parole :
-repars du plan, du diff et du code. La base du lot est le commit `3631948`.
+repars du plan, du diff et du code. La base du lot est le commit `<BASE>` donné dans ton message.
 
-1. Lis : 4.0 et la section de ton lot ; `git -C <ARBRE> log --oneline 3631948..HEAD` ;
-   `git -C <ARBRE> diff 3631948..HEAD --stat` puis le diff complet, fichier par fichier ; le rapport du codeur
+1. Lis : 4.0 et la section de ton lot ; `git -C <ARBRE> log --oneline <BASE>..HEAD` ;
+   `git -C <ARBRE> diff <BASE>..HEAD --stat` puis le diff complet, fichier par fichier ; le rapport du codeur
    `<ARBRE>/.manager/reports/<LOT>.md` ; le portage `<ARBRE>/.manager/portage/<LOT>/` et son `NOTES.md`.
 2. Contrôle, dans cet ordre :
    a. Périmètre : seuls les fichiers nommés dans ton message sont touchés (plus `.manager/portage/<LOT>/` et le
@@ -149,7 +152,7 @@ repars du plan, du diff et du code. La base du lot est le commit `3631948`.
    b. Conformité au plan : chaque fonctionnalité, chaque texte (mot pour mot quand le plan le cite), chaque cas de
       « Tests à écrire », chaque condition de « Fini quand ».
    c. Rien d'existant ne change : sans les champs neufs, mêmes clés, mêmes textes, mêmes lignes de Bilan qu'avant ; les
-      tests existants nommés par le lot sont verts et non modifiés (`git -C <ARBRE> diff 3631948..HEAD --stat -- tests/`),
+      tests existants nommés par le lot sont verts et non modifiés (`git -C <ARBRE> diff <BASE>..HEAD --stat -- tests/`),
       sauf ceux que le lot autorise à changer.
    d. Fidélité à swarm : ouvre les fichiers d'origine (lecture seule) et compare constantes, bornes et ordre des cas ;
       l'en-tête de licence est en première ligne de chaque fichier repris.

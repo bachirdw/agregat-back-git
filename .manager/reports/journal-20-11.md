@@ -509,3 +509,17 @@ et Codex) attend l'accord du propriétaire : non joué.
     manager : l'assertion de `tests/equipe-01-carnet.test.js:249` gagne `resultat_rendre` ; borne effective 32 768 octets
     (API non touchée) ; racine de schéma autre que `object` refusée ; suite et reprise héritent du schéma ; verdict
     aligné sur `normalizeVerdict`. Relecteur lancé à 04:44.
+
+## 21/11, 04:46 → 05:09 Vague 4 finie (swarm-10 intégré, swarm-11 servi)
+- **swarm-10** : relecteur `ac4e34b`, verdict **bon à intégrer** (2 corrections mineures : messages d'erreur bornés à 300
+  caractères ; test manquant « schéma donné à un vérificateur »). 14 contrôles négatifs. Suite complète du manager dans
+  l'arbre du lot, 04:54 → 05:08 : **1 795 unitaires, 1 792 réussis, 0 échec ; Chrome 265/265 ; check 0 ; format 0**.
+  Intégré à 05:08 dans `swarm-20-11`, tête **`7061c2d`** (arbre identique à celui du lot, `6b592dcb` : suite non rejouée).
+  Points laissés : sans schéma, un `resultat.json` écrit par l'agent sans l'outil remonte quand même au chef ; le verdict
+  d'un vérificateur reste dans `verdict` (pas dans `resultat`) ; clients MCP réels non essayés avec `resultat_rendre`.
+- 05:08 : API 4317 relancée sur `7061c2d` (aucune mission en cours). Interface 5179 = arbre `agregat-front-swarm-11`.
+- Limite à 05:09 : 49 % de la fenêtre de 5 h (les deux missions Claude de 04:21, modèle par défaut, ont pesé environ
+  30 points à elles deux), hebdomadaire 85 %. Décision du manager : plus de mission réelle avec Claude d'ici 08:00 (garder
+  de quoi laisser le propriétaire essayer lui-même) ; une mission avec Codex après 07:16 (retour de sa limite).
+- **swarm-12** (vague 5) : arbre `~/Downloads/agregat-back-swarm-12` parti de la tête du lot 10 ; copieur `e53edbb` ;
+  codeur lancé à 05:00.

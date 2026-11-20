@@ -98,3 +98,113 @@ Ouvert le 20/11/2026 à 23 h 37 (heure de la machine). Arbre `/Users/diaw/Downlo
    des outils du lot 15.
 3. Seuil de quasi-doublon 0,8 en Jaccard : à mesurer sur des notes réelles (un mot changé sur une quinzaine donne
    0,875 ; deux mots changés passent sous 0,8).
+
+## Relecture indépendante
+
+Relecteur indépendant, 20/11/2026 à partir de 23 h 45 (heure de la machine). Repartie du plan (4.0, section du lot),
+du diff `3631948..HEAD`, du code et de swarm (lecture seule, rien exécuté).
+
+### Contrôles
+
+- Périmètre : seuls `packages/orchestrator/lecons.js`, `tests/swarm-03-lecons.test.js`, `docs/api-lecons.md`, le
+  portage et ce rapport sont touchés ; aucun fichier existant modifié ; `index.js` et `delegation.js` intacts.
+- Fidélité à swarm (fichiers ouverts) : `usefulness` (`reranker.ts:115-120`), poids de citation 0,5 / 0,25
+  (`implicit-citation.ts:36-40`), deltas alpha / bêta (`store.ts:125-126`), 0,3 (`constants.ts:73`), 0,8 (`:84`),
+  30 jours (`:21`), plancher et ordre (`task-learning.ts:146-178`) : identiques. En-têtes de licence en tête du fichier.
+- Formules du plan : utilité `min(2, 2α/(α+β))`, plancher 0,5, jamais sous 1 sans note « inutile » ; cité +0,5 alpha,
+  non cité +0,25 bêta ; note utile +1 alpha et fin de vie renouvelée ; note inutile +1 bêta, preuve gardée ; une note
+  par mission ; titre × 3, étiquettes × 2, texte × 1 ; × 0,3 ; × 1,5 ; seuil de 2 mots sur le brut avant tout
+  multiplicateur : conformes (vérifié par lecture et par contrôle négatif).
+- Confinement essayé : portée `..`, `../x`, `a/b`, `a\b`, `/tmp`, octet nul, 65 caractères, majuscules, accent,
+  `null`, nombre → exception avant tout accès ; id hostile → exception (`noterUtilite`, `supprimer`, `remplacer.par`),
+  ignoré par `citer` ; dossier de portée en lien ou en fichier, fichier de leçon en lien ou en dossier : rien lu ni
+  écrit hors de `dir`.
+- Secrets (variable d'environnement fictive et motif `sk-…`) dans texte, titre, étiquette, mission, auteur, origine,
+  mission d'une note et `memeAppel` : absents du disque et des messages.
+
+### Constats
+
+1. **Majeur, corrigé.** Un fichier de leçon aux champs mal typés faisait lever `rappel` (`etiquettes` en texte :
+   `TypeError … flatMap is not a function`), était servi et réécrit corrompu (`alpha: '5'` devenait `'50.5'` après une
+   citation, score `NaN`), servi pour toujours (`expire: 'pas une date'`) ou supprimé du disque comme expiré
+   (`expire: 12`, lu comme l'an 2001). `valide()` contrôle désormais toute la forme écrite par `noter` ; un fichier
+   hors forme est ignoré, jamais servi, ni réécrit ni supprimé.
+2. **Majeur, corrigé.** « Une lecture ne crée rien » était faux : `noterUtilite`, `promouvoir`, `remplacer`,
+   `supprimer` sur une portée absente créaient `dir` et le dossier de portée (`readConfined` → `safeDirectory` crée les
+   dossiers manquants). `#lireFichier` vérifie d'abord le dossier de portée.
+3. **Majeur, corrigé.** `rappel`, `liste`, `purger(portee)` levaient sur un dossier de portée remplacé par un lien ou
+   par un fichier, et `purger()` sans portée s'arrêtait alors sans purger les autres portées. Désormais lu comme une
+   portée vide (rien suivi) ; `noter` y lève toujours (`writeConfined`).
+4. Mineur, laissé : lecture bornée aux 1 000 premiers noms triés ; au-delà (fichiers abîmés en nombre), des leçons
+   valides sont invisibles et `pleine` peut ne plus jouer. Cas improbable, documenté.
+5. Mineur, laissé (non faux) : `UTILITE_MAX` ne joue jamais avec α, β ≥ 0 ; la branche `resume` d'`extrait` n'est
+   jamais alimentée par `noter` ; le filtre d'expiration de `choisirLecons` double celui de la lecture ; `rendreLecons`,
+   `ligneLecon`, `prefixeLigne` et les quatre textes « PROPOSAL » ne sont appelés nulle part (désormais testés).
+6. Mineur, laissé : sans `mission`, un même texte noté N fois donne N confirmations (alpha + N) ; `remplacer` accepte
+   `par` égal à la leçon elle-même ou inconnu ; un même id dans deux portées : `citer` ne touche que la première.
+7. Doc : `docs/api-lecons.md` précisée (portée en lien ou en fichier, lecture sans création, forme contrôlée, pas de
+   rejeu sans mission). Le reste correspond au code.
+
+### Contrôles négatifs (mutation, test rejoué, code remis ; rien ne reste)
+
+Rougissent (avant relecture) : rétrogradation sans preuve, plancher 0,5, poids cité, poids non cité, `citee++`,
+confirmation sans alpha, renouvellement par « utile », renouvellement par « inutile », `deja_notee`, renouvellement
+par confirmation, rejeu, `pleine` avant le quasi-doublon, seuil 1 ou 3 mots, seuil de doublon 0,9, redact des
+étiquettes, expression de portée, borne de `max`, suppression des expirées, leçon promue renouvelée, TTL 31, extrait 301.
+Restaient VERTS (tests manquants, ajoutés puis vus rouges) : poids titre 3 → 1, étiquette 2 → 1, remplacée 0,3 → 1,
+propriétaire 1,5 → 1, note « inutile » poids 1 → 0,5, redact de mission / auteur / origine, redact de `memeAppel`,
+contrôle `objet.id === id`. Corrections de la relecture : chacune retirée un instant rend un test rouge (sauf le
+`Array.isArray(etiquettes)`, redondant avec `.every` qui lève et est rattrapé).
+
+Sortie rouge des tests ajoutés avant correction (extrait) :
+
+```
+✖ champs abîmés : … actual: [ …, 'l-a000000000000001', 'l-a000000000000002', 'l-a000000000000003',
+  'l-a000000000000004', 'l-a000000000000006', 'l-a000000000000007', 'l-a000000000000008' ], expected: [ <seule valide> ]
+✖ une lecture ne crée rien … actual: true, expected: false
+✖ dossier de portée remplacé par un lien ou un fichier … Error: Lien symbolique refusé dans le chemin
+```
+
+### Tests ajoutés
+
+`tests/swarm-03-relecture.test.js` : 7 tests (champs abîmés ; lecture sans création ; portée en lien ou en fichier ;
+pondérations et multiplicateurs exacts ; note « inutile » et citation exactes ; secrets de mission, auteur, origine et
+même appel ; rendu proposé). Lot : 26 / 26 (`node --test tests/swarm-03-lecons.test.js tests/swarm-03-relecture.test.js`).
+
+### Totaux (relecture)
+
+Phase unitaire (`phase-unitaire.mjs`, 20/11 vers 23 h 53, 244 s) :
+
+```
+ℹ tests 1637
+ℹ pass 1633
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 1
+FIN phase unitaire : code 1 (durée 244 s)
+```
+
+L'échec : `tests/elicitation.test.js:535` « question en JSON : délais suspendus pendant l’attente » (attente de 5 s
+dépassée), fichier que le lot ne touche pas et qui n'emploie pas le module. Relancé seul :
+`node --test tests/elicitation.test.js` → 26 / 26, code 0 : **échec sous charge**. Attendu : 1 611 + 26 = 1 637, soit
+1 634 réussis sans cet échec ; aucun autre chiffre n'a bougé. `npm run check` : « Syntaxe JavaScript valide. » ;
+`npm run format:check` : tout conforme. Journal supprimé.
+
+### Points à trancher par le manager
+
+1. Exception ou refus pour une portée ou un id hostile (avis, sans trancher). Exception (choix actuel) : rien n'est
+   jamais lu ni écrit, et les appels internes du lot 15 (`promptParts`, `ended`, `familyBilan`) avalent déjà toute
+   erreur du module ; mais la portée y vient du pack de la mission (un nom avec point ou majuscule lèverait, avalé :
+   aucune leçon, en silence), les routes `POST /api/lecons/:portee/:id` doivent traduire l'exception en 400, et
+   l'outil `lecon_utile { id }` (id donné par l'agent) doit l'attraper et fabriquer lui-même un message. Refus
+   `{ statut: 'refusee', raison: 'portee_invalide' | 'id_invalide', message }` : même forme que les autres refus, un
+   levier rendu à l'agent (règle 4.0 « s'il refuse il donne le levier »), aucun `try` dans l'outil ; mais un appelant
+   qui oublie de lire `statut` continue sans voir l'erreur. Dans les deux cas, le lot 15 doit normaliser le nom du pack
+   en portée.
+2. Pour le lot 15 : aucune méthode `lire(id, portee)` pour `lecon_lire` (seulement `liste` puis recherche) ;
+   `raison?` de `lecon_utile` n'a pas de champ dans `noterUtilite` ; `origine` donnée par l'appelant (point 1 du codeur).
+3. Sans `mission`, un même texte répété gonfle alpha (une confirmation par appel) : le lot 15 doit toujours passer la
+   mission.
+
+Verdict du relecteur : `bon_a_integrer`.

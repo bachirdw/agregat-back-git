@@ -236,3 +236,21 @@ précédentes) : le lanceur de tests l'affiche sans le compter comme un échec. 
   accolades).
 - En écoute à 14:58 : API 4316, front 5178 (branche interface), front 5177, pages fictives 4321 à 4328, relais 19988.
   Aucune mission, aucun agent.
+
+## 18:27 → 18:53 Premier essai du propriétaire lui-même (interface 5178, API 4316 relancée sur `e93f6c2`)
+- 18:27 : API d'essai relancée sur `e93f6c2` (arbre figé `-equipe-essai`), aucune mission en cours avant l'arrêt.
+- Mission `f419245a` lancée par le propriétaire à 18:29 (étude de marché, pack core, Claude sur le modèle par défaut,
+  interrupteur « Équipe d'agents » coché) : **`completed` en 23,4 min** (18:29:18 → 18:52:42). Suivie par un guetteur en
+  lecture seule, rien touché.
+- Déroulé constaté : 2 `chercheur` Claude en parallèle (Australie, France), finis en 5 à 6 min ; un `verificateur` donné
+  par la plateforme à **Codex** (correction du matin confirmée en réel : un vrai agent différent de l'auteur), verdict
+  **`a_corriger` avec des points bloquants précis** (un chiffre absent de la page citée, un cycle de facturation mal
+  rapporté, des prix rattachés à la mauvaise source) ; corrections par le chef ; puis trois **suites** de la vérification
+  (`mission_continuer` employé en réel) : Codex **en échec « Limite d'usage de Codex atteinte : réessayer à 11:27 PM »**
+  (18:48), Gemini en échec (« API key is missing or not configured »), OpenCode abouti, verdict `a_corriger` lu dans la
+  réponse, sans point bloquant listé. Carnet : 8 notes.
+- À retenir : (1) la vérification croisée a trouvé de vraies erreurs de sources, corrigées dans la réponse finale ;
+  (2) **limite de Codex atteinte à 18:48** : plus de Codex avant 23:27 ; (3) le chef a pu choisir Gemini, que la liste des
+  agents lui présente comme disponible alors que son dernier essai de session a échoué : à corriger (la liste rendue par
+  `mission_suivre` devrait le dire indisponible ; aujourd'hui seul le choix automatique l'écarte) ; (4) la mission s'est
+  terminée sur un dernier verdict `a_corriger` : à vérifier que le Bilan le dit clairement au propriétaire.

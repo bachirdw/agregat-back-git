@@ -204,3 +204,15 @@ workflow passées sur un modèle plus léger dès que les trois codeurs ont rend
 
 ## Suite complète n° 2 terminée (tête `a26399a` de `equipe-20-11`)
 Relevé brut : code de sortie npm test : 0 ℹ tests 1603 ℹ pass 1600 ℹ fail 0 ℹ cancelled 0 ℹ skipped 2 ℹ todo 1 ℹ tests 265 ℹ pass 265 ℹ fail 0 ℹ cancelled 0 ℹ skipped 0 ℹ todo 0  check : 0 Syntaxe JavaScript valide. format : 0 All matched files use Prettier code style! fin 13:02:47 
+Lecture (13:03) : 0 échec dans les deux phases, code de sortie 0. La ligne « failing tests » du relevé ne cite que le test
+marqué « à faire » (`tests/review2-lecture-18-11.test.js:248`, cas connu de `lecture`, déjà présent dans les suites
+précédentes) : le lanceur de tests l'affiche sans le compter comme un échec. Rectification : le message du commit
+`16fefd4` dit « 13:10 » ; l'heure réelle était 13:02.
+
+## État laissé à 13:03
+- `equipe-20-11` `a26399a` (suite complète verte), `equipe-b` `a063e15` (à corriger avant reprise), `equipe-e152`
+  `76abe40` (tour de plus : à laisser), `equipe-front-20-11` `0937088` (interface, jamais vue à l'écran). Arbres propres.
+- En écoute : API 4316 (arbre figé `c1fb352`, donc sans les corrections du vérificateur), pages fictives 4321 à 4328,
+  relais 19988, front 5177. Aucune mission active. Aucun agent en cours.
+- En attente de l'accord du propriétaire (limite d'usage) : corriger `equipe-b` puis la reprendre ; un court essai réel de
+  confirmation ; voir l'interface à l'écran.

@@ -421,3 +421,33 @@ et Codex) attend l'accord du propriétaire : non joué.
   trop changer ce qui marche ; ouvrir une nouvelle session si le contexte est lourd.
 - 01:40 : passation écrite (`reports/passation-swarm-21-11.md`), `HANDOFF.md` section 0 mise à jour, mémoire de Claude mise
   à jour ; nouvelle session ouverte pour la suite (intégration de la vague 2, essais réels, vague 3).
+
+## 21/11, 01:41 → 02:17 Nouvelle session du manager : vague 2 intégrée, essais réels mis en place
+- 01:41 : passation lue. Limite : 63 % de la fenêtre de 5 h (remise à zéro 04:20).
+- Contrôle du manager, suites complètes dans l'arbre de chaque lot : swarm-07 vert (ancienne session) ; **swarm-06**
+  01:34 → 01:47 : 1 703 / 1 700, 0 échec, Chrome 265/265, check 0, format 0 ; **swarm-05** 01:48 → 02:01 : 1 713 / 1 710,
+  0 échec, Chrome 265/265, check 0, format 0.
+- 02:02 : **vague 2 intégrée** dans `swarm-20-11` par cherry-pick (05, 06, 07 ; 15 commits ; aucun conflit), tête
+  **`391f027`**. Suite complète sur la tête intégrée, 02:02 → 02:16 : **1 758 unitaires, 1 755 réussis, 0 échec, 2 ignorés,
+  1 « à faire » ; Chrome 265/265 ; check 0 ; format 0** (conforme à l'attendu).
+- **swarm-09 (interface 1)**, arbre séparé `~/Downloads/agregat-front-swarm-09`, branche `swarm-09` partie de `0937088`
+  (le dossier `agregat-front-equipe` sert l'écran 5178 en direct : non touché). Copieur `0ee9aa5`, codeur `20f192b`,
+  `176a703`, `1abfda7`, relecteur `175e7db`, `f66df32`, `42ebff5`, verdict **bon à intégrer**. Décisions du manager :
+  `?equipe=1` ajouté aux 5 lectures GET d'une mission dans `App.tsx` (fichier hors plan, sans lui aucun champ neuf
+  n'arrive) et faux `api` de `App.test.tsx` / `etat-liste.test.tsx` comparés sans paramètre ; chef lu sur la mission
+  mère ; `complet?: false` d'après `api-verdicts.md`. Relecture : deux défauts corrigés (« réessayer à » avec une valeur
+  brute ; plantage de l'écran sur un rôle ou un verdict `__proto__`, défaut déjà présent à la base). Contrôle du manager
+  (02:03) : `npm test` 18 fichiers, 313 / 313 ; build 0 ; prettier vert. Incident : le codeur a employé un `git restore`
+  pendant un contrôle négatif (Team.tsx défait puis réappliqué, vérifié par le relecteur) ; consigne durcie.
+  Reste : voir l'écran (contraste sombre) ; `orienter.test.tsx:398` a une branche de faux `api` devenue morte.
+- **swarm-08** : arbre `~/Downloads/agregat-back-swarm-08`, base `391f027`. Copieur `ff1d4b7` (NOTES seulement). Écarts
+  relevés et tranchés par le manager : `disponible` = `pret` ou `a_reessayer` ; cache vide → pas de refus, jugement sur les
+  sondes ; suite sans agent nommé = agent hérité, donc repli et non refus (retouche minimale de `continuation.js`) ;
+  `echec` relu par `doneOf()` ; contrôle de l'agent non nommé après l'enveloppe ; empreinte de doublon calculée avant le
+  repli (laissée). Codeur lancé à 02:10.
+- **Essais réels mis en place** (02:03) : arbre figé `~/Downloads/agregat-back-swarm-essai` (détaché, `391f027`, base
+  `.data` neuve), **API 4317** (même commande que `api-branche.sh`, huit pages fictives admises, espace
+  `~/Downloads/career-ops-essai`, script dans le bloc-notes de la session), **interface 5179** servie depuis l'arbre
+  `agregat-front-swarm-09` (vue d'équipe du lot swarm-09) pointée sur 4317. Services du propriétaire non touchés.
+- 02:16 : deux missions en mode équipe (enveloppe 6 / 3, pack core, consignes neutres du 20/11, outil `epreuve.py` : toute
+  carte refusée) avec **Codex chef** : code (`54d2d4dd`) et étude de marché (`d353149b`). Limite à 02:04 : 72 %.

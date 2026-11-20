@@ -29,6 +29,8 @@ Rend `null` ou `{ classe, modele?, jusqua, source }`.
   (`Internal error` ; l’expression `/^(?:Internal error|Agent arrêté\b)/i` est reprise telle quelle), et
   seulement son **dernier paragraphe** : plus haut, l’agent peut citer une limite comme contenu. Jamais un
   résultat d’outil.
+- Dans l’erreur, un passage entre « » est un extrait de la réponse de l’agent cité par la plateforme
+  (« JSON invalide dans la réponse de l’agent : « … » ») : il n’est pas lu.
 - L’événement `rateLimit` (sortie de `rateLimitState`) ne compte que si l’erreur est nue ou dit elle-même
   une limite, comme pour `usageLimitMessage`. Quand une limite (ou un manque de crédits) est retenue,
   `rateLimit.resetsAt` (secondes) passe avant l’heure lue dans le texte.
@@ -75,6 +77,8 @@ qu’aucune limite n’a été vue.
 
 - `limite.classe` vaut `limite` ou `credits`. Rien de privé n’est écrit : ni texte de l’agent, ni clé ;
   seulement la classe, l’heure de reprise, la source, l’heure d’écriture et l’identifiant du modèle.
+- Une ancienne sonde de refus sans `sessionAt`/`inferenceAt` reçoit, à l’écriture d’une limite ou à son
+  effacement, son ancien `at` comme date de refus : écrire une limite ne rend pas un vieux refus récent.
 - Après un effacement : `limite: null` ; `limitesModele` perd l’entrée du modèle (`null` s’il n’en reste
   aucune).
 

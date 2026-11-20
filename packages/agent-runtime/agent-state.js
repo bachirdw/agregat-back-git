@@ -16,6 +16,16 @@ const recent = (at, fallbackAt, now) => {
   return !Number.isFinite(t) || now - t < PROBE_TTL_MS;
 };
 
+// saveProbe date chaque écriture (`at`), date de repli d'un refus sans `sessionAt`/`inferenceAt` (sonde
+// ancienne) : en écrivant une limite, on fige ces dates à l'ancien `at` pour ne pas rendre le refus récent.
+function refusalDates(probe) {
+  if (!probe || typeof probe !== 'object' || typeof probe.at !== 'string') return {};
+  return {
+    ...(probe.session === false && !probe.sessionAt ? { sessionAt: probe.at } : {}),
+    ...(probe.inference === false && !probe.inferenceAt ? { inferenceAt: probe.at } : {}),
+  };
+}
+
 // Limites par modèle encore à venir : { <id du modèle>: <jusqua ISO> }, ou null.
 function modelLimits(probe, now) {
   const entries = Object.entries(probe?.limitesModele ?? {}).filter(
@@ -98,11 +108,13 @@ export function noteFailure(dataDir, agentId, options) {
     const written = { classe: failure.classe, jusqua: failure.jusqua, source: failure.source };
     const at = new Date(now).toISOString();
     try {
+      const known = loadProbes(dataDir)[agentId];
       if (failure.classe === 'limite' || failure.classe === 'credits')
-        saveProbe(dataDir, agentId, { limite: { ...written, at } });
+        saveProbe(dataDir, agentId, { ...refusalDates(known), limite: { ...written, at } });
       else if (failure.classe === 'limite_modele') {
-        const previous = loadProbes(dataDir)[agentId]?.limitesModele;
+        const previous = known?.limitesModele;
         saveProbe(dataDir, agentId, {
+          ...refusalDates(known),
           limitesModele: {
             ...(previous && typeof previous === 'object' ? previous : {}),
             [failure.modele]: { ...written, at },
@@ -135,7 +147,8 @@ export function clearLimit(dataDir, agentId, modele) {
       delete rest[modele];
       change.limitesModele = Object.keys(rest).length ? rest : null;
     }
-    if (Object.keys(change).length) saveProbe(dataDir, agentId, change);
+    if (Object.keys(change).length)
+      saveProbe(dataDir, agentId, { ...refusalDates(probe), ...change });
   } catch {
     /* the memory is a hint: a mission never fails for it */
   }

@@ -344,7 +344,10 @@ export function classifyFailure({
   now,
 } = {}) {
   if (cancelled || !Number.isFinite(now)) return null;
-  const error = String(message ?? '');
+  // Un passage « … » est un extrait de la réponse de l'agent cité par la plateforme (index.js,
+  // workflow-run.js : « JSON invalide … : « extrait » ») : il ne dit rien du fournisseur, il n'est pas lu
+  // (swarm écarte de même une erreur du harnais qui cite un statut HTTP ou une limite).
+  const error = String(message ?? '').replace(/«[^»]*(?:»|$)/g, '');
   const bare = BARE_FAILURE.test(error);
   const lastParagraph = bare
     ? String(announcement ?? '')

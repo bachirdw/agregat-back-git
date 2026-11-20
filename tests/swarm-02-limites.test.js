@@ -531,7 +531,11 @@ test('cas 8 : une mission qui annonce une limite la note ; une réponse réussie
   assert.equal(probe.limite.classe, 'limite');
   assert.equal(probe.limite.source, 'annonce');
   const until = Date.parse(probe.limite.jusqua);
-  assert.equal(hhmm(until), '22:00');
+  // Relecture : lancé entre 22:00 et 22:02 (heure locale), 22:00 est « à peine passée » : plancher +1 min.
+  assert.ok(
+    hhmm(until) === '22:00' || (until >= before + MIN && until <= Date.now() + MIN),
+    hhmm(until),
+  );
   assert.ok(until > before && until <= before + 24 * HOUR + MIN);
   assert.doesNotMatch(JSON.stringify(probe.limite), /FICTIF|usage limit/);
   assert.equal(agentState(real('agent-fictif'), probe, { now: before, live: true }).etat, 'limite');
@@ -577,12 +581,17 @@ test('étape de workflow : la limite annoncée est notée, une étape réussie l
   const start = (prompt) =>
     app.engine.create({ prompt, agent: 'fixture', pack: 'core', mode: 'workflow' });
   // L'étape en échec attend la décision du propriétaire (« uncertain ») : on lit la sonde, puis on annule.
+  const before = Date.now();
   const limited = await start('Synthèse FICTIVE LIMITE');
   await waitFor(() => loadProbes(dataDir)['agent-fictif']?.limite, 'limite notée');
   const probe = loadProbes(dataDir)['agent-fictif'];
   assert.equal(probe.limite.classe, 'limite');
   assert.equal(probe.limite.source, 'annonce');
-  assert.equal(hhmm(probe.limite.jusqua), '22:00');
+  const until = Date.parse(probe.limite.jusqua);
+  assert.ok(
+    hhmm(until) === '22:00' || (until >= before + MIN && until <= Date.now() + MIN),
+    hhmm(until),
+  );
   app.engine.cancel(limited.id);
   await waitFor(() => terminal.has(app.store.get(limited.id).state), 'annulation');
   const ok = await start('Synthèse FICTIVE ordinaire');

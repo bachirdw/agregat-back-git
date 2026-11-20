@@ -131,3 +131,83 @@ y est. `team-view.js` n'a pas été modifié.
    annoncé », « 1 appel » au singulier, « chef <agent> : non annoncé ».
 5. Le faux agent publie ses `usage_update` pendant le tour : ils partent aussi vers la mission en événement `agent`,
    comme avant ce lot (rien de changé, mais un événement de plus dans une mission qui annonce).
+
+## Relecture indépendante
+
+Relecteur indépendant, 21/11/2026, 09:59-10:15 (horloge lue). Base `e7f4964`, commits relus `15178ef`, `e237dbe`,
+`49ee8f3`. Commit de relecture : `f9a9f69`.
+
+### Constats
+
+- **Mineur, corrigé** (`f9a9f69`, test rouge d'abord) : dans le `finally` du moteur, un `usage()` qui rendait un
+  tableau écrivait un événement `usage` (`typeof [] === 'object'`) ; `delegation.js` écarte déjà les tableaux. Garde
+  `!Array.isArray(usage)` ajoutée sur la même instruction. Rouge constaté : types d'événements
+  `[…, 'state', 'usage']` au lieu de `[…, 'state']`.
+- **Point 1 (`wait()` crée la famille plus tôt), vérifié, rien à corriger** : la seule différence avec la base est
+  l'appel sans aucune cible (aucune sous-mission, ou `ids: []`) ; avec des cibles, la base créait déjà la famille
+  (attente ou `terminees`). Lecteurs relus : `held()`, `counter()` (`occupied` d'une famille vide = 0), `accept()`
+  (`pump`/`wake` sur une famille vide : rien), contrôles `closing` (non posé), `unsynthesized`, `close()`, `forget()`
+  (famille vide oubliée à la fin de la mère), `stopFamily()`/`waitStopped()` (créaient déjà la famille). Preuve par
+  différence : une même sonde jouée sur un export de la base et sur HEAD (chef qui attend sans sous-mission ; puis qui
+  échoue → `stopFamily` ; `ids: []` après un lancement ; attente d'une sous-mission déjà finie), avec Bilan, réponse de
+  `mission_attendre`, événements, `GET /runs/:id`, `?equipe=1`, puis redémarrage (API, vue, `familyBilan`) : identiques
+  (seules différences : la présence de la famille en mémoire juste après l'appel, et les noms aléatoires des dossiers
+  de résultats). La famille est oubliée à la fin dans les deux cas. Le compteur est en mémoire : perdu au
+  redémarrage, propre à chaque exécution (un chef repris repart de 0).
+- **Point 2** : aucun délai, valeur rendue ni ordre ne change ; une attente qui rend tout de suite compte un appel et
+  0 ms. Deux attentes qui se chevauchent : chaque appel compte et les durées s'additionnent (30 s d'horloge, deux
+  attentes → 60 s) : somme des attentes, pas temps mur ; au plus n fois le temps mur (test ajouté).
+- **Point 3** : diff de `IX` = la seule instruction du `finally` ; `usage()` qui lève, chaîne, 42 (tests du codeur),
+  tableau (corrigé), `store.event` qui lève (test du codeur) : même issue.
+- **Point 4** : relu dans `node_modules/@agentclientprotocol/` : claude-agent-acp 0.95.0 remet
+  `accumulatedUsage` à zéro à chaque tour (`resetTurnScratch`, l. 2958-2986, appelée à l'activation l. 3028) ;
+  codex-acp 2.2.2 `beginPromptTokenUsage`/`PromptTokenUsage.usage()` (l. 45377-45385, 27979-28019) : part du prompt.
+  `addPromptUsage` n'est appelé qu'une fois par réponse résolue ; un tour en erreur (rejeté) n'est pas compté (test
+  ajouté) ; Relay ne recharge jamais une session ACP (`replay_unqualified`), donc pas de coût cumulé repris d'une
+  exécution précédente ; `steer()` n'est pas un tour (ses jetons sont dans le tour actif). Une mise à jour sans coût
+  n'efface pas le dernier coût (test du codeur, contrôle N9).
+- **Point 5** : `child_done.usage` hostile (chaîne, tableau, nombre, `null`, objet de 5 000 clés, champs mal typés,
+  devise en texte libre) relu par `doneOf()` sans `finals` : aucune exception, ligne de Bilan identique à celle sans
+  annonce (test ajouté).
+- **Point 6** : seuls des nombres et une devise (`/^[\p{L}\p{Sc}]{1,10}$/u`) sortent. Mineur, laissé : un mot unique
+  de 10 lettres au plus passerait pour une devise ; le champ vient de l'adaptateur, pas du texte de l'agent.
+- **Point 7** : texte du plan mot pour mot (test du codeur) ; comparaison avec la fonction `familySection` de la base
+  (export de `e7f4964`) sur 1 200 cas sans annonce (états, rôles, accord, synthèse, chef absent / `null` / avec
+  attente) : 0 différence. Mineur, laissé : un chef sans `agent` s'écrirait « chef undefined » (le moteur pose
+  toujours `agent`).
+- **Point 8** : aucun test existant ne fixe l'option `usage` ni ne contient « MUET » ; sans `usage`, `announce()`
+  rend la réponse inchangée.
+- **Point 9** : phase unitaire de relecture verte ; la seule entrée de la liste « failing tests » est le « à faire »
+  connu de `tests/review2-lecture-18-11.test.js:248` (⚠, non compté en échec). L'échec isolé du codeur (09:51) reste
+  non identifié : non reproduit.
+- **Point 10** : `usage.js` reprend `coutAnnonce`, `contexteAnnonce`, `jetonsDuTour` du portage (seuls écarts : la
+  devise gardée, décision du manager ; `thoughtTokens`) ; portage fidèle à `acp-swarm-events.ts:124-136, 98-108` et
+  `acp-adapter.ts:413-437` ; deux lignes d'en-tête de licence en tête de fichier.
+
+### Contrôles négatifs (tests du lot + relecture, code remis par `git show HEAD:`)
+
+Retirer `attente.appels += 1` → 2 rouges ; neutraliser `attente.ms` → 2 ; `usage` hors de `child_done` → 1 ; `doneOf`
+ne relit plus `usage` → 1 ; `handleUpdate` ne compte plus → 3 ; instruction `IX` retirée → 2 ; chef sans `usage` dans
+`familyBilan` → 1 ; garde « aucun chiffre → ligne d'avant » retirée → 3 ; coût effacé par une mise à jour sans coût → 1 ;
+`total` recalculé au lieu de `null` → 1 ; garde tableau de `IX` retirée → 1 ; « MUET » ignoré → 1.
+
+### Tests ajoutés
+
+`tests/swarm-14-relecture.test.js` (5) : `usage()` tableau ; chef qui attend sans sous-mission (même Bilan qu'un chef
+sans appel, réponse vide, famille oubliée) ; attentes chevauchées ; tour en erreur non compté ; `child_done.usage`
+hostile. Fichiers du lot + relecture : 15/15 ; tests nommés par le plan (`runtime`, `runtime-onevent`, `chef-01`,
+`billing`, `equipe-01-roles`, `delegation-v2-01-b`) : verts, non modifiés.
+
+### Totaux
+
+Phase unitaire (10:09-10:13) : `ℹ tests 1888`, `ℹ pass 1885`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ skipped 2`,
+`ℹ todo 1`, « FIN phase unitaire : code 0 (durée 229 s) » (1 883 + 5). `npm run check` : « Syntaxe JavaScript
+valide. » ; `npm run format:check` : « All matched files use Prettier code style! ».
+
+### Points à trancher par le manager
+
+1. Attentes chevauchées : `ms` est la somme des attentes, pas le temps mur (garder, ou compter le temps mur).
+2. Le compteur d'attente est par exécution et en mémoire : un chef repris ou un redémarrage repart de 0.
+3. Les points 1 à 5 du codeur restent à trancher tels qu'écrits plus haut.
+
+Verdict : `bon_a_integrer`.

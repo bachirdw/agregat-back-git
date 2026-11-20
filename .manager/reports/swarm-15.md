@@ -142,3 +142,95 @@ journal (`tests/review2-lecture-18-11.test.js:248`) est le test « à faire » (
    `lecon_utile` ni de citation pour ces leçons) ; la carte n'est jamais vidée (petite, des identifiants).
 6. Limite documentée : un chef sans sous-mission n'a ni ligne « Leçons » ni citation (`familyBilan()` rend `''`).
 7. Note identique → `deja: true` appliquée avec ou sans `durable`, même au réglage `0` (comportement du carnet).
+
+## Relecture indépendante (21/11/2026, 10:20-10:50)
+
+Base `03f3178`, relu : portage `5c840b9`, `git diff 03f3178..510d1bd` (5cb36e1, 510d1bd). Commits `[swarm-14]` non relus,
+non touchés.
+
+### Constats
+
+- **Majeur, corrigé (D2)** : au réglage `AGENT_PLATFORM_LECONS=0`, `carnet_noter` n'était pas celui de la base : une note
+  identique du même auteur rendait `deja: true`, et le schéma côté plateforme acceptait `durable` (la base le refuse,
+  schéma strict). Test rouge d'abord (`tests/swarm-15-relecture.test.js`, premier test : `{ deja: true }` au lieu de
+  `{ n: 2, total: 2 }`), puis `carnet.js` : déduplication seulement quand le réglage n'est pas `0`, schéma
+  `CARNET_TOOLS_SANS_LECONS` quand il vaut `0`. Documentation mise à jour (`docs/api-lecons.md` § 8,
+  `docs/api-delegation.md` § 7 bis).
+- **Mineur, corrigé** : `leconCall()` ne regardait pas `this.lent` (le carnet, lui, refuse quand
+  `AGENT_PLATFORM_DELEGATION=0`) : 403 ajouté, test rouge d'abord.
+- **D1 fait** : `'lecon_lire', 'lecon_utile'` ajoutés à la seule liste attendue de `tests/chef-01.test.js` (≈ l. 220) et
+  `tests/equipe-01-carnet.test.js` (≈ l. 147).
+- **Mineur, laissé** : coût de lecture à chaque départ de membre (chef et chaque sous-mission) : lecture synchrone de toute
+  la portée (≤ 1 000 fichiers de ≤ 64 Kio). Mesuré : 500 leçons pertinentes → ≈ 280 ms par départ (machine chargée) ;
+  500 leçons courtes → ≈ 25 ms. Bloque la boucle d'événements pendant ce temps.
+- **Mineur, laissé** : contrôle de `servies.notees` dans `lecon_utile` redondant avec le module (`deja_notee` par mission) :
+  aucun test ne rougit quand on le retire, le résultat est identique.
+- **Mineur, laissé** : `docs/api-delegation.md` § 7 bis : une ligne commence en colonne 0 dans une liste (« `{ id }` »),
+  sortie de prettier, rendu correct.
+- Vérifié conforme : périmètre (seuls les fichiers nommés) ; `index.js` non touché ; dans `delegation.js` seuls
+  constructeur, `promptParts()`, `call()`, `ended()` (une ligne ajoutée à la fin), `familyBilan()` (retour), deux lignes
+  de `servers()` et le bloc neuf ; rien dans `launch()`, `pump()`, `wake()`, `prerequisite()`, `settle()`,
+  `stopFamily()`, `waitLiving()` ; lignes du lot 14 (`usage`, `chef`, `attente`) inchangées ; `env` de la passerelle
+  identique à la base quand le réglage ne vaut pas `0` (`...[]`) ; phrases du plan mot pour mot ; 5 leçons au plus, une
+  ligne, titre ≤ 200 et extrait ≤ 300 caractères, champ encodé par `JSON.stringify` (aucun champ ajoutable) ; événement
+  `lecon_gardee { id }` seul ; `tests/mcp-contract.test.js` non modifié et vert ; les cinq assertions adaptées ne changent
+  que la liste attendue.
+- Fidélité à swarm (`runner.ts:4254-4292`, `task-terminal-effects.ts:116-153`, lecture seule) : 5 au plus, échec de
+  recherche jamais bloquant, citation sans effet sur l'état : conforme. Écart voulu par le plan : swarm cite contre tout
+  le journal de session, Relay contre la réponse finale seule.
+
+### Risque de conflit avec swarm-16
+
+- `delegation.js` : le lot 15 a inséré un bloc d'imports (l. 52-63) au milieu des imports de tête, juste après celui de
+  `RESULT_TOOLS` : conflit probable si swarm-16 ajoute un import au même endroit.
+- `launch()` (choix du modèle) et `agentsNow()` : non touchés par le lot 15.
+- `delegation-rule.js` : lot 15 aux l. 75-172 (carnet, `LECON_TOOLS`) ; schéma de `mission_lancer` vers la l. 335 :
+  pas voisin.
+- `docs/api-delegation.md` : lot 15 au § 7 bis (l. ≈ 539-553) ; § 3.1 l. 258 : pas voisin.
+
+### Contrôles négatifs (fichiers du lot + relecture, chaque changement retiré puis remis)
+
+Rouges : champ `lecons` du chef (5 échecs), `famille.lecons` (3), phrase du chef (2), phrase de la sous-mission (2),
+route `LECON_TOOLS` dans `call()` (2), citation dans `ended()` (2), citation du chef (1), ligne de Bilan (1), réglage
+dans `Delegation.servers()` (1) et `Carnet.servers()` (1), refus `non_servie` (1), espace privé → dossier commun (2),
+garde du mode propriétaire de la route (3), contrôle de catégorie (1), événement `lecon_gardee` (5), `durable` dans
+`note()` (10), déduplication (1), D2 (2 × 1), réglage de la passerelle (2), liste de la sous-mission (1), route GET (2),
+route POST (2), garde `leconsOn` de `leconsDe()` (1, test ajouté : il n'était pas couvert). Resté vert : contrôle
+`servies.notees` (redondant, voir plus haut). Rien du contrôle négatif ne reste dans l'arbre.
+
+### Tests ajoutés (`tests/swarm-15-relecture.test.js`, 9 tests)
+
+Réglage 0 → `carnet_noter` de la base ; outils de leçons refusés sans outils de mission ; texte de leçon hostile
+(contrôles, faux JSON, fausse consigne, long) → lignes bornées, clés du prompt inchangées, Bilan intact ; leçon privée
+jamais servie à une mission non privée ni à un autre espace, `carnet_note` privé sans texte ; fichiers abîmés, trop
+grands, dossier remplacé par un fichier → prompt de la base ; 500 leçons → 5 au plus, coût mesuré ; `lecon_utile` d'une
+leçon servie au chef seulement appelée par une sous-mission → `non_servie`, réponse de 5 Mo citée sans erreur, une
+seule citation ; routes réelles avec valeurs hostiles (`../`, absolu, octet nul, 200 caractères, Unicode, vide,
+majuscules, corps invalide, `null`, `{}`, `__proto__`, `constructor`, `par` hostile, espace privé hors mode
+propriétaire) → 400/403/404 sans trace, rien écrit hors du dossier ; réglage 0 + mission privée → rien servi.
+
+### Totaux
+
+- Fichiers du lot et liés (swarm-15 ×2, chef-01, equipe-01-carnet, swarm-10-resultat, mcp-contract, equipe-01-roles,
+  delegation-v2-01-b, swarm-03-lecons) : verts.
+- Phase unitaire entière (terminée 10:48) :
+  ```
+  ℹ tests 1906
+  ℹ pass 1902
+  ℹ fail 1
+  ℹ cancelled 0
+  ℹ skipped 2
+  ℹ todo 1
+  FIN phase unitaire : code 1 (durée 444 s)
+  ```
+  1 906 = 1 897 attendus + 9 de relecture. L'échec : « délai du tour ACP du chef suspendu pendant mission_attendre »
+  (`tests/delegation-v2-01-a.test.js:295`, délai de 2 000 ms dépassé) ; relancé seul trois fois : 10/10 vert →
+  **échec sous charge**, fichier hors lot non modifié. Journal supprimé.
+- `npm run check` : code 0. `npm run format:check` : « All matched files use Prettier code style! ».
+
+### Points à trancher par le manager
+
+1. Coût de lecture synchrone à chaque départ (≈ 280 ms pour 500 leçons pertinentes) : acceptable, ou index/cache ?
+2. Contrôle `servies.notees` redondant : à garder (évite une lecture disque) ou retirer.
+
+Verdict : `bon_a_integrer`.

@@ -437,6 +437,11 @@ l'agent les montre, le Bilan de la mission a **une** ligne de plus (aucune sinon
   ces sous-agents.
 - Jamais de jetons ni de conversion en part d'abonnement ; aucune décision de la plateforme ne dépend de cette ligne.
   Non observé à ce jour : sous-agent en arrière-plan, Gemini, OpenCode.
+- Cause réelle de l'échec de 334492d0 (E152, `parseAgentResult`, repris de `equipe-e152` dans `equipe-01`) : la
+  réponse finale, en prose, citait un motif de chemin `fiches/{a,b,c}.json`. Des accolades qui n'ouvrent rien qui
+  ressemble à un objet (ni guillemet, ni clé suivie de `:`, ni fin du texte), dans un texte qui ne commence pas par une
+  accolade, sont désormais du texte libre, repris comme toute réponse en prose ; une réponse JSON tronquée ou presque
+  valide reste « JSON invalide ».
 
 ## 6. Textes montrés au propriétaire
 

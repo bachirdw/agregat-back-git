@@ -162,6 +162,23 @@ export function parseAgentResult(text) {
       reason: 'Réponse non structurée de l’agent (refus ou texte libre)',
       excerpt,
     };
+  // equipe-e152 (E152, mission 334492d0) : braces in prose that open nothing like an object (a path
+  // pattern `fiches/{a,b}.json`, a placeholder, LaTeX) are free text, like an answer without braces.
+  // Not when the text itself opens with a brace (fenced or not), nor when any brace opens something
+  // shaped like an object : a quoted or bare key followed by `:`, a quote, or the end of the text
+  // (a truncated or almost valid answer stays « JSON invalide »).
+  if (
+    found.length < MAX_STARTS &&
+    !/^(?:```\w*\s*)?\{/.test(raw) &&
+    found.every(
+      (c) => c.json === undefined && !/^\{\s*(?:["']|[\w$-]+\s*:|$)/.test(raw.slice(c.start)),
+    )
+  )
+    return {
+      ok: false,
+      reason: 'Réponse non structurée de l’agent (refus ou texte libre)',
+      excerpt,
+    };
   const invalid = { ok: false, reason: 'JSON invalide dans la réponse de l’agent', excerpt };
   const offContract = {
     ok: false,

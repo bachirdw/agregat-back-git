@@ -97,6 +97,7 @@ import { defaultPricing, estimatePlan, loadPricing, priceOf } from '../billing/i
 import { levels, validateWorkflow, WorkflowEngine } from '../workflow-engine/index.js';
 import { Delegation } from './delegation.js';
 import { DEFAULT_ENVELOPE, MAX_PARALLEL, MAX_TOTAL } from './delegation-rule.js';
+import { LoopGuard, loopGuardMode, messageArret, texteAvertissement } from './loop-guard.js';
 const homesBase = (run, packId, dataDir) =>
   packId === 'career-ops' ? resolve(run.cwd, 'relay') : dataDir;
 export const inputSchema = z
@@ -337,7 +338,12 @@ const OWNER_MESSAGE_VIA = {
 };
 // Bilan : one platform line per message, bounded.
 export function formatOwnerMessageLines(messages) {
-  const from = (m) => (m.de ? 'Message de l’agent principal (chef)' : 'Message du propriétaire');
+  const from = (m) =>
+    m.de === 'plateforme'
+      ? 'Note de la plateforme'
+      : m.de
+        ? 'Message de l’agent principal (chef)'
+        : 'Message du propriétaire';
   const line = (m) =>
     m.state === 'delivered'
       ? `${from(m)} reçu à ${clockTime(m.at)}, remis à ${clockTime(m.deliveredAt)} (${OWNER_MESSAGE_VIA[m.via] ?? m.via}).`
@@ -1285,6 +1291,22 @@ export class Orchestrator {
     setImmediate(() => this.launch(this.store.get(runId), plan, control, null));
     return this.store.get(runId);
   }
+  // swarm-06 : a loop of tool calls seen by the LoopGuard. Always one `tool_loop` event (never the
+  // arguments) and `control.loop` ; mode avertir : one note to the agent per pattern ; mode
+  // arreter : the mission stops at the critical level. Never throws (called from onEvent).
+  toolLoop(run, control, boucle, guard) {
+    try {
+      const { niveau, motif, outil, n } = boucle;
+      this.store.event(run.id, 'tool_loop', { niveau, motif, outil, n });
+      control.loop = guard.etat();
+      if (guard.mode === 'avertir' && guard.noter(motif))
+        this.message(run.id, texteAvertissement(boucle), { de: 'plateforme' }).catch(() => {});
+      if (guard.mode === 'arreter' && niveau === 'critique' && !control.abort.signal.aborted)
+        control.abort.abort(Object.assign(new Error(messageArret(boucle)), { code: 'tool_loop' }));
+    } catch {
+      /* A loop guard never stops nor slows a mission by its own failure. */
+    }
+  }
   // Audit du 10/11 (constat 9) : an exception escaping execute() (cleanup of the agent's home,
   // diagnostic write) was an unhandled rejection : Node stops the server, or the mission stayed in
   // `active` (slot and private-workspace lock held, close() waiting forever). It is caught here : the
@@ -1426,6 +1448,9 @@ export class Orchestrator {
       // E98 : whatever the adapter's naming (Codex : `mcp.platform.browser_click`, server in the input).
       isPlatform: (update) => isGatewayToolCall(update, gatewayServers) === true,
     });
+    // swarm-06 : the same tool call repeated (AGENT_PLATFORM_LOOP_GUARD : 0, observer, avertir, arreter).
+    const loopMode = loopGuardMode(process.env.AGENT_PLATFORM_LOOP_GUARD);
+    const loopGuard = loopMode ? new LoopGuard({ mode: loopMode }) : null;
     // stall-01 (E49): a tool call is guarded once handed over to the platform, not when the agent
     // opens it (a long report streams for minutes behind one pending tool_call). See ToolGuard.
     const toolGuard = new ToolGuard({
@@ -1580,6 +1605,8 @@ export class Orchestrator {
           if (promptStarted) nativeSubagentsOf(nativeActions, plan.agent).observe(update);
           // chef-01 : a sub-mission's files, named by its own completed calls.
           control.familyObserve?.(update);
+          const boucle = loopGuard?.observe(update);
+          if (boucle) this.toolLoop(run, control, boucle, loopGuard);
           if (
             promptStarted &&
             update.sessionUpdate === 'tool_call' &&

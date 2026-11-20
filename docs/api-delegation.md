@@ -740,9 +740,10 @@ tentatives, suites?, derniere }] }`, seulement avec `toutes: true` et quand plus
     pas finie (0 quand l'agrégat est rendu).
   - `rappel { demande?, enCours }` : `demande` = la demande du propriétaire (`turnObjective` de la mère) coupée à
     300 caractères ; `enCours` = le NOMBRE de sous-missions encore vivantes (en file comprises). La clé `enCours` à la
-    racine (la liste des sous-missions en cours) ne change pas. Mission privée (espace de travail ou pack privé, hors
-    mode propriétaire : l'une des deux règles du code, `privateTitle` de `launch()` ou celle des messages du
-    propriétaire) : `demande` absente, et `rappel` absent quand aucune sous-mission ne vit plus.
+    racine (la liste des sous-missions en cours) ne change pas. `demande` n'est donnée que pour une mission sans espace
+    de travail et dont le pack est le pack général par défaut (`packs[0]`, le repli de `getPack`) ; toute autre
+    mission (espace de travail, autre pack, pack inconnu, mode propriétaire compris) n'en a pas, et `rappel` est
+    absent quand aucune sous-mission ne vit plus. Aucun nom de pack dans le code.
 - **`terminees[]`** (et `mission_suivre { details }`, tour de synthèse) :
   - `dependantesAnnulees: [{ id, titre }]`, pour un état autre que `completed` : les sœurs dont `famille.apres`
     contient son id, annulées avec une erreur qui commence par « Prérequis ». À relancer avec `apres` vers la reprise.
@@ -756,7 +757,9 @@ tentatives, suites?, derniere }] }`, seulement avec `toutes: true` et quand plus
 - **`mission_suivre`** (ligne d'un membre) : `boucle` = le dernier signalement du garde-boucle (`swarm-06`,
   `{ niveau, motif, outil, n, raison }`) tant que la sous-mission tourne et qu'il en a un ; absent sinon.
 - **Tour de synthèse** : `familyResults.agregat` (même forme, toute la famille) et `familyResults.demande` (300
-  caractères, absente pour une mission privée).
+  caractères, même règle que `rappel.demande`).
+- Les sœurs lues pour `dependantesAnnulees` le sont une fois par passe (une attente qui rend N résultats ne les relit
+  pas N fois).
 - **Description de `mission_attendre`** : elle dit `agregat`, `rappel` et `dependantesAnnulees` (« les sous-missions
   annulées par un prérequis sont à relancer avec apres vers la reprise »), avant la phrase anti-relance qui la termine.
 - `dernierVerdictParTache` (même règle que `verificationLines` de `roles.js`) est porté mais pas encore branché.

@@ -10,6 +10,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Delegation } from '../packages/orchestrator/delegation.js';
+import { packs } from '../packages/orchestrator/packs.js';
 import {
   MESSAGE_NON_REMIS,
   RAPPEL_MAX,
@@ -68,6 +69,8 @@ function fake(t, { prompt = 'Demande FICTIVE du propriétaire.', mother: extra =
     multiAgent: true,
     estMere: true,
     delegation: { accepted: true, total: 10, parallel: 3 },
+    // relecture : le pack général par défaut (le seul dont la demande est rappelée).
+    pack: packs[0].id,
     ...extra,
   };
   rows.set(mother.id, mother);
@@ -242,13 +245,13 @@ test('swarm-12 (8) : rappel.demande coupée à 300 caractères, absente pour une
   const enCours = await p.wait({ toutes: false, ids: [p.rows.get('01-Part A').id] });
   assert.deepEqual(enCours.rappel, { enCours: 1 });
 
-  // Privée par la règle des messages (pack privé), hors mode propriétaire.
-  const q = fake(t, { prompt: longue, mother: { pack: 'career-ops' } });
+  // relecture : un autre pack que le pack général, sans espace : pas de demande, mode propriétaire
+  // compris (règle prudente, aucun nom de pack dans le code).
+  const q = fake(t, { prompt: longue, mother: { pack: 'pack-FICTIF' } });
   q.child('Part A', 'completed');
   assert.equal((await q.wait()).rappel, undefined);
-  // En mode propriétaire, la demande est rendue.
   q.engine.ownerMode = true;
-  assert.equal((await q.wait()).rappel.demande.length, 300);
+  assert.equal((await q.wait()).rappel, undefined);
 });
 
 // ---- 3. outcome : dependantesAnnulees, messagesDuChef, mêmes clés

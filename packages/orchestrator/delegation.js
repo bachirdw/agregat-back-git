@@ -35,7 +35,7 @@ import { agentState } from '../agent-runtime/agent-state.js';
 import { limitReason } from '../agent-runtime/limits.js';
 import { safeDirectory, writeConfined } from '../policy-engine/files.js';
 import { terminal } from '../storage/index.js';
-import { ROOT } from './packs.js';
+import { ROOT, packs } from './packs.js';
 import { publicQuestion } from './questions.js';
 import { readToolCall } from './tool-call.js';
 import { familySection } from './family-bilan.js';
@@ -1582,8 +1582,8 @@ export class Delegation {
       child.state === 'completed'
         ? null
         : sur(() => {
-            const mother = this.store.get(child.famille?.mere);
-            return mother ? dependantesAnnulees(child, this.childrenOf(mother)) : null;
+            const soeurs = this.soeursDe(child.famille?.mere);
+            return soeurs ? dependantesAnnulees(child, soeurs) : null;
           });
     const messages = sur(() =>
       messagesDuChef(this.store.events(child.id)).map((m) => ({ ...m, note: MESSAGE_NON_REMIS })),
@@ -1592,6 +1592,18 @@ export class Delegation {
       ...(dependantes?.length ? { dependantesAnnulees: dependantes } : {}),
       ...(messages?.length ? { messagesDuChef: messages } : {}),
     };
+  }
+  // swarm-12 (relecture) : the sisters of a mother, read once per synchronous pass (a wait or a
+  // synthesis turn giving N results reads them once, not N times) and forgotten at the next
+  // microtask, so a later call reads them afresh. Null for an unknown mother.
+  soeursDe(motherId) {
+    if (this.soeursLues?.id !== motherId) {
+      const mother = this.store.get(motherId);
+      const rows = mother ? this.childrenOf(mother) : null;
+      if (!this.soeursLues) queueMicrotask(() => (this.soeursLues = null));
+      this.soeursLues = { id: motherId, rows };
+    }
+    return this.soeursLues.rows;
   }
   // swarm-12 : the count per task of the whole family, on the same rows as the Bilan's « Par
   // tâche (dernière tentative) » line (without the sub-missions refused by the owner, a held one
@@ -1605,11 +1617,13 @@ export class Delegation {
       ),
     );
   }
-  // swarm-12 : the owner's request cut to 300 characters, null for a private mission : either rule
-  // of the code says it (`privateTitle` of launch(), `box.private` of the owner's messages).
+  // swarm-12 : the owner's request cut to 300 characters. Prudent rule (relecture) : given only for
+  // a mission WITHOUT a private workspace whose pack is the general one by default (`packs[0]`, the
+  // fallback of getPack) ; any other mission (a workspace, another pack, an unknown pack, owner mode
+  // included) gets none. No pack is named here.
   demandeOf(mother) {
     return sur(() => {
-      const prive = !this.engine.ownerMode && (!!mother.workspace || mother.pack === 'career-ops');
+      const prive = !!mother.workspace || !mother.pack || mother.pack !== packs[0]?.id;
       return demandeCourte(prive ? null : this.engine.turnObjective(mother), { prive });
     });
   }

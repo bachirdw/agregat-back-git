@@ -478,3 +478,34 @@ et Codex) attend l'accord du propriétaire : non joué.
 - 02:55 : écran 5179 vu (mode sombre) sur `d353149b` : bloc Équipe lisible (chef, 4 membres, rôle, agent et modèle,
   durée, plis Résultat, verdict approuvé et remarques, carnet). Les sous-missions sont encore mêlées à la liste de
   gauche (prévu au lot swarm-11).
+
+## 21/11, 02:56 → 04:46 Limite de Codex, remise à zéro, deuxième série d'essais (Claude chef), vague 4 lancée
+- 02:56 : mission « dossier comparatif » (4 projets, fiches sourcées, tableau, incohérences, synthèse ; consigne neutre
+  écrite par le manager) avec Codex chef (`858fba6a`, code `d3574af`) : 2 `chercheur` lancés (un Codex, **un Claude**), un
+  `verificateur` Claude en attente de prérequis ; **échec à 9,0 min : limite d'usage de Codex atteinte (jusqu'à 07:16)** ;
+  les trois sous-missions annulées avec la mère (E157). Limite retenue dans les sondes (`limite` jusqu'à 07:16).
+- 02:57 → 04:21 : pause du manager (83 % de la fenêtre de 5 h) ; reprise seule à 04:21 (fenêtre à 0 %, hebdomadaire 81 %).
+- 04:21, deux missions en équipe avec **Claude chef** (modèle par défaut, enveloppe 6 / 3, pack core, 0 carte, 0 question) :
+  | Épreuve | Durée | Résultat constaté |
+  |---|---|---|
+  | Étude de marché (`53e2ac26`) | 13,7 min | `completed` ; « Décision : seul, parce que… » ; 4 fichiers (10 produits, synthèse 868 mots) ; aucune sous-mission |
+  | Dossier comparatif (`7ba386b6`) | 23,2 min | `completed` ; « Décision : équipe… » ; 4 `chercheur` (3 à la fois, le 4e en file), puis 1 `verificateur` (après les quatre, verdict `approuve`, source fichier) ; 4 fiches, tableau, incohérences, synthèse 586 mots ; carnet 7 notes ; 3 signalements de doublon « proche » à tort (E158) |
+  Aucun `tool_loop` sur ces deux missions. Codex sous limite : aucune sous-mission ne lui a été donnée.
+- Comparaison à ce stade : tâche simple (code) : Claude seul 5,9 min, Codex en équipe 18,6 min ; étude de marché : Claude
+  seul 13,7 min, Codex en équipe 23,1 min ; comparatif à 4 sources : Claude en équipe 23,2 min (non joué jusqu'au bout avec
+  Codex, limite). Qualité des contenus non jugée par un tiers.
+- **Vague 4** (04:21) : arbres `~/Downloads/agregat-back-swarm-10` (base `d3574af`) et
+  `~/Downloads/agregat-front-swarm-11` (branche `swarm-11` partie de `swarm-09` `42ebff5`).
+  - **swarm-11 (interface 2)** : copieur `c116a9f`, codeur `5a349a4`, `d3e2f39`, `412d70a`, relecteur `8ef80e2`, verdict
+    **bon à intégrer** (5 constats mineurs laissés). Décisions du manager : pas de `?racines=1` (casserait des tests hors
+    lot) : la liste garde `GET /runs` et retire les sous-missions dans l'interface ; résumé d'équipe calculé dans
+    l'interface si `equipe` manque ; `motif` et `agentPrevu` lus sur la ligne brute ; agents indisponibles en fin de liste
+    mais sélectionnables. Contrôle du manager (04:42) : `npm test` 20 fichiers, **335 / 335** ; build 0 ; prettier vert.
+    Interface **5179 servie depuis l'arbre `agregat-front-swarm-11`** depuis 04:42. Points laissés : le compteur
+    « N missions attendent » compte encore les sous-missions ; heure d'une limite passée gardée jusqu'à la relecture du
+    catalogue ; `pourquoi` non affiché quand `motif` manque.
+  - **swarm-10 (résultat validé par schéma)** : copieur `fff07fd` (pied de commit « Claude Opus 5.5 » au lieu de la
+    convention : laissé, pas de réécriture), codeur `f3da6e2`, `a41b0c3` (phase unitaire 1 790 / 1 787). Décisions du
+    manager : l'assertion de `tests/equipe-01-carnet.test.js:249` gagne `resultat_rendre` ; borne effective 32 768 octets
+    (API non touchée) ; racine de schéma autre que `object` refusée ; suite et reprise héritent du schéma ; verdict
+    aligné sur `normalizeVerdict`. Relecteur lancé à 04:44.

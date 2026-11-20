@@ -365,8 +365,9 @@ s'arrête.
   enchaîner seul (chaque sous-mission a son onglet, ses cartes d'envoi, son suivi et sa reprise ; les sous-agents
   internes d'un agent partagent sa session de navigateur et ne sont ni suivis ni repris) ; travailler seul pour une
   demande simple, une petite étape ou des étapes dépendantes. Depuis `swarm-01`, ce passage est remplacé par la décision
-  « seul ou équipe » (`DECISION_RULE`, détail en 9.1) : la phrase est `CHIEF_INTRO` + `DECISION_RULE` + `CHIEF_METHOD`,
-  dans cet ordre, le reste inchangé. Suite de la phrase : éviter deux sous-missions en même temps sur le même site ;
+  « seul ou équipe » (`DECISION_RULE`, détail en 9.1), qui garde « plusieurs sources indépendantes » et « pour une demande
+  simple, une petite étape ou une suite d’étapes qui dépendent l’une de l’autre » : la phrase est `CHIEF_INTRO` +
+  `DECISION_RULE` + `CHIEF_METHOD`, dans cet ordre, le reste inchangé. Suite de la phrase : éviter deux sous-missions en même temps sur le même site ;
   le chef décide, choisit agent et modèle selon la difficulté ; dossier de résultats (chemin relatif au dossier de
   travail), fichiers rassemblés par un script ; pour un travail répétitif, la méthode écrite une fois dans un fichier de
   l'espace donné à chaque sous-mission (`fichiers`), avec dans `informations` ce qui est propre à sa part ; chaque
@@ -540,8 +541,10 @@ Fichiers : `packages/orchestrator/decision.js` (neuf : liste des motifs et borne
   partir de « évite deux sous-missions en même temps sur le même site », inchangé). `DECISION_RULE` : décider avant
   d'agir ; équipe pour au moins deux parties indépendantes de plus de dix minutes environ chacune (« il attend que tu les
   lances en sous-missions en même temps » est gardée mot pour mot, correctif E147), ou pour un livrable long ou risqué qui
-  mérite un regard indépendant ; seul pour ce qui tient en moins d'un quart d'heure environ, des étapes dépendantes, une
-  petite retouche, ou quand écrire la consigne oblige à prendre soi-même les décisions ; une consigne qui se lit comme un
+  mérite un regard indépendant ; seul pour une demande simple, une petite étape ou une suite d’étapes qui dépendent l’une
+  de l’autre, quand tout tient en moins d'un quart d'heure environ, ou quand écrire la consigne oblige à prendre soi-même
+  les décisions ; les exemples d'équipe gardent « plusieurs sources indépendantes ou plusieurs sites à consulter » (ces
+  deux morceaux, validés en réel avec le correctif E147, sont gardés par décision du manager) ; une consigne qui se lit comme un
   bon de commande se délègue ; après deux échecs d'une sous-mission sur la même part, la faire soi-même ou changer
   d'agent ; écrire la décision au début de la réponse finale (« Décision : seul, parce que … » ou « Décision : équipe,
   parce que … »). Les seuils sont des ordres de grandeur écrits dans le texte seulement, jamais dans le moteur. Refus des
@@ -561,7 +564,8 @@ Fichiers : `packages/orchestrator/decision.js` (neuf : liste des motifs et borne
   `checkMotif`) est gardée, éteinte, branchée nulle part.
 - **Ce qui est écrit** : sur la ligne de la sous-mission, `famille.pourquoi` et `famille.motif` (la note) quand ils sont
   donnés ; mission privée (espace privé hors mode propriétaire) : la note n'est pas écrite dans la base (comme le titre),
-  seul `pourquoi`, valeur fixe de la liste, l'est. Événement `child_launched` : `pourquoi` en plus quand il est donné.
+  seul `pourquoi`, valeur fixe de la liste, l'est ; la note d'une mission privée n'est écrite nulle part (ni base, ni
+  mémoire de la plateforme). Événement `child_launched` : `pourquoi` en plus quand il est donné.
   `mission_suivre` : `pourquoi` et `motif` sur la ligne quand ils existent. Prompt de la sous-mission :
   `famille.tache.horsPerimetre` et `famille.tache.verification` (avec `objectif`, `informations`, `perimetre`,
   `resultatAttendu`). Sans ces champs : mêmes clés, mêmes lignes et même Bilan qu'avant.

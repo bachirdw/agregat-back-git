@@ -164,7 +164,14 @@ test('swarm-01 (1) : la phrase du chef porte DECISION_RULE si l’accord est don
   // E147 : the sentence kept word for word ; the text is symmetric (team and alone).
   assert.match(rule.DECISION_RULE, /il attend que tu les lances en sous-missions en même temps/);
   assert.match(rule.DECISION_RULE, /^avant d’agir, décide : seul ou en équipe ; équipe quand/);
-  assert.match(rule.DECISION_RULE, /; seul quand tout tient en moins d’un quart d’heure environ/);
+  assert.match(
+    rule.DECISION_RULE,
+    /; seul pour une demande simple, une petite étape ou une suite d’étapes qui dépendent l’une de l’autre, quand tout tient en moins d’un quart d’heure environ, ou quand écrire la consigne/,
+  );
+  assert.match(
+    rule.DECISION_RULE,
+    /\(plusieurs sources indépendantes ou plusieurs sites à consulter, /,
+  );
   assert.match(rule.DECISION_RULE, /« Décision : seul, parce que … » ou « Décision : équipe/);
   // TEAM_RULE : the conditional verification, the rest unchanged.
   assert.match(

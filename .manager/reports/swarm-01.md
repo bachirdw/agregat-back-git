@@ -73,6 +73,16 @@ Codeur, début 20/11/2026 23:37 (heure lue par `date`). Arbre `/Users/diaw/Downl
    plan).
 6. Ligne « Co-Authored-By » des commits : celle que donne mon environnement (« Claude Opus 5.5 »), non celle du brief
    (« Claude Fable 5.2 »).
+7. **Texte du plan aménagé par décision du manager** (20/11, après le premier rendu) : dans `DECISION_RULE`, deux
+   remplacements, le reste mot pour mot celui du plan :
+   - « (plusieurs sources ou sites à consulter, » → « (plusieurs sources indépendantes ou plusieurs sites à consulter, » ;
+   - « seul quand tout tient en moins d’un quart d’heure environ, quand les étapes dépendent l’une de l’autre, quand la
+     retouche est petite, ou quand écrire la consigne » → « seul pour une demande simple, une petite étape ou une suite
+     d’étapes qui dépendent l’une de l’autre, quand tout tient en moins d’un quart d’heure environ, ou quand écrire la
+     consigne ».
+   Raison : « Fini quand » exige `tests/delegation-v2-01-b.test.js` vert sans modification ; ces deux morceaux (validés en
+   réel, correctif E147) avaient été perdus par oubli dans le plan. Le point bloquant 1 ci-dessous est ainsi réglé.
+   Note d'une mission privée : choix gardé par le manager (écrite nulle part), dit en une ligne dans `DOC` §9.1.
 
 ## Points à trancher par le manager
 
@@ -100,4 +110,14 @@ Codeur, début 20/11/2026 23:37 (heure lue par `date`). Arbre `/Users/diaw/Downl
   `FIN phase unitaire : code 1 (durée 228 s)`. Référence 1 611 / 1 608 / 0 / 2 / 1 : +8 tests du lot ; le seul échec est
   `delegation-v2-01-b.test.js:289` (texte du plan). La trace de `review2-lecture-18-11.test.js:248` est le « à faire »
   déjà connu, non un échec. Journal supprimé après lecture.
+- `npm run check` : code 0. `npm run format:check` : code 0.
+
+## Après la décision du manager (point 1)
+
+- `DECISION_RULE` aménagé (écart 7), `DOC` §5 et §9.1 mis à jour, test du lot (cas 1) aligné sur les deux passages ; aucun
+  test existant modifié.
+- Cinq fichiers (`delegation-v2-01-a`, `-b`, `equipe-01-roles`, `multi-agent-v3-02`, `swarm-01-decision`) : 58 tests,
+  58 réussis, 0 échec, code 0.
+- Phase unitaire entière : `ℹ tests 1619` · `ℹ pass 1616` · `ℹ fail 0` · `ℹ cancelled 0` · `ℹ skipped 2` · `ℹ todo 1` ·
+  `FIN phase unitaire : code 0 (durée 240 s)`. Référence + 8 tests du lot, aucun autre chiffre ne bouge. Journal supprimé.
 - `npm run check` : code 0. `npm run format:check` : code 0.

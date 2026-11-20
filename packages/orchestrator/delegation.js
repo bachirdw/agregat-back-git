@@ -59,6 +59,7 @@ import {
   agregat,
   demandeCourte,
   dependantesAnnulees,
+  dettes,
   messagesDuChef,
 } from './taches.js';
 import {
@@ -75,6 +76,8 @@ import {
   REFUSED_CHILD,
   SAME_AGENT_NOTE,
   SYNTHESIS_TURN,
+  VERDICT_NOTE,
+  VERDICT_TURN,
   agentReplaced,
   agentUnavailable,
   modelLimitReason,
@@ -165,6 +168,9 @@ export class Delegation {
     // swarm-05 : AGENT_PLATFORM_DOUBLON : 0 (no check), signale (never a refusal), otherwise the
     // identical part is refused and the near one is said.
     this.doublon = { 0: 'off', signale: 'signale' }[process.env.AGENT_PLATFORM_DOUBLON] ?? 'refuse';
+    // swarm-13 : AGENT_PLATFORM_VERDICT_TURN=0 withdraws the catch-up turn on a negative verdict
+    // (and its joining to the synthesis turn) ; the Bilan line stays.
+    this.rattrapage = process.env.AGENT_PLATFORM_VERDICT_TURN !== '0';
     this.carnet = new Carnet(this); // equipe-carnet
     this.resultats = new ResultatValide(this); // swarm-10
   }
@@ -340,10 +346,12 @@ export class Delegation {
     // multi-agent-v3-02 (D) : those already ended whose result never reached the chief are joined too.
     const family = this.family(motherId);
     const given = [...living, ...this.undelivered(mother, family)];
-    if (!given.length) return null;
+    if (!given.length) return this.verdictTurn(mother, family, runtime, control);
     if (runtime.continueSession()) {
       if (living.length) await this.waitLiving(motherId, mother, control, family);
-      if (!control.abort.signal.aborted && runtime.continueSession())
+      if (!control.abort.signal.aborted && runtime.continueSession()) {
+        // swarm-13 : read after the wait (verifications ended meanwhile count) ; null without debt.
+        const attente = this.verdictsJoints(mother, family);
         return {
           familyResults: {
             nature: 'données rapportées par les sous-missions',
@@ -351,12 +359,62 @@ export class Delegation {
             ...this.carnet.forChief(mother), // equipe-carnet
             // swarm-12 : the count per task and the owner's request (each absent when unknown).
             ...this.retoursSynthese(mother),
+            ...(attente ? { verdictsEnAttente: attente } : {}),
           },
-          instructions: SYNTHESIS_TURN,
+          instructions: attente ? SYNTHESIS_TURN + ' ' + VERDICT_NOTE : SYNTHESIS_TURN,
         };
+      }
     }
     this.missed(family, given);
     return null;
+  }
+  // swarm-13 : the debt of the family : the works whose last verdict is not « approuve »
+  // (dettes, taches.js), on the same rows as the Bilan (without the sub-missions refused by the
+  // owner), each with its verdict read now. Null on an unexpected error.
+  detteOf(mother, family = null) {
+    return sur(() => {
+      const children = this.childrenOf(mother).filter((child) => child.error !== REFUSED_CHILD);
+      return dettes({
+        children: children.map((child) => ({ ...child, verdict: this.verdictOf(child) })),
+        nonRemises: family ? this.undelivered(mother, family) : 0,
+      });
+    });
+  }
+  // swarm-13 : the turn given is said once, durably : `verdict_turn` carries short task ids only.
+  verdictGiven(mother, family, negatifs) {
+    family.verdictTurn = true;
+    this.store.event(mother.id, 'verdict_turn', {
+      taches: negatifs.map((dette) => String(dette.tache).slice(0, 8)),
+    });
+  }
+  // swarm-13 : the chief ends its turn with nothing else to give but a debt of verdicts : ONE more
+  // turn of the same session (the engine gives one family turn per execution at most). Null when the
+  // setting is off, the turn was given, there is no debt, the mission is aborted, or the session is
+  // closed (continueSession() is called last : it has an effect).
+  verdictTurn(mother, family, runtime, control) {
+    if (!this.rattrapage || family.verdictTurn) return null;
+    if (control?.abort?.signal?.aborted) return null;
+    const negatifs = this.detteOf(mother, family)?.verdictsNegatifs;
+    if (!negatifs?.length) return null;
+    if (!runtime.continueSession()) return null;
+    this.verdictGiven(mother, family, negatifs);
+    return {
+      familyResults: {
+        nature: 'données rapportées par les vérificateurs',
+        verdictsEnAttente: negatifs,
+        ...this.carnet.forChief(mother), // equipe-carnet
+      },
+      instructions: VERDICT_TURN,
+    };
+  }
+  // swarm-13 : the verdicts joined to a synthesis turn that takes place anyway (no second turn) ;
+  // null when off, already given or without debt.
+  verdictsJoints(mother, family) {
+    if (!this.rattrapage || family.verdictTurn) return null;
+    const negatifs = this.detteOf(mother)?.verdictsNegatifs;
+    if (!negatifs?.length) return null;
+    this.verdictGiven(mother, family, negatifs);
+    return negatifs;
   }
   // multi-agent-v3-02 (K) : the absolute path of the mission's workspace, the chief's working folder,
   // to which `dossierResultats` and `fichiers[].chemin` are relative : the folder where
@@ -506,7 +564,19 @@ export class Delegation {
         verdict: this.verdictOf(child),
       })),
     });
-    return motifs ? `${section}\n${motifs}` : section;
+    // swarm-13 : the final answer given while a work's last verdict is not « approuve ».
+    const malgre = chiefAnswer ? this.verdictBilanLine(mother) : '';
+    return (motifs ? `${section}\n${motifs}` : section) + (malgre ? `\n${malgre}` : '');
+  }
+  // swarm-13 : « tour donné » read from the durable event of this execution, not the memory.
+  verdictBilanLine(mother) {
+    const negatifs = this.detteOf(mother)?.verdictsNegatifs;
+    if (!negatifs?.length) return '';
+    const donne = !!sur(() =>
+      this.store.events(mother.id).some((event) => event.type === 'verdict_turn'),
+    );
+    const titres = negatifs.map((dette) => `« ${dette.titre} »`).join(', ');
+    return `Réponse finale donnée malgré ${negatifs.length} travail(aux) dont le dernier verdict n’est pas « approuve » (${titres}) ; tour de rattrapage donné au chef : ${donne ? 'oui' : 'non'}.`;
   }
   // A failed or cancelled mother keeps the section in its result too.
   failureSection(run, control) {

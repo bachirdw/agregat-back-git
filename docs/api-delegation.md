@@ -251,6 +251,9 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   refusée), la mère attend la fin des sous-missions puis écrit son Bilan avec la ligne « Synthèse finale non faite : la
   réponse du chef a été écrite avant la fin de « … » ; leurs résultats ne lui ont pas été remis. » Le tour de rappel de
   `chef-01` est supprimé.
+  `swarm-13` (section 9.13) : quand une dette de verdict existe, ce tour porte aussi
+  `familyResults.verdictsEnAttente` et sa consigne se termine par `VERDICT_NOTE` ; sans tour de synthèse, une dette de
+  verdict seule peut donner un tour de rattrapage (même forme de tour, même borne d'un tour de famille par exécution).
 
 ### 3.1 Rôles, vérification indépendante et verdict (`equipe-01`, lot E1)
 
@@ -764,3 +767,22 @@ tentatives, suites?, derniere }] }`, seulement avec `toutes: true` et quand plus
   annulées par un prérequis sont à relancer avec apres vers la reprise »), avant la phrase anti-relance qui la termine.
 - `dernierVerdictParTache` (même règle que `verificationLines` de `roles.js`) est porté mais pas encore branché.
 - Tests : `tests/swarm-12-retours.test.js`.
+
+### 9.13 `swarm-13` (21/11/2026) : tour de rattrapage sur un verdict négatif
+
+Détail des dettes, du tour et de la ligne de Bilan : `docs/api-verdicts.md`, section 7. En bref :
+
+- **Tour de rattrapage** : le chef termine son tour sans sous-mission vivante ni résultat non remis, mais le dernier
+  verdict d'un travail n'est pas `approuve` : la même session reçoit un tour
+  `{ familyResults: { nature: "données rapportées par les vérificateurs", verdictsEnAttente: [...], carnet? },
+instructions: VERDICT_TURN, platform: { turnKind: "family_results" } }` ; sa réponse remplace la réponse finale.
+- **Tour de synthèse** (des sous-missions vivaient encore) : il porte en plus `verdictsEnAttente` (calculé après
+  l'attente) et `instructions` = `SYNTHESIS_TURN`, une espace, puis `VERDICT_NOTE` ; pas de second tour.
+- **Borne** : le moteur donne au plus un tour de famille par exécution (`familyTurn`, inchangé) ; la plateforme pose
+  `family.verdictTurn` et écrit l'événement `verdict_turn { taches }` (identifiants de tâche, 8 caractères, aucun
+  texte).
+- **Réglage** `AGENT_PLATFORM_VERDICT_TURN`, lu au démarrage : `0` retire le tour et les verdicts joints au tour de
+  synthèse ; la ligne de Bilan reste.
+- Sans vérification, ou quand le dernier verdict de chaque travail est `approuve`, rien ne change (mêmes tours, mêmes
+  événements, même Bilan). Hors du mode « Équipe d'agents », rien ne change.
+- Tests : `tests/swarm-13-rattrapage.test.js`.

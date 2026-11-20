@@ -94,3 +94,65 @@ texte d'avant (`verdict.json` écrit soi-même, ligne « Verdict : … » de la 
 - Accepté : écrit dans `verdict.json` du dossier de résultats, puis lu comme avant par `readVerdict` (source
   `fichier`) ; le dernier appel accepté remplace le précédent. Le verdict reste rendu dans `verdict` de `terminees[]`
   (pas dans `resultat`).
+
+## 7. Dette de verdict et tour de rattrapage (`swarm-13`)
+
+Code : `packages/orchestrator/taches.js` (`dettes`), `packages/orchestrator/delegation.js` (`synthesis`,
+`verdictTurn`, `familyBilan`), `packages/orchestrator/delegation-rule.js` (`VERDICT_TURN`, `VERDICT_NOTE`). Tests :
+`tests/swarm-13-rattrapage.test.js`.
+
+### 7.1 Dette
+
+Une tâche a une dette quand son DERNIER verdict valable n'est pas `approuve`. Règle de `dernierVerdictParTache` (la
+même que les lignes « non revérifié depuis » du Bilan) : un verdict compte pour une tâche seulement si le vérificateur
+relit (`relit`) la dernière tentative de cette tâche lancée avant lui. Conséquences :
+
+- après une correction (`mission_continuer` : une suite), le vérificateur doit relire l'id de la SUITE ; un verdict
+  qui relit l'ancienne tentative ne lève pas la dette ;
+- une suite non revérifiée laisse la dette du verdict précédent ;
+- un verdict illisible (source `absent` : vérificateur parti puis en échec, ou sans verdict) compte comme dette ;
+  l'entrée porte alors `illisible: true` ;
+- une vérification jamais partie, ou encore vivante, n'a pas de verdict : pas de dette.
+
+Forme d'une entrée de `verdictsEnAttente` :
+`{ tache, titre, valeur: "a_corriger"|"rejete", complet, illisible?, bloquants (10 au plus), par }` — `tache` : id de la
+première tentative ; `titre` : son titre (le même que celui déjà donné au chef dans `terminees[]`) ; `par` : id du
+vérificateur. Rien de neuf n'est écrit en base hormis l'événement `verdict_turn { taches }` (identifiants courts).
+
+### 7.2 Tour de rattrapage
+
+`synthesis()` rendait `null` quand il n'y avait rien à remettre au chef ; elle appelle maintenant `verdictTurn`, qui
+rend `null` (la mission finit comme avant) si le réglage `AGENT_PLATFORM_VERDICT_TURN` vaut `0`, si le tour a déjà été
+donné à cette exécution, s'il n'y a pas de dette, si la mission est abandonnée, si une erreur imprévue survient dans le
+calcul, ou si la session de l'agent est fermée (`continueSession()`, demandée en dernier). Sinon un seul tour, avec
+`VERDICT_TURN` :
+
+> Avant de conclure : ces travaux ont un dernier verdict de vérification qui n’est pas « approuve » (verdictsEnAttente :
+> données rapportées par les vérificateurs, avec leurs points bloquants). Pour chacun : fais corriger par
+> mission_continuer puis refais vérifier (relit) et attends le résultat par mission_attendre, ou corrige toi-même, ou
+> dis pourquoi tu t’arrêtes là. Écris ensuite ta réponse finale complète : elle remplace la précédente ; dis-y
+> clairement ce qui reste non vérifié.
+
+Un tour de synthèse qui a lieu de toute façon porte `verdictsEnAttente` et finit par la première phrase
+(`VERDICT_NOTE`) : jamais deux tours.
+
+### 7.3 Ligne de Bilan
+
+Quand la dette existe encore à la fin et que le chef a donné une réponse finale, le Bilan de la mère ajoute, après la
+section des sous-missions :
+
+« Réponse finale donnée malgré n travail(aux) dont le dernier verdict n’est pas « approuve » (« T1 », « T2 ») ; tour de
+rattrapage donné au chef : oui | non. »
+
+« oui » se lit sur l'événement durable `verdict_turn` de cette exécution (pas sur la mémoire). Une mère en échec (pas
+de réponse finale) n'a pas cette ligne ; les lignes « non revérifié depuis » restent.
+
+### 7.4 Limites connues (non corrigées)
+
+- Une mère reprise qui ne relance aucune sous-mission n'a pas de tour (première sortie de `synthesis()` : `control.mere`
+  faux) ; son Bilan peut porter la ligne avec « non ».
+- Après une reprise de la mère (exécution neuve), un tour peut être donné de nouveau.
+- Sur une mère reprise, l'ordre de `childrenOf` (sous-missions de l'exécution courante avant celles des exécutions
+  reprises) peut fausser « dernier verdict » ; défaut existant, partagé avec les lignes de vérification.
+- Une correction encore vivante après le tour de rattrapage n'a plus de synthèse : la plateforme l'attend, et le Bilan
+  porte « Synthèse finale non faite ».

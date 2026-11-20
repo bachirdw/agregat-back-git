@@ -119,3 +119,14 @@ Lecture seule : une limite passée rend `pret` sans rien écrire.
 Un agent dont `probe.limite.jusqua` est à venir est écarté avec la raison « Limite d’usage jusqu’à HH:MM »
 dans `rejected`. Il n’est jamais « réessayé » comme un agent écarté par une sonde négative. Sans champ
 `limite`, ou avec une limite passée, le choix est exactement celui d’avant.
+
+## Ce que voit le chef (swarm-08)
+
+- `mission_suivre.agents[]` rend, pour chaque agent détecté, `etat`, `raison` et `jusqua` de `agentState` (avec
+  l'horloge et le mode réel du moment), `disponible` (`pret` ou `a_reessayer`) et, par modèle, `limiteJusqua` (tiré de
+  `modelesLimites`) ; agents prêts en tête.
+- Au lancement d'une sous-mission, un agent en `limite` ou `connexion_refusee`, ou dont le modèle demandé est sous
+  limite, est refusé s'il est nommé par le chef (`agent_indisponible`, avec la raison et les agents prêts), remplacé
+  par le premier agent prêt sinon ; le levier `malgreIndisponible: true` passe outre.
+- La cause d'un échec rendue au chef porte la classe notée par `noteFailure` (`classe`, `jusqua`) et `agentsPrets`.
+- Détail : `docs/api-delegation.md`, 9.8.

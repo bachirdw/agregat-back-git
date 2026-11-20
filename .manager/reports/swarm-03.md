@@ -36,6 +36,29 @@ Ouvert le 20/11/2026 à 23 h 37 (heure de la machine). Arbre `/Users/diaw/Downlo
   `npm run format:check` → « All matched files use Prettier code style! ».
 - 23 h 42 — Phase unitaire lancée en arrière-plan. Commit `7768d15`.
 
+- 23 h 45 — Phase unitaire terminée (`phase-unitaire.mjs`), lignes lues dans le journal :
+
+  ```
+  ℹ tests 1630
+  ℹ pass 1627
+  ℹ fail 0
+  ℹ cancelled 0
+  ℹ skipped 2
+  ℹ todo 1
+  FIN phase unitaire : code 0 (durée 210 s)
+  ```
+
+  Référence 1 611 / 1 608 / 0 / 2 / 1 + 19 tests du lot = 1 630 / 1 627 : aucun autre chiffre n'a bougé. La rubrique
+  « ✖ failing tests » du journal ne contient que le test « à faire » connu (`tests/review2-lecture-18-11.test.js:248`).
+  Journal et dossier `swarm-03-preuves` supprimés ensuite. Commit du rapport `ac50e83`, complété ensuite.
+
+## Tests
+
+- `node --test tests/swarm-03-lecons.test.js` : 19 / 19, code 0.
+- Phase unitaire : 1 630 tests, 1 627 réussis, 0 échec, 2 ignorés, 1 à faire, FIN code 0.
+- `npm run check` : code 0 ; `npm run format:check` : tout conforme.
+- Aucun test existant modifié.
+
 ## Fait
 
 - `packages/orchestrator/lecons.js` : `new Lecons({ dir, now, ttlJours = 30 })` ; `noter`, `rappel`, `citer`,

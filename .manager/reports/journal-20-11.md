@@ -408,3 +408,16 @@ et Codex) attend l'accord du propriétaire : non joué.
     puis 1 différent comptaient pour un va-et-vient critique. Un signalement par motif et par niveau.
   - swarm-05 : l'empreinte d'une part comprend aussi `verification`, `relit` et `apres` ; après un redémarrage, jamais de
     refus (pas d'empreinte en mémoire) ; le renvoi de `docs/api-delegation.md` vers `docs/api-verdicts.md` lui est confié.
+- 01:13 → 01:36, vague 2 : les trois lots sont codés et relus, verdicts « bon à intégrer ». Relecteurs : swarm-07, deux
+  majeurs corrigés (une lecture qui lève faisait échouer `GET /api/runs` ; un membre repris gardait l'ancien résultat) ;
+  swarm-06, deux corrigés (texte du va-et-vient d'un même outil ; coût du hachage sur de gros arguments) ; swarm-05, rien
+  de majeur, 20 tests ajoutés. Décisions de plus : swarm-05, même part à un autre agent = lancée et signalée ; swarm-07,
+  `?equipe=1` gardé, `teDemande` en nombre. Contrôle du manager : lot 07 vert (01:19 → 01:34 : 1 690 unitaires, 1 687
+  réussis, Chrome 265/265, check 0, format 0) ; lots 06 puis 05 en cours.
+- 01:34 : `get_usage` : fenêtre de 5 h à 58 % (remise à zéro 04:20) ; hebdomadaire 77 % (Fable 75 %) ; contexte du manager
+  502 000 jetons.
+- **01:36 : message du propriétaire** : autonomie jusqu'au 21/11 à 08:00 ; continuer à copier swarm ; **essais réels
+  autorisés** (missions complexes avec Claude Code et Codex, pas Gemini) ; surveiller ; que tout marche demain ; ne pas
+  trop changer ce qui marche ; ouvrir une nouvelle session si le contexte est lourd.
+- 01:40 : passation écrite (`reports/passation-swarm-21-11.md`), `HANDOFF.md` section 0 mise à jour, mémoire de Claude mise
+  à jour ; nouvelle session ouverte pour la suite (intégration de la vague 2, essais réels, vague 3).

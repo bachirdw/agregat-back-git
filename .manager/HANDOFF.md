@@ -16,6 +16,9 @@ de départ).
   (`~/Downloads/agregat-back-swarm/.manager/plans/plan-swarm-20-11.md` et `lots-swarm-20-11.json`).
 - Dépôt du chantier : `~/Downloads/agregat-back-swarm`, branche **`swarm-20-11`** (partie de `e93f6c2`, tête de
   `equipe-20-11`). **Aucun code écrit**, rien de fusionné ni poussé.
+- **Passation la plus récente, à lire en premier : [`reports/passation-swarm-21-11.md`](reports/passation-swarm-21-11.md)**
+  (21/11, 01:45 : mandat du propriétaire jusqu'au 21/11 à 08:00, essais réels autorisés avec Claude Code et Codex, vague 2
+  codée et relue à intégrer, méthode d'une vague, suite immédiate).
 - **État au 21/11, 01:05** : **vague 1 intégrée** (swarm-01 à swarm-04) dans `swarm-20-11`, tête `e18ef06` ; suite
   complète verte dessus (1 674 unitaires, 1 671 réussis, 0 échec ; Chrome 265/265 ; `check` et `format:check` verts).
   **Vague 2 en cours** (swarm-05, 06, 07) dans `~/Downloads/agregat-back-swarm-05`, `-06`, `-07` (partis de `e18ef06`).

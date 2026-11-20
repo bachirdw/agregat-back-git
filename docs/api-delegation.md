@@ -129,7 +129,7 @@ mission qui appelle (et de ses exécutions reprises).
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mission_lancer`   | `consigne` (1 à 8 000 car.), `titre` (≤ 80), `agent`, `modele`, `fichiers` (≤ 20 chemins relatifs), `demandeDuProprietaire` (booléen), `objectif`, `perimetre`, `resultatAttendu` (≤ 2 000 chacun), `informations` (≤ 4 000), `apres` (1 à 20 ids), `reprend` (id) ; `swarm-01` : `pourquoi` (un de `parallele`, `specialite`, `regard_independant`, `contexte_trop_long`, `demande_proprietaire`), `note` (10 à 200 car. après retrait des espaces de bord), `horsPerimetre`, `verification` (≤ 2 000 chacun), tous facultatifs | `{ id, titre, etat: "en_cours"\|"en_file"\|"attend_accord"\|"attend_prerequis"\|"cancelled", agent, modele, dossierResultats?, famille: { lancees, taches, reprises, dansEnveloppe, enCours, total, parallel } }`                                                                                                                                                                                                                                                                   |
 | `mission_suivre`   | `id` (facultatif), `details` (défaut `false`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `{ missions: [{ id, titre, agent, modele, etat, depuis, inactiveDepuis, attend, outils, dernierOutil, pourquoi?, motif? }], agents: [{ id, disponible, etat, raison?, jusqua?, simule?, modeles: [{ id, nom, limiteJusqua? }], modeleParDefaut }], activite: { agents, enAttenteDuProprietaire, texte }, famille: { lancees, taches, reprises, dansEnveloppe, enCours, total, parallel }, nature }` ; avec `details` et une sous-mission finie, les champs de `terminees[]` en plus |
-| `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)                                                                                                                                                                                                                                                                                                                                                                                                 | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause } ou, déjà remise, { id, titre, etat, dejaRemise }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature }`                                                                                                                                                                                                                                                                                      |
+| `mission_attendre` | `ids` (facultatif), `toutes` (défaut `false`), `delaiSecondes` (entier ≥ 1, défaut 50 ; attente réelle `min(delaiSecondes, 50)`)                                                                                                                                                                                                                                                                                                                                                                                                 | `{ terminees: [{ id, titre, etat, reponse, bilan, fichiers, envois, cause, dependantesAnnulees?, messagesDuChef? } ou, déjà remise, { id, titre, etat, dejaRemise }], enCours: [{ id, titre, etat, attend }], delaiAtteint, nature, agregat?, rappel? }` (swarm-12, section 9.12)                                                                                                                                                                                                   |
 | `mission_annuler`  | `id`, `raison` (≤ 500)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `{ id, etat: "cancelled" }` ; une sous-mission déjà finie rend son état                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 Le cinquième outil, `mission_continuer` (message à une sous-mission en cours ou suite d'une sous-mission finie), est
@@ -720,3 +720,44 @@ Fichiers : `packages/orchestrator/schema-resultat.js` (portage du validateur de 
 - Limites : la mémoire des résultats n'est pas libérée à la fin de la famille ; `famille.precedent` d'une suite ne porte
   pas le résultat de la précédente.
 - Tests : `tests/swarm-10-resultat.test.js`.
+
+### 9.12 `swarm-12` (21/11/2026) : suivi par tâche et retours au chef
+
+Fichiers : `packages/orchestrator/taches.js` (portage de swarm, fonctions pures : `tacheDe`, `parTache`, `agregat`,
+`dependantesAnnulees`, `dernierVerdictParTache`, `messagesDuChef`, `demandeCourte`), `delegation.js`,
+`delegation-rule.js`. Seuls des objets de résultat gagnent des champs ; chacun est absent quand il n'a rien à dire, et
+une erreur imprévue dans son calcul le rend absent (rien ne lève). Le moteur (`index.js`) n'est pas touché.
+
+- **Tâche** : la première tentative d'une chaîne de reprises (`famille.reprend`) et de suites (`famille.continue`),
+  remontée sur 200 pas au plus. Seule la dernière tentative d'une tâche compte, dans l'ordre de lancement ; l'échec se
+  lit dans l'état, jamais dans le texte de la réponse.
+- **`mission_attendre`** :
+  - `agregat { taches, abouties, enEchec, annulees, interrompues, enCours, parTache: [{ tache, titre, etat,
+tentatives, suites?, derniere }] }`, seulement avec `toutes: true` et quand plus rien ne tourne dans toute la
+    famille (toutes les sous-missions de la mère, pas seulement les `ids` demandés ; aucune tenue en file). Mêmes
+    lignes que le Bilan de famille (sans les sous-missions refusées par le propriétaire) : ses nombres sont ceux de la
+    ligne « Par tâche (dernière tentative) » du Bilan. `enCours` y compte les tâches dont la dernière tentative n'est
+    pas finie (0 quand l'agrégat est rendu).
+  - `rappel { demande?, enCours }` : `demande` = la demande du propriétaire (`turnObjective` de la mère) coupée à
+    300 caractères ; `enCours` = le NOMBRE de sous-missions encore vivantes (en file comprises). La clé `enCours` à la
+    racine (la liste des sous-missions en cours) ne change pas. Mission privée (espace de travail ou pack privé, hors
+    mode propriétaire : l'une des deux règles du code, `privateTitle` de `launch()` ou celle des messages du
+    propriétaire) : `demande` absente, et `rappel` absent quand aucune sous-mission ne vit plus.
+- **`terminees[]`** (et `mission_suivre { details }`, tour de synthèse) :
+  - `dependantesAnnulees: [{ id, titre }]`, pour un état autre que `completed` : les sœurs dont `famille.apres`
+    contient son id, annulées avec une erreur qui commence par « Prérequis ». À relancer avec `apres` vers la reprise.
+    Une sœur à deux prérequis en échec peut être listée pour les deux (l'erreur ne nomme que le premier ; son titre
+    n'est pas lu). Un seul niveau (une dépendante d'une dépendante n'est pas suivie). Les sœurs lues sont celles de la
+    chaîne de la mère qui a lancé la sous-mission.
+  - `messagesDuChef: [{ id (8 caractères), etat: 'undelivered', via, note }]`, tout état : les messages du chef
+    (`owner_message` avec `de: 'chef'`, le dernier événement par id fait foi) restés non remis à la fin de la
+    sous-mission ; `note` = « message non remis : mission_continuer pour une suite ». Rien n'est relancé de soi-même.
+  - Sans reprise, ni prérequis, ni message : mêmes clés qu'avant ; la ligne `dejaRemise` ne change pas.
+- **`mission_suivre`** (ligne d'un membre) : `boucle` = le dernier signalement du garde-boucle (`swarm-06`,
+  `{ niveau, motif, outil, n, raison }`) tant que la sous-mission tourne et qu'il en a un ; absent sinon.
+- **Tour de synthèse** : `familyResults.agregat` (même forme, toute la famille) et `familyResults.demande` (300
+  caractères, absente pour une mission privée).
+- **Description de `mission_attendre`** : elle dit `agregat`, `rappel` et `dependantesAnnulees` (« les sous-missions
+  annulées par un prérequis sont à relancer avec apres vers la reprise »), avant la phrase anti-relance qui la termine.
+- `dernierVerdictParTache` (même règle que `verificationLines` de `roles.js`) est porté mais pas encore branché.
+- Tests : `tests/swarm-12-retours.test.js`.

@@ -89,3 +89,99 @@ Heures attendues calculées en heure locale (`setHours`), aucune chaîne ISO en 
    changerait le message montré.
 2. `chooseAgent` n’écarte pas un agent pour la limite du modèle demandé (`limitesModele[requirements.model]`) :
    non demandé par le plan ; `agentState` l’expose dans `modelesLimites`.
+
+## Relecture indépendante (21/11/2026, à partir de 00:02)
+
+Relu : plan (4.0, section du lot), `git diff 3631948..HEAD` fichier par fichier, le portage et ses notes, ce
+rapport. Fichiers d'origine de swarm ouverts en lecture seule.
+
+### Constats
+
+- **Majeur, corrigé (d477040)** — faux positif par extrait cité. Le bloc d'échec de `index.js` reçoit aussi les
+  erreurs du moteur qui citent la réponse de l'agent : `JSON invalide dans la réponse de l’agent : « <300 car.
+  de la réponse> »` (`index.js:1794`). Une réponse qui disait « the rate limit of the API is 100/min » ou
+  « HTTP 429 » était classée `limite` et notée 1 h dans les sondes : agent écarté par Auto pour rien. Test rouge
+  d'abord (`tests/swarm-02-relecture.test.js`), puis `classifyFailure` retire de l'erreur tout passage « … »
+  (fermé ou tronqué) avant lecture. Swarm fait de même pour une erreur du harnais qui cite un statut
+  (`provider-error-class.ts:50-53`). Le message montré (`usageLimitMessage`, `failure.js`) a le même défaut
+  depuis avant le lot : non corrigé (hors lot).
+- **Mineur, corrigé (point 4 du manager)** — reproduit : sonde ancienne `{ session:false, at:<il y a 1 h> }`
+  sans `sessionAt` ; après `noteFailure` d'une limite de 2 min, à +3 min, `chooseAgent` écartait l'agent
+  (« session refusée », retryable) alors qu'il était choisi avant. Même effet pour `inference:false` et pour
+  `agentState` (`connexion_refusee` au lieu de `a_reessayer`). Correction dans `agent-state.js` seul :
+  `noteFailure` et `clearLimit` figent `sessionAt`/`inferenceAt` à l'ancien `at` quand ils manquent. Cas
+  limité aux sondes écrites avant `sessionAt` (30/10). `probes.js` non touché.
+- **Mineur, corrigé** — test du codeur dépendant de l'horloge : cas 8 et étape de workflow attendent
+  `22:00`, mais entre 22:00 et 22:02 locales l'heure est « à peine passée » et devient maintenant + 1 min.
+  Constaté rouge sous `TZ=Asia/Tokyo` lancé à 22:00 JST. Assertion rendue tolérante à cette fenêtre.
+- **Vérifié, laissé (point 5)** — `node -e` : `/^(?:Internal error|Agent arrêté\b)/i` rend `false` pour
+  « Agent arrêté : refusal » et « Agent arrêté », `true` pour « Agent arrêtée ». `limits.js` reprend la même
+  expression : un agent qui annonce sa limite dans son texte puis s'arrête avec un `stopReason` autre que
+  `end_turn` (refusal, max_tokens, max_turn_requests…) n'est jamais noté par l'annonce ; seul `rateLimit`
+  ne compte pas non plus (il exige une erreur nue). Seules les erreurs `Internal error` (et celles qui disent
+  elles-mêmes une limite) sont notées. Décision au manager (corriger `failure.js` et `limits.js` ensemble).
+- **Vérifié, conforme** — moteur : dans `execute(run, plan, control)`, `text` et `rateLimit` sont déclarés
+  en tête (l. 1332, 1339), `plan.models` vient de `plan()` (l. 1008, peut être `null` → `[]`), `run.model`
+  existe ; dans `workflow-run.js`, `text`/`rateLimit` (l. 173-175), `described` (l. 269) et `definition`
+  sont dans la portée du `catch`. `noteFailure` est enveloppé de `try/catch`, ne lève pas (`e` non-Error,
+  `undefined`, options mal typées : testé) ; il s'exécute après `usageLimit`/`authFailure` et avant `cause`,
+  sans les modifier ; `control.echecAgent` n'est lu nulle part ailleurs. Mission annulée ou simulée : `null`,
+  rien écrit. `clearLimit` est sous la même condition que le `saveProbe` d'inférence. Hors mode équipe :
+  mêmes événements, même Bilan, mêmes messages ; seule différence, l'écriture de `limite` dans les sondes.
+- **Vérifié** — sondes : JSON cassé → `loadProbes` rend `{}`, l'écriture repart d'un fichier neuf (même
+  comportement que tout `saveProbe`) ; absent → créé ; lecture seule ou dossier = fichier → classification
+  rendue, rien écrit ; `dataDir` undefined → rien écrit. Écriture synchrone, une ou deux lectures, pas de
+  boucle ni de réseau.
+- **Vérifié** — routeur : `now` est un nombre (`Date.now()` par défaut) ; `Date.parse(undefined ?? '')`
+  → `NaN > now` → `false` ; `jusqua` absent, texte invalide, nombre : choix identique (testé par le codeur et
+  par contrôle négatif) ; limite passée : non rejeté.
+- **Vérifié** — heures : 12:00 AM → minuit du lendemain ; 12:30 PM passé → lendemain ; passée de < 2 min →
+  + 1 min ; passée de 3 min → lendemain (~24 h, voulu par le plan) ; 24:00, 13:61, 30 février → `null`
+  (durée par défaut). Toutes les branches de `classifyFailure` passent par `clampMs` (1 min à 7 jours).
+  Reste, hérité de swarm : « resets Nov 19, 5pm (UTC) » lu le 20/11 → année suivante → borné à 7 jours ;
+  « resets Feb 30 (UTC) » normalisé au 2-3 mars. « resets at 3pm (UTC) » n'est pas lu (→ 1 h). Mineurs, laissés.
+  Tests du lot et de relecture verts sous `TZ=UTC`, `America/Los_Angeles`, `Asia/Tokyo`, `Pacific/Kiritimati`,
+  `Pacific/Pago_Pago`.
+- **Vérifié** — fidélité : `NEVER_FALLBACK`, `OVERLOADED`, `SERVER_ERROR`, `isRateLimitMessage`,
+  `isCodexCreditsExhaustedMessage` (renommé), `clampMs`, 7 jours, 2 h, parsing daté/heure/secondes/minutes
+  identiques à swarm ; `SPEND_CAP_TEXT` généralisé sans nom de fournisseur ; `parseModelLimitMessage`
+  générique ; ordre crédits → modèle → limite → connexion → surcharge → serveur. En-têtes de licence en tête.
+  Aucun nom de modèle, d'agent ni de fournisseur dans le code (grep).
+- **Mineur, laissé** — une erreur nue dont le dernier paragraphe parle d'une limite comme contenu est classée
+  `limite` (règle du plan, même que le message montré). Le français « Limite d'usage atteinte » n'est pas
+  reconnu comme limite (seule l'heure « réessayer à » est lue). Le cas 8 du plan demande une « fausse
+  sous-mission » : le codeur l'a joué en mission simple (même chemin `execute`).
+- **Doc** : `docs/api-agents-etat.md` décrit le code ; deux phrases ajoutées pour les deux corrections.
+
+### Contrôles négatifs (code remis après chaque essai, `git status` propre)
+
+Rouge à chaque fois : `noteFailure` retiré de `index.js` ; `clearLimit` retiré de `index.js` ; `noteFailure`
+retiré de `workflow-run.js` ; `clearLimit` retiré de `workflow-run.js` ; branche du routeur neutralisée ;
+lecture du seul dernier paragraphe retirée ; branche `limite_modele` retirée ; retrait des passages « … »
+(nouveau test) ; dates de refus figées retirées (nouveau test). `SKEW_MS = 0` ne rougissait aucun test :
+test ajouté (rouge ensuite).
+
+### Tests ajoutés
+
+`tests/swarm-02-relecture.test.js` (4 tests) : extrait cité ; ancien refus sans date ; fichier des sondes
+abîmé ; heures limites (décalage < 2 min, minuit, 12 AM, 12:30 PM, date impossible).
+
+### Totaux (après d477040)
+
+- Fichiers du lot + existants nommés (`swarm-02-limites`, `swarm-02-relecture`, `probe-routing`,
+  `sonde-refus-auth`, `career-failure`) : verts ; lot + relecture : 16/16 sous cinq fuseaux.
+- Phase unitaire : `ℹ tests 1627`, `ℹ pass 1624`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ skipped 2`, `ℹ todo 1`,
+  `FIN phase unitaire : code 0 (durée 196 s)` (1 611 + 12 du lot + 4 de relecture ; le bloc « failing tests »
+  du journal ne liste que le test « à faire » connu de `review2-lecture-18-11`). Journal supprimé.
+- `npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : « All matched files use Prettier
+  code style! ».
+
+### Points à trancher par le manager
+
+1. « Agent arrêté : … » jamais reconnu comme erreur nue (`failure.js` et `limits.js`) : corriger les deux
+   ensemble ? (change le message montré).
+2. Le message montré (`usageLimitMessage`) lit encore les extraits « … » cités dans l'erreur : même défaut
+   que celui corrigé ici, dans `failure.js` (hors lot).
+3. `chooseAgent` n'écarte pas pour la limite du seul modèle demandé (relevé par le codeur, hors plan).
+
+Verdict : `bon_a_integrer`.

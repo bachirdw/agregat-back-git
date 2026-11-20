@@ -297,6 +297,8 @@ test('3. cas rouge d’abord : vérificateur « a_corriger » sans point bloquan
         titre: 'Relecture',
         role: 'verificateur',
         relit: ['$a'],
+        // relecture : a shape given by the chief to a verification role is ignored (the verdict's wins).
+        schemaResultat: SCHEMA,
       },
     },
     { call: 'mission_attendre', args: { toutes: true, delaiSecondes: 40 } },
@@ -330,6 +332,7 @@ test('3. cas rouge d’abord : vérificateur « a_corriger » sans point bloquan
     ),
   );
   assert.equal(prompt.famille.schemaResultat, undefined);
+  assert.ok(!prompt.instructions.includes(rule.SCHEMA_RULE));
 });
 
 test('3. verdictErrors : aligné sur normalizeVerdict (swarm-04) ; verdict trop long refusé', () => {

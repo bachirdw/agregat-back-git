@@ -140,3 +140,87 @@ FIN phase unitaire : code 0 (durée 209 s)
    (vérifié seulement avec le client MCP du dépôt, par le faux agent).
 
 Fin : 04:42.
+
+## Relecture indépendante
+
+Relecteur indépendant, 21/11/2026 04:44-04:57 (heures lues par `date`). Base `d3574af`, commits relus `fff07fd`,
+`f3da6e2`, `a41b0c3`.
+
+### Contrôles
+
+- Périmètre : seuls les fichiers autorisés sont touchés (`git diff d3574af..HEAD --stat`) ; `index.js` et
+  `apps/api/server.js` intacts ; `tests/` : le fichier du lot, `chef-agent.js` et la seule ligne 249 de
+  `tests/equipe-01-carnet.test.js`.
+- `delegation.js` ligne par ligne : import, constructeur, `promptParts()` (schéma, 4e argument), une ligne dans `call()`
+  avant le refus 403, un appel synchrone dans `launch()` juste après le contrôle `reprend` (avant doublon, enveloppe,
+  dossier, compteurs ; aucun `await` ajouté), `briefs.schemaResultat` et `writeSchema` après la création, `outcome()`.
+  Rien dans les compteurs, `pump`, `wake`, `prerequisite`, `settle`, `stopFamily`, `waitLiving`.
+- Textes mot pour mot du plan : phrase de `mission_lancer`, `SCHEMA_RULE`, début de `VERDICT_RULE`, message
+  « Le résultat ne respecte pas… Corrige et rappelle resultat_rendre. », `VERDICT_SCHEMA`. Aucun nom d'agent, de
+  modèle, de Skill ni de site.
+- Fidélité à swarm (fichiers d'origine relus) : `validate`, `matchesType`, `findJsonSchemaShapeErrors`,
+  `isEffectiveOutputSchema` : mêmes cas, même ordre ; écarts voulus et commentés (propriétés propres au lieu de `in`,
+  sous-schéma non objet = erreur, profondeur bornée à 32, valeurs citées bornées). En-tête de licence en première
+  ligne ; fichier pur (aucun import).
+- Cloisonnement : identité prise du jeton (`mother` de `call()`), paramètres stricts (un `childId` de plus est refusé) ;
+  403 hors sous-mission ; le chef n'a pas l'outil ; une sous-mission n'a aucun outil de mission.
+
+### Constats
+
+1. Mineur, corrigé : messages non bornés en longueur. Un nom de propriété très long (10 000 caractères) donnait un
+   refus `parametres_invalides` de 20 183 caractères au chef, et autant dans `resultat_invalide` / `erreurs`. Test rouge
+   d'abord (`swarm-10-relecture`, 20 183 > 2 000), puis chaque erreur coupée à 300 caractères (`MAX_ERROR_CHARS`) dans
+   `invalidMessage`, le refus au lancement, `refused` et `of()`. Le début des textes du plan ne change pas.
+2. Mineur, corrigé (test manquant) : rien ne vérifiait qu'un `schemaResultat` donné à un rôle de vérification n'arrive
+   pas dans son prompt (contrôle négatif N9 resté vert). Le test 3 du lot donne désormais ce schéma au vérificateur et
+   vérifie l'absence de `famille.schemaResultat` et de la phrase du schéma.
+3. Laissé (conforme au plan, à connaître) : `of()` relit `resultat.json` même sans schéma ; un fichier de ce nom
+   écrit par l'agent lui-même (sans l'outil) pendant l'exécution apparaît donc dans `terminees[].resultat` (jusqu'à
+   1 Mo lu). Voir points à trancher.
+
+### Contrôles négatifs (chaque fichier copié, modifié, tests du lot relancés, remis, `cmp` identique)
+
+N1 ligne de `call()` retirée : 4 échecs · N2 refus au lancement neutralisé : 2 · N3 `GW` sans `RESULT_TOOLS` : 4 ·
+N4 règle du verdict sans point bloquant retirée : 3 · N5 `resultat` retiré d'`outcome()` : 3 · N6 écriture de
+`schema-resultat.json` retirée : 1 · N7 récursion de `daughterRule` sans le 4e argument : 2 · N8 fenêtre de temps du
+fichier retirée : 2 · N9 schéma donné au vérificateur : 0 puis 1 après le test ajouté · N10 `.strict()` retiré : 1 ·
+N11 racine `object` non contrôlée : 1 · N12 bornes des erreurs retirées : 1 · N13 héritage retiré : 1 · N14 403 hors
+sous-mission retiré : 1. Dossier de preuves supprimé.
+
+### Tests ajoutés
+
+`tests/swarm-10-relecture.test.js` (5 tests) : identité de l'appelant et paramètre en trop ; dossier hostile
+(`../`, absolu, `relay/../../`) et liens symboliques (`resultat.json`, `schema-resultat.json`) : rien d'écrit hors de
+l'espace, accepté avec une note ; valeur cyclique, schéma mal formé en mémoire, magasin qui lève, schéma de 5 000
+niveaux, noms très longs, 501 erreurs : aucune exception, messages bornés ; fichiers falsifiés après un redémarrage
+(JSON illisible, valeur hors forme, schéma piège de swarm, tableau, fichier de plus de 256 Ko) ; vérificateur
+« approuve » avec des points bloquants accepté, schéma du chef ignoré, refus qui n'écrit rien. Plus deux assertions
+dans le test 3 du lot.
+
+### Totaux
+
+- Lot + relecture : 17/17. Existants nommés (`equipe-01-carnet`, `equipe-01-roles`, `mcp-contract`,
+  `delegation-v2-01-b`) avec le lot : 64/64, non modifiés hors la ligne 249 autorisée.
+- Phase unitaire entière (référence 1 778 / 1 775) :
+
+```text
+ℹ tests 1795
+ℹ pass 1792
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 1
+FIN phase unitaire : code 0 (durée 189 s)
+```
+
+- `npm run check` : « Syntaxe JavaScript valide. » ; `npm run format:check` : tous les fichiers conformes.
+
+### Points à trancher par le manager
+
+1. `of()` sans schéma : un `resultat.json` écrit par l'agent sans l'outil remonte au chef (plan : « le fichier s'il a
+   été écrit pendant l'exécution »). Le limiter aux sous-missions qui ont un schéma ou qui ont appelé l'outil, ou
+   abaisser la borne de lecture (1 Mo), si l'on veut que « sans schéma, rien ne change » soit strict.
+2. Points 1 à 5 du codeur (place de la phrase, verdict hors `resultat`, `precedent` d'une suite, mémoire non vidée,
+   clients MCP réels non essayés) : inchangés.
+
+Verdict : `bon_a_integrer`.

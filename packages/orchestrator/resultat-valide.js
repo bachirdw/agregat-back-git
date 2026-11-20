@@ -19,6 +19,7 @@ import { RESULT_TOOLS } from './delegation-rule.js';
 import { MAX_VERDICT_BYTES } from './roles.js';
 import {
   MAX_ERRORS,
+  MAX_ERROR_CHARS,
   findShapeErrors,
   invalidMessage,
   isEffectiveSchema,
@@ -63,6 +64,9 @@ const textOf = (value) => {
     return undefined;
   }
 };
+// relecture : the errors given to the chief or to the sub-mission, bounded in number and length.
+const bounded = (errors) =>
+  errors.slice(0, MAX_ERRORS).map((error) => String(error).slice(0, MAX_ERROR_CHARS));
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 // The errors of a verdict : its shape, then the rule the schema cannot say (« a_corriger » or
@@ -137,7 +141,7 @@ export class ResultatValide {
       if (errors.length)
         throw fail(
           'parametres_invalides',
-          `schemaResultat mal écrit : ${errors.slice(0, 5).join(' ; ')}`,
+          `schemaResultat mal écrit : ${bounded(errors).slice(0, 5).join(' ; ')}`,
         );
       return args.schemaResultat;
     }
@@ -207,7 +211,7 @@ export class ResultatValide {
         }
       }
       if (message) {
-        this.refused.set(run.id, (errors?.length ? errors : [message]).slice(0, MAX_ERRORS));
+        this.refused.set(run.id, bounded(errors?.length ? errors : [message]));
         return { status: 200, body: { erreur: 'resultat_invalide', message } };
       }
       // Valid : written in the results folder (confined), kept, said without its content.
@@ -263,7 +267,7 @@ export class ResultatValide {
       if (read !== undefined) {
         const errors = schema ? validateJsonSchema(schema, read) : [];
         return errors.length
-          ? { valide: false, erreurs: errors.slice(0, MAX_ERRORS) }
+          ? { valide: false, erreurs: bounded(errors) }
           : { valide: true, valeur: read };
       }
       if (!schema || !terminal.has(child.state)) return null;

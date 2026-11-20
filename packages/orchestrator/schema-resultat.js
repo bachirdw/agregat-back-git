@@ -21,6 +21,8 @@ export const MAX_SCHEMA_DEPTH = 32;
 export const MAX_ERRORS = 20;
 export const MAX_VALUE_CHARS = 200;
 export const MAX_SCHEMA_CHARS = 4000;
+// Relay (relecture) : one error given back, at most (a key name can be very long).
+export const MAX_ERROR_CHARS = 300;
 
 const typeOf = (data) => {
   if (data === null) return 'null';
@@ -197,7 +199,10 @@ const shown = (schema) => {
   }
 };
 export const invalidMessage = (errors, schema) => {
-  const listed = errors.slice(0, MAX_ERRORS).join(' ; ');
+  const listed = errors
+    .slice(0, MAX_ERRORS)
+    .map((error) => clip(error, MAX_ERROR_CHARS))
+    .join(' ; ');
   const more = errors.length > MAX_ERRORS ? ` ; et ${errors.length - MAX_ERRORS} autre(s)` : '';
   return `Le résultat ne respecte pas la forme demandée. Erreurs : ${listed}${more}. Forme attendue : ${shown(schema)}. Corrige et rappelle resultat_rendre.`;
 };

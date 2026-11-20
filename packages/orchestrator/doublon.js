@@ -131,7 +131,8 @@ const compte = (soeur) => !!soeur && !ETATS_IGNORES.has(soeur.etat);
  * La sœur dont `part` est le doublon, ou null (task-dedup.ts:55-82, `matchSimilarTask`).
  * `soeurs` : [{ id, titre, agent, role, etat, texte, empreinte }] ; une sœur en échec, annulée ou
  * interrompue n'est jamais comparée (en vie ou `completed` seulement).
- * - `identique` : même empreinte (similarite 1). Chez nous, seul ce niveau peut être refusé.
+ * - `identique` : même empreinte et même agent (similarite 1). Chez nous, seul ce niveau peut être
+ *   refusé. Même empreinte avec un autre agent : `proche`, similarite 1.
  * - `proche` : ressemblance > SEUIL_PROCHE, ou > SEUIL_MEME_AGENT avec le même agent et le même rôle.
  * Une identique l'emporte sur toute proche ; entre proches, la plus ressemblante (à égalité, la
  * première de la liste). Chez swarm, la première trouvée dans l'ordre de la requête (plus récente
@@ -140,14 +141,18 @@ const compte = (soeur) => !!soeur && !ETATS_IGNORES.has(soeur.etat);
 export function trouverDoublon(part, soeurs) {
   if (!part || !Array.isArray(soeurs)) return null;
   const vivantes = soeurs.filter(compte);
+  const memeEmpreinte = (soeur) =>
+    !!part.empreinte && !!soeur.empreinte && soeur.empreinte === part.empreinte;
+  // Décision du manager (relecture) : la même part confiée exprès à un AUTRE agent est un regard
+  // indépendant voulu : jamais `identique`, seulement `proche` (similarité 1).
   const pareille = vivantes.find(
-    (soeur) => part.empreinte && soeur.empreinte && soeur.empreinte === part.empreinte,
+    (soeur) => memeEmpreinte(soeur) && (soeur.agent ?? null) === (part.agent ?? null),
   );
   if (pareille)
     return { id: pareille.id, titre: pareille.titre, similarite: 1, niveau: 'identique' };
   let meilleure = null;
   for (const soeur of vivantes) {
-    const similarite = jaccard(soeur.texte, part.texte);
+    const similarite = memeEmpreinte(soeur) ? 1 : jaccard(soeur.texte, part.texte);
     // Très ressemblante : probablement la même part, quel que soit l'agent (task-dedup.ts:61-67).
     // Même agent et même rôle, assez ressemblante : seuil plus bas (task-dedup.ts:69-79 ; swarm exige
     // un agent visé non vide, d'où `part.agent &&`).

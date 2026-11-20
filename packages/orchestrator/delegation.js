@@ -1048,7 +1048,7 @@ export class Delegation {
     control.mere = true;
     if (!mother.estMere) this.store.update(mother.id, { estMere: true });
     family.pending++;
-    if (checked) this.creating(family, part.empreinte, titre, 1); // swarm-05
+    if (checked) this.creating(family, part, titre, 1); // swarm-05
     if (taskId) family.resuming.set(taskId, (family.resuming.get(taskId) ?? 0) + 1);
     if (!free) family.pendingCounted++;
     let run;
@@ -1086,7 +1086,7 @@ export class Delegation {
       throw fail('erreur', message);
     } finally {
       family.pending--;
-      if (checked) this.creating(family, part.empreinte, titre, -1); // swarm-05
+      if (checked) this.creating(family, part, titre, -1); // swarm-05
       if (taskId) {
         const left = family.resuming.get(taskId) - 1;
         if (left > 0) family.resuming.set(taskId, left);
@@ -1202,11 +1202,11 @@ export class Delegation {
         ...(kept ? { empreinte: kept.empreinte } : {}),
       });
     }
-    for (const [empreinte, { titre }] of family.creating ?? [])
+    for (const { titre, agent, empreinte } of family.creating?.values() ?? [])
       parts.push({
         id: null,
         titre,
-        agent: null,
+        agent,
         role: null,
         etat: 'creation',
         texte: '',
@@ -1214,13 +1214,15 @@ export class Delegation {
       });
     return parts;
   }
-  // swarm-05 : one more (or one less) identical part being created ; the entry goes at zero.
-  creating(family, empreinte, titre, step) {
+  // swarm-05 : one more (or one less) identical part being created, for the same agent (relecture,
+  // décision du manager : the same part to another agent is not refused) ; the entry goes at zero.
+  creating(family, { empreinte, agent }, titre, step) {
     family.creating ??= new Map();
-    const n = (family.creating.get(empreinte)?.n ?? 0) + step;
-    if (n > 0)
-      family.creating.set(empreinte, { n, titre: family.creating.get(empreinte)?.titre ?? titre });
-    else family.creating.delete(empreinte);
+    const key = JSON.stringify([empreinte, agent]);
+    const entry = family.creating.get(key);
+    const n = (entry?.n ?? 0) + step;
+    if (n > 0) family.creating.set(key, { n, titre: entry?.titre ?? titre, agent, empreinte });
+    else family.creating.delete(key);
   }
   // swarm-05 : famille.membres, the other members as they are at the start of a sub-mission : living
   // or successful, 20 at most, their part cut at 200 characters (none for a private mission).

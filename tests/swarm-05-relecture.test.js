@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Delegation } from '../packages/orchestrator/delegation.js';
-import { empreinte } from '../packages/orchestrator/doublon.js';
+import { empreinte, partDe, trouverDoublon } from '../packages/orchestrator/doublon.js';
 import { aplatir } from '../packages/orchestrator/soeurs.js';
 import { daughterRule } from '../packages/orchestrator/delegation-rule.js';
 
@@ -98,7 +98,19 @@ function fakeEngine(t, { total = 10, parallel = 5, env, failCreate = 0 } = {}) {
   const family = () => delegation.families.get(mother.id);
   const signals = () =>
     events.filter((e) => e.id === mother.id && e.type === 'doublon_signale').map((e) => e.data);
-  return { rows, store, events, questions, created, delegation, mother, control, launch, family };
+  return {
+    rows,
+    store,
+    events,
+    questions,
+    created,
+    delegation,
+    mother,
+    control,
+    launch,
+    family,
+    signals,
+  };
 }
 const rejected = async (promise) => {
   try {
@@ -234,12 +246,71 @@ test('swarm-05 relecture : ce que l’empreinte confond et ce qu’elle sépare 
     assert.equal(typeof empreinte(bad), 'string');
 });
 
-test('swarm-05 relecture : agent nommé égal à celui de la mère, ou autre agent : même part (agent hors empreinte)', async (t) => {
+// Décision du manager (21/11, relecture) : la même part confiée exprès à un AUTRE agent est un regard
+// indépendant voulu : lancée et signalée (proche, similarité 1), jamais refusée.
+test('swarm-05 relecture : trouverDoublon, même empreinte et autre agent : proche, similarité 1', () => {
+  const part = partDe({ consigne: 'Part FICTIVE' }, 'A');
+  const soeur = { id: 's', titre: 'S', role: null, etat: 'running', ...part };
+  assert.equal(trouverDoublon(part, [soeur]).niveau, 'identique');
+  assert.deepEqual(trouverDoublon(part, [{ ...soeur, agent: 'B' }]), {
+    id: 's',
+    titre: 'S',
+    similarite: 1,
+    niveau: 'proche',
+  });
+  // Une part en création (texte vide) avec un autre agent : proche aussi, similarité 1.
+  assert.equal(trouverDoublon(part, [{ ...soeur, texte: '', agent: 'B' }]).similarite, 1);
+});
+
+test('swarm-05 relecture : (a) même part, même agent nommé : refus doublon', async (t) => {
   const f = fakeEngine(t);
-  const args = { consigne: 'Part FICTIVE à un agent nommé' };
+  const args = { consigne: 'Part FICTIVE à un agent nommé', agent: 'fictif' };
   await f.launch(args);
-  assert.equal((await rejected(f.launch({ ...args, agent: 'fictif' }))).erreur, 'doublon');
-  assert.equal((await rejected(f.launch({ ...args, agent: 'autre-fictif' }))).erreur, 'doublon');
+  assert.equal((await rejected(f.launch({ ...args }))).erreur, 'doublon');
+  // Agent nommé égal à celui de la mère contre agent par défaut : même agent, refus.
+  assert.equal((await rejected(f.launch({ consigne: args.consigne }))).erreur, 'doublon');
+});
+
+test('swarm-05 relecture : (b) même part, autre agent : créée, signalée avec similarité 1', async (t) => {
+  const f = fakeEngine(t);
+  const args = { consigne: 'Part FICTIVE pour un regard indépendant' };
+  const first = await f.launch(args);
+  const second = await f.launch({ ...args, agent: 'autre-fictif' });
+  assert.equal(f.created.length, 2);
+  assert.deepEqual(second.doublonProbable, { id: first.id, titre: first.titre, similarite: 1 });
+  assert.deepEqual(f.signals(), [
+    { childId: second.id, proche: first.id, similarite: 1, niveau: 'proche' },
+  ]);
+});
+
+test('swarm-05 relecture : (c) course, même part à deux agents différents : les deux passent, le second signalé', async (t) => {
+  const f = fakeEngine(t);
+  const args = { consigne: 'Part FICTIVE simultanée à deux agents' };
+  const results = await Promise.all([
+    f.launch({ ...args }),
+    f.launch({ ...args, agent: 'autre-fictif' }),
+  ]);
+  assert.equal(f.created.length, 2);
+  assert.equal(results[0].doublonProbable, undefined);
+  assert.equal(results[1].doublonProbable.similarite, 1);
+  assert.equal(f.signals()[0].niveau, 'proche');
+  clean(f);
+  // Même agent en course : un seul passe (inchangé).
+  const g = fakeEngine(t);
+  const same = await Promise.allSettled([
+    g.launch({ ...args, agent: 'autre-fictif' }),
+    g.launch({ ...args, agent: 'autre-fictif' }),
+  ]);
+  assert.equal(same.filter((r) => r.status === 'fulfilled').length, 1);
+  assert.equal(g.created.length, 1);
+  clean(g);
+});
+
+test('swarm-05 relecture : (d) sans agent nommé des deux côtés (agent de la mère) : refus doublon', async (t) => {
+  const f = fakeEngine(t);
+  const args = { consigne: 'Part FICTIVE à l’agent de la mère' };
+  await f.launch(args);
+  assert.equal((await rejected(f.launch({ ...args }))).erreur, 'doublon');
 });
 
 // ---- 4. Rien d'existant ne change

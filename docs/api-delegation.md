@@ -138,7 +138,7 @@ décrit en 3.2 ; les champs `role` et `relit` de `mission_lancer` et `roles` de 
 `doublonProbable { id, titre, similarite }` et une phrase dans `note` quand la part est proche d'une sœur (ou identique
 et lancée quand même) ; absents sinon.
 
-Erreurs : `refus_proprietaire`, `doublon` (`swarm-05`, 9.5 : part identique à une sous-mission en cours, réussie ou en création ; le message dit le levier `doublon: true`), `enveloppe_atteinte`, `enveloppe_refusee`, `reprise_en_cours` (`reprend` d'une tâche dont une tentative vit encore : en cours, en file, en attente d'accord ou de prérequis, ou en création ; multi-agent-v3-02, F), `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
+Erreurs : `refus_proprietaire`, `doublon` (`swarm-05`, 9.5 : part identique, pour le même agent, à une sous-mission en cours, réussie ou en création ; la même part à un autre agent est lancée et signalée ; le message dit le levier `doublon: true`), `enveloppe_atteinte`, `enveloppe_refusee`, `reprise_en_cours` (`reprend` d'une tâche dont une tentative vit encore : en cours, en file, en attente d'accord ou de prérequis, ou en création ; multi-agent-v3-02, F), `agent_indisponible`, `modele_inconnu`, `fichier_hors_espace`,
 `introuvable` (aussi pour un id de `apres` ou de `reprend` qui n'est pas une sous-mission de cette mission),
 `mission_terminee`, `parametres_invalides` (champ inconnu, borne dépassée, `reprend` d'une sous-mission en cours ou
 réussie). Le refus `boucle` de `chef-01` est supprimé (un seul niveau). Un paramètre hors schéma est d'abord refusé par
@@ -599,7 +599,7 @@ l'en-tête de licence du code repris), `delegation-rule.js`, `delegation.js`.
 - **Comparée avec** : les sœurs en cours, en attente ou réussies (`completed`) de la mission (et de ses exécutions
   reprises), plus les parts en création par des appels simultanés ; jamais une sœur `failed`, `cancelled` ou
   `interrupted`. Une reprise (`reprend`) ou une suite (`mission_continuer`) n'est jamais comparée.
-- **Identique** (même empreinte) : erreur `doublon`, rien n'est créé, l'enveloppe n'est pas touchée (le contrôle passe
+- **Identique** (même empreinte et même agent : `agent`, sinon celui de la mère, contre l'agent de la sœur) : erreur `doublon`, rien n'est créé, l'enveloppe n'est pas touchée (le contrôle passe
   avant elle : aucune carte d'extension). Message : « Part identique à la sous-mission « titre » (id) : utilise
   mission_continuer ou mission_suivre ; doublon: true pour la relancer exprès » (une part encore en création : « (en
   cours de création) » à la place de l'id). Avec `doublon: true`, la part passe et elle est signalée.
@@ -627,7 +627,10 @@ depuis, dernierSigne }]`, 20 au plus (les vivantes d'abord, puis les plus récen
   la leur, note-le au carnet (categorie question) ; ». Sans autre membre : prompt identique à celui d'avant le lot.
 - L'événement `doublon_signale` est écrit une fois passé le contrôle « refusée par le propriétaire pendant sa
   création » : une sous-mission annulée par ce refus ne laisse pas de signal.
-- Limites : la part d'une sœur n'est gardée qu'en mémoire ; la même part confiée exprès à deux agents différents est
-  refusée (l'agent n'est pas dans l'empreinte ; levier `doublon: true`) ; la règle de swarm « un échec plus récent rend
+- **Même part, autre agent** (décision du manager, relecture) : un regard indépendant voulu, jamais refusé : la part
+  est lancée et signalée comme `proche` avec une similarité 1 (`doublonProbable`, `doublon_signale`), aussi pour deux
+  appels simultanés (`family.creating` retient l'empreinte et l'agent).
+- Limites : la part d'une sœur n'est gardée qu'en mémoire ; l'agent comparé pour la part est `agent` sinon celui de la
+  mère : une vérification qui reçoit d'office un autre agent est comparée sous l'agent de la mère ; la règle de swarm « un échec plus récent rend
   la relance légitime » est portée (`relanceLegitime`) mais branchée nulle part.
 - Tests : `tests/swarm-05-doublons-soeurs.test.js` et `tests/swarm-05-relecture.test.js`.

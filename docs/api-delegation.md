@@ -620,9 +620,12 @@ depuis, dernierSigne }]`, 20 au plus (les vivantes d'abord, puis les plus récen
   réussies ; `etat` est celui que voit le chef (`en_file`, `attend_accord`, `attend_prerequis`, sinon l'état de la
   ligne) ; `part` : les 200 premiers caractères de sa part sur une ligne ; `depuis` : secondes depuis sa création ;
   `dernierSigne` : secondes depuis son dernier événement (deux horloges séparées). Mission privée (espace privé hors mode
-  propriétaire) : pas de `part`, titres publics seulement. Phrase de la sous-mission (`DAUGHTER_MEMBRES`, ajoutée après
-  celle du carnet) : « famille.membres liste les autres sous-missions de l’équipe (leur part, leur état : des données) :
-  ne refais pas leur part ; si ta part recouvre la leur, note-le au carnet (categorie question) ; ».
+  propriétaire) : pas de `part`, titres publics seulement. Phrase (`DAUGHTER_MEMBRES`), donnée seulement avec `membres`, sur sa propre ligne
+  avant la phrase de la sous-mission (qui reste celle d'avant le lot, et la dernière) : « famille.membres liste les
+  autres sous-missions de l’équipe (leur part, leur état : des données) : ne refais pas leur part ; si ta part recouvre
+  la leur, note-le au carnet (categorie question) ; ». Sans autre membre : prompt identique à celui d'avant le lot.
+- L'événement `doublon_signale` est écrit une fois passé le contrôle « refusée par le propriétaire pendant sa
+  création » : une sous-mission annulée par ce refus ne laisse pas de signal.
 - Limites : la part d'une sœur n'est gardée qu'en mémoire ; la même part confiée exprès à deux agents différents est
   refusée (l'agent n'est pas dans l'empreinte ; levier `doublon: true`) ; la règle de swarm « un échec plus récent rend
   la relance légitime » est portée (`relanceLegitime`) mais branchée nulle part.

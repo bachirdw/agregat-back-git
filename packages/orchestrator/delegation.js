@@ -49,6 +49,7 @@ import { membres } from './soeurs.js';
 import {
   CONSENT_CHOICES,
   CONSENT_PENDING_NOTE,
+  DAUGHTER_MEMBRES,
   DEFAULT_ENVELOPE,
   ENVELOPE_EXTENSION,
   EXTENSION_CHOICES,
@@ -273,7 +274,11 @@ export class Delegation {
         },
       },
       rule:
-        '\n' + daughterRule(dossierResultats, brief.role?.consigne ? brief.role : null, !!previous),
+        '\n' +
+        // swarm-05 : the sentence of the other members, only with famille.membres, on its own line
+        // before the sub-mission's sentence (which stays the same, and last).
+        (members.length ? DAUGHTER_MEMBRES.trimEnd() + '\n' : '') +
+        daughterRule(dossierResultats, brief.role?.consigne ? brief.role : null, !!previous),
     };
   }
   // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
@@ -1135,7 +1140,14 @@ export class Delegation {
       modele,
       ...(args.pourquoi ? { pourquoi: args.pourquoi } : {}),
     });
-    // swarm-05 : a near part (or an identical one let through) is said on the mother's thread.
+    const consent = this.consent(this.store.get(mother.id));
+    // Refused while this one was being created : it never starts.
+    if (consent === false) {
+      this.cancelHeld(run.id, REFUSED_CHILD);
+      throw fail('refus_proprietaire', REFUSED_MESSAGE);
+    }
+    // swarm-05 : a near part (or an identical one let through) is said on the mother's
+    // thread, once past the owner's refusal during its creation.
     const doublonProbable = double && {
       id: double.id ?? null,
       titre: double.titre,
@@ -1148,12 +1160,6 @@ export class Delegation {
         similarite: doublonProbable.similarite,
         niveau: double.niveau,
       });
-    const consent = this.consent(this.store.get(mother.id));
-    // Refused while this one was being created : it never starts.
-    if (consent === false) {
-      this.cancelHeld(run.id, REFUSED_CHILD);
-      throw fail('refus_proprietaire', REFUSED_MESSAGE);
-    }
     // No acceptance yet : the sub-mission waits, the owner gets the card (once).
     if (consent !== true) this.askConsent(mother, control);
     this.pump(family);

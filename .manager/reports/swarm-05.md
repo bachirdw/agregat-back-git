@@ -16,8 +16,8 @@ Aucun sous-agent, aucune commande dans le dossier interdit, aucun `npm test`.
   - description : « doublon : true seulement pour relancer exprès une part identique à une sous-mission en cours ou
     réussie. », placée après la phrase de `reprend` (et non en fin : `tests/equipe-01-roles.test.js` exige que la
     description finisse par « lisible dans terminees. » ; vu rouge à mon premier essai, corrigé de mon côté) ;
-  - `DAUGHTER_MEMBRES` (phrase du plan mot pour mot) ajoutée à `DAUGHTER_HEAD`, après la phrase du carnet (elle renvoie
-    au carnet) ;
+  - `DAUGHTER_MEMBRES` (phrase du plan mot pour mot), constante exportée ; depuis la retouche (voir plus bas), elle
+    n'est plus dans `DAUGHTER_HEAD` ;
   - `doublonMessage({ id, titre })` (texte du plan mot pour mot ; sans id, « (en cours de création) ») et
     `doublonNote(proche, niveau)` (phrase de `note`).
 - `delegation.js` :
@@ -68,11 +68,7 @@ l'entrée est retirée à zéro.
   identique lancée exprès pendant qu'une autre se crée).
 - Rôle comparé : celui de `args.role` gardé en mémoire (y compris pour une mission privée, où il n'est montré nulle part) ;
   `membres` ne montre que `famille.role` de la base (déjà sans nom privé).
-- Écart possible avec la précision « même prompt de sous-mission qu'avant » : la phrase `DAUGHTER_MEMBRES` est dans
-  `DAUGHTER_HEAD` comme le plan le demande, donc dans toutes les phrases de sous-mission, même sans sœur. Les tests de
-  textes existants (`DAUGHTER_RULE` importé) restent verts. Voir « Points à trancher ».
-- L'événement `doublon_signale` est écrit avant le contrôle « refusé pendant la création » : si le propriétaire refuse à
-  ce moment-là, le signal reste au fil d'une sous-mission annulée (cas rare, sans effet).
+- Phrase des membres et événement : voir « Retouche après les décisions du manager » ci-dessous.
 
 ## Tests
 
@@ -115,7 +111,49 @@ Aucun test existant modifié.
 
 ## Points à trancher par le manager
 
-- `DAUGHTER_MEMBRES` dans `DAUGHTER_HEAD` (plan) change la phrase de toute sous-mission, même seule : à garder tel quel,
-  ou ne la donner qu'avec `membres` (il faudrait passer l'information à `daughterRule`).
+- Emplacement de la phrase des membres (sa propre ligne avant la phrase de la sous-mission, et non dans sa tête) :
+  imposé par trois tests existants non modifiables ; à valider.
 - `relanceLegitime` (règle exacte de swarm) : portée, non branchée.
-- Coût : `membersOf` lit les événements de chaque sœur (`store.events`) au départ de chaque sous-mission, comme `line()`.
+- Coût de `membersOf` : accepté par le manager (borné à 20 membres en sortie).
+
+## Retouche après les décisions du manager (21/11, à partir de 01:12)
+
+1. **Phrase des membres seulement avec `membres`.** `DAUGHTER_HEAD` et `daughterRule` reviennent exactement à la base
+   `e18ef06`. La phrase est ajoutée dans `promptParts()` (là où le prompt est assemblé), seulement quand `membres` est
+   non vide, **sur sa propre ligne avant** la phrase de la sous-mission :
+   `rule = '\n' + (membres ? DAUGHTER_MEMBRES.trimEnd() + '\n' : '') + daughterRule(…)`.
+   Premier essai (phrase insérée dans la tête par un 4e paramètre de `daughterRule`) : trois tests existants rouges,
+   que je n'ai pas le droit de modifier, parce qu'ils exigent que les consignes d'une sous-mission qui a des sœurs
+   finissent par `'\n' + daughterRule(dossier)` : `chef-01` (« lancer deux sous-missions et les attendre »),
+   `delegation-v2-01-b` (« voie 2, demande écrite dans le prompt ») et `multi-agent-v3-01-b` (« D9. dossier de
+   résultats »). D'où l'emplacement sur une ligne à part, avant : la phrase d'avant reste entière et dernière. Aucune
+   zone interdite touchée.
+   Cas rouges d'abord (19 tests, 17 réussis, 2 en échec, code 1) : (a) `DAUGHTER_RULE.startsWith(tête de base + carnet +
+   'rends tes résultats')` faux (la phrase était dans la tête) ; l'événement (voir 2) écrit malgré le refus. Le test (b)
+   passait déjà dans sa première forme (la phrase était partout) ; sa forme finale vérifie le texte exact (phrase, saut
+   de ligne, puis `daughterRule` d'avant).
+2. **`doublon_signale` après le contrôle « refusée pendant sa création ».** Mon seul bloc (calcul de `doublonProbable`
+   + événement) est déplacé juste après le `if (consent === false) { … throw … }` existant, avant `askConsent`. Test :
+   une part identique lancée exprès (`doublon: true`), le propriétaire refuse pendant la création → `refus_proprietaire`
+   et aucun `doublon_signale`.
+3. Doc : 9.5 mise à jour (emplacement de la phrase, prompt identique sans autre membre, moment de l'événement).
+
+Tests après retouche : lot 19/19 ; avec les fichiers protégés et voisins (`review-multi-agent-v3-01`,
+`multi-agent-v3-02`, `equipe-01-continuer`, `equipe-01-roles`, `delegation-v2-01-b`, `swarm-01-decision`,
+`swarm-01-relecture`, `equipe-01-carnet`, `chef-01`, `multi-agent-v3-01-b`) : 125 / 125, aucun modifié.
+
+Phase unitaire entière après retouche (au premier plan, passée en arrière-plan par l'outil au bout de 180 s, fin
+attendue, ligne FIN lue) :
+
+```text
+ℹ tests 1693
+ℹ pass 1690
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 1
+FIN phase unitaire : code 0 (durée 201 s)
+```
+
+(Sortie exacte : « ℹ tests 1693 ».) Référence 1 674 / 1 671 + 19 tests du lot = 1 693 / 1 690. `npm run check` : code 0 ;
+`npm run format:check` : code 0. Journaux supprimés.

@@ -119,9 +119,7 @@ export const doublonNote = ({ titre, similarite }, niveau) =>
 const DAUGHTER_HEAD =
   'Tu es une sous-mission lancée par l’agent principal d’une mission du propriétaire ; la demande du propriétaire, jointe, prime ; ta consigne est la partie qui t’est confiée ; ' +
   // equipe-carnet : the team notebook's sentence (every sub-mission belongs to a multi-agent family).
-  DAUGHTER_CARNET +
-  // swarm-05 : the other members of the team (famille.membres, read at the real start).
-  DAUGHTER_MEMBRES;
+  DAUGHTER_CARNET;
 const DAUGHTER_TAIL =
   ' et laisse-lui les fichiers communs à la mission ; tes questions au propriétaire et tes cartes d’envoi lui arrivent directement.';
 export const DAUGHTER_RULE = `${DAUGHTER_HEAD}rends tes résultats dans ta réponse finale, qui est remise à l’agent principal ; d’autres sous-missions travaillent peut-être en même temps dans le même espace : n’écris que dans des fichiers propres à ta part (un nom qui commence par ton titre, ou par l’identifiant que l’agent principal t’a donné)${DAUGHTER_TAIL}`;

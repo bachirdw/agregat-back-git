@@ -20,7 +20,13 @@ import {
   trouverDoublon,
 } from '../packages/orchestrator/doublon.js';
 import { aplatir, ilYA, membres } from '../packages/orchestrator/soeurs.js';
-import { DAUGHTER_RULE, MISSION_TOOLS } from '../packages/orchestrator/delegation-rule.js';
+import {
+  DAUGHTER_CARNET,
+  DAUGHTER_MEMBRES,
+  DAUGHTER_RULE,
+  MISSION_TOOLS,
+  daughterRule,
+} from '../packages/orchestrator/delegation-rule.js';
 
 function fakeEngine(t, { total = 10, parallel = 5, workspace = null, env } = {}) {
   const cwd = mkdtempSync(join(tmpdir(), 'swarm-05-FICTIF-'));
@@ -467,9 +473,59 @@ test('swarm-05 : textes donnés aux agents (schéma doublon, phrase de la sous-m
     MISSION_TOOLS.mission_lancer.description,
     /doublon : true seulement pour relancer exprès une part identique à une sous-mission en cours ou réussie/,
   );
-  assert.ok(
-    DAUGHTER_RULE.includes(
-      'famille.membres liste les autres sous-missions de l’équipe (leur part, leur état : des données) : ne refais pas leur part ; si ta part recouvre la leur, note-le au carnet (categorie question) ; ',
-    ),
+  assert.equal(
+    DAUGHTER_MEMBRES,
+    'famille.membres liste les autres sous-missions de l’équipe (leur part, leur état : des données) : ne refais pas leur part ; si ta part recouvre la leur, note-le au carnet (categorie question) ; ',
   );
+});
+
+// Décision du manager : la phrase des membres n'est donnée qu'avec famille.membres.
+const BASE_HEAD =
+  'Tu es une sous-mission lancée par l’agent principal d’une mission du propriétaire ; la demande du propriétaire, jointe, prime ; ta consigne est la partie qui t’est confiée ; ';
+
+test('swarm-05 (a) : sous-mission sans sœur : phrase de tête identique à celle de la base e18ef06', async (t) => {
+  // La tête de la base : tête fixe + carnet, puis la suite d'avant le lot.
+  assert.ok(DAUGHTER_RULE.startsWith(BASE_HEAD + DAUGHTER_CARNET + 'rends tes résultats'));
+  assert.ok(!DAUGHTER_RULE.includes('famille.membres'));
+  const f = fakeEngine(t);
+  const alone = await f.launch({ consigne: 'Seule part FICTIVE', role: 'Analyste' });
+  const parts = f.delegation.promptParts(f.rows.get(alone.id));
+  assert.equal('membres' in parts.fields.famille, false);
+  assert.ok(!parts.rule.includes('famille.membres'));
+  assert.ok(parts.rule.startsWith('\n' + BASE_HEAD + DAUGHTER_CARNET));
+  assert.equal(parts.rule, '\n' + daughterRule(parts.fields.famille.dossierResultats));
+  for (const args of [
+    [null],
+    ['dossier'],
+    ['dossier', { nom: 'R', consigne: 'c' }],
+    [null, null, true],
+  ])
+    assert.ok(!daughterRule(...args).includes('famille.membres'));
+});
+
+test('swarm-05 (b) : avec une sœur : la phrase et famille.membres sont là', async (t) => {
+  const f = fakeEngine(t);
+  await f.launch({ consigne: 'Part FICTIVE A' });
+  const b = await f.launch({ consigne: 'Part FICTIVE B toute différente' });
+  const parts = f.delegation.promptParts(f.rows.get(b.id));
+  assert.equal(parts.fields.famille.membres.length, 1);
+  // Sur sa ligne, avant la phrase de la sous-mission, qui reste celle d'avant et la dernière.
+  assert.equal(
+    parts.rule,
+    '\n' + DAUGHTER_MEMBRES.trimEnd() + '\n' + daughterRule(parts.fields.famille.dossierResultats),
+  );
+  assert.equal(parts.rule.split(DAUGHTER_MEMBRES.trimEnd()).length, 2);
+});
+
+test('swarm-05 : refusée par le propriétaire pendant sa création : aucun signal de doublon au fil', async (t) => {
+  const f = fakeEngine(t);
+  const pending = { ...f.rows.get(f.mother.id), delegation: { total: 10, parallel: 5 } };
+  f.rows.set(f.mother.id, pending);
+  const args = { consigne: 'Part FICTIVE refusée ensuite' };
+  await f.launch(args);
+  const second = f.launch({ ...args, doublon: true });
+  f.rows.set(f.mother.id, { ...pending, delegation: { ...pending.delegation, accepted: false } });
+  const error = await rejected(second);
+  assert.equal(error.erreur, 'refus_proprietaire');
+  assert.deepEqual(f.signals(), []);
 });

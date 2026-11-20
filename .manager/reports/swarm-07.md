@@ -86,7 +86,7 @@ Codeur, 21/11/2026 (début 00:56, rapport 01:08, heures lues par `date`). Arbre
 
 ## Relecture indépendante
 
-Relecteur, 21/11/2026 (01:10-01:22, heures lues par `date`). Repris du plan, du diff `e18ef06..HEAD` et du code.
+Relecteur, 21/11/2026 (01:10-01:18, heures lues par `date`). Repris du plan, du diff `e18ef06..HEAD` et du code.
 
 ### Constats
 

@@ -74,3 +74,23 @@ vérifiable ; un test qui n'a jamais échoué ne prouve rien. La consigne reste 
   n'est relancé ni refusé à cause de `complet: false`.
 - Une vérification jamais partie n'a toujours pas de verdict.
 - Le texte de rôle n'a pas été rejoué avec des agents réels dans ce lot.
+
+## 6. Verdict rendu par l'outil `resultat_rendre` (`swarm-10`)
+
+Un rôle de vérification (ligne `famille.verdictAttendu`) peut rendre son verdict par l'outil `resultat_rendre`
+(`docs/api-delegation.md`, section 9.10) ; sa phrase (`VERDICT_RULE`) commence désormais par « rends ton verdict par
+l’outil resultat_rendre { resultat: { verdict, bloquants, remarques } }, qui en vérifie la forme ; à défaut, » puis le
+texte d'avant (`verdict.json` écrit soi-même, ligne « Verdict : … » de la réponse).
+
+- Forme vérifiée (`VERDICT_SCHEMA`, `packages/orchestrator/resultat-valide.js`) : objet, `verdict` requis parmi
+  `approuve`, `a_corriger`, `rejete` (valeur exacte) ; `bloquants` liste d'objets portant `ou` et `pourquoi` ;
+  `remarques` liste de textes.
+- Règle en plus (`verdictErrors`), la même que `complet: false` (section 2) : « a_corriger » ou « rejete » exige au moins
+  un point bloquant (parmi les 20 premiers) dont le `pourquoi`, coupé à 500 caractères, n'est pas vide une fois les
+  espaces retirés. Sinon l'outil refuse (`resultat_invalide`, avec les erreurs et la forme attendue) : le vérificateur
+  corrige pendant sa session au lieu d'un verdict marqué incomplet après coup.
+- Un verdict de plus de 20 Ko (`MAX_VERDICT_BYTES`, borne de lecture de `readVerdict`) est refusé : « verdict trop long :
+  … raccourcis bloquants et remarques, puis rappelle resultat_rendre. ».
+- Accepté : écrit dans `verdict.json` du dossier de résultats, puis lu comme avant par `readVerdict` (source
+  `fichier`) ; le dernier appel accepté remplace le précédent. Le verdict reste rendu dans `verdict` de `terminees[]`
+  (pas dans `resultat`).

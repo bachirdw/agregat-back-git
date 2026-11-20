@@ -671,3 +671,52 @@ limiteJusqua? }], modeleParDefaut }`. La détection (installé, compatible, simu
 - Limites : l'empreinte de doublon (swarm-05) est calculée avec l'agent prévu, avant le repli ; `agentPrevu` et
   `agentImpose` sont sur la ligne en base (`famille`), pas dans la ligne de `mission_suivre` ni au Bilan.
 - Tests : `tests/swarm-08-agents.test.js`.
+
+### 9.10 `swarm-10` (21/11/2026) : résultat validé par schéma (outil `resultat_rendre`)
+
+Fichiers : `packages/orchestrator/schema-resultat.js` (portage du validateur de swarm, pur),
+`packages/orchestrator/resultat-valide.js` (`ResultatValide`, `VERDICT_SCHEMA`, `verdictErrors`), `delegation.js`,
+`delegation-rule.js`, `packages/mission-gateway/server.js`. Seulement pour une mission en mode « Équipe d'agents ».
+
+- **Paramètre** `mission_lancer.schemaResultat` (objet, facultatif) : la forme JSON que le résultat doit respecter.
+  Mots-clés vérifiés : `type` (`object`, `string`, `number`, `boolean`, `array`), `required`, `properties`, `enum`,
+  `const`, `items` ; les autres (`oneOf`, `$ref`, `pattern`, `additionalProperties`…) sont ignorés sans rien dire.
+  `{}` veut dire « pas de schéma » (rien n'est dit, rien n'est écrit). Contrôle au lancement, synchrone, avant tout
+  dossier et tout compteur : forme mal écrite (un sous-schéma de `properties` ou `items` qui n'est pas un objet, `type`
+  qui n'est pas un texte, `required` qui n'est pas une liste de textes, `enum` qui n'est pas une liste, plus de 32
+  niveaux) ou racine d'un autre `type` que `object` → erreur `parametres_invalides` « schemaResultat mal écrit : … »,
+  rien n'est créé. Le schéma est gardé en mémoire (brief) et écrit dans `<dossierResultats>/schema-resultat.json`
+  (relu après un redémarrage ; sans dossier de résultats, il ne survit pas à un redémarrage).
+- **Héritage** : une reprise (`reprend`) qui ne donne pas de `schemaResultat`, et toute suite (`mission_continuer`),
+  reprennent le schéma de leur tâche (mémoire, sinon `schema-resultat.json` du dossier de la tentative précédente ;
+  fichier absent, illisible ou mal formé = pas de schéma). Une reprise qui donne `{}` n'en a pas.
+- **Sous-mission** : `famille.schemaResultat` et, dans sa phrase, « famille.schemaResultat décrit la forme attendue de
+  ton résultat : rends-le par l’outil resultat_rendre, qui te dit tout de suite ce qui ne va pas ; corrige et
+  rappelle-le ; » (après les phrases du rôle et de la suite). Sans schéma et sans rôle de vérification, sa phrase est
+  celle d'avant. Un rôle de vérification ne reçoit pas `famille.schemaResultat` : sa forme est celle du verdict.
+- **Outil** `resultat_rendre { resultat: objet }`, serveur `relay-equipe`, prêté à chaque sous-mission avec le carnet
+  (jamais au chef ; une sous-mission n'a toujours aucun outil de mission : 403). Facultatif : une sous-mission qui ne
+  l'appelle pas finit comme avant. Réponses :
+  - accepté → `{ accepte: true }` (plus `note` quand le fichier n'a pas pu être écrit) ; le résultat est écrit dans
+    `<dossierResultats>/resultat.json` (`verdict.json` pour un rôle de vérification), gardé en mémoire, et un événement
+    `resultat_rendu { childId }` est écrit sur la mère (sans le contenu, mission privée comprise). Le dernier appel
+    accepté remplace le précédent. Sans schéma, le résultat est accepté tel quel ;
+  - erreur `resultat_invalide`, message « Le résultat ne respecte pas la forme demandée. Erreurs : … Forme attendue :
+    … Corrige et rappelle resultat_rendre. » (20 erreurs au plus, forme citée sur 4 000 caractères), rien d'écrit ;
+    même erreur pour un résultat de plus de 200 000 caractères (« résultat trop long ») et pour un verdict de plus de
+    20 Ko (« verdict trop long : … raccourcis … », la borne de lecture de `verdict.json`) ;
+  - erreur `parametres_invalides` (paramètres mal formés), 403 pour une mission qui n'est pas une sous-mission.
+    Borne effective : la route interne refuse tout corps de plus de 32 768 octets (`apps/api/server.js`) ; le plafond de
+    200 000 caractères n'est atteint qu'au-delà de cette borne.
+- **Chef** : `terminees[].resultat` (et `mission_suivre { details }`) : `{ valide: true, valeur }` (déjà analysé),
+  ou `{ valide: false, erreurs }` quand un schéma était demandé et qu'aucun résultat valide n'a été rendu à la fin
+  (`["aucun résultat rendu"]`, ou les erreurs du dernier refus). Absent sinon (pas de schéma et pas d'appel, sous-mission
+  pas finie, rôle de vérification : son verdict reste dans `verdict`). Lu en mémoire d'abord, sinon dans
+  `resultat.json` s'il a été écrit pendant l'exécution (une suite partage le dossier de la précédente).
+- **Phrase de `mission_lancer`** : « schemaResultat : forme JSON que le résultat doit respecter (type, required,
+  properties, enum, const, items) ; la sous-mission le rend par resultat_rendre et tu le reçois déjà analysé (terminees :
+  resultat). » (placée avant la partie « role : », la description finissant toujours par « lisible dans terminees. »).
+- **Verdict** : voir `docs/api-verdicts.md`, section 6.
+- Limites : la mémoire des résultats n'est pas libérée à la fin de la famille ; `famille.precedent` d'une suite ne porte
+  pas le résultat de la précédente.
+- Tests : `tests/swarm-10-resultat.test.js`.

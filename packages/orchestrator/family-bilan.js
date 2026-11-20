@@ -78,6 +78,7 @@ export function familySection({
   motherSends = 0,
   accord = '',
   synthese = '',
+  chef = null,
 } = {}) {
   if (!children.length) return '';
   const lines = [...(accord ? [accord] : []), `Sous-missions (${children.length}) :`];
@@ -129,9 +130,63 @@ export function familySection({
       ...byAgent,
     ]
       .map(([agent, ms]) => `${agent} ${formatDuration(ms)}`)
-      .join(', ')}).`,
+      .join(', ')}).${announcedLine(children, chef)}`,
   );
   return '\n' + lines.join('\n');
+}
+
+// swarm-14 : a number as the Bilan writes it : « 412 000 », « 1,84 » (at most 4 decimals kept for
+// the reading, the announced number itself is never changed).
+export function formatNumber(value) {
+  const [whole, decimals] = String(Number(value.toFixed(4))).split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return decimals ? `${grouped},${decimals}` : grouped;
+}
+const count = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+// What an agent announced (publicUsage of packages/agent-runtime/usage.js), read again defensively :
+// the tokens' total and the cost only when they are a finite number (and a short currency).
+function announced(usage) {
+  const total = count(usage?.jetons?.total) ? usage.jetons.total : null;
+  const cout =
+    count(usage?.cout?.montant) &&
+    typeof usage.cout.devise === 'string' &&
+    /^[\p{L}\p{Sc}]{1,10}$/u.test(usage.cout.devise)
+      ? usage.cout
+      : null;
+  return total === null && !cout ? null : { total, cout };
+}
+// swarm-14 : « Consommation annoncée par les agents : chef claude 412 000 jetons (coût annoncé 1,84
+// USD) ; « A » codex 96 000 jetons ; « B » : non annoncé ; total connu : 508 000 jetons. Attente du
+// chef : 14 appels de mission_attendre, 9 min 20 s. » ; empty when no agent announced anything (the
+// line stays the one of before, to the byte). Costs are never added (their currencies may differ).
+function announcedLine(children, chef) {
+  const rows = [
+    ...(chef ? [{ label: `chef ${chef.agent}`, agent: '', usage: chef.usage }] : []),
+    ...children.map((child) => ({
+      label: `« ${child.titre} »`,
+      agent: child.agent,
+      usage: child.usage,
+    })),
+  ].map((row) => ({ ...row, said: announced(row.usage) }));
+  if (!rows.some((row) => row.said)) return '';
+  const parts = rows.map(({ label, agent, said }) => {
+    if (!said) return `${label} : non annoncé`;
+    const jetons =
+      said.total === null ? 'jetons non annoncés' : `${formatNumber(said.total)} jetons`;
+    const cout = said.cout
+      ? ` (coût annoncé ${formatNumber(said.cout.montant)} ${said.cout.devise})`
+      : '';
+    return `${label}${agent ? ` ${agent}` : ''} ${jetons}${cout}`;
+  });
+  const totals = rows.filter((row) => row.said?.total !== null && row.said?.total !== undefined);
+  const known = totals.length
+    ? `${formatNumber(totals.reduce((n, row) => n + row.said.total, 0))} jetons`
+    : 'aucun jeton annoncé';
+  const calls = count(chef?.attente?.appels) ? chef.attente.appels : 0;
+  const wait = chef
+    ? ` Attente du chef : ${calls} ${calls > 1 ? 'appels' : 'appel'} de mission_attendre, ${formatDuration(count(chef?.attente?.ms) ? chef.attente.ms : 0)}.`
+    : '';
+  return ` Consommation annoncée par les agents : ${parts.join(' ; ')} ; total connu : ${known}.${wait}`;
 }
 
 // equipe-01 (E1) : « — rôle X, relit « A » » ; empty without role nor reviewed work.

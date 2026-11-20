@@ -5,6 +5,7 @@ import { client, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientpro
 import { buildChildEnv, redact, redactValue, secretValues } from './env.js';
 import { agentCapabilities, sessionModels, sessionModes } from './capabilities.js';
 import { processGroupState } from './process-liveness.js';
+import { addPromptUsage, addUpdate, createUsage, publicUsage } from './usage.js';
 export { AgentRegistry, reapOrphanAgents } from './orphans.js';
 export { detectAgents, loadAgentConfig, findCli } from './discovery.js';
 export { profiles, getProfile, agentIds } from './profiles.js';
@@ -119,6 +120,7 @@ export class AcpRuntime {
     this.diagnostic = '';
     this.secrets = secretValues(env);
     this.model = model;
+    this.usageTotal = createUsage(); // swarm-14 : consommation annoncée, tous les tours
   }
   usesApiKeyAuth() {
     const a = this.definition.apiKeyAuth;
@@ -158,6 +160,8 @@ export class AcpRuntime {
     return e;
   }
   handleUpdate(update) {
+    // swarm-14 : compté seulement (jamais levé), même hors tour et après la fermeture.
+    if (update?.sessionUpdate === 'usage_update') addUpdate(this.usageTotal, update);
     if (this.stopped) return;
     const mode =
       update.sessionUpdate === 'current_mode_update'
@@ -437,11 +441,13 @@ export class AcpRuntime {
     if (this.promptActive) throw new Error('Un tour est déjà actif');
     this.promptActive = true;
     try {
-      return await this.request(
+      const response = await this.request(
         methods.agent.session.prompt,
         { sessionId: this.sessionId, prompt: [{ type: 'text', text }] },
         { signal, timeoutMs: this.timeouts.prompt },
       );
+      addPromptUsage(this.usageTotal, response); // swarm-14 : le compte du tour, jamais levé
+      return response;
     } finally {
       this.promptActive = false;
       this.ready = false; // Another turn requires a fresh session identity.
@@ -511,6 +517,10 @@ export class AcpRuntime {
       this.connection?.agent
         .notify(methods.agent.session.cancel, { sessionId: this.sessionId })
         .catch(() => {});
+  }
+  // swarm-14 : ce que l'agent a annoncé de sa consommation (forme de usage.js), ou null. Ne lève jamais.
+  usage() {
+    return publicUsage(this.usageTotal);
   }
   // Summary safe to persist and show: announced capabilities and options, no environment.
   describe() {

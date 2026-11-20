@@ -405,7 +405,7 @@ s'arrête.
   privé est titrée « Sous-mission N ».
 - **Événements de la mère** (aucun avant le premier `mission_lancer`) : `delegation_accepted { via, total, parallel,
 acceptedAt, message? }`, `delegation_declined { via }`, `child_launched { childId, titre, agent, modele }`,
-  `child_state { childId, state }`, `child_done { childId, state, envois, fichiers? }`,
+  `child_state { childId, state }`, `child_done { childId, state, envois, fichiers?, usage? }` (`usage` : `swarm-14`, 9.14),
   `doublon_signale { childId, proche, similarite, niveau }` (`swarm-05`, 9.5),
   `delegation_envelope_reached`, `delegation_extended`, `family_waiting { enCours }`, et les événements `question` /
   `answer` de la carte.
@@ -416,7 +416,9 @@ pendingQuestion, pendingPermission }]` et `activity: { agents, awaitingOwner }` 
   selon l'agent » / « donné sur la carte au premier lancement »), puis « Sous-missions (n) » : une entrée par
   sous-mission (titre, agent, modèle, état, durée, identifiant) suivie de **son Bilan cité mot pour mot** ; la ligne
   « Synthèse finale non faite » le cas échéant ; les totaux vus par la plateforme ; la confrontation des envois
-  annoncés ; la consommation (« N sous-mission(s), D de durée des sous-missions Relay (par agent) »). Refus sur la
+  annoncés ; la consommation (« N sous-mission(s), D de durée des sous-missions Relay (par agent) », suivie, depuis
+  `swarm-14` et seulement quand au moins un agent a annoncé un chiffre, des jetons annoncés et de l'attente du chef :
+  détail en 9.14). Refus sur la
   carte : la seule ligne « Sous-agents proposés par l'agent, refusés : mission menée par un seul agent. »
   - **Durée** d'une sous-mission : de son premier état `running` (`startedAt`) à sa fin ; l'attente de place, d'accord
     ou de prérequis n'est pas comptée. Une sous-mission jamais partie : « jamais démarrée » (0 dans la consommation).
@@ -451,7 +453,10 @@ l'agent les montre, le Bilan de la mission a **une** ligne de plus (aucune sinon
   quand la plateforme n'a vu aucune fin, le modèle tel qu'il le donne, le nombre d'outils et la durée qu'il déclare (non mesurés par la
   plateforme). La ligne « Actions natives » ajoute « dont n de ses sous-agents internes » pour les actions faites par
   ces sous-agents.
-- Jamais de jetons ni de conversion en part d'abonnement ; aucune décision de la plateforme ne dépend de cette ligne.
+- Jamais de jetons ni de conversion en part d'abonnement dans **cette ligne** des sous-agents internes ; aucune décision
+  de la plateforme ne dépend de cette ligne. Les jetons que l'agent annonce lui-même pour toute son exécution sont dans
+  l'événement `usage` et la ligne « Consommation » de la mère (`swarm-14`, 9.14) ; ils ne comptent pas ses sous-agents
+  internes (l'adaptateur ne les met pas dans son `usage` de fin de tour), son coût annoncé si.
   Non observé à ce jour : sous-agent en arrière-plan, Gemini, OpenCode.
 - Cause réelle de l'échec de 334492d0 (E152, `parseAgentResult`, repris de `equipe-e152` dans `equipe-01`) : la
   réponse finale, en prose, citait un motif de chemin `fiches/{a,b,c}.json`. Des accolades qui n'ouvrent rien qui
@@ -786,3 +791,35 @@ instructions: VERDICT_TURN, platform: { turnKind: "family_results" } }` ; sa ré
 - Sans vérification, ou quand le dernier verdict de chaque travail est `approuve`, rien ne change (mêmes tours, mêmes
   événements, même Bilan). Hors du mode « Équipe d'agents », rien ne change.
 - Tests : `tests/swarm-13-rattrapage.test.js`.
+
+### 9.14 `swarm-14` (21/11/2026) : consommation annoncée par les agents
+
+- **Cumul** (`packages/agent-runtime/usage.js`, sur chaque runtime, tous ses tours) : le `usage` de fin de tour
+  (`PromptResponse.usage`, le compte DU tour chez claude-agent-acp 0.95.0 et codex-acp 2.2.2) s'additionne tour après
+  tour (`inputTokens`, `outputTokens`, `totalTokens`, et `cachedReadTokens`, `cachedWriteTokens`, `thoughtTokens` quand
+  ils sont là) ; un `usage` absent, `null` ou de forme inconnue, un nombre non fini ou négatif : ignorés. D'un
+  `usage_update` sont gardés le dernier coût valide (`cost`, cumulé sur la session : jamais additionné ; une mise à jour
+  sans coût ne l'efface pas) et, à part, la dernière jauge `{ used, size }` (occupation du contexte, qui peut venir d'un
+  sous-agent natif : elle n'entre ni dans un total ni dans le Bilan). Rien n'est estimé, recalculé ni converti : le
+  coût garde sa devise telle qu'annoncée (un texte court) et deux coûts ne s'additionnent jamais.
+- **Forme publique** (`runtime.usage()`, jamais levée) :
+  `{ tours, jetons: { entree, sortie, total, cacheLu?, cacheEcrit?, reflexion? } | null, cout: { montant, devise } | null,
+contexte: { utilise, taille } | null }`, ou `null` quand l'agent n'a rien annoncé. `tours` = tours dont le `usage` a
+  été compté ; `jetons.total` vaut `null` si un tour compté n'a pas annoncé son total ; `cacheLu`, `cacheEcrit`,
+  `reflexion` sont absents quand aucun tour ne les a annoncés. Seulement des nombres et une devise, aucun texte d'agent.
+- **Événement `usage`** sur chaque exécution (mission seule comprise), écrit dans le `finally` de l'exécution, après
+  son dernier tour et son dernier état ; absent quand rien n'a été annoncé. Une erreur de lecture ou d'écriture est
+  sans effet sur l'issue de la mission.
+- **`child_done.usage`** et `doneOf(child).usage` : l'annonce du membre, lue dans `ended()` (avant que sa fin soit
+  visible) ; relue en base après un redémarrage. `GET /api/runs/:id?equipe=1` la montre dans `family[].usage` dès que
+  la fin du membre est visible.
+- **Attente du chef** : `family.attente = { appels, ms }` (en mémoire) : chaque appel de `mission_attendre` compte, et
+  `ms` le temps passé à attendre (horloge `delegation.now`). Ni délai, ni réponse, ni ordre ne changent.
+- **Ligne de Bilan** : à la fin de la ligne « Consommation » de la mère, quand au moins un agent (chef ou membre) a
+  annoncé des jetons ou un coût : « Consommation annoncée par les agents : chef claude 412 000 jetons (coût annoncé
+  1,84 USD) ; « A » codex 96 000 jetons ; « B » : non annoncé ; total connu : 508 000 jetons. Attente du chef : 14 appels
+  de mission_attendre, 9 min 20 s. » (noms d'agents et titres lus dans les données ; espace des milliers, virgule
+  décimale ; « jetons non annoncés » pour un agent qui n'annonce qu'un coût ; « total connu : aucun jeton annoncé »
+  quand seuls des coûts sont annoncés). Sans aucun chiffre annoncé : la ligne d'avant, à l'octet près, même si le chef
+  a attendu.
+- Faux agent : option `usage` de `tests/fixtures/chef-agent.js`. Tests : `tests/swarm-14-cout.test.js`.

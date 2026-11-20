@@ -568,7 +568,14 @@ export class Delegation {
         role: child.famille?.role,
         relit: child.famille?.relit,
         verdict: this.verdictOf(child),
+        usage: this.doneOf(child).usage, // swarm-14
       })),
+      // swarm-14 : le chef (cette exécution) : ce que son agent annonce et son attente.
+      chef: {
+        agent: mother.agent,
+        usage: sur(() => this.engine.active.get(run.id)?.runtime?.usage?.()),
+        attente: this.families.get(run.id)?.attente,
+      },
     });
     // swarm-13 : the final answer given while a work's last verdict is not « approuve ».
     const malgre = chiefAnswer ? this.verdictBilanLine(mother) : '';
@@ -612,10 +619,12 @@ export class Delegation {
       ? this.engine.privateRunFile(child, 'fichiers')
       : done?.data?.fichiers;
     const echec = done?.data?.echec; // swarm-08
+    const usage = done?.data?.usage; // swarm-14
     return {
       envois: done?.data?.envois,
       fichiers: Array.isArray(fichiers) ? fichiers : [],
       ...(echec?.classe ? { echec } : {}),
+      ...(usage && typeof usage === 'object' && !Array.isArray(usage) ? { usage } : {}),
     };
   }
   sendsOf(child) {
@@ -735,7 +744,16 @@ export class Delegation {
     const echec = failure?.classe
       ? { classe: failure.classe, jusqua: failure.jusqua ?? null }
       : null;
-    this.finals.set(child.id, { envois, fichiers, ...(echec ? { echec } : {}) });
+    // swarm-14 : ce que l'agent du membre a annoncé de sa consommation (nombres et devise seulement),
+    // lu avant que sa fin soit visible : son dernier tour est fini, son runtime est encore là.
+    const usage = sur(() => control?.runtime?.usage?.());
+    const annonce = usage && typeof usage === 'object' && !Array.isArray(usage) ? usage : null;
+    this.finals.set(child.id, {
+      envois,
+      fichiers,
+      ...(echec ? { echec } : {}),
+      ...(annonce ? { usage: annonce } : {}),
+    });
     // A private mission keeps its file names in its own space, as its prompt ; any other mission
     // in the event, read again after a restart.
     if (child.workspace)
@@ -750,6 +768,7 @@ export class Delegation {
       envois,
       ...(child.workspace ? {} : { fichiers }),
       ...(echec ? { echec } : {}),
+      ...(annonce ? { usage: annonce } : {}),
     });
   }
   // multi-agent-v3-01 (D9) : the files of a sub-mission's results folder (paths relative to the
@@ -1851,6 +1870,9 @@ export class Delegation {
     for (const id of ids ?? [])
       if (!known.has(id)) throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
     const targets = ids ?? [...known];
+    // swarm-14 : compteur des appels du chef et du temps passé à attendre (horloge `this.now`).
+    const attente = (this.family(mother.id).attente ??= { appels: 0, ms: 0 });
+    attente.appels += 1;
     const over = (id) => terminal.has(this.store.get(id)?.state) && !this.held(id);
     // Every call gives the state of all the sub-missions asked for (plan v2, Codex 2), the full
     // result of one only once (multi-agent-v3-02, D, below). Without `toutes`,
@@ -1874,6 +1896,7 @@ export class Delegation {
       control.suspendTimers?.();
       control.runtime?.pauseDeadlines?.();
       family.waiting = (family.waiting ?? 0) + 1;
+      const debut = sur(() => this.now()); // swarm-14 : une horloge qui lève ne change rien
       try {
         reached = !(await this.untilOr(
           family,
@@ -1883,6 +1906,9 @@ export class Delegation {
           control.abort.signal,
         ));
       } finally {
+        sur(() => {
+          if (typeof debut === 'number') attente.ms += Math.max(0, Number(this.now() - debut) || 0);
+        });
         family.waiting--;
         control.runtime?.resumeDeadlines?.();
         control.resumeTimers?.();

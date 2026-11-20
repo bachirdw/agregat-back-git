@@ -20,6 +20,19 @@ const keep = (kept, key, value) => {
   kept.set(key, value);
   while (kept.size > MAX_KEPT) kept.delete(kept.keys().next().value);
 };
+// Coupe à `max` unités sans laisser la moitié d'un caractère sur deux unités (emoji).
+const clip = (text, max) => {
+  const cut = text.slice(0, max);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+};
+// Un champ d'affichage ne fait jamais échouer la route : au pire il manque.
+const quiet = (read, fallback = null) => {
+  try {
+    return read();
+  } catch {
+    return fallback;
+  }
+};
 const seconds = (from, now) => {
   const t = Date.parse(from ?? '');
   return Number.isFinite(t) ? Math.max(0, Math.round((now - t) / 1000)) : 0;
@@ -60,12 +73,12 @@ function fixedFields(delegation, child, prive) {
     dernierOutil: line.dernierOutil,
   };
   if (done && child.state === 'completed' && !prive) {
-    const answer = String(delegation.engine.modelAnswerOf(child) ?? '');
-    if (answer) fields.resultat = answer.slice(0, RESULT_CHARS);
+    const answer = String(quiet(() => delegation.engine.modelAnswerOf(child)) ?? '');
+    if (answer) fields.resultat = clip(answer, RESULT_CHARS);
   }
   if (done && child.state !== 'completed') {
-    const cause = prive ? privateCause(child) : delegation.outcome(child).cause;
-    const message = prive ? '' : String(cause?.message ?? '').slice(0, CAUSE_CHARS);
+    const cause = prive ? privateCause(child) : quiet(() => delegation.outcome(child).cause);
+    const message = prive ? '' : clip(String(cause?.message ?? ''), CAUSE_CHARS);
     fields.cause = {
       type: cause?.type ?? 'erreur',
       ...(message ? { message } : {}),
@@ -73,10 +86,10 @@ function fixedFields(delegation, child, prive) {
     };
   }
   if (done) {
-    const usage = delegation.doneOf(child)?.usage;
+    const usage = quiet(() => delegation.doneOf(child)?.usage);
     if (usage !== undefined && usage !== null) fields.usage = usage;
   }
-  const last = delegation.store.events(child.id).at(-1);
+  const last = quiet(() => delegation.store.events(child.id).at(-1));
   return { fields, createdAt: child.createdAt, lastAt: last?.at ?? child.createdAt };
 }
 
@@ -92,8 +105,10 @@ export function memberView(delegation, child, { prive = false, now = Date.now() 
   const key = `${child.id}\u0000${prive ? 1 : 0}`;
   const done = terminal.has(child.state);
   let entry = kept.get(key);
-  if (!entry || entry.state !== child.state || (!entry.done && now - entry.at >= LIVE_MS)) {
-    entry = { at: now, done, state: child.state, ...fixedFields(delegation, child, prive) };
+  // Un membre repris sur place repasse par d'autres états puis finit de nouveau : ses heures changent.
+  const mark = `${child.state}\u0000${child.startedAt ?? ''}\u0000${child.finishedAt ?? ''}`;
+  if (!entry || entry.mark !== mark || (!entry.done && now - entry.at >= LIVE_MS)) {
+    entry = { at: now, done, mark, ...fixedFields(delegation, child, prive) };
     keep(kept, key, entry);
   }
   const { resultat, cause, usage, ...rest } = entry.fields;
@@ -110,14 +125,17 @@ export function memberView(delegation, child, { prive = false, now = Date.now() 
 /** Ajoute la vue de chaque membre à `view.family` (par `id`) ; rend `view` tel quel sans `family`. */
 export function withTeam(view, delegation, run, { prive = false, now = Date.now() } = {}) {
   if (!Array.isArray(view?.family)) return view;
-  const rows = new Map(delegation.childrenOf(run).map((child) => [child.id, child]));
+  const rows = new Map(
+    quiet(() => delegation.childrenOf(run), []).map((child) => [child.id, child]),
+  );
   return {
     ...view,
     family: view.family.map((entry) => {
-      const child = rows.get(entry.id) ?? delegation.store.get(entry.id);
+      const child = rows.get(entry.id) ?? quiet(() => delegation.store.get(entry.id));
       if (!child) return entry;
       const secret = prive || privateRun(child, delegation.engine);
-      return { ...entry, ...memberView(delegation, child, { prive: secret, now }) };
+      const member = quiet(() => memberView(delegation, child, { prive: secret, now }));
+      return member ? { ...entry, ...member } : entry;
     }),
   };
 }
@@ -125,21 +143,22 @@ export function withTeam(view, delegation, run, { prive = false, now = Date.now(
 /**
  * Résumé d'équipe d'une mère : `{ membres, enCours, finis, echecs, teDemande }`, ou `null` pour une
  * mission sans famille (rien n'est lu alors). `finis` : membres `completed` ; `echecs` : membres finis
- * sans succès ; `enCours` : les autres (retenus compris) ; `teDemande` : au moins un membre attend le
- * propriétaire (question, carte, ou accord des sous-agents).
+ * sans succès ; `enCours` : les autres (retenus compris) ; `teDemande` : nombre de membres qui attendent
+ * le propriétaire (question, carte, ou accord des sous-agents), 0 sinon. Une lecture qui échoue ne
+ * fait jamais échouer la liste : `null` (pas de résumé).
  */
 export function teamSummary(delegation, mother) {
-  if (!delegation.hasFamily(mother)) return null;
-  const children = delegation.childrenOf(mother);
-  if (!children.length) return null;
+  if (!quiet(() => delegation.hasFamily(mother), false)) return null;
+  const children = quiet(() => delegation.childrenOf(mother), []);
+  if (!Array.isArray(children) || !children.length) return null;
   let finis = 0;
   let echecs = 0;
-  let teDemande = false;
+  let teDemande = 0;
   for (const child of children) {
     if (child.state === 'completed') finis++;
     else if (terminal.has(child.state)) echecs++;
-    if (ASKING.has(child.state) || delegation.heldState(child.id) === 'attend_accord')
-      teDemande = true;
+    if (ASKING.has(child.state) || quiet(() => delegation.heldState(child.id)) === 'attend_accord')
+      teDemande++;
   }
   return {
     membres: children.length,
@@ -157,7 +176,9 @@ export function teamSummary(delegation, mother) {
 export function listRuns(store, delegation, { racines = false } = {}) {
   const runs = store.list();
   const shown = racines
-    ? runs.filter((run) => !run.famille || !run.famille.mere || !store.get(run.famille.mere))
+    ? runs.filter(
+        (run) => !run.famille || !run.famille.mere || !quiet(() => store.get(run.famille.mere)),
+      )
     : runs;
   return shown.map((run) => {
     const equipe = run.famille ? null : teamSummary(delegation, run);

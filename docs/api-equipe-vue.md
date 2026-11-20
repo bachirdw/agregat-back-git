@@ -15,17 +15,18 @@ sans code copié.
 
 `equipe` (présent seulement sur une mission qui a lancé au moins une sous-mission) :
 
-```js
-{
-  (membres, enCours, finis, echecs, teDemande);
-}
+```json
+{ "membres": 4, "enCours": 2, "finis": 1, "echecs": 1, "teDemande": 1 }
 ```
 
 - `membres` : sous-missions de la mère et des exécutions qu'elle reprend ;
 - `finis` : membres `completed` ; `echecs` : membres finis sans succès (`failed`, `cancelled`, `interrupted`) ;
   `enCours` : les autres, membres retenus compris (en file, en attente d'accord ou d'un prérequis) ;
-- `teDemande` (booléen) : au moins un membre attend le propriétaire (`awaiting_owner`, `waiting_permission`, ou
-  retenu en attente de l'accord des sous-agents).
+- `teDemande` (nombre) : combien de membres attendent le propriétaire (`awaiting_owner`, `waiting_permission`, ou
+  retenu en attente de l'accord des sous-agents) ; `0` quand personne n'attend.
+
+Si une lecture échoue pendant le calcul d'un résumé, la mère est rendue sans `equipe` ; la liste ne rend jamais
+d'erreur pour ce champ.
 
 **Limite connue** : `store.list()` s'arrête aux 200 dernières exécutions **avant** le filtre de `?racines=1`. Avec
 beaucoup de sous-missions, moins de 200 missions sont donc listées.
@@ -60,8 +61,17 @@ et le mode propriétaire est éteint) : ni `resultat` ni `cause.message`, et la 
 `resultat` et `cause.message` sont des données rapportées par un agent : l'interface les affiche en texte brut, sans
 les interpréter.
 
+Les deux textes sont coupés sans laisser la moitié d'un caractère sur deux unités (emoji) : ils peuvent donc faire
+599 ou 299 unités.
+
 Mémoire : le calcul d'un membre fini est gardé (ses champs fixes ne changent plus) ; celui d'un membre en cours est
-gardé 2 secondes ; un changement d'état le recalcule aussitôt. La mémoire est bornée (2 000 entrées par moteur).
+gardé 2 secondes ; un changement d'état ou d'heure de début ou de fin (membre repris sur place) le recalcule
+aussitôt. La mémoire est bornée (2 000 entrées par moteur, les plus anciennes partent d'abord). `depuis` et
+`inactiveDepuis` sont recalculés à chaque appel, mais l'heure du dernier événement d'un membre en cours peut avoir
+jusqu'à 2 secondes de retard.
+
+Robustesse : si une lecture échoue pour un membre (événements, réponse, cause), le champ concerné manque, ou l'entrée
+garde seulement ses champs d'avant ; la route ne rend pas d'erreur pour un champ d'affichage.
 
 Une sous-mission s'ouvre toujours par `GET /api/runs/<id de la sous-mission>`.
 

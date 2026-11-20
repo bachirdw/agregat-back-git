@@ -224,7 +224,7 @@ test('GET /api/runs : rien ne change sans paramètre, sauf `equipe` sur la mère
     enCours: 2,
     finis: 1,
     echecs: 1,
-    teDemande: true,
+    teDemande: 1,
   });
   for (const run of data) {
     const base = before.find((r) => r.id === run.id);
@@ -254,7 +254,7 @@ test('GET /api/runs?racines=1 : sans les sous-missions, orpheline gardée', asyn
     enCours: 1,
     finis: 1,
     echecs: 1,
-    teDemande: false,
+    teDemande: 0,
   });
   assert.equal(data.find((r) => r.id === orphan.id).title, 'Mission FICTIVE');
   // Mère retirée de la base : ses sous-missions deviennent orphelines et restent listées.
@@ -270,13 +270,13 @@ test('teDemande : carte en attente ou accord des sous-agents', async (t) => {
   const { store, delegation } = await platform(t);
   const mother = row(store, { state: 'running', estMere: true });
   const child = row(store, { state: 'queued', famille: { mere: mother.id, titre: 'R' } });
-  assert.equal(teamSummary(delegation, mother).teDemande, false);
+  assert.equal(teamSummary(delegation, mother).teDemande, 0);
   store.update(child.id, { state: 'waiting_permission' });
-  assert.equal(teamSummary(delegation, mother).teDemande, true);
+  assert.equal(teamSummary(delegation, mother).teDemande, 1);
   store.update(child.id, { state: 'queued' });
   const original = delegation.heldState.bind(delegation);
   delegation.heldState = (id) => (id === child.id ? 'attend_accord' : original(id));
-  assert.equal(teamSummary(delegation, mother).teDemande, true);
+  assert.equal(teamSummary(delegation, mother).teDemande, 1);
   assert.equal(teamSummary(delegation, mother).enCours, 1);
   delegation.heldState = original;
 });

@@ -565,3 +565,36 @@ réseau, aucun relevé réel des essais lu, pas de `npm test` complet. Biblioth�
   valide. » `npx prettier --check` sur les trois fichiers touchés : conforme (le fichier de test a d'abord été
   signalé, reformaté par `prettier --write`, puis relancé : 3/3). Aucun agent réel, aucun port fixe, aucun réseau,
   pas de `npm test` complet. Bibliothèque et Skill career-ops intouchés.
+
+### Relecture (20/11, 14:37 à 14:42)
+
+Relecture indépendante sans exécution (5 points) ; chaque affirmation vérifiée par un test avant tout changement.
+Commit de code et de tests : 28383a3 (`packages/orchestrator/result.js` seul pour le code, plus
+`tests/equipe-accolades.test.js` et le paragraphe de 5.1 de `docs/api-delegation.md`).
+
+- **Défaut 1 (réponse au contrat en guillemets typographiques, échappés, ou commentaire en tête) : confirmé et
+  corrigé.** Avant le changement, les 7 formes testées donnaient « non structurée » (“…”, ‘…’, « … », `\"…\"`,
+  `// …` et `/* … */` juste après l'accolade, bloc ```json compris) ; de bout en bout, la réponse au contrat en
+  guillemets typographiques finissait `completed` (actual 'completed', expected 'failed'). Correctif : l'expression
+  « ressemble à un objet » accepte aussi, juste après l'accolade, `“ ” ‘ ’ „ « »`, un guillemet échappé et `//` ou
+  `/*`. Après : « JSON invalide », mission `failed` avec `agent_output_rejected`.
+- **Défaut 2 (question en guillemets typographiques perdue) : confirmé et corrigé** par le même changement. Avant :
+  « non structurée » pour les deux formes (bloc json et objet seul) ; de bout en bout, contrôle négatif lancé à part
+  avec le result.js de HEAD remis temporairement puis restauré : `completed` sans question. Après : `failed`,
+  « JSON invalide », aucun événement `question`.
+- **Défaut 3 (objet de code non JSON cité en prose) : limite gardée** (décision du manager). Test qui fige
+  « JSON invalide » pour `{ ok: true }` et `{'total': 3}` ; phrase de limite connue ajoutée en 5.1.
+- **Mineurs : ajoutés.** Demande de décision en prose avec accolades : un événement `question` est émis (« Laquelle
+  préfères-tu retenir ? »), puis, sans réponse (plafond de test de 200 ms), `completed` « Question restée sans
+  réponse ». Agent simulé (aide de test existante, option `simulated`, aucune fixture touchée) : `failed`,
+  « non structurée », `agent_output_rejected`. Ces deux tests étaient déjà verts avant le correctif : ils figent un
+  comportement, ils ne prouvent pas le changement (point 5 de la relecture, admis).
+- **Gardé en texte libre** : les deux formes réelles (`fiches/{vitest,jest,node-test}.json`, « dans {mois, an,
+  unique, semaine, jour} ») et un guillemet typographique placé plus loin dans l'accolade (`{ alpha “en tête” }`).
+- **Résultats réels** : equipe-accolades 8/8 (avant correctif : 6/8, les deux tests des défauts 1 et 2 rouges),
+  agent-result 13/13, reponse-prose 6/6, question-mal-formee 14/14, review-questions-18-11 14/14, workflow-run 18/18,
+  elicitation 26/26, message-proprietaire 25/25, career-integration 50/50, career-failure 11/11, generique-01 15/15,
+  chef-01 16/16, equipe-01-roles 17/17, equipe-01-relecture 9/9, platform 11/11, owner-mode 14/14 : 0 échec, lancés un
+  par un. `npm run check` : « Syntaxe JavaScript valide. » `npx prettier --check` sur les trois fichiers touchés :
+  conforme. Aucun agent réel, aucun port fixe, aucun réseau, pas de `npm test` complet ; bibliothèque et Skill
+  career-ops intouchés.

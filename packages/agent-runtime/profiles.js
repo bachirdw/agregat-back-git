@@ -35,6 +35,10 @@ export const profiles = [
       },
       unreported: 'modèle et consommation non rapportés par l’agent',
     },
+    // swarm-16 : the model tiers (niveaux.js) : patterns of the ids this agent announces (its probe,
+    // models seen on this machine on 21/11), as a datum of the profile only ; they choose among the
+    // announced models, never refuse one. Starting point : swarm's table (smol, regular, smart, ultra).
+    niveaux: { leger: ['luna'], standard: ['terra'], fort: ['-sol', 'astra'] },
     preference: 1,
   },
   {
@@ -68,6 +72,8 @@ export const profiles = [
       unreported:
         'chiffres « selon l’agent » déclarés par lui, non mesurés par la plateforme ; consommation non reprise',
     },
+    // swarm-16 : the model tiers (niveaux.js), as for codex ; the id `default` matches none.
+    niveaux: { leger: ['haiku'], standard: ['sonnet'], fort: ['opus', 'fable'] },
     preference: 2,
   },
   {

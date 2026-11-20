@@ -286,6 +286,33 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   nom d'un rôle de la plateforme ou d'un rôle du pack de la mission (un nom fixe du dépôt) est écrit en base
   (`famille.role` sur la ligne) ; un rôle propre à l'espace ou un nom libre reste en mémoire seulement, comme le titre
   (« Sous-mission N »).
+- **Niveau de modèle** (`swarm-16`, 21/11/2026) : trois niveaux portables, `leger`, `standard`, `fort`, pour que le
+  chef choisisse un modèle sans connaître les noms des modèles de chaque agent.
+  - **Fiche de rôle** : clé facultative `niveau: leger|standard|fort` (plateforme, pack et espace, lue de la même
+    façon ; toute autre valeur est ignorée). Rôles de la plateforme : `chercheur`, `redacteur`, `verificateur` en
+    `standard`, `developpeur` en `fort`. `mission_suivre.roles[]` porte `niveau` quand la fiche en a un.
+  - **`mission_lancer.niveau`** (facultatif, une des trois valeurs ; texte de l'outil : « niveau : leger pour une part
+    simple ou répétitive, standard par défaut, fort pour une part difficile ou un contrôle sensible ; un modele donné
+    l’emporte »).
+  - **Choix du modèle**, dans cet ordre : `modele` donné (une chaîne vide reste le modèle par défaut de l'agent) ; puis
+    `niveau` ; puis, pour une reprise ou une suite sur le même agent, le modèle de la tentative précédente (une suite
+    reçoit déjà ce modèle de `mission_continuer`, `''` compris) ; puis le niveau du rôle ; puis la règle d'avant
+    (le modèle de la mère, ou de la tentative reprise, quand l'agent est le même ; sinon celui par défaut de l'agent).
+  - **Résolution** (`packages/agent-runtime/niveaux.js`) : le premier modèle annoncé par l'agent (ses sondes, dans
+    l'ordre annoncé) dont l'identifiant contient un motif de ce niveau ; les motifs sont une donnée du profil de l'agent
+    (`niveaux` dans `packages/agent-runtime/profiles.js`, seulement pour les agents qui annoncent plusieurs modèles ;
+    seul endroit où des noms de modèles apparaissent). Un niveau ne refuse jamais rien : s'il ne se résout pas, la règle
+    d'avant choisit, et le résultat porte `note` « niveau fort non reconnu chez cet agent : modèle par défaut » (pour le
+    niveau d'un rôle, seulement chez un agent qui a des motifs et annonce des modèles ; sinon rien ne change). Un modèle
+    donné explicitement reste jugé par le seul contrôle « Modèle non annoncé » du moteur (`modele_inconnu`).
+  - **Agent de remplacement** (`swarm-08`, 9.8) : un modèle donné est abandonné comme avant, mais un niveau (`niveau`,
+    sinon celui du rôle) se résout chez l'agent qui prend la part, avec ses motifs et ses modèles annoncés.
+  - **Écrit** : `niveau` sur la ligne (`famille.niveau`) et dans le résultat de `mission_lancer`, seulement quand un niveau
+    a choisi le modèle ; `mission_suivre.agents[].modeles[]` porte `niveau` quand le profil le connaît. Absents sinon.
+  - **Changement visible** : une sous-mission qui prend un rôle de la plateforme ne prend plus d'office le modèle de la
+    mère : elle part sur le modèle du niveau de son rôle chez son agent (par exemple un modèle moyen pour un chercheur,
+    un modèle fort pour un développeur). Le modèle de chaque sous-mission reste écrit dans le résultat du lancement et au
+    Bilan ; pour garder le modèle de la mère, le chef le donne dans `modele`.
 - **Mère finie pendant le choix de l'agent** : pour un rôle `autreAgent: true` sans `agent`, la liste des agents
   installés est lue avant la création ; si pendant cette lecture la mère est annulée, finie ou en fermeture, l'appel
   rend `mission_terminee` et rien n'est créé.

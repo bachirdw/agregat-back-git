@@ -52,6 +52,10 @@ import { RESULT_TOOLS } from './delegation-rule.js';
 // swarm-05 : doublons at launch and the living list of the other members.
 import { partDe, trouverDoublon } from './doublon.js';
 import { membres } from './soeurs.js';
+// swarm-16 : the model tiers of a sub-mission (leger, standard, fort), resolved per agent.
+import { getProfile } from '../agent-runtime/index.js';
+import { avecNiveaux, choisirModele } from '../agent-runtime/niveaux.js';
+import { niveauNonReconnu } from './delegation-rule.js';
 // swarm-12 : the count per task, the dependants cancelled by a failure, the chief's messages never
 // delivered, the short reminder of the owner's request (packages/orchestrator/taches.js).
 import {
@@ -1165,7 +1169,24 @@ export class Delegation {
         )
       : null;
     const planned = args.agent ?? reviewer ?? base.agent;
-    const plannedModel = args.modele ?? (planned === base.agent ? (base.model ?? '') : '');
+    // swarm-16 : the model : `modele` given ; then `niveau` ; then, for a resumption or a suite on the
+    // same agent, the previous attempt's ; then the role's tier ; then today's rule. A tier chooses
+    // among the models the agent announces (patterns of its profile) ; none matching : today's rule.
+    const probes = this.probes();
+    const choose = (id, given) =>
+      choisirModele({
+        ...given,
+        niveau: args.niveau,
+        niveauRole: team?.niveau,
+        profil: getProfile(id),
+        modelesAnnonces: optionsOf(probes[id]),
+      });
+    const planChoice = choose(planned, {
+      modele: args.modele,
+      precedent: previous && planned === previous.agent ? (previous.model ?? '') : undefined,
+      defaut: planned === base.agent ? (base.model ?? '') : '',
+    });
+    const plannedModel = planChoice.modele;
     // swarm-08 : the agent the platform chose (none named by the chief) is unavailable : the first
     // ready agent instead (never the simulated one in real mode, a proven session first), said in the
     // result and on the row ; none : the same refusal. Synchronous, before any folder or counter.
@@ -1179,7 +1200,18 @@ export class Delegation {
     if (why && !instead)
       throw fail('agent_indisponible', agentUnavailable(planned, why.raison, this.readyAgents()));
     const agent = instead ?? planned;
-    const modele = instead ? '' : plannedModel;
+    // swarm-16 : another agent takes the part : a model given is left (as before), a tier (asked, or
+    // the role's) is resolved at that agent. The tier is written when it chose the model ; one that
+    // does not resolve is said in the note (the role's only for an agent with tiers announcing models).
+    const choice = instead ? choose(instead, { defaut: '' }) : planChoice;
+    const modele = choice.modele;
+    const niveau = ['niveau', 'role'].includes(choice.source) ? choice.niveau : null;
+    const niveauNote =
+      choice.nonReconnu &&
+      (choice.depuis === 'niveau' ||
+        (getProfile(agent)?.niveaux && optionsOf(probes[agent]).length))
+        ? niveauNonReconnu(choice.nonReconnu)
+        : null;
     const named = args.continue
       ? suiteTitle(
           sisters.get(taskId).famille?.titre ?? taskId,
@@ -1224,6 +1256,7 @@ export class Delegation {
         // swarm-08 : the agent planned when another was launched ; the agent named by the chief.
         ...(instead ? { agentPrevu: planned } : {}),
         ...(chiefAgent ? { agentImpose: true } : {}),
+        ...(niveau ? { niveau } : {}), // swarm-16 : the tier that chose the model.
       },
       title: titre,
       cwd: mother.cwd,
@@ -1369,6 +1402,7 @@ export class Delegation {
       etat,
       agent,
       modele,
+      ...(niveau ? { niveau } : {}), // swarm-16
       ...(folder ? { dossierResultats: folder, espace: resolve(mother.cwd) } : {}),
       famille: this.counter(mother),
       ...(doublonProbable ? { doublonProbable } : {}),
@@ -1377,6 +1411,7 @@ export class Delegation {
         installed && !reviewer && SAME_AGENT_NOTE,
         doublonProbable && doublonNote(doublonProbable, double.niveau),
         instead && agentReplaced(planned, why.raison, instead),
+        niveauNote, // swarm-16
       ]),
     };
   }
@@ -1786,11 +1821,15 @@ export class Delegation {
         ...(raison ? { raison } : {}),
         ...(jusqua ? { jusqua } : {}),
         ...(agent.simulated ? { simule: true } : {}),
-        modeles: optionsOf(probes[agent.id]).map((model) => ({
-          id: model.id,
-          nom: model.name ?? model.id,
-          ...(modelesLimites?.[model.id] ? { limiteJusqua: modelesLimites[model.id] } : {}),
-        })),
+        // swarm-16 : with the tier of each model, when its profile knows it (avecNiveaux).
+        modeles: avecNiveaux(
+          optionsOf(probes[agent.id]).map((model) => ({
+            id: model.id,
+            nom: model.name ?? model.id,
+            ...(modelesLimites?.[model.id] ? { limiteJusqua: modelesLimites[model.id] } : {}),
+          })),
+          getProfile(agent.id),
+        ),
         modeleParDefaut: probes[agent.id]?.models?.current ?? null,
       };
     });

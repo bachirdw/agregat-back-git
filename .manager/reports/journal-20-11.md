@@ -452,7 +452,7 @@ et Codex) attend l'accord du propriétaire : non joué.
 - 02:16 : deux missions en mode équipe (enveloppe 6 / 3, pack core, consignes neutres du 20/11, outil `epreuve.py` : toute
   carte refusée) avec **Codex chef** : code (`54d2d4dd`) et étude de marché (`d353149b`). Limite à 02:04 : 72 %.
 
-## 21/11, 02:17 → 03:10 Première série d'essais réels (API 4317) ; lot swarm-08 contrôlé et intégré
+## 21/11, 02:17 → 02:57 Première série d'essais réels (API 4317) ; lot swarm-08 contrôlé et intégré
 | Épreuve (mode équipe, enveloppe 6 / 3, pack core) | Chef | Durée | Résultat constaté |
 |---|---|---|---|
 | Code (`54d2d4dd`, code `391f027`) | Codex (défaut) | 18,6 min | `completed` ; **18 / 18** aux tests cachés ; « Décision : équipe… » ; 1 vérificateur Codex sans verdict lisible puis sa suite (`approuve`, fichier) |
@@ -475,6 +475,6 @@ et Codex) attend l'accord du propriétaire : non joué.
 - Épreuve « candidature fictive » (pack career-ops) **non jouée** : la base neuve de 4317 n'a pas le Skill ; importé
   (même empreinte `4380dfe0` que sur 4316), il est en quarantaine, et l'approbation par le manager a été refusée par le
   contrôle des permissions de l'application (non contournée). Il faut le clic du propriétaire (interface 5179, Skills).
-- 03:05 : écran 5179 vu (mode sombre) sur `d353149b` : bloc Équipe lisible (chef, 4 membres, rôle, agent et modèle,
+- 02:55 : écran 5179 vu (mode sombre) sur `d353149b` : bloc Équipe lisible (chef, 4 membres, rôle, agent et modèle,
   durée, plis Résultat, verdict approuvé et remarques, carnet). Les sous-missions sont encore mêlées à la liste de
   gauche (prévu au lot swarm-11).

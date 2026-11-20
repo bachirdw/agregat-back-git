@@ -523,3 +523,21 @@ et Codex) attend l'accord du propriétaire : non joué.
   de quoi laisser le propriétaire essayer lui-même) ; une mission avec Codex après 07:16 (retour de sa limite).
 - **swarm-12** (vague 5) : arbre `~/Downloads/agregat-back-swarm-12` parti de la tête du lot 10 ; copieur `e53edbb` ;
   codeur lancé à 05:00.
+
+## 21/11, 05:09 → 05:38 Vague 5 finie (swarm-12 intégré), vague 6 lancée
+- **swarm-12** : codeur `e942165`, `1f9927d` ; relecteur `0542126`, `36ae9d6`, verdict **bon à intégrer** après deux
+  corrections : (1) demandée par le manager : le codeur avait écrit un nom de pack en dur (`career-ops`) dans
+  `delegation.js` pour la règle « mission privée » ; retiré ; règle prudente retenue : le rappel de la demande n'est donné
+  qu'à une mission sans espace de travail et du pack général (les missions career-ops et najah n'ont donc pas ce rappel,
+  même en mode propriétaire : **à trancher par le propriétaire**, piste : chaque pack déclare sa confidentialité) ;
+  (2) coût quadratique corrigé (les sœurs étaient relues pour chaque résultat). 13 contrôles négatifs.
+  Suite complète du manager dans l'arbre du lot, 05:21 → 05:34 : **1 817 unitaires, 1 814 réussis, 0 échec ; Chrome
+  265/265 ; check 0 ; format 0**. Intégré à 05:36, tête **`a8660a4`** (arbre identique à celui du lot, `c314d969`).
+- Erreur du manager à l'intégration (sans effet) : premier cherry-pick lancé avec la mauvaise base (`7061c2d..swarm-12` au
+  lieu de `ac4e34b..swarm-12` : le lot 12 partait de la branche du lot 10), arrêté sur un commit vide ; annulé par
+  `git cherry-pick --abort` (rien n'avait été appliqué), puis refait avec la bonne base. L'arbre neuf et vide du lot 13 a
+  été avancé sur la nouvelle tête par avance rapide (`merge --ff-only`, aucun commit de fusion).
+- 05:37 : API 4317 relancée sur `a8660a4`. Limite à 05:35 : 52 % (5 h), 86 % (hebdomadaire).
+- **swarm-13** (vague 6, lot sensible : porte du tour de synthèse) : arbre `~/Downloads/agregat-back-swarm-13`, base
+  `a8660a4`, copieur lancé à 05:38. Il ne sera intégré que s'il est vert et relu avant 06:50 (essai réel avec Codex prévu
+  à 07:16 sur la tête intégrée).

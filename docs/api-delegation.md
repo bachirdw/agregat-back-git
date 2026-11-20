@@ -563,6 +563,20 @@ nouvelles }` : les notes des membres pas encore remises au chef (20 au plus par 
 - Limites : le carnet en mémoire n'est pas libéré à la fin de la famille (200 notes au plus par famille) ; le relevé
   des notes remises au chef est en mémoire seulement : après un redémarrage, le chef repris reçoit de nouveau les notes
   des membres.
+- **Leçons durables (`swarm-15`, 21/11/2026)** — détail dans `docs/api-lecons.md` § 8 :
+  - `carnet_noter` gagne `durable?: boolean` : avec `true` et la catégorie `methode`, `piege` ou `decision`, la note est
+    aussi gardée comme leçon de la portée (le pack de la mission) ; le résultat gagne `lecon: { statut, id }` ou
+    `lecon: { statut: 'refusee', message }` (la note du carnet est gardée dans tous les cas) ; événement `lecon_gardee
+{ id }` sur la mère. Une note de même texte (normalisé) du même auteur → `{ n, total, deja: true }`, rien d'écrit.
+  - Deux outils de plus dans les deux listes de la passerelle (après ceux du carnet) : `lecon_lire { id }` et
+    `lecon_utile { id, utile, raison? }` (route interne : même jeton ; hors mode multi-agent : 403 « Outils de leçons
+    non prêtés à cette mission »).
+  - Au départ : `lecons` (chef) et `famille.lecons` (sous-mission), 5 lignes au plus, avec les phrases `CHIEF_LECONS` /
+    `DAUGHTER_LECONS` après celles du carnet ; absents quand rien ne passe le seuil (prompt d'avant).
+  - À la fin : citation par identifiant dans la réponse du membre (`ended()`) et du chef (`familyBilan()`) ; ligne de
+    Bilan « Leçons : … servie(s), … citée(s), … gardée(s) pour la suite. ».
+  - Routes `GET /api/lecons?portee=` et `POST /api/lecons/:portee/:id` ; réglage `AGENT_PLATFORM_LECONS=0` (ni champ ni
+    outil, transmis à la passerelle par son `env`).
 
 ## 8. Pas encore fait
 

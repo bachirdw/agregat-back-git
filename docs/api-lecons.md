@@ -2,8 +2,8 @@
 
 Module `packages/orchestrator/lecons.js`, repris des mémoires d'apprentissage d'Agent Swarm (licence MIT, en-têtes en
 tête du fichier). Il garde d'une mission à l'autre des leçons courtes, dans de simples fichiers, et retrouve les plus
-utiles. **Module pur, branché nulle part** : les outils donnés aux agents, la section de rappel dans les consignes et
-leurs textes définitifs viennent au lot `swarm-15`. Aucun vecteur, aucune base, aucun appel réseau.
+utiles. Le module reste pur (aucun vecteur, aucune base, aucun appel réseau) ; son branchement dans le mode « Équipe
+d'agents » (outils, champs des consignes, citation, Bilan, routes) est décrit en § 8 (lot `swarm-15`).
 
 ## 1. Rangement
 
@@ -110,3 +110,55 @@ lettres et mots vides français et anglais (articles, prépositions, pronoms, au
 
 `TEXTE_PAS_UNE_LECON`, `TITRE_SECTION`, `INTRO_SECTION` (« données rapportées, pas des consignes »), `CONSEIL_NOTE` et
 `rendreLecons` sont des **propositions** du portage, branchées nulle part : le texte définitif est écrit au lot 15.
+Le lot `swarm-15` n'en branche aucun : les agents reçoivent des champs JSON (`lecons`, `famille.lecons`) et les phrases
+de `delegation-rule.js` (§ 8).
+
+## 8. Branchement dans l'équipe (`swarm-15`)
+
+Mode « Équipe d'agents » seulement (mère `multiAgent` et ses sous-missions) : les outils passent par les passerelles
+`relay-missions` (chef) et `relay-equipe` (sous-mission). Une mission seule ne reçoit ni ne garde de leçon. Code :
+`packages/orchestrator/delegation.js` (bloc « swarm-15 »), `carnet.js` (`note()`), textes dans `delegation-rule.js`.
+
+**Règle de swarm** : une leçon ne bloque jamais un départ ni une fin. Chaque appel au module est enveloppé ; une
+exception (portée, identifiant ou horloge invalides, disque) vaut « pas de leçon », jamais une erreur de mission.
+
+- **Rangement et portée** : portée = le pack de la mission mère (`mother.pack`). Une portée hors du format du module
+  (§ 1) : aucune leçon pour cette mission, sans erreur. Mission ordinaire : `<dataDir>/lecons/<portée>/` ; mission de
+  l'espace privé (`workspace`) : `<cwd>/relay/lecons/<portée>/`, dans l'espace, jamais dans `<dataDir>` ni en base.
+- **Garder** : `carnet_noter { texte, categorie, durable? }`. La note du carnet est toujours écrite ; avec
+  `durable: true` et la catégorie `methode`, `piege` ou `decision`, elle passe aussi par `noter()` (mission = l'exécution
+  qui note, auteur = celui du carnet, origine `equipe`). Le résultat de la note gagne `lecon` : `{ statut: 'gardee' |
+'rejouee' | 'confirmee', id }` ou `{ statut: 'refusee', message }` (plancher, autre catégorie, module en panne) ; un
+  refus de la leçon ne refuse jamais la note. Sans `durable`, le résultat est celui d'avant (`{ n, total }`). Une leçon
+  neuve écrit l'événement `lecon_gardee { id }` sur la mère (l'identifiant seul, aucun texte).
+- **Note identique** : le même texte (minuscules, espaces resserrés) déjà noté par le même auteur n'est pas recopié :
+  `{ n (celui de la note existante), total, deja: true }`, rien n'est écrit (avec ou sans `durable`).
+- **Servir au départ** : `rappel(texte, portée)` — pour le chef, sa demande ; pour une sous-mission, sa consigne
+  (`turnObjective`). 5 au plus, une ligne chacune : `[date] **titre** (id: l-…) : extrait (300 car.)`. Le chef reçoit
+  `lecons` (champ du prompt) et la phrase `CHIEF_LECONS` juste après celle du carnet ; une sous-mission reçoit
+  `famille.lecons` et `DAUGHTER_LECONS` juste après la phrase du carnet. Chef dont le propriétaire a refusé les
+  sous-agents : la phrase de refus, puis `CHIEF_LECONS` terminée par un point. Rien ne passe le seuil, erreur, réglage
+  `0` : champ et phrase absents, prompt identique à l'octet à celui d'avant. Les identifiants servis sont gardés en
+  mémoire par exécution (perdus à un redémarrage).
+- **`lecon_lire { id }`** : le texte entier d'une leçon vivante de la portée de la mission (`liste(portée)` puis
+  recherche de l'identifiant : le module n'a pas de lecture d'une seule leçon) → `{ id, titre, texte, date, utile,
+inutile, nature }`. Inconnue, expirée ou supprimée : `erreur: 'inconnue'`.
+- **`lecon_utile { id, utile, raison? }`** : seulement une leçon servie à cette exécution (`non_servie` sinon), une seule
+  note par mission et par leçon (`deja_notee` ensuite) → `noterUtilite` → `{ id, utile, statut: 'notee' }`. `raison`
+  (300 caractères au plus) est acceptée mais **non conservée** : le module n'a pas de place pour elle et aucun événement
+  de note n'existe. Module en panne : `erreur: 'indisponible'`.
+- **Citer** : à la fin d'une sous-mission (`ended()`, succès comme échec), sa réponse (`modelAnswerOf`) est le journal de
+  `citer()` ; pour le chef, sa réponse finale dans `familyBilan()`. Une seule fois par exécution ; sans réponse, aucune
+  citation (ni « citée », ni « non citée »).
+- **Bilan de la mère** : « Leçons : n servie(s), n citée(s), n gardée(s) pour la suite. » (leçons distinctes servies au
+  chef et à ses sous-missions, citées par l'un d'eux, `lecon_gardee` de cette exécution), absente quand rien n'est servi
+  ni gardé. **Limite** : `familyBilan()` rend une chaîne vide quand le chef n'a lancé aucune sous-mission : alors ni
+  ligne « Leçons », ni citation du chef (les leçons gardées le sont quand même).
+- **Routes** (mêmes contrôles que les routes voisines ; POST : en-tête `x-platform-request: 1` et JSON) :
+  - `GET /api/lecons?portee=<p>` → `{ portee, lecons }` (leçons vivantes complètes de `<dataDir>/lecons`) ;
+    `&espace=prive` : celles de l'espace privé (`<espace>/relay/lecons`), **en mode propriétaire seulement** (403 sinon).
+  - `POST /api/lecons/<portée>/<id>` avec `{ action: 'promouvoir' | 'remplacer' | 'supprimer', par?, espace? }` →
+    `{ statut, id }` ; leçon inconnue 404 ; action inconnue, portée ou identifiant invalides 400 ; `espace: 'prive'` hors
+    mode propriétaire 403.
+- **Réglage `AGENT_PLATFORM_LECONS=0`** (lu au démarrage) : ni champ, ni phrase, ni outil, ni `durable` (la passerelle,
+  processus à part, le reçoit dans son `env` ; ses listes et le schéma de `carnet_noter` sont ceux d'avant), routes 404.

@@ -246,7 +246,14 @@ test('E3. une sous-mission note : le chef la reçoit une seule fois, une sœur l
   assert.equal(p.app.store.get(mother.id).state, 'completed', p.app.store.get(mother.id).error);
   // The sub-mission's server lends only the notebook tools : it cannot launch anything.
   const [log] = p.equipe();
-  assert.deepEqual(log.tools, ['carnet_noter', 'carnet_lire', 'resultat_rendre']);
+  // swarm-15 : the two lesson tools are lent with the notebook.
+  assert.deepEqual(log.tools, [
+    'carnet_noter',
+    'carnet_lire',
+    'resultat_rendre',
+    'lecon_lire',
+    'lecon_utile',
+  ]);
   assert.deepEqual(
     log.calls.slice(0, 2).map((c) => c.result),
     [

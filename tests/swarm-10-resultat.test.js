@@ -248,7 +248,14 @@ test('2. outil : invalide → refus avec erreurs et forme ; valide → fichier �
   ]);
   assert.equal(mother.state, 'completed', mother.error);
   const [log] = p.resultats();
-  assert.deepEqual(log.tools, ['carnet_noter', 'carnet_lire', 'resultat_rendre']);
+  // swarm-15 : the two lesson tools are lent with the notebook.
+  assert.deepEqual(log.tools, [
+    'carnet_noter',
+    'carnet_lire',
+    'resultat_rendre',
+    'lecon_lire',
+    'lecon_utile',
+  ]);
   const [bad, first, second] = log.calls;
   assert.equal(bad.isError, true);
   assert.equal(bad.result.erreur, 'resultat_invalide');
@@ -417,7 +424,14 @@ test('4 et 5. sous-mission : aucun outil de mission (403) ; chef sans resultat_r
   assert.ok(chiefTools.includes('carnet_noter'));
   // The sub-mission : the notebook and resultat_rendre ; mission_lancer refused.
   const [log] = p.equipe();
-  assert.deepEqual(log.tools, ['carnet_noter', 'carnet_lire', 'resultat_rendre']);
+  // swarm-15 : the two lesson tools are lent with the notebook.
+  assert.deepEqual(log.tools, [
+    'carnet_noter',
+    'carnet_lire',
+    'resultat_rendre',
+    'lecon_lire',
+    'lecon_utile',
+  ]);
   const launch = log.calls.find((c) => c.name === 'mission_lancer');
   assert.ok(launch.isError || launch.refus, 'mission_lancer refusé');
   // Without a schema nor a role : the sentence of today, no famille.schemaResultat.

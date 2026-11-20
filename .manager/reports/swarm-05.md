@@ -240,10 +240,42 @@ style! ». Journal supprimé.
 
 ### Points à trancher par le manager
 
-- L'agent n'est pas dans l'empreinte (conforme au plan) : la même part confiée exprès à deux agents différents
-  (`regard_independant`) est refusée tant que le chef ne passe pas `doublon: true`. À garder ou à mettre l'agent
-  nommé (`args.agent`) dans l'empreinte.
+- ~~L'agent n'est pas dans l'empreinte~~ : tranché par le manager (voir « Décision du manager » ci-dessous).
 - `relanceLegitime` porté, non branché (décision connue).
+
+### Décision du manager après la relecture (21/11, 01:25 environ) : même part, autre agent
+
+Décision : la même part confiée exprès à un AUTRE agent est un regard indépendant voulu : lancée et signalée, jamais
+refusée. Fait (test rouge d'abord : 3 tests rouges, puis verts) :
+- `doublon.js`, `trouverDoublon` : `identique` exige même empreinte ET même agent (part : `args.agent ?? mother.agent` ;
+  sœur : son agent). Même empreinte, autre agent : `proche`, similarité 1. L'empreinte ne change pas.
+- `delegation.js` : la clé de `family.creating` porte l'empreinte et l'agent (`JSON.stringify([empreinte, agent])`,
+  valeur `{ n, titre, agent, empreinte }`) ; `partsOf` rend l'agent de la part en création. Toujours deux lignes à côté
+  des compteurs (elles passent `part` au lieu de `part.empreinte`), aucun compteur existant modifié.
+- Tests (`tests/swarm-05-relecture.test.js`) : test pur de `trouverDoublon` ; (a) même part, même agent nommé ou agent
+  nommé égal à celui de la mère → `doublon` ; (b) autre agent → créée, `doublonProbable` similarité 1, événement
+  `proche` ; (c) course à deux agents différents → les deux passent, le second signalé ; même agent en course → un
+  seul ; (d) sans agent nommé des deux côtés → `doublon`. Mon test d'avant (« autre agent → doublon ») remplacé.
+- Contrôle négatif : clé de `creating` réduite à l'empreinte → 3 rouges ; remis.
+- Doc : erreur `doublon` et 9.5 (règle en une phrase ; limite : une vérification qui reçoit d'office un autre agent est
+  comparée sous l'agent de la mère, côté sœur sous son agent réel : deux vérifications identiques sans agent nommé sont
+  alors seulement signalées).
+- Tests relancés : lot 39 / 39 ; `review-multi-agent-v3-01` 13/13, `multi-agent-v3-02` 11/11, `equipe-01-continuer`
+  6/6. `npm run check` et `npm run format:check` verts.
+
+Phase unitaire entière après la décision (ligne FIN lue) :
+
+```text
+ℹ tests 1713
+ℹ pass 1710
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 1
+FIN phase unitaire : code 0 (durée 211 s)
+```
+
+1 709 − 1 test remplacé + 5 tests ajoutés = 1 713 / 1 710 ; aucun autre chiffre n'a bougé. Tests de relecture : 20.
 
 ### Verdict
 

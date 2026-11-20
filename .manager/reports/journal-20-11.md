@@ -333,3 +333,66 @@ précédentes) : le lanceur de tests l'affiche sans le compter comme un échec. 
   `~/Downloads/agregat-back-swarm/.manager/briefs/swarm-agents.md` (chemins, interdits, commits, tests, les trois rôles,
   forme de la réponse). Il sert à toutes les vagues.
 - 23:31 : **vague 1 lancée** : quatre copieurs Opus en parallèle (swarm-01 à swarm-04), un par arbre.
+
+## Nuit du 20 au 21/11 : vague 1 du chantier swarm (swarm-01 à swarm-04)
+Chaîne par lot : copieur → codeur → relecteur, tous Opus, lancés un par un par le manager (workflow refusé à 23:28).
+Référence relevée à 23:31 sur `swarm-20-11` : phase unitaire 1 611 tests, 1 608 réussis, 0 échec, 2 ignorés, 1 « à faire » (179 s).
+
+| Lot | Copieur | Codeur | Relecteur | Verdict | Contrôle du manager (suite complète dans l'arbre du lot) |
+|---|---|---|---|---|---|
+| swarm-01 décision du chef, motif, vérification conditionnelle | 23:31 → 23:35 | 23:36 → 23:48, puis correction → 23:56 | 23:56 → 00:10 | bon à intégrer | 00:35 → 00:48 : 1 622 unitaires (1 619 réussis, 0 échec), Chrome 265/265, check 0, format 0 |
+| swarm-02 limites d'usage, état des agents | 23:31 → 23:36 | 23:37 → 23:51 | 23:52 → 00:05 | bon à intégrer | 00:22 → 00:35 : 1 627 (1 624, 0 échec), Chrome 265/265, check 0, format 0 |
+| swarm-03 leçons, module par fichiers | 23:31 → 23:35 | 23:35 → 23:46 | 23:46 → 23:57 | bon à intégrer | 00:09 → 00:22 : 1 637 (1 634, 0 échec), Chrome 265/265, check 0, format 0 |
+| swarm-04 verdicts lisibles, rôle du vérificateur | 23:31 → 23:34 | 23:34 → 23:41 | 23:41 → 23:52 | bon à intégrer | 23:53 → 00:09 : 1 621 (1 618, 0 échec), Chrome 265/265, check 0, format 0 |
+
+Heures des agents : relevées à la minute par le manager à chaque rendu (approchées à 1 ou 2 minutes).
+
+**Décisions du manager pendant la vague**
+- swarm-01, défaut du plan : le texte de `DECISION_RULE` écrit dans le plan faisait rougir `tests/delegation-v2-01-b.test.js`
+  (lignes 297 et 299-302), que le même plan demande de laisser vert sans le modifier. Tranché à 23:50 : le test reste intact,
+  deux morceaux validés en réel (correctif E147) reviennent dans le texte : « plusieurs sources indépendantes ou plusieurs
+  sites à consulter » et « seul pour une demande simple, une petite étape ou une suite d'étapes qui dépendent l'une de
+  l'autre, quand tout tient en moins d'un quart d'heure environ ». Le reste du texte est celui du plan, mot pour mot
+  (vérifié caractère par caractère par le relecteur).
+- swarm-01 : la note du motif d'une mission privée n'est écrite nulle part (le plan disait « reste dans briefs » ; la zone
+  `briefs.set` n'est pas dans les endroits ouverts au lot). Gardé ; prouvé de bout en bout par un test du relecteur.
+- swarm-01 : « après deux échecs… ou change d'agent » : texte du plan gardé (swarm dit « monte d'un cran de modèle »).
+- swarm-02 : `rateLimit` ne compte que si l'erreur est nue ou dit elle-même une limite (règle de `usageLimitMessage`) ;
+  un « 503 » nu ne classe rien ; la classe « seat » de swarm est écartée.
+- swarm-03 : la raison `pleine` ne joue que pour une leçon neuve ; seuil de quasi-doublon 0,8 gardé, « à mesurer ».
+- swarm-04 : « , n illisible(s) » placé après la parenthèse de la ligne de total, pour laisser verte une assertion existante ;
+  `docs/api-delegation.md` non touché par ce lot (renvoi vers `docs/api-verdicts.md` confié au codeur de swarm-05).
+
+**Défauts trouvés et corrigés par les relecteurs** (test rouge d'abord)
+- swarm-02, majeur : une erreur du moteur qui cite la réponse de l'agent (« JSON invalide … : « extrait » ») faisait classer
+  `limite` une réponse qui parlait seulement de « rate limit » : agent sain écarté une heure du mode Auto. Corrigé : les
+  passages entre guillemets français de l'erreur ne sont plus lus. Mineurs : une ancienne sonde de refus redevenait
+  « récente » quand on notait une limite ; deux tests dépendaient de l'heure réelle entre 22:00 et 22:02.
+- swarm-03, trois majeurs : fichier de leçon aux champs mal typés (plantage, leçon servie pour toujours ou supprimée à
+  tort) ; une « lecture » qui créait des dossiers ; un dossier de portée remplacé par un lien ou un fichier faisait lever
+  `rappel`, `liste` et `purger`. Huit règles sans test couvertes.
+- swarm-01, mineurs : `readDecision` ne lisait pas les fins de ligne CRLF ; la borne de 200 caractères coupait un emoji.
+- swarm-04 : rien à corriger ; 3 tests de cas limites ajoutés.
+
+**À mettre au registre des erreurs (non corrigés, hors lot)**
+- `packages/orchestrator/failure.js` : l'expression d'erreur nue `/^(?:Internal error|Agent arrêté\b)/i` ne reconnaît
+  jamais « Agent arrêté : … » (le `\b` après « é » ne trouve pas de frontière) ; confirmé par `node -e` (relecteur de
+  swarm-02). Effet : une limite annoncée dans le texte puis un arrêt autre que `end_turn` n'affiche pas le message de
+  limite et n'est pas mémorisée. Corriger change le message montré : **à décider par le propriétaire**.
+- `usageLimitMessage` (même fichier) lit encore les extraits cités entre guillemets dans une erreur (même faux positif
+  que celui corrigé dans `limits.js`).
+- `tests/elicitation.test.js:535` : délai de 5 s dépassé une fois sous charge (relecteur de swarm-03), vert seul.
+- Écart de règle : le codeur de swarm-01 a lancé une fois `npx prettier --check` sans `cd`, donc depuis le dossier
+  interdit (lecture seule, rien d'écrit, signalé par lui). Brief durci à 00:38 (« même en lecture », `cd` en tête).
+- Attribution : certains commits de sous-agents portent « Co-Authored-By: Claude Opus 5.5 » (la ligne de leur
+  environnement) au lieu de la ligne du brief. Laissé : c'est le modèle qui a réellement écrit ces commits.
+- Les sous-agents ont écrit des fichiers temporaires dans le bloc-notes de la session du manager (hors de leur arbre).
+  Sans effet ; brief corrigé (fichiers temporaires dans l'arbre).
+
+**Intégration** : 00:49, `git cherry-pick` dans l'ordre des lots (6 + 5 + 6 + 4 commits), aucun conflit. Tête intégrée
+`e18ef06` (avec les commits `[swarm-00]` du manager : outil de tests, brief). Suite complète sur la tête intégrée lancée à
+00:50 (attendu : 1 674 unitaires, 1 671 réussis). Usage à 00:37 : 34 % de la fenêtre de 5 h ; hebdomadaire 74 % (Fable 73 %).
+
+**Vague 2 lancée à 00:50** : arbres `~/Downloads/agregat-back-swarm-05`, `-06`, `-07` créés depuis `e18ef06` ; trois copieurs
+Opus en parallèle. Le point d'arrêt conseillé par le plan après la vague 1 (essai réel « seul contre équipe » avec Claude
+et Codex) attend l'accord du propriétaire : non joué.

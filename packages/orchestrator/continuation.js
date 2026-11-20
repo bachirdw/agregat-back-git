@@ -42,6 +42,10 @@ export async function continueChild(delegation, mother, control, args) {
     consigne: args.message,
     continue: child.id,
     agent: args.agent ?? child.agent,
+    // swarm-08 : the agent of the previous attempt is not named by the chief (the platform may
+    // launch the suite on a ready agent) ; the lever passes as given.
+    ...(args.agent === undefined ? { agentHerite: true } : {}),
+    ...(args.malgreIndisponible === true ? { malgreIndisponible: true } : {}),
     ...(args.modele !== undefined
       ? { modele: args.modele }
       : args.agent === undefined || args.agent === child.agent

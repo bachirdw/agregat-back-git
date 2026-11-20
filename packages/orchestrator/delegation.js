@@ -30,6 +30,9 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, rmdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { detectAgents, loadProbes } from '../agent-runtime/index.js';
+// swarm-08 : the real state of an agent (swarm-02) and the hour of a limit, as the chief sees them.
+import { agentState } from '../agent-runtime/agent-state.js';
+import { limitReason } from '../agent-runtime/limits.js';
 import { safeDirectory, writeConfined } from '../policy-engine/files.js';
 import { terminal } from '../storage/index.js';
 import { ROOT } from './packs.js';
@@ -60,6 +63,9 @@ import {
   REFUSED_CHILD,
   SAME_AGENT_NOTE,
   SYNTHESIS_TURN,
+  agentReplaced,
+  agentUnavailable,
+  modelLimitReason,
   chiefRule,
   consentLine,
   doublonMessage,
@@ -112,6 +118,10 @@ const TASK_FIELDS = [
   'verification',
 ];
 const note = (texts) => (texts.some(Boolean) ? { note: texts.filter(Boolean).join(' ') } : {});
+// swarm-08 : a usable agent (`disponible`) is ready, or refused more than 10 minutes ago (it is tried
+// again) ; ready ones first, then those to try again, then the others (stable order).
+const USABLE = { pret: 0, a_reessayer: 1 };
+const rank = (agent) => USABLE[agent.etat] ?? 2;
 const seconds = (from) => Math.max(0, Math.round((Date.now() - Date.parse(from)) / 1000));
 
 export class Delegation {
@@ -121,6 +131,8 @@ export class Delegation {
     this.finals = new Map(); // sub-mission id -> { envois, fichiers } : cache of `child_done`
     this.briefs = new Map(); // sub-mission id -> { fichiers, soeurs } for its prompt
     this.agentsCache = null;
+    // swarm-08 : the clock of the agents' states (injected by the tests).
+    this.now = () => Date.now();
     // Read at start, as the other AGENT_PLATFORM_* settings : 0 withdraws tools and sentence.
     this.lent = process.env.AGENT_PLATFORM_DELEGATION !== '0';
     // swarm-05 : AGENT_PLATFORM_DOUBLON : 0 (no check), signale (never a refusal), otherwise the
@@ -485,7 +497,12 @@ export class Delegation {
     const fichiers = child.workspace
       ? this.engine.privateRunFile(child, 'fichiers')
       : done?.data?.fichiers;
-    return { envois: done?.data?.envois, fichiers: Array.isArray(fichiers) ? fichiers : [] };
+    const echec = done?.data?.echec; // swarm-08
+    return {
+      envois: done?.data?.envois,
+      fichiers: Array.isArray(fichiers) ? fichiers : [],
+      ...(echec?.classe ? { echec } : {}),
+    };
   }
   sendsOf(child) {
     return { approuves: 0, parAccord: 0, refuses: 0, incertains: 0, ...this.doneOf(child).envois };
@@ -599,7 +616,12 @@ export class Delegation {
       ),
       ...folder,
     ].slice(0, 200);
-    this.finals.set(child.id, { envois, fichiers });
+    // swarm-08 : the class of the agent's failure and its hour of return (swarm-02), when classed.
+    const failure = control?.echecAgent;
+    const echec = failure?.classe
+      ? { classe: failure.classe, jusqua: failure.jusqua ?? null }
+      : null;
+    this.finals.set(child.id, { envois, fichiers, ...(echec ? { echec } : {}) });
     // A private mission keeps its file names in its own space, as its prompt ; any other mission
     // in the event, read again after a restart.
     if (child.workspace)
@@ -613,6 +635,7 @@ export class Delegation {
       state,
       envois,
       ...(child.workspace ? {} : { fichiers }),
+      ...(echec ? { echec } : {}),
     });
   }
   // multi-agent-v3-01 (D9) : the files of a sub-mission's results folder (paths relative to the
@@ -936,6 +959,23 @@ export class Delegation {
     const double = checked ? trouverDoublon(part, this.partsOf(children, family, mother)) : null;
     if (double?.niveau === 'identique' && args.doublon !== true && this.doublon === 'refuse')
       throw fail('doublon', doublonMessage(double));
+    // swarm-08 : an agent named by the chief (not the one a suite inherits) and seen unavailable (its
+    // limit, its refused session, the limit of the model asked) : refused now, with the reason and
+    // the ready agents, nothing created ; malgreIndisponible lets it through. Synchronous.
+    const chiefAgent = args.agent !== undefined && args.agentHerite !== true;
+    const forced = args.malgreIndisponible === true;
+    if (chiefAgent && !forced) {
+      const from = previous ?? mother;
+      const why = this.unavailable(
+        args.agent,
+        args.modele ?? (args.agent === from.agent ? (from.model ?? '') : ''),
+      );
+      if (why)
+        throw fail(
+          'agent_indisponible',
+          agentUnavailable(args.agent, why.raison, this.readyAgents()),
+        );
+    }
     const taskOf = (child) => {
       const before = (c) => c.famille?.reprend ?? c.famille?.continue;
       for (let n = 0; sisters.has(before(child)) && n < 200; n++)
@@ -987,8 +1027,22 @@ export class Delegation {
           { live: this.engine.live, probes: loadProbes(this.engine.dataDir) },
         )
       : null;
-    const agent = args.agent ?? reviewer ?? base.agent;
-    const modele = args.modele ?? (agent === base.agent ? (base.model ?? '') : '');
+    const planned = args.agent ?? reviewer ?? base.agent;
+    const plannedModel = args.modele ?? (planned === base.agent ? (base.model ?? '') : '');
+    // swarm-08 : the agent the platform chose (none named by the chief) is unavailable : the first
+    // ready agent instead (never the simulated one in real mode, a proven session first), said in the
+    // result and on the row ; none : the same refusal. Synchronous, before any folder or counter.
+    const why = chiefAgent || forced ? null : this.unavailable(planned, plannedModel);
+    const instead = why
+      ? otherAgent(this.agentsNow(), [planned], {
+          live: !!this.engine.live,
+          probes: this.probes(),
+        })
+      : null;
+    if (why && !instead)
+      throw fail('agent_indisponible', agentUnavailable(planned, why.raison, this.readyAgents()));
+    const agent = instead ?? planned;
+    const modele = instead ? '' : plannedModel;
     const named = args.continue
       ? suiteTitle(
           sisters.get(taskId).famille?.titre ?? taskId,
@@ -1030,6 +1084,9 @@ export class Delegation {
         // swarm-01 : the motive ; its note is not written for a private mission (as its title).
         ...(args.pourquoi ? { pourquoi: args.pourquoi } : {}),
         ...(args.note && !privateTitle ? { motif: args.note } : {}),
+        // swarm-08 : the agent planned when another was launched ; the agent named by the chief.
+        ...(instead ? { agentPrevu: planned } : {}),
+        ...(chiefAgent ? { agentImpose: true } : {}),
       },
       title: titre,
       cwd: mother.cwd,
@@ -1179,6 +1236,7 @@ export class Delegation {
         etat === 'attend_accord' && CONSENT_PENDING_NOTE,
         installed && !reviewer && SAME_AGENT_NOTE,
         doublonProbable && doublonNote(doublonProbable, double.niveau),
+        instead && agentReplaced(planned, why.raison, instead),
       ]),
     };
   }
@@ -1226,7 +1284,15 @@ export class Delegation {
   }
   // swarm-05 : famille.membres, the other members as they are at the start of a sub-mission : living
   // or successful, 20 at most, their part cut at 200 characters (none for a private mission).
+  // swarm-08 : never an error (the start of a sub-mission depends on it) : none then.
   membersOf(run, mother) {
+    try {
+      return this.membersRows(run, mother);
+    } catch {
+      return [];
+    }
+  }
+  membersRows(run, mother) {
     const prive = !!mother.workspace && !this.engine.ownerMode;
     const rows = this.childrenOf(mother)
       .filter((child) => child.id !== run.id)
@@ -1419,6 +1485,16 @@ export class Delegation {
       ...(child.famille?.motif ? { motif: child.famille.motif } : {}),
     };
   }
+  // swarm-08 : { classe, jusqua?, agentsPrets } of a classed failure of the agent, else {}.
+  failureOf(child) {
+    const echec = this.doneOf(child).echec;
+    if (!echec?.classe) return {};
+    return {
+      classe: echec.classe,
+      ...(echec.jusqua ? { jusqua: echec.jusqua } : {}),
+      agentsPrets: this.readyAgents(),
+    };
+  }
   // What a finished sub-mission gives back : its answer (data), its Bilan, its files, its sends.
   outcome(child) {
     const cause =
@@ -1429,6 +1505,8 @@ export class Delegation {
             agent: child.agent,
             reprise: String(child.error ?? '').match(/réessayer à ([^.]{1,40})/)?.[1] ?? null,
             message: String(child.error ?? '').slice(0, 1000),
+            // swarm-08 : the class of a classed failure, its hour of return, the agents ready now.
+            ...this.failureOf(child),
           };
     return {
       id: child.id,
@@ -1448,27 +1526,82 @@ export class Delegation {
     if (!this.agentsCache || Date.now() - this.agentsCache.at >= AGENTS_CACHE_MS)
       this.agentsCache = {
         at: Date.now(),
-        // equipe-01 (essai réel du 20/11) : the simulated agent is said so, and is not available
-        // for a real work in real mode.
+        // swarm-08 : the raw detection is kept ; the state is computed at each call (a limit ends
+        // at its hour, a refused session ages) by agentsNow().
         list: (await detectAgents()).map((agent) => ({
           id: agent.id,
-          disponible: !!(
-            agent.installed &&
-            agent.compatible &&
-            (agent.simulated ? !this.engine.live : this.engine.live)
-          ),
-          ...(agent.simulated ? { simule: true } : {}),
+          installed: !!agent.installed,
+          compatible: !!agent.compatible,
+          simulated: !!agent.simulated,
+          ...(agent.reason ? { reason: agent.reason } : {}),
         })),
       };
-    const probes = loadProbes(this.engine.dataDir);
-    return this.agentsCache.list.map((agent) => ({
-      ...agent,
-      modeles: (probes[agent.id]?.models?.options ?? []).map((model) => ({
-        id: model.id,
-        nom: model.name ?? model.id,
-      })),
-      modeleParDefaut: probes[agent.id]?.models?.current ?? null,
-    }));
+    return this.agentsNow();
+  }
+  // swarm-08 : the agents of the cache with their real state (synchronous : the cache and the probes
+  // file only) ; [] while nothing was detected. equipe-01 (essai réel du 20/11) : the simulated agent
+  // is said so, and is not available for a real work in real mode.
+  agentsNow() {
+    const probes = this.probes();
+    const now = this.now();
+    const list = (this.agentsCache?.list ?? []).map((agent) => {
+      const { etat, raison, jusqua, modelesLimites } = agentState(agent, probes[agent.id], {
+        now,
+        live: !!this.engine.live,
+      });
+      return {
+        id: agent.id,
+        disponible: Object.hasOwn(USABLE, etat),
+        etat,
+        ...(raison ? { raison } : {}),
+        ...(jusqua ? { jusqua } : {}),
+        ...(agent.simulated ? { simule: true } : {}),
+        modeles: (probes[agent.id]?.models?.options ?? []).map((model) => ({
+          id: model.id,
+          nom: model.name ?? model.id,
+          ...(modelesLimites?.[model.id] ? { limiteJusqua: modelesLimites[model.id] } : {}),
+        })),
+        modeleParDefaut: probes[agent.id]?.models?.current ?? null,
+      };
+    });
+    return list
+      .map((agent, index) => ({ agent, index }))
+      .sort((x, y) => rank(x.agent) - rank(y.agent) || x.index - y.index)
+      .map(({ agent }) => agent);
+  }
+  // swarm-08 : the probes file, never an error (a missing data folder reads as no probe).
+  probes() {
+    try {
+      const probes =
+        typeof this.engine.dataDir === 'string' && this.engine.dataDir
+          ? loadProbes(this.engine.dataDir)
+          : null;
+      return probes && typeof probes === 'object' && !Array.isArray(probes) ? probes : {};
+    } catch {
+      return {};
+    }
+  }
+  // swarm-08 : why an agent (and the model asked) cannot work now, or null : its limit, its session
+  // refused less than 10 minutes ago, or the limit of that model. Seen in the cache when the agent was
+  // detected ; otherwise (nothing detected yet, or an agent the cache does not know) on its probes
+  // only : an agent without a probe is ready. Synchronous.
+  unavailable(agentId, modele) {
+    const known = this.agentsCache?.list?.find((agent) => agent.id === agentId);
+    const state = agentState(
+      known ?? { id: agentId, installed: true, compatible: true },
+      this.probes()[agentId],
+      { now: this.now(), live: known ? !!this.engine.live : true },
+    );
+    if (state.etat === 'limite' || state.etat === 'connexion_refusee')
+      return { raison: state.raison };
+    const limit = modele ? state.modelesLimites?.[modele] : null;
+    return limit ? { raison: modelLimitReason(limitReason(limit), modele) } : null;
+  }
+  // swarm-08 : the ready agents of the cache (ids), the order of mission_suivre.
+  readyAgents() {
+    return this.agentsNow()
+      .filter((agent) => agent.disponible)
+      .map((agent) => agent.id);
   }
   async follow(mother, { id, details }) {
     const children = this.childrenOf(mother);

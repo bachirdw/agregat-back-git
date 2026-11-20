@@ -43,7 +43,7 @@ export const CHIEF_INTRO =
 export const DECISION_RULE =
   'avant d’agir, décide : seul ou en équipe ; équipe quand la mission contient au moins deux parties indépendantes qui demandent chacune plus de dix minutes environ (plusieurs sources indépendantes ou plusieurs sites à consulter, plusieurs modules ou fichiers sans lien, le même long traitement pour plusieurs éléments) : il attend que tu les lances en sous-missions en même temps plutôt que de les enchaîner seul ; équipe aussi quand un livrable long ou risqué mérite un regard indépendant ; seul pour une demande simple, une petite étape ou une suite d’étapes qui dépendent l’une de l’autre, quand tout tient en moins d’un quart d’heure environ, ou quand écrire la consigne t’oblige à prendre toi-même les décisions (c’est de la conception : garde-la) ; une consigne qui se lit comme un bon de commande se délègue ; une sous-mission démarre en quelques dizaines de secondes et repart sans ta mémoire de travail : sur une tâche courte, une équipe est plus lente qu’un agent seul ; chaque sous-mission a son propre onglet de navigateur, ses propres cartes d’envoi, son suivi et sa reprise, alors que tes sous-agents internes, si ton agent en a, partagent ta session de navigateur et ne sont ni suivis ni repris par la plateforme ; après deux échecs d’une sous-mission sur la même part, fais cette part toi-même ou change d’agent ; écris ta décision au début de ta réponse finale : « Décision : seul, parce que … » ou « Décision : équipe, parce que … » ; ';
 export const CHIEF_METHOD =
-  'évite deux sous-missions en même temps sur le même site web (elles se ralentissent) ; tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; chaque sous-mission a son dossier de résultats (dossierResultats, chemin relatif à ton dossier de travail) : pour de gros résultats, demande-lui un fichier dans un format précis et rassemble les fichiers par un script ou un outil plutôt qu’en les recopiant ; pour un travail répétitif, trouve d’abord la méthode sur un exemple, écris-la une fois dans un fichier de l’espace et donne ce fichier à chaque sous-mission (fichiers), avec dans informations ce qui est propre à sa part ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
+  'évite deux sous-missions en même temps sur le même site web (elles se ralentissent) ; tu restes celui qui décide, compare les résultats et écrit la réponse finale ; pour chaque sous-mission, choisis l’agent et le modèle selon la difficulté de la partie (un modèle fort pour une partie complexe, un plus léger pour une partie simple), parmi ceux que donne mission_suivre, et suis ce que la demande du propriétaire en dit ; mission_suivre donne l’état réel de chaque agent (etat, raison, jusqua) : ne choisis qu’un agent prêt ; chaque sous-mission a son dossier de résultats (dossierResultats, chemin relatif à ton dossier de travail) : pour de gros résultats, demande-lui un fichier dans un format précis et rassemble les fichiers par un script ou un outil plutôt qu’en les recopiant ; pour un travail répétitif, trouve d’abord la méthode sur un exemple, écris-la une fois dans un fichier de l’espace et donne ce fichier à chaque sous-mission (fichiers), avec dans informations ce qui est propre à sa part ; chaque sous-mission consomme l’abonnement du propriétaire comme une mission ordinaire ; ';
 const CHIEF_RULE = CHIEF_INTRO + DECISION_RULE + CHIEF_METHOD;
 // multi-agent-v3-02 (I2) : the whole sentence when the owner refused sub-agents.
 export const CHIEF_REFUSED =
@@ -216,6 +216,20 @@ export const envelopeReachedNoConsent = (total) =>
 // than the authors'.
 export const SAME_AGENT_NOTE =
   'Aucun autre agent installé et disponible que celui des auteurs : la vérification est faite par l’agent par défaut (regard moins indépendant).';
+// swarm-08 : an agent seen unavailable at launch (its limit, its refused session, the limit of the
+// model asked). The identifiers come from the data ; the reason is the agent's state (agentState).
+const reasonOf = (raison) => String(raison ?? '').slice(0, 200);
+export const modelLimitReason = (limit, modele) => `${limit} pour le modèle ${modele}`;
+export function agentUnavailable(agent, raison, prets) {
+  return prets.length
+    ? `${agent} : ${reasonOf(raison)} ; agents prêts : ${prets.join(', ')} ; choisis-en un, ou malgreIndisponible: true si tu sais qu’il est revenu`
+    : `${agent} : ${reasonOf(raison)} ; aucun agent prêt ; fais cette part toi-même, ou malgreIndisponible: true si tu sais qu’il est revenu`;
+}
+// swarm-08 : the agent the platform chose instead (the chief named none).
+export function agentReplaced(prevu, raison, choisi) {
+  const text = reasonOf(raison);
+  return `Agent prévu ${prevu} indisponible (${text.charAt(0).toLowerCase() + text.slice(1)}) : lancé sur ${choisi}.`;
+}
 export function synthesisMissed(titles) {
   const named = titles.map((title) => `« ${title} »`).join(', ');
   return `Synthèse finale non faite : la réponse du chef a été écrite avant la fin de ${named} ; leurs résultats ne lui ont pas été remis.`;
@@ -253,6 +267,8 @@ export const MISSION_TOOLS = {
         verification: z.string().trim().min(1).max(2000).optional(),
         // swarm-05 : relaunch on purpose a part identical to a living or successful sub-mission.
         doublon: z.boolean().optional(),
+        // swarm-08 : launch on an agent the platform sees unavailable (limit, refused session).
+        malgreIndisponible: z.boolean().optional(),
       })
       .strict(),
   },
@@ -297,6 +313,8 @@ export const MISSION_TOOLS = {
         message: z.string().trim().min(1).max(8000),
         agent: z.string().trim().min(1).max(40).optional(),
         modele: z.string().trim().max(200).optional(),
+        // swarm-08 : as mission_lancer.
+        malgreIndisponible: z.boolean().optional(),
       })
       .strict(),
   },

@@ -567,7 +567,7 @@ nouvelles }` : les notes des membres pas encore remises au chef (20 au plus par 
   - `carnet_noter` gagne `durable?: boolean` : avec `true` et la catégorie `methode`, `piege` ou `decision`, la note est
     aussi gardée comme leçon de la portée (le pack de la mission) ; le résultat gagne `lecon: { statut, id }` ou
     `lecon: { statut: 'refusee', message }` (la note du carnet est gardée dans tous les cas) ; événement `lecon_gardee
-{ id }` sur la mère. Une note de même texte (normalisé) du même auteur → `{ n, total, deja: true }`, rien d'écrit.
+{ id }` sur la mère. Une note de même texte (normalisé) du même auteur → `{ n, total, deja: true }`, rien d'écrit (sauf au réglage `0`).
   - Deux outils de plus dans les deux listes de la passerelle (après ceux du carnet) : `lecon_lire { id }` et
     `lecon_utile { id, utile, raison? }` (route interne : même jeton ; hors mode multi-agent : 403 « Outils de leçons
     non prêtés à cette mission »).

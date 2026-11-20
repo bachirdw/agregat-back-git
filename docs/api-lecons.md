@@ -132,7 +132,7 @@ exception (portée, identifiant ou horloge invalides, disque) vaut « pas de le�
   refus de la leçon ne refuse jamais la note. Sans `durable`, le résultat est celui d'avant (`{ n, total }`). Une leçon
   neuve écrit l'événement `lecon_gardee { id }` sur la mère (l'identifiant seul, aucun texte).
 - **Note identique** : le même texte (minuscules, espaces resserrés) déjà noté par le même auteur n'est pas recopié :
-  `{ n (celui de la note existante), total, deja: true }`, rien n'est écrit (avec ou sans `durable`).
+  `{ n (celui de la note existante), total, deja: true }`, rien n'est écrit (avec ou sans `durable`) ; au réglage `0`, elle est recopiée comme avant.
 - **Servir au départ** : `rappel(texte, portée)` — pour le chef, sa demande ; pour une sous-mission, sa consigne
   (`turnObjective`). 5 au plus, une ligne chacune : `[date] **titre** (id: l-…) : extrait (300 car.)`. Le chef reçoit
   `lecons` (champ du prompt) et la phrase `CHIEF_LECONS` juste après celle du carnet ; une sous-mission reçoit
@@ -161,4 +161,6 @@ inutile, nature }`. Inconnue, expirée ou supprimée : `erreur: 'inconnue'`.
     `{ statut, id }` ; leçon inconnue 404 ; action inconnue, portée ou identifiant invalides 400 ; `espace: 'prive'` hors
     mode propriétaire 403.
 - **Réglage `AGENT_PLATFORM_LECONS=0`** (lu au démarrage) : ni champ, ni phrase, ni outil, ni `durable` (la passerelle,
-  processus à part, le reçoit dans son `env` ; ses listes et le schéma de `carnet_noter` sont ceux d'avant), routes 404.
+  processus à part, le reçoit dans son `env` ; ses listes et le schéma de `carnet_noter` sont ceux d'avant), `carnet_noter` identique à avant côté plateforme
+  (schéma sans `durable`, note identique recopiée), routes 404. Outils de mission retirés
+  (`AGENT_PLATFORM_DELEGATION=0`) : `lecon_lire` et `lecon_utile` refusés (403), comme le carnet.

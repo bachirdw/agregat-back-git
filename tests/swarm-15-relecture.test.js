@@ -397,3 +397,24 @@ test('relecture swarm-15 : routes /api/lecons → valeurs hostiles refusées san
     [id],
   );
 });
+
+test('relecture swarm-15 : réglage 0 et mission privée → aucune leçon de l’espace servie ni gardée, prompt de la base', () => {
+  const root = tmp();
+  try {
+    new Lecons({ dir: join(root, 'relay', 'lecons') }).noter({ texte: LECON, portee: 'core' });
+    const { delegation, mother, child } = family(
+      root,
+      { workspace: 'espace-FICTIF' },
+      { lecons: '0' },
+    );
+    assert.deepEqual(delegation.promptParts(mother, SERVERS), {
+      fields: {},
+      rule: '\n' + rule.chiefRule(ACCEPTED()),
+    });
+    assert.equal('lecons' in delegation.promptParts(child).fields.famille, false);
+    assert.equal(delegation.servies.size, 0);
+    assert.equal(delegation.leconsPrivees.size, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

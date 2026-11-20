@@ -1,3 +1,5 @@
+import { limitReason } from './limits.js';
+
 // Auto mode: pick the most suitable available agent for declared requirements, and explain why.
 // Never falls back to the fixture silently when real agents were requested.
 export function requirementsFor({ resume = false, model = '', mcpTransport = 'stdio' } = {}) {
@@ -39,6 +41,9 @@ export function chooseAgent({
     if (!a.installed) rejected.push({ id: a.id, reason: 'CLI non détecté' });
     else if (!a.compatible)
       rejected.push({ id: a.id, reason: a.reason ?? 'Adaptateur ACP absent' });
+    // swarm-02 : a remembered usage limit still to come sets the agent aside until then (never retried).
+    else if (Date.parse(probe?.limite?.jusqua ?? '') > now)
+      rejected.push({ id: a.id, reason: limitReason(probe.limite.jusqua) });
     else if (probe && probe.session === false && fresh(probe.sessionAt, probe.at, now)) {
       rejected.push({
         id: a.id,

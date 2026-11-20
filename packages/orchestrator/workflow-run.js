@@ -17,6 +17,7 @@ import {
 import { ordersAction, ordersBrowserAction } from '../career-ops/truth.js';
 import { TurnGuard } from './turn-guard.js';
 import { agentHomeFor } from './isolation.js';
+import { clearLimit, noteFailure } from '../agent-runtime/agent-state.js';
 
 // Runs a pack DAG: tool steps call the capability gateway directly (deterministic, no model),
 // agent steps open an ACP session on the agent assigned to that step (multi-agent), verify steps
@@ -304,6 +305,15 @@ export async function executeWorkflow(orch, run, plan, control) {
               inferenceError: String(e.message).slice(0, 120),
             });
           const usageLimit = usageLimitMessage(definition.name, text, e, rateLimit);
+          noteFailure(orch.dataDir, definition.id, {
+            message: e?.message,
+            announcement: text,
+            rateLimit,
+            models: described.models?.options,
+            model: definition.id === plan.agent.id ? run.model : null,
+            cancelled: control.cancelled,
+            simulated: definition.simulated,
+          });
           const expired = orch.expiredPermissionError(run.id);
           // The limit stays the cause; an earlier unanswered request is added, never substituted.
           if (usageLimit)
@@ -312,6 +322,12 @@ export async function executeWorkflow(orch, run, plan, control) {
         }
         if (!definition.simulated && response.stopReason === 'end_turn')
           saveProbe(orch.dataDir, definition.id, { inference: true, inferenceError: null });
+        if (!definition.simulated && response.stopReason === 'end_turn')
+          clearLimit(
+            orch.dataDir,
+            definition.id,
+            definition.id === plan.agent.id ? run.model : null,
+          );
         if (response.stopReason !== 'end_turn')
           throw new Error(`Agent arrêté : ${response.stopReason}`);
         const parsed = parseAgentResult(text);

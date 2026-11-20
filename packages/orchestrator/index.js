@@ -57,6 +57,7 @@ import {
   ordersBrowserAction,
 } from '../career-ops/truth.js';
 import { executeWorkflow, platformMcp } from './workflow-run.js';
+import { clearLimit, noteFailure } from '../agent-runtime/agent-state.js';
 import { UNPROVEN_ACTION, UNPROVEN_ACTION_ERROR } from './browser-proof.js';
 import {
   selectSkillIntents,
@@ -1747,6 +1748,8 @@ export class Orchestrator {
       if (control.abort.signal.aborted) throw control.abort.signal.reason;
       if (!plan.simulated && response.stopReason === 'end_turn')
         saveProbe(this.dataDir, plan.agent.id, { inference: true, inferenceError: null });
+      if (!plan.simulated && response.stopReason === 'end_turn')
+        clearLimit(this.dataDir, plan.agent.id, run.model);
       if (response.stopReason !== 'end_turn')
         throw new Error(`Agent arrêté : ${response.stopReason}`);
       // questions-18-11 (E127) : a `question` field of the turn that could not be read (its choices).
@@ -2218,6 +2221,15 @@ export class Orchestrator {
         plan.pack.id === 'career-ops' && !control.cancelled
           ? authFailureMessage(plan.agent.name, text, e)
           : null;
+      control.echecAgent = noteFailure(this.dataDir, plan.agent.id, {
+        message: e?.message,
+        announcement: text,
+        rateLimit,
+        models: plan.models?.options,
+        model: run.model,
+        cancelled: control.cancelled,
+        simulated: plan.simulated,
+      });
       const cause =
         usageLimit ??
         authFailure ??

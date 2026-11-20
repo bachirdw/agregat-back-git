@@ -61,14 +61,17 @@ chacun sans la mémoire des autres : un copieur, un codeur, un relecteur indépe
   machine. La suite complète est relancée par le manager, un arbre à la fois.
 - À la fin, une fois : la phase unitaire entière du dépôt, par
   `node /Users/diaw/Downloads/agregat-back-swarm/.manager/outils/phase-unitaire.mjs <ARBRE>` (elle attend son tour si
-  deux autres lots testent déjà). Compte 10 à 30 minutes, attente comprise : lance-la en arrière-plan avec la sortie
-  dans un fichier, par exemple
-  `mkdir -p <ARBRE>/.manager/reports/<LOT>-preuves && node /Users/diaw/Downloads/agregat-back-swarm/.manager/outils/phase-unitaire.mjs <ARBRE> > <ARBRE>/.manager/reports/<LOT>-preuves/phase-unitaire.log 2>&1`,
-  attends sa fin, puis lis dans ce fichier les lignes « ℹ tests / pass / fail / cancelled / skipped / todo » et la ligne
-  « FIN phase unitaire : code N ». Ne conclus pas avant d'avoir lu la ligne FIN. Recopie ces lignes dans le rapport,
-  puis supprime le fichier journal et son dossier (ils ne se commitent pas).
-- Référence avant le chantier : 1 611 tests, 1 608 réussis, 0 échec, 2 ignorés, 1 « à faire ». Les tests du lot s'y
-  ajoutent ; aucun autre chiffre ne doit bouger.
+  deux autres lots testent déjà). Elle dure 3 à 5 minutes, plus l'attente éventuelle : lance-la AU PREMIER PLAN, avec
+  le délai le plus long de ton outil de commande (10 minutes), la sortie dans un fichier :
+  `mkdir -p <ARBRE>/.manager/reports/<LOT>-preuves && node /Users/diaw/Downloads/agregat-back-swarm/.manager/outils/phase-unitaire.mjs <ARBRE> > <ARBRE>/.manager/reports/<LOT>-preuves/phase-unitaire.log 2>&1; grep -E '^ℹ (tests|pass|fail|cancelled|skipped|todo)|FIN phase' <ARBRE>/.manager/reports/<LOT>-preuves/phase-unitaire.log`.
+  Seulement si ton outil coupe la commande avant la fin, relance-la en arrière-plan et attends sa fin. Lis les lignes
+  « ℹ tests / pass / fail / cancelled / skipped / todo » et la ligne « FIN phase unitaire : code N ». Ne conclus pas
+  avant d'avoir lu la ligne FIN. Recopie ces lignes dans le rapport, puis supprime le fichier journal et son dossier
+  (ils ne se commitent pas).
+- Référence : celle que donne ton message (total, réussis, 0 échec, 2 ignorés, 1 « à faire ») ; à défaut, avant le
+  chantier : 1 611 tests, 1 608 réussis. Les tests du lot s'y ajoutent ; aucun autre chiffre ne doit bouger.
+- Fichiers temporaires (sauvegardes d'un contrôle négatif, essais) : dans ton arbre, sous
+  `<ARBRE>/.manager/reports/<LOT>-preuves/`, supprimés avant la fin ; jamais dans le dossier interdit.
 - Un échec dans un fichier que ton lot ne touche pas : relance ce fichier seul une fois (la machine est chargée). S'il
   passe seul, note-le « échec sous charge » dans le rapport. S'il échoue encore, cherche si ton changement en est la
   cause ; sinon décris-le dans le rapport et dans ta réponse, sans modifier ce test.

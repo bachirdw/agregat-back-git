@@ -100,3 +100,66 @@ branche `swarm-08`, base `391f027`, portage `ff1d4b7` (`.manager/portage/swarm-0
 3. Phase unitaire rouge sous charge (`tests/runtime.test.js`, 14 délais) : à rejouer par le manager, un arbre à la fois.
 
 Fin du travail du codeur : 21/11/2026 vers 02:23.
+
+## Relecture indépendante
+
+Relecteur, 21/11/2026, de 02:24 à 02:35 environ (horloge lue par `date`). Relu : 4.0, section du lot, `git log`
+et diff `391f027..HEAD` fichier par fichier, rapport du codeur, `NOTES.md` du portage ; passages de swarm cités
+ouverts en lecture seule (`get-swarm.ts:66-90`, `worker-follow-up.ts:343-380`, `model-tiers.md:148-160`).
+
+### Constats
+
+1. **Majeur, corrigé (133163e)** : un contrôle du lancement pouvait lever une erreur inattendue et bloquer le
+   lancement (point d'attention 1). Cas rouges écrits d'abord (`tests/swarm-08-relecture.test.js`) :
+   sondes dont `models.options` n'est pas un tableau ou contient `null` + agent prévu sous limite →
+   `TypeError: Cannot read properties of null (reading 'id')` au repli ; `agentsCache.list` mal formé →
+   `TypeError: this.agentsCache?.list?.find is not a function` sur un agent nommé. Correction dans `delegation.js`
+   seulement : `detected()` (entrées bien formées du cache), `optionsOf()` (modèles annoncés bien formés),
+   `unavailable()` dans un `try/catch` → `null` (le lancement passe). Sortie identique pour des données bien formées.
+2. Périmètre conforme : fichiers touchés = ceux autorisés + portage + rapport ; `packages/orchestrator/index.js`
+   intact ; dans `delegation.js`, rien dans les compteurs de `launch()`, `pump()`, `wake()`, `prerequisite()`,
+   `settle()`, `stopFamily()`, `waitLiving()` ; aucun `await` ajouté (le seul `await` du diff est la ligne existante de
+   `agents()`). Les deux contrôles sont avant `resultsFolder()`, `acceptedEvent`, `family.pending++`.
+3. Conforme au plan : refus mot pour mot, phrase de `CHIEF_METHOD` mot pour mot, note du repli à la forme du plan,
+   sortie de `agents()` à la forme du plan, `echec` dans `finals`/`child_done` et relu après redémarrage, `cause`
+   enrichie seulement pour un échec classé. Écarts du codeur 1 à 10 = décisions du manager connues, non retenus.
+4. **Mineur, laissé** : en mode réel, `otherAgent` écarte un agent `a_reessayer` (sonde `session: false` ancienne)
+   alors que `readyAgents()` le cite parmi les « agents prêts » du refus et de `cause.agentsPrets`. Effet : le repli
+   peut refuser alors que le message nomme un agent `a_reessayer`. Comportement de `otherAgent` (RO) non touché.
+5. **Mineur, laissé** : `optionsOf` écarte une entrée de modèle qui n'est pas un objet (avant : `TypeError`) ; une
+   entrée objet sans `id` reste rendue comme avant.
+6. Documentation fidèle au code (`docs/api-delegation.md` 9.8, `docs/api-agents-etat.md`) ; garde `multiAgent`
+   vérifiée (`delegation.js`, `call`).
+
+### Contrôles négatifs (chaque modification retirée puis remise, vérifiée par `cmp`)
+
+Tous rouges : contrôle (1) retiré (5 échecs) ; repli retiré (5) ; levier ignoré au repli (1) ; tri retiré (2) ;
+`a_reessayer` non disponible (1) ; `echec` de `ended()` retiré (1) ; relecture de `doneOf()` retirée (1) ;
+`failureOf` retiré (1) ; limite de modèle ignorée (1) ; `agentPrevu` retiré (3) ; `agentImpose` toujours (4) ; note
+du repli retirée (3) ; `membersOf` sans `try` (1) ; options brutes (1) ; `agentHerite` retiré de `continuation.js`
+(1) ; levier retiré de la suite (1). D'abord verts, donc tests ajoutés puis rouges : modèle prévu gardé au repli (1) ;
+`unavailable()` qui lève (1).
+
+### Tests ajoutés (`tests/swarm-08-relecture.test.js`, 6)
+
+Sondes mal formées ; cache mal formé ; levier sans agent nommé (agent prévu, ni note ni champ neuf) ; `echec` mal
+typé dans `child_done` (ni levée ni champ) ; contrôle qui lève (horloge) → lancement ; modèle au repli = défaut de
+l'agent de repli, modèle de la mère gardé sans indisponibilité.
+
+### Totaux
+
+- Lot : `node --test tests/swarm-08-agents.test.js tests/swarm-08-relecture.test.js` → 20/20.
+- Existants nommés (non modifiés, `git diff 391f027..HEAD --stat -- tests/` : seuls les fichiers du lot) :
+  `equipe-01-roles`, `multi-agent-v3-01-a`, `equipe-01-continuer`, `delegation-v2-01-b`, `equipe-01-relecture`,
+  `delegation-v2-01-a`, `chef-01*`, `swarm-0*` → 238/238 (avant ma correction).
+- Phase unitaire (après correction, une passe) : `ℹ tests 1778` · `ℹ pass 1775` · `ℹ fail 0` · `ℹ cancelled 0` ·
+  `ℹ skipped 2` · `ℹ todo 1` · `FIN phase unitaire : code 0 (durée 264 s)`. 1 778 = 1 758 + 14 + 6 ; aucun échec
+  sous charge cette fois.
+- `npm run check` : code 0 ; `npm run format:check` : vert.
+
+### Points à trancher par le manager
+
+1. Constat 4 (`a_reessayer` cité « prêt » mais écarté du repli en mode réel) : aligner `readyAgents()` sur
+   `otherAgent`, ou l'inverse, ou laisser.
+
+Verdict : `bon_a_integrer`.

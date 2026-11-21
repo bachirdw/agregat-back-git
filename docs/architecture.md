@@ -57,6 +57,16 @@ flowchart TD
 - Un **Agent** conduit une session ACP ; son runtime et son modèle sont deux choix distincts.
 - Un **Domain Pack** distribue manifest, Skills, DAG, outils, politiques et évaluations. Les packs
   présents dans `domain-packs/` avec un manifest valide sont découverts au démarrage. Ce répertoire local reste réservé au code approuvé par le propriétaire ; Najah ne contrôle pas le runtime.
+- **Choix du pack sans Skill choisi** (sans-skill-01) : avec le pack `auto`, aucun Skill et aucun espace
+  demandés, la détection (intentions du manifeste de Skill, puis mots-clés) écarte un pack reconnu dont le
+  Skill exigé n'est pas servi par le registre (`SkillRegistry.serves(id)` : inconnu, en quarantaine, non
+  revu, désactivé ou modifié). La mission suit le chemin qu'elle aurait pris sans ce pack (mode
+  propriétaire : navigation générale `core` / `browser-agent` ; sinon le candidat suivant,
+  `getPack(…, { exclude })`), sans ouvrir son espace privé ni charger son Skill, et garde la note
+  `packNote` (`{ pack, text }` : pack reconnu, raison, « importez-le et approuvez-le dans le menu
+  Skills »), jamais transmise à l'agent. Un choix explicite (pack, Skill ou espace) reste refusé, avec le
+  Skill manquant et la marche à suivre dans le message (« Skill inconnu : <id>. Importez-le et
+  approuvez-le dans le menu Skills, ou lancez la mission sans Skill. »).
 
 **États d'une étape de workflow** (`packages/workflow-engine/index.js`) : `pending`, `running`,
 `waiting_approval`, `succeeded`, `failed`, `skipped`, `cancelled`, `uncertain`. Une étape rejouable (lecture

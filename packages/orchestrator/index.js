@@ -806,19 +806,33 @@ export class Orchestrator {
     if (v.attachments.length) this.career.attachments(v.attachments);
     // Audit orchestrateur du 10/11 (constat 7) : a file attached to a mission no longer forces
     // career-ops ; without the Skill it is copied into the mission's folder (create()).
+    // sans-skill-01 : nothing chosen (pack `auto`, no Skill, no space) and the detected pack's own
+    // Skill not served by the registry : that pack is left out of the detection, the mission takes
+    // the path it would take without it and keeps a note (never given to the agent).
+    let leftOut = null;
     if (
       v.workspace ||
       v.pack === 'career-ops' ||
       v.skills.includes('career-ops') ||
       (v.pack === 'auto' && getPack('auto', v.prompt, v.skills).id === 'career-ops')
     ) {
-      v.pack = 'career-ops';
-      v.workspace = 'career-ops';
-      v.mode = 'agent';
-      delete v.workflow;
-      if (v.skills.some((id) => id !== 'career-ops'))
-        throw new Error('L’espace privé charge uniquement le Skill career-ops revu');
+      const detected =
+        v.pack === 'auto' && !v.workspace && !v.skills.length && getPack('auto', v.prompt);
+      if (detected && this.skills.serves?.(detected.id) === false) leftOut = detected;
+      else {
+        v.pack = 'career-ops';
+        v.workspace = 'career-ops';
+        v.mode = 'agent';
+        delete v.workflow;
+        if (v.skills.some((id) => id !== 'career-ops'))
+          throw new Error('L’espace privé charge uniquement le Skill career-ops revu');
+      }
     }
+    if (leftOut)
+      v.packNote = {
+        pack: leftOut.id,
+        text: `Pack reconnu : ${leftOut.name}. Non retenu : son Skill (${leftOut.id}) n’est pas installé ou pas approuvé sur cette base. Pour l’avoir : importez-le et approuvez-le dans le menu Skills.`,
+      };
     if (v.workspace) this.career.path();
     // generique-01 (G1) : the chosen pack is kept when it has a path of its own — a Skill manifest
     // or workflow steps — read on the pack, never from a list of names. `auto`, `core` (neither)
@@ -844,13 +858,22 @@ export class Orchestrator {
           ...getPack('core'),
           workflow: { id: 'browser-agent', title: 'Navigation générale par l’agent', steps: [] },
         }
-      : getPack(v.pack, v.prompt, v.skills);
+      : getPack(v.pack, v.prompt, v.skills, { exclude: leftOut ? [leftOut.id] : [] });
     const skillSelection = pack.skillManifest
       ? selectSkillIntents(v.prompt, [pack.skillManifest])
       : [];
-    const skills = this.skills.resolve([
-      ...new Set([...v.skills, ...(pack.id === 'career-ops' ? ['career-ops'] : [])]),
-    ]);
+    const wanted = [...new Set([...v.skills, ...(pack.id === 'career-ops' ? ['career-ops'] : [])])];
+    let skills;
+    try {
+      skills = this.skills.resolve(wanted);
+    } catch (error) {
+      // sans-skill-01 : a Skill asked for and not served : the refusal says which one and what to do.
+      const missing = wanted.find((id) => this.skills.serves?.(id) === false);
+      if (!missing || !/^Skill (inconnu|désactivé)/.test(error.message)) throw error;
+      throw new Error(
+        `${error.message.includes(missing) ? error.message : `${error.message} : ${missing}`}. Importez-le et approuvez-le dans le menu Skills, ou lancez la mission sans Skill.`,
+      );
+    }
     const agents = await detectAgents();
     const probes = loadProbes(this.dataDir);
     let routing = null;

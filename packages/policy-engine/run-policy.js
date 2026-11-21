@@ -214,8 +214,17 @@ export class RunPolicy {
     } else addresses = [url.hostname === '[::1]' ? '::1' : '127.0.0.1'];
     return { url, addresses };
   }
-  async assertUrl(raw) {
-    return (await this.resolveUrl(raw)).url;
+  // e160-01 : every refusal above is a check of the address, made before the request it guards.
+  // Only the caller knows whether its call had acted yet (a redirect or a download hop checked here
+  // follows a request already made) : `beforeAction: true`, given where nothing has been done,
+  // marks the refusal « not done » (`actionDone: false`, as not-done.js), never by its message.
+  async assertUrl(raw, { beforeAction = false } = {}) {
+    try {
+      return (await this.resolveUrl(raw)).url;
+    } catch (e) {
+      if (beforeAction === true && e && typeof e === 'object') e.actionDone = false;
+      throw e;
+    }
   }
   // Element descriptions come from the provider; anything that looks like submitting, paying,
   // sending or applying — or any secret field — needs a human decision.

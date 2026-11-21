@@ -213,24 +213,28 @@ export class WorkflowEngine {
             changed = true;
           }
         }
-        // Agent steps left `uncertain` with nobody to answer end as a terminal failure with their cause.
+        // Steps left `uncertain` with nobody to answer end as a terminal failure with their cause.
+        // e160-01 : any kind, not only agents. The failure keeps the doubt in its message and is
+        // never a replay : an explicit resume puts a non-replayable step back to `uncertain`.
         let nextExpiry = Infinity;
         for (const s of wf.steps) {
           const r = rows.get(s.id);
-          if (r.state !== 'uncertain' || s.kind !== 'agent') {
+          if (r.state !== 'uncertain') {
             uncertainSince.delete(s.id);
             continue;
           }
           if (!uncertainSince.has(s.id)) uncertainSince.set(s.id, this.clock());
           const due = uncertainSince.get(s.id) + this.humanWaitMs;
           if (this.unsupervised || due <= this.clock()) {
+            const waited = this.unsupervised
+              ? ' (mode non supervisé)'
+              : ` après ${Math.round(this.humanWaitMs / 1000)} s (réglable : AGENT_PLATFORM_HUMAN_WAIT_MS)`;
             this.set(runId, s.id, {
               state: 'failed',
-              error:
-                `Échec de l’agent, sans réponse humaine${this.unsupervised ? ' (mode non supervisé)' : ` après ${Math.round(this.humanWaitMs / 1000)} s (réglable : AGENT_PLATFORM_HUMAN_WAIT_MS)`} : ${r.error ?? 'cause inconnue'}`.slice(
-                  0,
-                  1000,
-                ),
+              error: (s.kind === 'agent'
+                ? `Échec de l’agent, sans réponse humaine${waited} : ${r.error ?? 'cause inconnue'}`
+                : `Étape à l’effet incertain, sans décision humaine${waited} : ${r.error ?? 'cause inconnue'}`
+              ).slice(0, 1000),
               finished_at: this.now(),
             });
             uncertainSince.delete(s.id);
@@ -323,7 +327,12 @@ export class WorkflowEngine {
       if (!this.current(runId, step.id, generation)) return;
       if (signal?.aborted) return; // drive() marks cancellation
       const message = String(e?.message ?? e).slice(0, 1000);
-      if (!replayable(step)) this.set(runId, step.id, { state: 'uncertain', error: message });
+      // e160-01 : a refusal its source marked as raised before any effect (`actionDone: false`,
+      // structured, never read from the message) is a plain failure : nothing can have happened.
+      // Agent steps are unchanged.
+      if (!replayable(step) && step.kind !== 'agent' && e?.actionDone === false)
+        this.set(runId, step.id, { state: 'failed', error: message, finished_at: this.now() });
+      else if (!replayable(step)) this.set(runId, step.id, { state: 'uncertain', error: message });
       else if (attempt <= step.retries)
         this.set(runId, step.id, { state: 'pending', error: `Tentative ${attempt} : ${message}` });
       else this.set(runId, step.id, { state: 'failed', error: message, finished_at: this.now() });

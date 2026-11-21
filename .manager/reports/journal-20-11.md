@@ -738,3 +738,26 @@ et Codex) attend l'accord du propriétaire : non joué.
   question facultative, mission en attente (E165). Abonnement Codex : marche.
 - Le propriétaire a demandé (15:20) un commit et un envoi sur GitHub du front et du back « dans l'état », et de
   continuer à récolter les erreurs au registre : E161 à E170 ajoutés.
+- 15:30, envoi sur GitHub (dépôts publics ; secrets cherchés : 8 lignes, toutes des valeurs fictives de test ; captures
+  du front regardées : données fictives ; `.claude/launch.json` laissé de côté) : back `swarm-20-11` (`964bf45`),
+  `sans-skill-01` (`5de5a01`), `reponse-04-format` (`480ecc4`), `contacts-13-11` (`329a5a6`, avance simple) ; front
+  `claude/bold-goldstine-171eb9` (`75d276b`, avance simple), `swarm-11` (`8ef80e2`). `main` non touché, rien de forcé.
+  Premier essai raté sans effet (`$br:refs` lu par zsh comme un modificateur de variable : écrire `${br}`).
+
+## 21/11, 15:30 → 17:50 Mission en équipe close, lot 13 vu en vrai, « Skill inconnu » corrigé en service
+- `bd54ee7a` : réponses du propriétaire de 15:19 à 15:24 puis 17:20 ; **tour de rattrapage (lot 13) vu en vrai**
+  (`verdict_turn` à 17:20:38) ; seconde vérification Codex : `a_corriger`, 2 points ; fin `completed` à 17:26 avec
+  « Réponse finale donnée malgré… ». Bilan : consommation par membre (lot 14), attente du chef 18 appels / 13 min 26 s,
+  leçons 4 servies / 4 gardées, `lecon_utile` employé 2 fois (lot 15). Défauts neufs : E171 (verdict en prose lu
+  incomplet), E172 (verdict rattaché aux recherches au lieu des publications du chef).
+- Le propriétaire croyait que les agents modifiaient le code pendant qu'ils répondaient : vérifié par
+  `actions-mission.py` (bloc-notes) sur les six agents : toutes les écritures sont dans le dossier de leur mission ; les
+  « bouts de code » sont des scripts de comptage de caractères ; seule sortie : les lectures d'E163. Guetteur enrichi
+  (`guet-relay.py` : lignes « ACTIONS », alerte « HORS DE L'ESPACE »).
+- **sans-skill-01** : suite complète verte (17:26 → 17:41 : 1 968 / 1 965, Chrome 265/265, check 0, format 0) ;
+  **intégré** dans `swarm-20-11`, tête **`a9afdee`** (arbre `acce191` identique) ; apporté sur `reponse-04-format`
+  (`93a60bc`, fusion automatique, tests du lot 39/39). Phase unitaire de cette branche : 8 échecs `generique-01`
+  qui existaient avant tout apport du manager (E173). **API 4310 relancée à 17:47** ; `POST /api/plan` : le prompt de
+  démonstration et un prompt marketing avec « LinkedIn » passent par le chemin général.
+- Branches mises à jour depuis l'envoi de 15:30, **non renvoyées** (accord du propriétaire demandé) : `swarm-20-11`,
+  `reponse-04-format`, `contacts-13-11`.

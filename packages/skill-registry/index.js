@@ -293,6 +293,16 @@ export class SkillRegistry {
       };
     });
   }
+  // sans-skill-01 : whether resolve() would serve this Skill now (known, active, reviewed,
+  // unchanged). Read only : nothing is written, nothing is thrown.
+  serves(id) {
+    try {
+      this.resolve([id]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   // Native discovery: write the resolved skills where each agent looks for project skills.
   // Only text files are exported; scripts and binaries never leave the registry.
   exportTo(workspace, agentId, ids) {

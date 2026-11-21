@@ -118,8 +118,11 @@ export function getDag(pack, id) {
   if (!dag) throw new Error(`Workflow inconnu pour ${pack.name} : ${id}`);
   return dag;
 }
-export function getPack(id, objective = '', selectedSkills = []) {
-  const skillPacks = packs.filter((pack) =>
+// sans-skill-01 : `exclude` lists packs the automatic detection leaves out (it takes its next
+// candidate) ; an explicit id is never affected. Without it, the detection is unchanged.
+export function getPack(id, objective = '', selectedSkills = [], { exclude = [] } = {}) {
+  const candidates = exclude.length ? packs.filter((pack) => !exclude.includes(pack.id)) : packs;
+  const skillPacks = candidates.filter((pack) =>
     pack.skills.some((skill) => selectedSkills.includes(skill.id)),
   );
   if (id === 'auto' && skillPacks.length > 1)
@@ -127,11 +130,12 @@ export function getPack(id, objective = '', selectedSkills = []) {
   const p =
     id === 'auto'
       ? (skillPacks[0] ??
-        packs.find(
+        candidates.find(
           (pack) =>
             pack.skillManifest && selectSkillIntents(objective, [pack.skillManifest]).length,
         ) ??
-        packs.find((p) => p.keywords.some((k) => objective.toLowerCase().includes(k))) ??
+        candidates.find((p) => p.keywords.some((k) => objective.toLowerCase().includes(k))) ??
+        candidates[0] ??
         packs[0])
       : packs.find((p) => p.id === id);
   if (!p) throw new Error('Domain Pack inconnu');

@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { ANSWER_FORMAT_RULE } from '../packages/orchestrator/answer-format.js';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -405,7 +406,11 @@ for (const ownerMode of [true, false])
         const end = await ended(app, run.id);
         restore();
         const sent = JSON.parse(readFileSync(promptFile, 'utf8'));
-        seen.consigne = `${sha(sent.instructions)} ${sha(sent.workflow)}`;
+        // reponse-04 (E173) : la règle de forme de la réponse est ajoutée exprès à toute consigne ; elle est
+        // retirée avant l'empreinte pour prouver que rien d'autre n'a changé, après vérification qu'elle y est.
+        assert.ok(sent.instructions.includes('\n' + ANSWER_FORMAT_RULE));
+        const instructions = sent.instructions.replace('\n' + ANSWER_FORMAT_RULE, '');
+        seen.consigne = `${sha(instructions)} ${sha(sent.workflow)}`;
         seen.fin = `${end.state} ${sha(end.result?.summary ?? null)}`;
         if (c.pack !== 'career-ops') {
           const demo = await app.engine.create(input);

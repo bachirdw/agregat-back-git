@@ -223,7 +223,9 @@ export class BrowserGateway {
     if (cap.domain !== 'browser') throw new Error('Capacité non navigateur');
     const args = cap.schema.parse(rawArgs);
     this.policy.assertCapability(capabilityId);
-    if (args.url) await this.policy.assertUrl(args.url);
+    // e160-01 : the first check of the call, before the provider is even prepared : a refusal here
+    // did nothing (`actionDone: false`).
+    if (args.url) await this.policy.assertUrl(args.url, { beforeAction: true });
     // Deployment policy can request these modes, but only a recorded human decision enables them.
     await this.provider.prepare?.(this.policy, this.approve);
     const pageBefore = await this.provider.currentUrl?.();

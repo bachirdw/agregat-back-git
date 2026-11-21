@@ -134,7 +134,12 @@ export async function executeWorkflow(orch, run, plan, control) {
           { signal: stepSignal, timeout: step.timeoutMs ?? 30000 },
         );
         const text = response.content?.find((c) => c.type === 'text')?.text ?? 'null';
-        if (response.isError) throw new Error(`Outil ${step.tool} : ${text.slice(0, 300)}`);
+        // e160-01 : a refusal the gateway marked « not done » keeps its mark for the engine.
+        if (response.isError)
+          throw Object.assign(
+            new Error(`Outil ${step.tool} : ${text.slice(0, 300)}`),
+            response._meta?.actionDone === false ? { actionDone: false } : {},
+          );
         return JSON.parse(text);
       } finally {
         orch.closeAttempt(scope);

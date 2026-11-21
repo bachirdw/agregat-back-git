@@ -58,6 +58,18 @@ flowchart TD
 - Un **Domain Pack** distribue manifest, Skills, DAG, outils, politiques et évaluations. Les packs
   présents dans `domain-packs/` avec un manifest valide sont découverts au démarrage. Ce répertoire local reste réservé au code approuvé par le propriétaire ; Najah ne contrôle pas le runtime.
 
+**États d'une étape de workflow** (`packages/workflow-engine/index.js`) : `pending`, `running`,
+`waiting_approval`, `succeeded`, `failed`, `skipped`, `cancelled`, `uncertain`. Une étape rejouable (lecture
+qualifiée, `verify`, `aggregate`, `approval`) retente puis échoue. Une étape non rejouable (`agent`, outil
+`write` ou `unknown`) dont l'erreur survient après le début de l'action devient `uncertain` : elle attend une
+décision humaine (`retry`, `done`, `fail`) et n'est jamais rejouée seule. Exception (e160-01) : un refus marqué
+`actionDone: false` là où il est levé avant tout effet (contrôles préalables d'adresse de `RunPolicy` au début
+de `BrowserGateway.execute`, accords refusés ou expirés) finit `failed` tout de suite ; la marque traverse le
+serveur MCP dans `_meta` pour les seuls appels de l'exécuteur de workflow. Toute étape `uncertain`, quel que
+soit son genre, devient `failed` après `humanWaitMs` (30 min par défaut, `AGENT_PLATFORM_HUMAN_WAIT_MS` ; tout
+de suite en mode non supervisé), avec un message qui garde le doute et la cause ; une reprise explicite remet
+une étape non rejouable en `uncertain` (« Effet de l'écriture à confirmer avant reprise »), sans la rejouer.
+
 ## Mode propriétaire local : chemin distinct et explicite
 
 `AGENT_PLATFORM_OWNER_MODE=1` active le live et impose l'écoute `127.0.0.1`. Il force le fournisseur

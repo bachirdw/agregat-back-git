@@ -43,6 +43,11 @@ const siteStatusOf = new WeakMap();
 const failure = (e) => {
   const result = { isError: true, content: [{ type: 'text', text: String(e.message ?? e) }] };
   if (e?.actionDone === false) notDoneResults.add(result);
+  // e160-01 : the workflow engine's own tool calls (premetered, no agent reads them) receive the
+  // mark too, the only structured field that crosses this process : a step refused before acting
+  // fails at once instead of waiting as uncertain. An agent's results stay as they were.
+  if (e?.actionDone === false && process.env.RELAY_TOOL_CALL_PREMETERED === '1')
+    result._meta = { actionDone: false };
   if (Number.isInteger(e?.httpStatus)) siteStatusOf.set(result, e.httpStatus);
   return result;
 };

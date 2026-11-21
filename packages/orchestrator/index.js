@@ -2321,6 +2321,14 @@ export class Orchestrator {
         finishedAt: new Date().toISOString(),
       });
     } finally {
+      // swarm-14 : consommation annoncée par l'agent sur tous les tours ; jamais d'effet sur l'issue.
+      try {
+        const usage = control.runtime?.usage?.();
+        if (usage && typeof usage === 'object' && !Array.isArray(usage))
+          this.store.event(run.id, 'usage', usage);
+      } catch {
+        /* sans effet */
+      }
       this.timers.clearTimeout(timer);
       clearSilence();
       toolGuard.clear();

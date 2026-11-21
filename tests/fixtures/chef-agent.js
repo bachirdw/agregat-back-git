@@ -19,6 +19,10 @@
 //                  (native edit call) ; « QUESTION » asks a form ; « LIMITE » announces a usage limit ;
 //                  « DEPOSER:<nom> » writes <nom> in famille.dossierResultats (no tool call) ;
 //                  each line « RESULTAT:<json> » calls resultat_rendre (swarm-10).
+//   usage          swarm-14 : { chef?: <annonce>, membre?: <annonce> } ; <annonce> = { tour?: <usage of
+//                  the end of each turn>, maj?: <fields of a usage_update> | [<fields>, …] } sent
+//                  before the end of each turn of the chief (chef) or of any other mission (membre) ;
+//                  a consigne (`objective`) containing « MUET » announces nothing.
 import {
   agent,
   methods,
@@ -305,10 +309,19 @@ const app = agent({ name: 'chef-agent' })
       servers: servers.map((s) => s.name),
       prompt: request ?? raw,
     });
-    return servers.some((s) => s.name === 'relay-missions') && Array.isArray(cfg.steps)
-      ? chief(request)
-      : daughter(request);
+    const isChief = servers.some((s) => s.name === 'relay-missions') && Array.isArray(cfg.steps);
+    const result = await (isChief ? chief(request) : daughter(request));
+    return announce(isChief ? 'chef' : 'membre', String(request?.objective ?? raw), result);
   });
+
+// swarm-14 : what the agent announces of its consumption (option `usage`).
+async function announce(role, consigne, result) {
+  const spec = cfg.usage?.[role];
+  if (!spec || (role === 'membre' && consigne.includes('MUET'))) return result;
+  for (const fields of [].concat(spec.maj ?? []))
+    await update({ sessionUpdate: 'usage_update', ...fields });
+  return spec.tour ? { ...result, usage: spec.tour } : result;
+}
 connection = app.connect(
   ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin)),
 );

@@ -206,6 +206,15 @@ export function createApp({
           meters,
           pricing: engine.pricing,
         });
+      // swarm-15 : les leçons durables d'une portée (`espace=prive` : mode propriétaire seulement).
+      if (req.method === 'GET' && path === '/api/lecons') {
+        const { status, body } = engine.delegation.leconsRoute({
+          espace: url.searchParams.get('espace'),
+          ownerMode,
+          portee: url.searchParams.get('portee'),
+        });
+        return json(res, status, body);
+      }
       if (req.method === 'GET' && path === '/api/runs')
         return json(
           res,
@@ -408,6 +417,19 @@ export function createApp({
         });
       }
       if (path === '/api/runs') return json(res, 201, await engine.create(body));
+      // swarm-15 : promouvoir, remplacer ou supprimer une leçon (`espace: 'prive'` : mode propriétaire).
+      const lecon = path.match(/^\/api\/lecons\/([a-z0-9][a-z0-9_-]{0,63})\/(l-[0-9a-f]{16})$/);
+      if (lecon) {
+        const { status, body: done } = engine.delegation.leconsRoute({
+          espace: body.espace,
+          ownerMode,
+          portee: lecon[1],
+          id: lecon[2],
+          action: body.action,
+          par: body.par,
+        });
+        return json(res, status, done);
+      }
       if (match?.[2] === 'answer') {
         // Owner's answer to a question the agent asked (ACP form elicitation).
         if (!engine.openQuestion(match[1]))

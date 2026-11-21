@@ -229,6 +229,9 @@ test('sans delegation : outils et phrase prêtés, rien d’autre ne change tant
       'mission_continuer',
       'carnet_noter',
       'carnet_lire',
+      // swarm-15 : the lesson tools, lent with the notebook (D1).
+      'lecon_lire',
+      'lecon_utile',
     ],
   );
 });

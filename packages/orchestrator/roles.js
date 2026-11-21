@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readConfined } from '../policy-engine/files.js';
 import { packFolder, packs } from './packs.js';
+import { parseNiveau } from '../agent-runtime/niveaux.js';
 
 export const PLATFORM_ROLES = join(dirname(fileURLToPath(import.meta.url)), 'roles');
 export const WORKSPACE_ROLES = 'relay/roles';
@@ -61,6 +62,8 @@ export function parseRole(text, fileName) {
     description,
     verdict: flag(header.verdict),
     autreAgent: flag(header.autreAgent),
+    // swarm-16 : the model tier of the role (leger, standard, fort) ; any other value is ignored.
+    ...(parseNiveau(header.niveau) ? { niveau: parseNiveau(header.niveau) } : {}),
     consigne,
   };
 }
@@ -143,11 +146,12 @@ export function loadRoles(cwd, { platform = PLATFORM_ROLES, pack = null } = {}) 
 
 // What mission_suivre lists : the roles without their consigne.
 export const roleList = (roles) =>
-  [...roles.values()].map(({ nom, description, verdict, autreAgent }) => ({
+  [...roles.values()].map(({ nom, description, verdict, autreAgent, niveau }) => ({
     nom,
     description,
     verdict,
     autreAgent,
+    ...(niveau ? { niveau } : {}), // swarm-16
   }));
 
 // The agent of an independent look : the first installed and available agent (in the order of the

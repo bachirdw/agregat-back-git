@@ -49,9 +49,25 @@ import { CARNET_TOOLS } from './delegation-rule.js';
 // swarm-10 : the result in the shape asked by the chief (tool resultat_rendre).
 import { ResultatValide } from './resultat-valide.js';
 import { RESULT_TOOLS } from './delegation-rule.js';
+// swarm-15 : the durable lessons (module of swarm-03), served at start, kept, cited at the end.
+import { Lecons, PORTEE_RE, ligneLecon } from './lecons.js';
+import {
+  CHIEF_CARNET,
+  CHIEF_LECONS,
+  DAUGHTER_CARNET,
+  DAUGHTER_LECONS,
+  LECON_MESSAGES,
+  LECON_NATURE,
+  LECON_TOOLS,
+  leconsLine,
+} from './delegation-rule.js';
 // swarm-05 : doublons at launch and the living list of the other members.
 import { partDe, trouverDoublon } from './doublon.js';
 import { membres } from './soeurs.js';
+// swarm-16 : the model tiers of a sub-mission (leger, standard, fort), resolved per agent.
+import { getProfile } from '../agent-runtime/index.js';
+import { avecNiveaux, choisirModele } from '../agent-runtime/niveaux.js';
+import { niveauNonReconnu } from './delegation-rule.js';
 // swarm-12 : the count per task, the dependants cancelled by a failure, the chief's messages never
 // delivered, the short reminder of the owner's request (packages/orchestrator/taches.js).
 import {
@@ -174,6 +190,14 @@ export class Delegation {
     this.rattrapage = process.env.AGENT_PLATFORM_VERDICT_TURN !== '0';
     this.carnet = new Carnet(this); // equipe-carnet
     this.resultats = new ResultatValide(this); // swarm-10
+    // swarm-15 : AGENT_PLATFORM_LECONS=0 withdraws the lessons (neither field nor tool). The lessons
+    // of the database's missions in <dataDir>/lecons ; a private mission's in its space (leconsDe).
+    this.leconsOn = process.env.AGENT_PLATFORM_LECONS !== '0';
+    this.lecons = this.leconsOn
+      ? sur(() => new Lecons({ dir: join(engine.dataDir, 'lecons'), now: () => this.now() }))
+      : null;
+    this.leconsPrivees = new Map(); // space folder -> Lecons
+    this.servies = new Map(); // execution id -> { ids, notees, citees, cite, magasin, portee }
   }
   get store() {
     return this.engine.store;
@@ -266,6 +290,8 @@ export class Delegation {
             value: `${this.engine.approvalBase}/api/internal/missions/${run.id}`,
           },
           { name: 'RELAY_APPROVAL_TOKEN', value: token },
+          // swarm-15 : the gateway is a process of its own : the setting reaches it only here.
+          ...(this.leconsOn ? [] : [{ name: 'AGENT_PLATFORM_LECONS', value: '0' }]),
         ],
       },
     ];
@@ -273,9 +299,22 @@ export class Delegation {
   // What the prompt of an execution gets : the chief's sentence when the mission tools were lent
   // (`servers`, read from the run as created : nothing is read), a sub-mission's sentence and family.
   promptParts(run, servers = []) {
-    if (servers.some((server) => server.name === MISSION_SERVER))
-      return { fields: {}, rule: '\n' + chiefRule(run.delegation) };
+    if (servers.some((server) => server.name === MISSION_SERVER)) {
+      // swarm-15 : the lessons of past missions (absent when none passes : prompt of before).
+      const lecons = this.servir(run);
+      const rule = chiefRule(run.delegation);
+      if (!lecons) return { fields: {}, rule: '\n' + rule };
+      return {
+        fields: { lecons },
+        rule:
+          '\n' +
+          (rule.includes(CHIEF_CARNET)
+            ? rule.replace(CHIEF_CARNET, CHIEF_CARNET + CHIEF_LECONS)
+            : `${rule} ${CHIEF_LECONS.replace(/ ; $/, '.')}`),
+      };
+    }
     if (!run?.famille) return { fields: {}, rule: '' };
+    const lecons = this.servir(run); // swarm-15
     const mother = this.store.get(run.famille.mere);
     const brief = this.briefs.get(run.id) ?? {};
     const { apres, dossierResultats, relit } = run.famille;
@@ -311,6 +350,7 @@ export class Delegation {
           // results of its prerequisites (data, read only for a sub-mission that has some).
           ...(brief.tache ? { tache: brief.tache } : {}),
           ...this.carnet.forStart(run), // equipe-carnet : the notebook, absent while empty
+          ...(lecons ? { lecons } : {}), // swarm-15 : absent when no lesson passes
           ...(dossierResultats ? { dossierResultats } : {}),
           ...(schemaResultat ? { schemaResultat } : {}),
           ...(apres
@@ -328,13 +368,206 @@ export class Delegation {
         // swarm-05 : the sentence of the other members, only with famille.membres, on its own line
         // before the sub-mission's sentence (which stays the same, and last).
         (members.length ? DAUGHTER_MEMBRES.trimEnd() + '\n' : '') +
-        daughterRule(
-          dossierResultats,
-          brief.role?.consigne ? brief.role : null,
-          !!previous,
-          !!schemaResultat,
+        // swarm-15 : the lessons' sentence right after the notebook's, only with famille.lecons.
+        ((sentence) =>
+          lecons ? sentence.replace(DAUGHTER_CARNET, DAUGHTER_CARNET + DAUGHTER_LECONS) : sentence)(
+          daughterRule(
+            dossierResultats,
+            brief.role?.consigne ? brief.role : null,
+            !!previous,
+            !!schemaResultat,
+          ),
         ),
     };
+  }
+
+  // ---- swarm-15 : the durable lessons (packages/orchestrator/lecons.js). Every call to the module
+  // is wrapped (several of its methods throw on a bad scope, id or clock) : a lesson never blocks a
+  // start nor an end (rule of swarm) ; a failure means « no lesson », never a mission error.
+
+  // The store and the scope (the mother's pack) of a member of a multi-agent family ; a private
+  // mother's lessons live in its space (<cwd>/relay/lecons), never in <dataDir>. Null otherwise.
+  leconsDe(run) {
+    if (!this.leconsOn) return null;
+    const mother = sur(() => this.carnet.motherOf(run));
+    const portee = mother?.pack;
+    if (typeof portee !== 'string' || !PORTEE_RE.test(portee)) return null;
+    if (!mother.workspace) return this.lecons ? { magasin: this.lecons, portee } : null;
+    const magasin = this.leconsPrive(mother.cwd);
+    return magasin ? { magasin, portee } : null;
+  }
+  leconsPrive(cwd) {
+    if (typeof cwd !== 'string' || !cwd) return null;
+    let magasin = this.leconsPrivees.get(cwd);
+    if (!magasin) {
+      magasin = sur(() => new Lecons({ dir: join(cwd, 'relay', 'lecons'), now: () => this.now() }));
+      if (magasin) this.leconsPrivees.set(cwd, magasin);
+    }
+    return magasin;
+  }
+  // At start : up to 5 lessons for the request (chief) or the consigne (sub-mission), one line each ;
+  // the ids served to this execution are kept. Null when none passes or on any failure.
+  servir(run) {
+    const ctx = this.leconsDe(run);
+    if (!ctx) return null;
+    const texte = sur(() => this.engine.turnObjective(run));
+    if (typeof texte !== 'string' || !texte.trim()) return null;
+    const trouvees = sur(() => ctx.magasin.rappel(texte, ctx.portee));
+    if (!Array.isArray(trouvees) || !trouvees.length) return null;
+    // rappel() gives the excerpt, not the text : the line of swarm-03 shows it as the summary.
+    const lignes = sur(() =>
+      trouvees.map((lecon) => ligneLecon({ ...lecon, resume: lecon.extrait }).replace(/^- /, '')),
+    );
+    if (!lignes) return null;
+    const servies = this.servies.get(run.id) ?? {
+      ids: new Set(),
+      notees: new Set(),
+      citees: new Set(),
+      cite: false,
+      magasin: ctx.magasin,
+      portee: ctx.portee,
+    };
+    for (const lecon of trouvees) servies.ids.add(lecon.id);
+    this.servies.set(run.id, servies);
+    return lignes;
+  }
+  // carnet_noter with `durable` (Carnet.note) : the note kept as a lesson too ; the outcome is joined
+  // to the note's result (a refusal never refuses the note). Null when the lessons are withdrawn.
+  garderLecon(run, mother, { texte, categorie, auteur }) {
+    if (!this.leconsOn) return null;
+    if (!['methode', 'piege', 'decision'].includes(categorie))
+      return { statut: 'refusee', message: LECON_MESSAGES.categorie };
+    const ctx = this.leconsDe(run);
+    const kept = ctx
+      ? sur(() =>
+          ctx.magasin.noter({
+            texte,
+            portee: ctx.portee,
+            mission: run.id,
+            auteur,
+            origine: 'equipe',
+          }),
+        )
+      : null;
+    if (typeof kept?.statut !== 'string')
+      return { statut: 'refusee', message: LECON_MESSAGES.non_gardee };
+    if (kept.statut === 'refusee')
+      return { statut: 'refusee', message: String(kept.message ?? LECON_MESSAGES.non_gardee) };
+    // The id only (no text) : nothing private reaches the database.
+    if (kept.statut === 'gardee')
+      sur(() => this.store.event(mother.id, 'lecon_gardee', { id: kept.id }));
+    return { statut: kept.statut, id: kept.id };
+  }
+  // lecon_lire and lecon_utile (their own token checked by call()).
+  leconCall(run, control, body) {
+    if (!this.leconsOn || !this.lent || !sur(() => this.carnet.motherOf(run)))
+      return { status: 403, body: { error: LECON_MESSAGES.non_pretes } };
+    const parsed = LECON_TOOLS[body.tool].schema.safeParse(body.args ?? {});
+    if (!parsed.success)
+      return {
+        status: 200,
+        body: {
+          erreur: 'parametres_invalides',
+          message: parsed.error.issues
+            .slice(0, 5)
+            .map((issue) => `${issue.path.join('.') || 'arguments'} — ${issue.message}`)
+            .join(' ; '),
+        },
+      };
+    control.toolDelivered?.(null, 'gateway');
+    const refus = (erreur) => ({
+      status: 200,
+      body: { erreur, message: LECON_MESSAGES[erreur] },
+    });
+    const { id } = parsed.data;
+    if (body.tool === 'lecon_lire') {
+      const ctx = this.leconsDe(run);
+      if (!ctx) return refus('indisponible');
+      const lecon = sur(() => ctx.magasin.liste(ctx.portee).find((l) => l.id === id));
+      if (!lecon) return refus('inconnue');
+      return {
+        status: 200,
+        body: {
+          result: {
+            id: lecon.id,
+            titre: lecon.titre,
+            texte: lecon.texte,
+            date: lecon.date,
+            utile: lecon.utile ?? 0,
+            inutile: lecon.inutile ?? 0,
+            nature: LECON_NATURE,
+          },
+        },
+      };
+    }
+    // lecon_utile : only a lesson served to this execution, once per mission and lesson (swarm) ;
+    // `raison` has no place in the module : it is not kept.
+    const servies = this.servies.get(run.id);
+    if (!servies?.ids.has(id)) return refus('non_servie');
+    if (servies.notees.has(id)) return refus('deja_notee');
+    const { utile } = parsed.data;
+    const noted = sur(() =>
+      servies.magasin.noterUtilite(id, servies.portee, { utile, mission: run.id }),
+    );
+    if (noted?.statut === 'notee' || noted?.statut === 'deja_notee') servies.notees.add(id);
+    if (noted?.statut === 'notee')
+      return { status: 200, body: { result: { id, utile, statut: 'notee' } } };
+    return refus(
+      noted?.statut === 'deja_notee'
+        ? 'deja_notee'
+        : noted?.statut === 'inconnue'
+          ? 'inconnue'
+          : 'indisponible',
+    );
+  }
+  // At the end : the served ids found in the member's answer are cited (once per execution) ;
+  // without an answer, nothing.
+  citerLecons(id, answer) {
+    const servies = this.servies.get(id);
+    if (!servies || servies.cite) return;
+    const journal = sur(answer);
+    if (typeof journal !== 'string' || !journal) return;
+    servies.cite = true;
+    for (const note of sur(() => servies.magasin.citer([...servies.ids], journal)) ?? [])
+      if (note?.citee) servies.citees.add(note.id);
+  }
+  // The mother's Bilan line : distinct lessons served to the chief and its sub-missions, cited, and
+  // kept by the family (events `lecon_gardee` of this execution).
+  leconsBilan(run, children) {
+    if (!this.leconsOn) return '';
+    const servies = [run, ...children].map((member) => this.servies.get(member.id)).filter(Boolean);
+    const ids = new Set(servies.flatMap((s) => [...s.ids]));
+    const citees = new Set(servies.flatMap((s) => [...s.citees]));
+    const gardees = this.store.events(run.id).filter((e) => e.type === 'lecon_gardee').length;
+    return leconsLine({ servies: ids.size, citees: citees.size, gardees });
+  }
+  // GET /api/lecons and POST /api/lecons/:portee/:id (apps/api/server.js) : a private space's lessons
+  // are read and changed in owner mode only. A bad scope, id or action throws (answered 400).
+  leconsRoute({ espace, ownerMode, portee, id, action, par } = {}) {
+    if (!this.leconsOn)
+      return { status: 404, body: { error: 'Leçons désactivées (AGENT_PLATFORM_LECONS=0)' } };
+    const prive = espace === 'prive';
+    if (prive && !ownerMode)
+      return {
+        status: 403,
+        body: { error: 'Leçons de l’espace privé : mode propriétaire seulement' },
+      };
+    const magasin = prive ? this.leconsPrive(sur(() => this.engine.career.path())) : this.lecons;
+    if (!magasin) return { status: 404, body: { error: 'Leçons indisponibles' } };
+    if (id === undefined)
+      return {
+        status: 200,
+        body: { portee, ...(prive ? { espace: 'prive' } : {}), lecons: magasin.liste(portee) },
+      };
+    const actions = {
+      promouvoir: () => magasin.promouvoir(id, portee),
+      remplacer: () => magasin.remplacer(id, portee, { par }),
+      supprimer: () => magasin.supprimer(id, portee),
+    };
+    if (!Object.hasOwn(actions, action))
+      return { status: 400, body: { error: 'action : promouvoir, remplacer ou supprimer' } };
+    const done = actions[action]();
+    return { status: done.statut === 'inconnue' ? 404 : 200, body: done };
   }
   // delegation-v2-01 (plan v2, Codex 4) : the chief ends its turn while sub-missions live : the
   // platform waits for their end (the chief's timers paused), then the same session gets ONE more
@@ -568,11 +801,26 @@ export class Delegation {
         role: child.famille?.role,
         relit: child.famille?.relit,
         verdict: this.verdictOf(child),
+        usage: this.doneOf(child).usage, // swarm-14
       })),
+      // swarm-14 : le chef (cette exécution) : ce que son agent annonce et son attente.
+      chef: {
+        agent: mother.agent,
+        usage: sur(() => this.engine.active.get(run.id)?.runtime?.usage?.()),
+        attente: this.families.get(run.id)?.attente,
+      },
     });
     // swarm-13 : the final answer given while a work's last verdict is not « approuve ».
     const malgre = chiefAnswer ? this.verdictBilanLine(mother) : '';
-    return (motifs ? `${section}\n${motifs}` : section) + (malgre ? `\n${malgre}` : '');
+    // swarm-15 : the chief's answer cites its served lessons, then the line (absent when nothing was
+    // served nor kept) ; never an error.
+    if (chiefAnswer) this.citerLecons(run.id, () => chiefAnswer);
+    const lecons = sur(() => this.leconsBilan(run, children)) ?? '';
+    return (
+      (motifs ? `${section}\n${motifs}` : section) +
+      (malgre ? `\n${malgre}` : '') +
+      (lecons ? `\n${lecons}` : '')
+    );
   }
   // swarm-13 : « tour donné » read from the durable event of this execution, not the memory.
   verdictBilanLine(mother) {
@@ -612,10 +860,12 @@ export class Delegation {
       ? this.engine.privateRunFile(child, 'fichiers')
       : done?.data?.fichiers;
     const echec = done?.data?.echec; // swarm-08
+    const usage = done?.data?.usage; // swarm-14
     return {
       envois: done?.data?.envois,
       fichiers: Array.isArray(fichiers) ? fichiers : [],
       ...(echec?.classe ? { echec } : {}),
+      ...(usage && typeof usage === 'object' && !Array.isArray(usage) ? { usage } : {}),
     };
   }
   sendsOf(child) {
@@ -735,7 +985,16 @@ export class Delegation {
     const echec = failure?.classe
       ? { classe: failure.classe, jusqua: failure.jusqua ?? null }
       : null;
-    this.finals.set(child.id, { envois, fichiers, ...(echec ? { echec } : {}) });
+    // swarm-14 : ce que l'agent du membre a annoncé de sa consommation (nombres et devise seulement),
+    // lu avant que sa fin soit visible : son dernier tour est fini, son runtime est encore là.
+    const usage = sur(() => control?.runtime?.usage?.());
+    const annonce = usage && typeof usage === 'object' && !Array.isArray(usage) ? usage : null;
+    this.finals.set(child.id, {
+      envois,
+      fichiers,
+      ...(echec ? { echec } : {}),
+      ...(annonce ? { usage: annonce } : {}),
+    });
     // A private mission keeps its file names in its own space, as its prompt ; any other mission
     // in the event, read again after a restart.
     if (child.workspace)
@@ -750,7 +1009,10 @@ export class Delegation {
       envois,
       ...(child.workspace ? {} : { fichiers }),
       ...(echec ? { echec } : {}),
+      ...(annonce ? { usage: annonce } : {}),
     });
+    // swarm-15 : the lessons served to the member and cited in its answer (success or failure).
+    this.citerLecons(child.id, () => this.engine.modelAnswerOf(this.store.get(child.id) ?? child));
   }
   // multi-agent-v3-01 (D9) : the files of a sub-mission's results folder (paths relative to the
   // mission folder, sizes), read on disk without following any link ; 200 at most.
@@ -970,6 +1232,7 @@ export class Delegation {
     // equipe-carnet : the notebook tools, for the chief and for a sub-mission (only these two).
     if (CARNET_TOOLS[body?.tool]) return this.carnet.call(mother, control, body);
     if (RESULT_TOOLS[body?.tool]) return this.resultats.call(mother, control, body); // swarm-10
+    if (LECON_TOOLS[body?.tool]) return this.leconCall(mother, control, body); // swarm-15
     // The tools are never lent to a sub-mission, nor to a mission without the multi-agent mode, nor
     // to any mission once withdrawn.
     if (!this.lent || !mother || mother.famille || mother.multiAgent !== true)
@@ -1146,7 +1409,24 @@ export class Delegation {
         )
       : null;
     const planned = args.agent ?? reviewer ?? base.agent;
-    const plannedModel = args.modele ?? (planned === base.agent ? (base.model ?? '') : '');
+    // swarm-16 : the model : `modele` given ; then `niveau` ; then, for a resumption or a suite on the
+    // same agent, the previous attempt's ; then the role's tier ; then today's rule. A tier chooses
+    // among the models the agent announces (patterns of its profile) ; none matching : today's rule.
+    const probes = this.probes();
+    const choose = (id, given) =>
+      choisirModele({
+        ...given,
+        niveau: args.niveau,
+        niveauRole: team?.niveau,
+        profil: getProfile(id),
+        modelesAnnonces: optionsOf(probes[id]),
+      });
+    const planChoice = choose(planned, {
+      modele: args.modele,
+      precedent: previous && planned === previous.agent ? (previous.model ?? '') : undefined,
+      defaut: planned === base.agent ? (base.model ?? '') : '',
+    });
+    const plannedModel = planChoice.modele;
     // swarm-08 : the agent the platform chose (none named by the chief) is unavailable : the first
     // ready agent instead (never the simulated one in real mode, a proven session first), said in the
     // result and on the row ; none : the same refusal. Synchronous, before any folder or counter.
@@ -1160,7 +1440,18 @@ export class Delegation {
     if (why && !instead)
       throw fail('agent_indisponible', agentUnavailable(planned, why.raison, this.readyAgents()));
     const agent = instead ?? planned;
-    const modele = instead ? '' : plannedModel;
+    // swarm-16 : another agent takes the part : a model given is left (as before), a tier (asked, or
+    // the role's) is resolved at that agent. The tier is written when it chose the model ; one that
+    // does not resolve is said in the note (the role's only for an agent with tiers announcing models).
+    const choice = instead ? choose(instead, { defaut: '' }) : planChoice;
+    const modele = choice.modele;
+    const niveau = ['niveau', 'role'].includes(choice.source) ? choice.niveau : null;
+    const niveauNote =
+      choice.nonReconnu &&
+      (choice.depuis === 'niveau' ||
+        (getProfile(agent)?.niveaux && optionsOf(probes[agent]).length))
+        ? niveauNonReconnu(choice.nonReconnu)
+        : null;
     const named = args.continue
       ? suiteTitle(
           sisters.get(taskId).famille?.titre ?? taskId,
@@ -1205,6 +1496,7 @@ export class Delegation {
         // swarm-08 : the agent planned when another was launched ; the agent named by the chief.
         ...(instead ? { agentPrevu: planned } : {}),
         ...(chiefAgent ? { agentImpose: true } : {}),
+        ...(niveau ? { niveau } : {}), // swarm-16 : the tier that chose the model.
       },
       title: titre,
       cwd: mother.cwd,
@@ -1350,6 +1642,7 @@ export class Delegation {
       etat,
       agent,
       modele,
+      ...(niveau ? { niveau } : {}), // swarm-16
       ...(folder ? { dossierResultats: folder, espace: resolve(mother.cwd) } : {}),
       famille: this.counter(mother),
       ...(doublonProbable ? { doublonProbable } : {}),
@@ -1358,6 +1651,7 @@ export class Delegation {
         installed && !reviewer && SAME_AGENT_NOTE,
         doublonProbable && doublonNote(doublonProbable, double.niveau),
         instead && agentReplaced(planned, why.raison, instead),
+        niveauNote, // swarm-16
       ]),
     };
   }
@@ -1767,11 +2061,15 @@ export class Delegation {
         ...(raison ? { raison } : {}),
         ...(jusqua ? { jusqua } : {}),
         ...(agent.simulated ? { simule: true } : {}),
-        modeles: optionsOf(probes[agent.id]).map((model) => ({
-          id: model.id,
-          nom: model.name ?? model.id,
-          ...(modelesLimites?.[model.id] ? { limiteJusqua: modelesLimites[model.id] } : {}),
-        })),
+        // swarm-16 : with the tier of each model, when its profile knows it (avecNiveaux).
+        modeles: avecNiveaux(
+          optionsOf(probes[agent.id]).map((model) => ({
+            id: model.id,
+            nom: model.name ?? model.id,
+            ...(modelesLimites?.[model.id] ? { limiteJusqua: modelesLimites[model.id] } : {}),
+          })),
+          getProfile(agent.id),
+        ),
         modeleParDefaut: probes[agent.id]?.models?.current ?? null,
       };
     });
@@ -1851,6 +2149,9 @@ export class Delegation {
     for (const id of ids ?? [])
       if (!known.has(id)) throw fail('introuvable', `Aucune sous-mission de cette mission : ${id}`);
     const targets = ids ?? [...known];
+    // swarm-14 : compteur des appels du chef et du temps passé à attendre (horloge `this.now`).
+    const attente = (this.family(mother.id).attente ??= { appels: 0, ms: 0 });
+    attente.appels += 1;
     const over = (id) => terminal.has(this.store.get(id)?.state) && !this.held(id);
     // Every call gives the state of all the sub-missions asked for (plan v2, Codex 2), the full
     // result of one only once (multi-agent-v3-02, D, below). Without `toutes`,
@@ -1874,6 +2175,7 @@ export class Delegation {
       control.suspendTimers?.();
       control.runtime?.pauseDeadlines?.();
       family.waiting = (family.waiting ?? 0) + 1;
+      const debut = sur(() => this.now()); // swarm-14 : une horloge qui lève ne change rien
       try {
         reached = !(await this.untilOr(
           family,
@@ -1883,6 +2185,9 @@ export class Delegation {
           control.abort.signal,
         ));
       } finally {
+        sur(() => {
+          if (typeof debut === 'number') attente.ms += Math.max(0, Number(this.now() - debut) || 0);
+        });
         family.waiting--;
         control.runtime?.resumeDeadlines?.();
         control.resumeTimers?.();

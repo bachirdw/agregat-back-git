@@ -11,10 +11,15 @@ import { MISSION_SERVER, MISSION_TOOLS, waitSeconds } from '../orchestrator/dele
 // (RELAY_GATEWAY_TOOLS=carnet, server `relay-equipe`) for a sub-mission.
 // swarm-10 : resultat_rendre, lent to a sub-mission only (with the notebook), never to the chief.
 import { CARNET_SERVER, CARNET_TOOLS, RESULT_TOOLS } from '../orchestrator/delegation-rule.js';
+// swarm-15 : the lesson tools in both lists ; AGENT_PLATFORM_LECONS=0 (given in this process's env
+// by the platform, as RELAY_GATEWAY_TOOLS) withdraws them and the field `durable` of carnet_noter.
+import { CARNET_TOOLS_SANS_LECONS, LECON_TOOLS } from '../orchestrator/delegation-rule.js';
+const lecons = process.env.AGENT_PLATFORM_LECONS !== '0';
+const carnet = lecons ? CARNET_TOOLS : CARNET_TOOLS_SANS_LECONS;
 const onlyCarnet = process.env.RELAY_GATEWAY_TOOLS === 'carnet';
 const TOOLS = onlyCarnet
-  ? { ...CARNET_TOOLS, ...RESULT_TOOLS }
-  : { ...MISSION_TOOLS, ...CARNET_TOOLS };
+  ? { ...carnet, ...RESULT_TOOLS, ...(lecons ? LECON_TOOLS : {}) }
+  : { ...MISSION_TOOLS, ...carnet, ...(lecons ? LECON_TOOLS : {}) };
 
 const server = new McpServer({
   name: onlyCarnet ? CARNET_SERVER : MISSION_SERVER,

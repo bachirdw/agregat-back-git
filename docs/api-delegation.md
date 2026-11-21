@@ -286,6 +286,33 @@ car. au plus>/` (`n` : rang de la sous-mission dans la chaîne de la mère ; tit
   nom d'un rôle de la plateforme ou d'un rôle du pack de la mission (un nom fixe du dépôt) est écrit en base
   (`famille.role` sur la ligne) ; un rôle propre à l'espace ou un nom libre reste en mémoire seulement, comme le titre
   (« Sous-mission N »).
+- **Niveau de modèle** (`swarm-16`, 21/11/2026) : trois niveaux portables, `leger`, `standard`, `fort`, pour que le
+  chef choisisse un modèle sans connaître les noms des modèles de chaque agent.
+  - **Fiche de rôle** : clé facultative `niveau: leger|standard|fort` (plateforme, pack et espace, lue de la même
+    façon ; toute autre valeur est ignorée). Rôles de la plateforme : `chercheur`, `redacteur`, `verificateur` en
+    `standard`, `developpeur` en `fort`. `mission_suivre.roles[]` porte `niveau` quand la fiche en a un.
+  - **`mission_lancer.niveau`** (facultatif, une des trois valeurs ; texte de l'outil : « niveau : leger pour une part
+    simple ou répétitive, standard par défaut, fort pour une part difficile ou un contrôle sensible ; un modele donné
+    l’emporte »).
+  - **Choix du modèle**, dans cet ordre : `modele` donné (une chaîne vide reste le modèle par défaut de l'agent) ; puis
+    `niveau` ; puis, pour une reprise ou une suite sur le même agent, le modèle de la tentative précédente (une suite
+    reçoit déjà ce modèle de `mission_continuer`, `''` compris) ; puis le niveau du rôle ; puis la règle d'avant
+    (le modèle de la mère, ou de la tentative reprise, quand l'agent est le même ; sinon celui par défaut de l'agent).
+  - **Résolution** (`packages/agent-runtime/niveaux.js`) : le premier modèle annoncé par l'agent (ses sondes, dans
+    l'ordre annoncé) dont l'identifiant contient un motif de ce niveau ; les motifs sont une donnée du profil de l'agent
+    (`niveaux` dans `packages/agent-runtime/profiles.js`, seulement pour les agents qui annoncent plusieurs modèles ;
+    seul endroit où des noms de modèles apparaissent). Un niveau ne refuse jamais rien : s'il ne se résout pas, la règle
+    d'avant choisit, et le résultat porte `note` « niveau fort non reconnu chez cet agent : modèle par défaut » (pour le
+    niveau d'un rôle, seulement chez un agent qui a des motifs et annonce des modèles ; sinon rien ne change). Un modèle
+    donné explicitement reste jugé par le seul contrôle « Modèle non annoncé » du moteur (`modele_inconnu`).
+  - **Agent de remplacement** (`swarm-08`, 9.8) : un modèle donné est abandonné comme avant, mais un niveau (`niveau`,
+    sinon celui du rôle) se résout chez l'agent qui prend la part, avec ses motifs et ses modèles annoncés.
+  - **Écrit** : `niveau` sur la ligne (`famille.niveau`) et dans le résultat de `mission_lancer`, seulement quand un niveau
+    a choisi le modèle ; `mission_suivre.agents[].modeles[]` porte `niveau` quand le profil le connaît. Absents sinon.
+  - **Changement visible** : une sous-mission qui prend un rôle de la plateforme ne prend plus d'office le modèle de la
+    mère : elle part sur le modèle du niveau de son rôle chez son agent (par exemple un modèle moyen pour un chercheur,
+    un modèle fort pour un développeur). Le modèle de chaque sous-mission reste écrit dans le résultat du lancement et au
+    Bilan ; pour garder le modèle de la mère, le chef le donne dans `modele`.
 - **Mère finie pendant le choix de l'agent** : pour un rôle `autreAgent: true` sans `agent`, la liste des agents
   installés est lue avant la création ; si pendant cette lecture la mère est annulée, finie ou en fermeture, l'appel
   rend `mission_terminee` et rien n'est créé.
@@ -405,7 +432,7 @@ s'arrête.
   privé est titrée « Sous-mission N ».
 - **Événements de la mère** (aucun avant le premier `mission_lancer`) : `delegation_accepted { via, total, parallel,
 acceptedAt, message? }`, `delegation_declined { via }`, `child_launched { childId, titre, agent, modele }`,
-  `child_state { childId, state }`, `child_done { childId, state, envois, fichiers? }`,
+  `child_state { childId, state }`, `child_done { childId, state, envois, fichiers?, usage? }` (`usage` : `swarm-14`, 9.14),
   `doublon_signale { childId, proche, similarite, niveau }` (`swarm-05`, 9.5),
   `delegation_envelope_reached`, `delegation_extended`, `family_waiting { enCours }`, et les événements `question` /
   `answer` de la carte.
@@ -416,7 +443,9 @@ pendingQuestion, pendingPermission }]` et `activity: { agents, awaitingOwner }` 
   selon l'agent » / « donné sur la carte au premier lancement »), puis « Sous-missions (n) » : une entrée par
   sous-mission (titre, agent, modèle, état, durée, identifiant) suivie de **son Bilan cité mot pour mot** ; la ligne
   « Synthèse finale non faite » le cas échéant ; les totaux vus par la plateforme ; la confrontation des envois
-  annoncés ; la consommation (« N sous-mission(s), D de durée des sous-missions Relay (par agent) »). Refus sur la
+  annoncés ; la consommation (« N sous-mission(s), D de durée des sous-missions Relay (par agent) », suivie, depuis
+  `swarm-14` et seulement quand au moins un agent a annoncé un chiffre, des jetons annoncés et de l'attente du chef :
+  détail en 9.14). Refus sur la
   carte : la seule ligne « Sous-agents proposés par l'agent, refusés : mission menée par un seul agent. »
   - **Durée** d'une sous-mission : de son premier état `running` (`startedAt`) à sa fin ; l'attente de place, d'accord
     ou de prérequis n'est pas comptée. Une sous-mission jamais partie : « jamais démarrée » (0 dans la consommation).
@@ -451,7 +480,10 @@ l'agent les montre, le Bilan de la mission a **une** ligne de plus (aucune sinon
   quand la plateforme n'a vu aucune fin, le modèle tel qu'il le donne, le nombre d'outils et la durée qu'il déclare (non mesurés par la
   plateforme). La ligne « Actions natives » ajoute « dont n de ses sous-agents internes » pour les actions faites par
   ces sous-agents.
-- Jamais de jetons ni de conversion en part d'abonnement ; aucune décision de la plateforme ne dépend de cette ligne.
+- Jamais de jetons ni de conversion en part d'abonnement dans **cette ligne** des sous-agents internes ; aucune décision
+  de la plateforme ne dépend de cette ligne. Les jetons que l'agent annonce lui-même pour toute son exécution sont dans
+  l'événement `usage` et la ligne « Consommation » de la mère (`swarm-14`, 9.14) ; ils ne comptent pas ses sous-agents
+  internes (l'adaptateur ne les met pas dans son `usage` de fin de tour), son coût annoncé si.
   Non observé à ce jour : sous-agent en arrière-plan, Gemini, OpenCode.
 - Cause réelle de l'échec de 334492d0 (E152, `parseAgentResult`, repris de `equipe-e152` dans `equipe-01`) : la
   réponse finale, en prose, citait un motif de chemin `fiches/{a,b,c}.json`. Des accolades qui n'ouvrent rien qui
@@ -531,6 +563,20 @@ nouvelles }` : les notes des membres pas encore remises au chef (20 au plus par 
 - Limites : le carnet en mémoire n'est pas libéré à la fin de la famille (200 notes au plus par famille) ; le relevé
   des notes remises au chef est en mémoire seulement : après un redémarrage, le chef repris reçoit de nouveau les notes
   des membres.
+- **Leçons durables (`swarm-15`, 21/11/2026)** — détail dans `docs/api-lecons.md` § 8 :
+  - `carnet_noter` gagne `durable?: boolean` : avec `true` et la catégorie `methode`, `piege` ou `decision`, la note est
+    aussi gardée comme leçon de la portée (le pack de la mission) ; le résultat gagne `lecon: { statut, id }` ou
+    `lecon: { statut: 'refusee', message }` (la note du carnet est gardée dans tous les cas) ; événement `lecon_gardee
+{ id }` sur la mère. Une note de même texte (normalisé) du même auteur → `{ n, total, deja: true }`, rien d'écrit (sauf au réglage `0`).
+  - Deux outils de plus dans les deux listes de la passerelle (après ceux du carnet) : `lecon_lire { id }` et
+    `lecon_utile { id, utile, raison? }` (route interne : même jeton ; hors mode multi-agent : 403 « Outils de leçons
+    non prêtés à cette mission »).
+  - Au départ : `lecons` (chef) et `famille.lecons` (sous-mission), 5 lignes au plus, avec les phrases `CHIEF_LECONS` /
+    `DAUGHTER_LECONS` après celles du carnet ; absents quand rien ne passe le seuil (prompt d'avant).
+  - À la fin : citation par identifiant dans la réponse du membre (`ended()`) et du chef (`familyBilan()`) ; ligne de
+    Bilan « Leçons : … servie(s), … citée(s), … gardée(s) pour la suite. ».
+  - Routes `GET /api/lecons?portee=` et `POST /api/lecons/:portee/:id` ; réglage `AGENT_PLATFORM_LECONS=0` (ni champ ni
+    outil, transmis à la passerelle par son `env`).
 
 ## 8. Pas encore fait
 
@@ -786,3 +832,35 @@ instructions: VERDICT_TURN, platform: { turnKind: "family_results" } }` ; sa ré
 - Sans vérification, ou quand le dernier verdict de chaque travail est `approuve`, rien ne change (mêmes tours, mêmes
   événements, même Bilan). Hors du mode « Équipe d'agents », rien ne change.
 - Tests : `tests/swarm-13-rattrapage.test.js`.
+
+### 9.14 `swarm-14` (21/11/2026) : consommation annoncée par les agents
+
+- **Cumul** (`packages/agent-runtime/usage.js`, sur chaque runtime, tous ses tours) : le `usage` de fin de tour
+  (`PromptResponse.usage`, le compte DU tour chez claude-agent-acp 0.95.0 et codex-acp 2.2.2) s'additionne tour après
+  tour (`inputTokens`, `outputTokens`, `totalTokens`, et `cachedReadTokens`, `cachedWriteTokens`, `thoughtTokens` quand
+  ils sont là) ; un `usage` absent, `null` ou de forme inconnue, un nombre non fini ou négatif : ignorés. D'un
+  `usage_update` sont gardés le dernier coût valide (`cost`, cumulé sur la session : jamais additionné ; une mise à jour
+  sans coût ne l'efface pas) et, à part, la dernière jauge `{ used, size }` (occupation du contexte, qui peut venir d'un
+  sous-agent natif : elle n'entre ni dans un total ni dans le Bilan). Rien n'est estimé, recalculé ni converti : le
+  coût garde sa devise telle qu'annoncée (un texte court) et deux coûts ne s'additionnent jamais.
+- **Forme publique** (`runtime.usage()`, jamais levée) :
+  `{ tours, jetons: { entree, sortie, total, cacheLu?, cacheEcrit?, reflexion? } | null, cout: { montant, devise } | null,
+contexte: { utilise, taille } | null }`, ou `null` quand l'agent n'a rien annoncé. `tours` = tours dont le `usage` a
+  été compté ; `jetons.total` vaut `null` si un tour compté n'a pas annoncé son total ; `cacheLu`, `cacheEcrit`,
+  `reflexion` sont absents quand aucun tour ne les a annoncés. Seulement des nombres et une devise, aucun texte d'agent.
+- **Événement `usage`** sur chaque exécution (mission seule comprise), écrit dans le `finally` de l'exécution, après
+  son dernier tour et son dernier état ; absent quand rien n'a été annoncé. Une erreur de lecture ou d'écriture est
+  sans effet sur l'issue de la mission.
+- **`child_done.usage`** et `doneOf(child).usage` : l'annonce du membre, lue dans `ended()` (avant que sa fin soit
+  visible) ; relue en base après un redémarrage. `GET /api/runs/:id?equipe=1` la montre dans `family[].usage` dès que
+  la fin du membre est visible.
+- **Attente du chef** : `family.attente = { appels, ms }` (en mémoire) : chaque appel de `mission_attendre` compte, et
+  `ms` le temps passé à attendre (horloge `delegation.now`). Ni délai, ni réponse, ni ordre ne changent.
+- **Ligne de Bilan** : à la fin de la ligne « Consommation » de la mère, quand au moins un agent (chef ou membre) a
+  annoncé des jetons ou un coût : « Consommation annoncée par les agents : chef claude 412 000 jetons (coût annoncé
+  1,84 USD) ; « A » codex 96 000 jetons ; « B » : non annoncé ; total connu : 508 000 jetons. Attente du chef : 14 appels
+  de mission_attendre, 9 min 20 s. » (noms d'agents et titres lus dans les données ; espace des milliers, virgule
+  décimale ; « jetons non annoncés » pour un agent qui n'annonce qu'un coût ; « total connu : aucun jeton annoncé »
+  quand seuls des coûts sont annoncés). Sans aucun chiffre annoncé : la ligne d'avant, à l'octet près, même si le chef
+  a attendu.
+- Faux agent : option `usage` de `tests/fixtures/chef-agent.js`. Tests : `tests/swarm-14-cout.test.js`.

@@ -9,7 +9,8 @@
 // `relay/missions/<8 car.>/0-carnet/carnet.md` is written in the mission folder when it can be.
 // Inert outside the multi-agent mode : nothing is lent, read nor written for any other mission.
 import { readConfined, writeConfined } from '../policy-engine/files.js';
-import { CARNET_SERVER, CARNET_TOOLS } from './delegation-rule.js';
+import { CARNET_SERVER, CARNET_TOOLS, CARNET_TOOLS_SANS_LECONS } from './delegation-rule.js';
+import { normaliserEcho } from './lecons.js'; // swarm-15
 
 export const CARNET_MAX_NOTES = 200;
 export const CARNET_READ_LIMIT = 50;
@@ -147,6 +148,10 @@ export class Carnet {
           },
           { name: 'RELAY_APPROVAL_TOKEN', value: token },
           { name: 'RELAY_GATEWAY_TOOLS', value: 'carnet' },
+          // swarm-15 : the gateway is a process of its own : the setting reaches it only here.
+          ...(this.delegation.leconsOn === false
+            ? [{ name: 'AGENT_PLATFORM_LECONS', value: '0' }]
+            : []),
         ],
       },
     ];
@@ -156,7 +161,10 @@ export class Carnet {
     const mother = this.delegation.lent ? this.motherOf(run) : null;
     if (!mother)
       return { status: 403, body: { error: 'Carnet d’équipe non prêté à cette mission' } };
-    const tool = CARNET_TOOLS[body.tool];
+    // swarm-15 : AGENT_PLATFORM_LECONS=0 : the schema of before (no `durable`).
+    const tool = (this.delegation.leconsOn === false ? CARNET_TOOLS_SANS_LECONS : CARNET_TOOLS)[
+      body.tool
+    ];
     const parsed = tool.schema.safeParse(body.args ?? {});
     if (!parsed.success)
       return {
@@ -183,20 +191,31 @@ export class Carnet {
       };
     }
   }
-  note(run, mother, { texte, categorie }) {
+  note(run, mother, { texte, categorie, durable }) {
     const book = this.book(mother);
+    const chief = !run.famille;
+    // swarm-15 : the same text (lowercase, spaces collapsed) already noted by the same author is not
+    // copied again : its rank is given back, nothing is written.
+    const auteur = chief ? CHIEF_AUTHOR : (run.famille.titre ?? run.title ?? run.id);
+    // AGENT_PLATFORM_LECONS=0 : the notebook of before (the same note is copied again).
+    const same =
+      this.delegation.leconsOn !== false &&
+      book.notes.find(
+        (kept) =>
+          kept.auteur === auteur && normaliserEcho(kept.texte ?? '') === normaliserEcho(texte),
+      );
+    if (same) return { n: same.n, total: book.notes.length, deja: true };
     if (book.notes.length >= CARNET_MAX_NOTES)
       throw fail(
         'carnet_plein',
         `Le carnet de l’équipe est plein (${CARNET_MAX_NOTES} notes) : aucune note de plus.`,
       );
-    const chief = !run.famille;
     // equipe-01 (intégration) : lot E1 stores the role's name on the row (famille.role, a string) ;
     // famille.role.nom is the shape given in the prompt.
     const role = chief ? null : (run.famille?.role?.nom ?? run.famille?.role);
     const note = {
       n: book.notes.length + 1,
-      auteur: chief ? CHIEF_AUTHOR : (run.famille.titre ?? run.title ?? run.id),
+      auteur,
       ...(typeof role === 'string' && role ? { role } : {}),
       categorie,
       texte,
@@ -217,7 +236,13 @@ export class Carnet {
       this.store.event(mother.id, 'carnet_note', { n: note.n, categorie, chef: chief });
     } else this.store.event(mother.id, 'carnet_note', note);
     this.mirror(mother, book.notes);
-    return { n: note.n, total: book.notes.length };
+    // swarm-15 : `durable` also keeps the note as a lesson (methode, piege, decision) ; its outcome is
+    // joined, a refusal of the lesson never refuses the note (rule of swarm).
+    const lecon =
+      durable === true && typeof this.delegation.garderLecon === 'function'
+        ? this.delegation.garderLecon(run, mother, { texte, categorie, auteur })
+        : null;
+    return { n: note.n, total: book.notes.length, ...(lecon ? { lecon } : {}) };
   }
   read(mother, { depuis }) {
     const { notes } = this.book(mother);

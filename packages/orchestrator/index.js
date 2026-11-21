@@ -831,7 +831,7 @@ export class Orchestrator {
     if (leftOut)
       v.packNote = {
         pack: leftOut.id,
-        text: `Pack reconnu : ${leftOut.name}. Non retenu : son Skill (${leftOut.id}) n’est pas installé ou pas approuvé sur cette base. Pour l’avoir : importez-le et approuvez-le dans le menu Skills.`,
+        text: `Pack reconnu : ${leftOut.name}. Non retenu : son Skill (${leftOut.id}) n’est pas installé ou pas approuvé sur cette base, ou il est désactivé ou modifié. Pour l’avoir : importez-le et approuvez-le dans le menu Skills, ou réactivez-le s’il est désactivé.`,
       };
     if (v.workspace) this.career.path();
     // generique-01 (G1) : the chosen pack is kept when it has a path of its own — a Skill manifest
@@ -869,10 +869,18 @@ export class Orchestrator {
     } catch (error) {
       // sans-skill-01 : a Skill asked for and not served : the refusal says which one and what to do.
       const missing = wanted.find((id) => this.skills.serves?.(id) === false);
-      if (!missing || !/^Skill (inconnu|désactivé)/.test(error.message)) throw error;
-      throw new Error(
-        `${error.message.includes(missing) ? error.message : `${error.message} : ${missing}`}. Importez-le et approuvez-le dans le menu Skills, ou lancez la mission sans Skill.`,
-      );
+      if (missing === undefined || !/^Skill (inconnu|désactivé)/.test(error.message)) throw error;
+      // Relecture : the id is quoted only with the shape of a registry id (bounded, one line) ; a
+      // Skill shipped with a pack is installed, never imported.
+      const named = /^[a-z0-9][a-z0-9-]{0,63}$/.test(missing);
+      const head =
+        !named || error.message.endsWith(` : ${missing}`)
+          ? error.message
+          : `${error.message} : ${missing}`;
+      const advice = this.skills.bundled?.(missing)
+        ? 'Installez-le ou réactivez-le dans le menu Skills, ou lancez la mission sans Skill.'
+        : `${/^Skill désactivé/.test(error.message) ? 'Réactivez-le s’il est désactivé. ' : ''}Importez-le et approuvez-le dans le menu Skills, ou lancez la mission sans Skill.`;
+      throw new Error(`${head}. ${advice}`);
     }
     const agents = await detectAgents();
     const probes = loadProbes(this.dataDir);
@@ -2184,6 +2192,8 @@ export class Orchestrator {
       // E63 : what the agent did with its own tools, counted only (no path, command or URL).
       value.summary += nativeActions.line();
       value.summary += nativeSubagentsOf(nativeActions, plan.agent).line();
+      // sans-skill-01 : the pack recognised and left out by plan(), a line for the owner.
+      if (run.packNote?.text) value.summary += '\n' + run.packNote.text;
       // bilan-06 (E51) : what the pack says was not reached. Not when the owner was asked and did
       // not answer (declined or expired question): the agent stopped on that, not on the work.
       // Relecture de nuit : every question of the mission counts, a form as well (E60).

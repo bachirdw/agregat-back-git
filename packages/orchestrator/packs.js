@@ -135,8 +135,7 @@ export function getPack(id, objective = '', selectedSkills = [], { exclude = [] 
             pack.skillManifest && selectSkillIntents(objective, [pack.skillManifest]).length,
         ) ??
         candidates.find((p) => p.keywords.some((k) => objective.toLowerCase().includes(k))) ??
-        candidates[0] ??
-        packs[0])
+        candidates[0])
       : packs.find((p) => p.id === id);
   if (!p) throw new Error('Domain Pack inconnu');
   return p;

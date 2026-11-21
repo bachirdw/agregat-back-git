@@ -4,6 +4,25 @@
 Elle complète `passation-swarm-21-11.md` (méthode d'une vague, parties 6 à 9) et `passation-swarm-20-11.md` (règles
 permanentes, parties 5, 9, 11). Détail heure par heure : `journal-20-11.md`, blocs « 21/11 ». Faits constatés par commande.
 
+## 0. Mise à jour du 21/11 à 11:20 (session du matin ; détail : `journal-20-11.md`, blocs « 21/11, 07:57 » et suivants)
+- **Lots swarm-14, 16 et 15 intégrés** dans `swarm-20-11`, tête **`35af485`** (16 commits après `e7f4964`). Suite complète
+  sur cette tête (arbre identique `485813e`, 11:02 → 11:15) : **1 923 unitaires, 1 920 réussis, 0 échec, 2 ignorés, 1 « à
+  faire » ; Chrome 265/265 ; check 0 ; format 0**. Reste le lot 17 (décision du propriétaire). Rien de fusionné ni poussé.
+- **API 4317 relancée à 11:16 sur `35af485`** (arbre figé `agregat-back-swarm-essai`, même script, même base `.data`).
+  Interface 5179 non touchée. Un autre agent s'occupe du nouveau front (panneau d'activité) : le manager reste sur le back.
+- Arbres : lots dans `agregat-back-swarm-14`, `-15`, `-16` ; assemblage dans `agregat-back-swarm-integ` (branche
+  `swarm-integ-21-11`, même contenu que la tête intégrée).
+- **À valider par le propriétaire (lot 16)** : les motifs de niveaux (premier profil `haiku` / `sonnet` / `opus[1m]` ;
+  deuxième `gpt-6-luna` / `gpt-6.1-terra` / `gpt-6.1-sol`) et le changement visible : un membre qui prend un rôle de la
+  plateforme ne prend plus d'office le modèle du chef (chercheur, rédacteur, vérificateur : niveau standard ;
+  développeur : niveau fort).
+- **Non vu en réel** : les lots 14, 15 et 16 (aucune mission réelle jouée ce matin : accord non redonné).
+- **Skills** : vision du propriétaire (mémoire `skills-as-plugins-vision`), recherche `skills-marketing-21-11.md`, état de
+  l'import relevé au journal. Trois questions posées à 09:33, sans réponse : choix des dépôts (`agency-agents` +
+  `marketingskills`), quand coder un lot « import en une commande », si choisir un Skill d'équipe vaut accord d'équipe.
+- Tâches programmées : veille horaire `trig_014pCJU73T7Afu4SB2yTLEhj` **désactivée** à 11:17 (lots finis).
+- Défaut neuf : E159 (trois tests de délai instables sous charge).
+
 ## 1. État
 | Quoi | Où | État |
 |---|---|---|

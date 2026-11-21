@@ -611,3 +611,83 @@ et Codex) attend l'accord du propriétaire : non joué.
   parallèle : **copieur swarm-14** (arbre `agregat-back-swarm-14`, base `e7f4964`) ; **recherche web** des Skills
   marketing (rendu attendu : `reports/skills-marketing-21-11.md`, lecture seule, rien d'installé) ; **lecteur** du code
   d'import des Skills de Relay (lecture seule, `agregat-back-swarm`).
+
+## 21/11, 09:25 → 10:00 Recherche Skills rendue ; lots 14, 15 et 16 menés en parallèle (demande du propriétaire)
+- Lecture du code d'import (sous-agent, lecture seule) : `POST /api/skills/import` accepte déjà un lien GitHub complet
+  (clone sans hooks, quarantaine, revue par empreinte, installation, activation : quatre appels) ; format `SKILL.md` lu tel
+  quel (limites 256 Ko par fichier, 2 Mo au total, scripts jamais exportés) ; un Skill importé ne peut pas fournir de
+  rôles (`roles.js` ne lit que les packs) ; `multiAgent` ne s'allume que par le champ de la requête.
+- Recherche GitHub (sous-agent, web en lecture seule, rien de cloné) : `reports/skills-marketing-21-11.md`, 9 candidats.
+  Recommandation dite au propriétaire à 09:33 : rôles `msitarzewski/agency-agents` + méthode
+  `coreyhaines31/marketingskills` (MIT tous deux), veille `mvanhorn/last30days-skill` à tester à part. **Trois questions
+  posées, sans réponse à 10:00** : le choix des dépôts, quand coder un lot « import en une commande », si choisir un
+  Skill d'équipe vaut accord pour monter l'équipe. Rien n'est téléchargé ni codé de ce côté.
+- 09:38, le propriétaire : « j'aimerais que ça aille plus rapide », d'autres agents en parallèle. **Décision du manager,
+  écart au plan** (qui voulait 14, 15, 16 l'un après l'autre) : le lot 16 part en entier en parallèle du 14 (dans
+  `delegation.js`, il ne touche que `launch()` et `agents()`, le 14 touche `ended()`, `doneOf()`, `wait()`,
+  `familyBilan()`) ; le lot 15, qui partage `ended()` et `familyBilan()` avec le 14, part du code du lot 14 dès son rendu.
+  Ordre d'intégration prévu : 14, 16, 15. Une seule suite complète par lot (dans l'arbre du lot mis à jour, puis
+  intégration à arbre identique).
+- **swarm-14** : copieur `15178ef` (les deux adaptateurs rendent un `usage` par tour : pas de double compte ; coût cumulé
+  par session chez un seul des deux) ; codeur `e237dbe`, `49ee8f3` : 10 / 10, phase unitaire 1 883 / 1 880 (un passage à
+  1 échec non identifié à 09:51, vert à 09:55 : à surveiller). Diffs lus par le manager : moteur = 7 lignes gardées en
+  tête du `finally` ; `delegation.js` = 28 lignes additives. Point confié au relecteur : `wait()` crée l'enregistrement
+  de famille plus tôt. Relecteur lancé à 09:57.
+- **swarm-16** : copieur `f395c75` ; modèles annoncés relevés par le manager dans `agent-probes.json` de l'arbre d'essai
+  (lecture seule) et donnés au codeur ; codeur lancé à 09:53 (arbre `agregat-back-swarm-16`, base `e7f4964`).
+- **swarm-15** : copieur `5c840b9` ; arbre amené sur le code du lot 14 par `cherry-pick e7f4964..49ee8f3` (tête
+  `03f3178`) ; codeur lancé à 09:59. Décisions données : chaque appel au module des leçons enveloppé ; `lecon_utile`
+  seulement pour une leçon servie (fidèle à swarm) ; outils dans les deux listes comme le plan, trois assertions de liste
+  d'outils adaptables ; pas de ligne « Leçons » sans sous-mission (limite documentée).
+
+## 21/11, 10:00 → 10:47 Lot 14 intégré ; lots 16 et 15 relus ou en relecture
+- 10:02, le propriétaire : continuer de coder jusqu'à 11:00 sans rien arrêter ; limite de la semaine à 94 % (96 % à
+  10:27), remise à zéro à 11:00 ; fenêtre de 5 h à 38 %. Filet programmé à 11:02 (`trig_01BCpdynmjR2wrg4KVYh9HQF`).
+- **swarm-14** : relecteur `f9a9f69`, `6f78923`, verdict **bon à intégrer**. Une correction (pas d'événement `usage`
+  pour un tableau), 5 tests ajoutés, 12 contrôles négatifs ; `wait()` qui crée la famille plus tôt : identique à la base
+  sur quatre cas (Bilan, API, vue, redémarrage). Laissé : attentes chevauchées additionnées ; compteur d'attente en
+  mémoire (repart de 0 pour un chef repris). Suite du manager dans l'arbre du lot, 10:14 → 10:36 (machine chargée par
+  trois agents) : Chrome 265/265, check 0, format 0, unitaires 1 888 / 1 884 avec **1 échec hors lot**
+  (`tests/workflow-run.test.js:243`, « timeout d'étape pendant initialize », test de délai). Rejoué : ce fichier seul
+  3 fois vert (18/18), puis phase unitaire entière **1 888 / 1 885, 0 échec** (10:37 → 10:45). **Intégré à 10:46**,
+  `swarm-20-11` tête **`49b7b6b`**, arbre `3e45927` identique à celui du lot.
+- **swarm-16** : codeur `6f1d1d1`, `b54398d` (13 / 13) ; relecteur `5d17f73`, verdict **bon à intégrer** : 68 scénarios
+  sans niveau rejoués contre la base, identiques ; 20 contrôles négatifs, 4 tests ajoutés. Diff de `launch()` lu par le
+  manager (choix du modèle seulement) ; point ajouté en cours de relecture (appels neufs avant les refus) : rien ne
+  lève. Motifs : premier profil `haiku` / `sonnet` / `opus[1m]`, deuxième `gpt-6-luna` / `gpt-6.1-terra` /
+  `gpt-6.1-sol` : **à valider par le propriétaire**, ainsi que le changement visible (un rôle de la plateforme ne
+  prend plus d'office le modèle de la mère). Posé sur l'arbre d'assemblage `~/Downloads/agregat-back-swarm-integ`
+  (branche `swarm-integ-21-11`, partie de `49b7b6b`), fusion automatique sans conflit, tête `0194e0a` ; suite complète
+  lancée à 10:47.
+- **swarm-15** : codeur `5cb36e1`, `510d1bd` (9 / 9 ; 2 listes d'outils du chef restées rouges en attente de décision).
+  Décisions du manager : les deux outils sont prêtés au chef (assertions adaptées par le relecteur) ; le réglage
+  `AGENT_PLATFORM_LECONS=0` coupe tout le lot, note identique comprise. Corrections du relecteur 14 apportées dans
+  l'arbre (`c3670ba`, `6737058`). Relecteur lancé à 10:28.
+- Tests instables repérés sous charge, hors lots (registre à compléter) : `tests/elicitation.test.js` « question en JSON :
+  délais suspendus pendant l'attente » (1 fois sur 3 seul, vu par le relecteur 16) ; `tests/workflow-run.test.js:243`.
+
+## 21/11, 10:47 → 11:20 Lots 16 et 15 intégrés ; API 4317 relancée ; fin de la série
+- **swarm-15** : relecteur `b36dfdc`, `2562439`, `e11e219`, `dbdd8bb`, verdict **bon à intégrer**. Corrigé : le réglage
+  `AGENT_PLATFORM_LECONS=0` ne coupait pas la note identique ni le champ `durable` (majeur, D2) ; `leconCall()` ignorait
+  `AGENT_PLATFORM_DELEGATION=0` (mineur). 26 contrôles négatifs, 9 tests ajoutés (valeurs hostiles sur les deux routes,
+  leçon hostile, 500 leçons). Laissé : lecture synchrone des leçons à chaque départ (≈ 280 ms pour 500 leçons
+  pertinentes) ; garde `servies.notees` en double. Décisions du manager : accepter les deux.
+- Suite complète sur l'assemblage **14 + 16** (`0194e0a`, arbre `3b5edc8`), 10:46 → 11:01 : 1 905 / 1 902, 0 échec ;
+  Chrome 265/265 ; check 0 ; format 0. **Lot 16 intégré à 11:01**, `swarm-20-11` tête `4252aa1`, arbre identique.
+- Lot 15 posé sur l'assemblage par `cherry-pick` de ses 7 commits : fusion automatique, **aucun conflit** (le bloc
+  d'imports de `delegation.js` relu par le manager : les blocs des lots 15 et 16 se suivent) ; tests des trois lots
+  ensemble 50 / 50. Suite complète sur **14 + 16 + 15** (`d401998`, arbre `485813e`), 11:02 → 11:15 : **1 923 unitaires,
+  1 920 réussis, 0 échec, 2 ignorés, 1 « à faire » ; Chrome 265/265 ; check 0 ; format 0**. **Lot 15 intégré à 11:16**,
+  `swarm-20-11` tête **`35af485`**, arbre identique.
+- 11:01, le propriétaire : finir les lots ; un nouveau front (panneau d'activité) est arrivé, un autre agent s'en
+  occupe ; le manager reste sur le back et dit seulement ce dont le front a besoin. Réponse : rien d'obligatoire (tout
+  est additif) ; champs disponibles : `usage` d'un membre (`?equipe=1`) et événement `usage`, `niveau`, routes
+  `/api/lecons`.
+- 11:16 : aucune mission en cours sur 4317 (30 missions, toutes finies) ; **API 4317 arrêtée puis relancée sur
+  `35af485`** (arbre figé remis sur cette tête, même script `api-swarm-essai.sh`, même `.data`) ; `GET /api/catalog` :
+  codex `pret`, claude `pret`, gemini et opencode `non_installe`, fixture `simule`.
+- 11:17 : veille horaire désactivée. Registre : E159. Passation du matin complétée (partie 0).
+- Consommation de la matinée : fenêtre de 5 h de 0 % (09:22) à 38 % (10:27) ; limite de la semaine de 91 % à 96 % avant
+  sa remise à zéro de 11:00. Onze sous-agents Opus (3 copieurs, 3 codeurs, 3 relecteurs, 1 chercheur web, 1 lecteur).
+- **Non fait** : aucune mission réelle (lots 14 à 16 non vus en réel) ; lot 17 ; lot « import de Skill en une commande »
+  (attend les réponses du propriétaire).

@@ -22,6 +22,12 @@ permanentes, parties 5, 9, 11). Détail heure par heure : `journal-20-11.md`, bl
   `marketingskills`), quand coder un lot « import en une commande », si choisir un Skill d'équipe vaut accord d'équipe.
 - Tâches programmées : veille horaire `trig_014pCJU73T7Afu4SB2yTLEhj` **désactivée** à 11:17 (lots finis).
 - Défaut neuf : E159 (trois tests de délai instables sous charge).
+- **14:20, correctif e160-01 intégré** (E160 : mission en mode workflow bloquée sur une étape outil « incertaine ») :
+  `swarm-20-11` tête **`964bf45`**, suite complète verte (1 942 / 1 939, Chrome 265/265) ; API 4317 relancée dessus. Le
+  propriétaire essaie par l'**API 4310** (`~/Downloads/agregat-back-reponse-04`, branche `reponse-04-format` d'un autre
+  agent, qui a fusionné `swarm-20-11` à `35af485`) et le **front 5173** : ils n'ont pas ce correctif tant que cette
+  branche ne reprend pas `swarm-20-11`. Reste ouvert : la démonstration fictive du pack najah part avec le vrai
+  navigateur en mode propriétaire.
 
 ## 1. État
 | Quoi | Où | État |

@@ -691,3 +691,29 @@ et Codex) attend l'accord du propriétaire : non joué.
   sa remise à zéro de 11:00. Onze sous-agents Opus (3 copieurs, 3 codeurs, 3 relecteurs, 1 chercheur web, 1 lecteur).
 - **Non fait** : aucune mission réelle (lots 14 à 16 non vus en réel) ; lot 17 ; lot « import de Skill en une commande »
   (attend les réponses du propriétaire).
+
+## 21/11, 13:14 → 14:20 Mission bloquée du propriétaire (E160) : analyse, correctif e160-01 intégré
+- 13:14, le propriétaire : « ça fait que tourner, ça n'avance pas dans l'interface ». Constaté en lecture seule : la
+  mission n'est pas sur 4317 mais sur l'**API 4310** (arbre `~/Downloads/agregat-back-reponse-04`, branche
+  `reponse-04-format`, tête `6aa7a5c` = fusion de `swarm-20-11` par un autre agent, lancée à 11:31) et le **front 5173**
+  (`agregat-front/.claude/worktrees/bold-goldstine-171eb9`). Mission `1b5efe33` (12:45, mode workflow, pack najah,
+  démonstration fictive, agent codex) : étape `snapshot` (`browser_snapshot`, `effect: unknown`) `uncertain` sur
+  « Résolution DNS impossible : jobs.example.test », recherche réussie, quatre étapes `pending`, `sessionId` nul :
+  **Codex n'a jamais été appelé**. Registre : E160. Rien touché à 4310. Mission annulée ensuite par le propriétaire.
+- 13:20, son accord (« Oui corrige le défaut côté back »). Lot **e160-01** dans `~/Downloads/agregat-back-swarm-e160`
+  (branche `e160-01`, base `35af485`), codeur puis relecteur Opus :
+  - codeur `6fa92a1` : marque existante `actionDone: false` posée par `assertUrl(raw, { beforeAction: true })` au premier
+    contrôle de `execute()` (passerelle du navigateur), portée par `_meta` dans la passerelle d'outils pour les seuls
+    appels de l'exécuteur de workflow (`RELAY_TOOL_CALL_PREMETERED=1`), reprise par `workflow-run.js` ; le moteur met
+    `failed` une étape non rejouable, non agent, marquée ; l'expiration des étapes `uncertain` vaut pour tous les genres.
+    13 tests ; diff lu par le manager (54 lignes de code).
+  - relecteur `0706160`, `a19c11c`, verdict **bon à intégrer** : tous les endroits qui posent la marque précèdent
+    l'action (politique, passerelle du navigateur, `meter.js`, `approval.js`, `career-ops/sends.js`) ; ancien et nouveau
+    moteur comparés sur 24 scénarios ; 13 contrôles négatifs ; 6 tests ajoutés ; aucun code changé. Effet accepté : le
+    `retry` humain d'un e-mail déjà journalisé finit `failed` au lieu de `uncertain` (rien ne part).
+- Suite complète du manager dans l'arbre du lot, 14:02 → 14:16 : **1 942 unitaires, 1 939 réussis, 0 échec ; Chrome
+  265/265 ; check 0 ; format 0**. **Intégré à 14:17**, `swarm-20-11` tête **`964bf45`**, arbre `160be6a` identique.
+  API 4317 relancée sur `964bf45` (aucune mission en cours).
+- Cause du vrai navigateur pour une démonstration fictive (lue par le codeur) : `plan()` change `browser: 'auto'` en
+  `playwriter` en mode propriétaire ; `dataMode: fixture` du pack najah n'impose pas le navigateur simulé. **Non corrigé**,
+  à proposer au propriétaire.

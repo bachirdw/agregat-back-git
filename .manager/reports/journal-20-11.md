@@ -717,3 +717,24 @@ et Codex) attend l'accord du propriétaire : non joué.
 - Cause du vrai navigateur pour une démonstration fictive (lue par le codeur) : `plan()` change `browser: 'auto'` en
   `playwriter` en mode propriétaire ; `dataMode: fixture` du pack najah n'impose pas le navigateur simulé. **Non corrigé**,
   à proposer au propriétaire.
+
+## 21/11, 14:20 → 15:30 « Skill inconnu », correctif e160 sur 4310, missions réelles du propriétaire, envoi sur GitHub
+- 14:20, capture du propriétaire (interface 5173) : « Skill inconnu » sur la démonstration sans Skill choisi (E162).
+  14:25 : correctif e160-01 repris sur `reponse-04-format` (`480ecc4`, 65 tests ciblés verts) et **API 4310 relancée**
+  (même commande, `nohup`) ; session « Panneau Activité » prévenue. 14:35:55 : sur la démonstration reprise, « réessayer »
+  → refus avant action → échec net en 1 s : **le correctif vu en vrai**.
+- Lot **sans-skill-01** (`~/Downloads/agregat-back-swarm-sansskill`, base `964bf45`) : codeur `d02e2d3`, `315243b` ;
+  relecture par workflow (3 relecteurs en lecture seule + 1 correcteur) `bb2e887`, `5de5a01`, verdict **bon à intégrer** ;
+  phase unitaire 1 968 / 1 965 ; 384 plans comparés à la base. Décisions du manager : le mode Équipe ne compte pas comme
+  un choix de Skill ; la note peut revenir à un agent repris (historique). **Suite complète et passage sur 4310 en
+  attente de la fin de la mission en cours** (règle E23).
+- Guetteur Sonnet en lecture seule sur 4310 (script `guet-relay.py` du bloc-notes), lancé à 14:35 à la demande du
+  propriétaire.
+- Mission `c1d48413` (14:36, Claude seul, 10 min 24 s, `completed`) : vérifiée par trois vérificateurs : contraintes
+  tenues, affirmations enjolivées (E164), lecture d'autres missions (E163). Lot 14 vu en vrai (3,49 USD annoncés).
+- Mission `bd54ee7a` (14:53, équipe) : 2 chercheurs Claude `sonnet` (3 min), vérificateur **Codex** (7 min, verdict
+  `a_corriger`, 7 points) ; **lot 15 vu en vrai** (4 leçons gardées, `lecon_gardee`) ; lot 14 par membre ; lot 10 vu
+  (`resultat_rendu`) ; lot 16 **non** exercé (E166) ; doublon « proche » sur deux réseaux (E158 de nouveau) ; fin par une
+  question facultative, mission en attente (E165). Abonnement Codex : marche.
+- Le propriétaire a demandé (15:20) un commit et un envoi sur GitHub du front et du back « dans l'état », et de
+  continuer à récolter les erreurs au registre : E161 à E170 ajoutés.
